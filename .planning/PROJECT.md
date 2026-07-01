@@ -68,6 +68,28 @@ git diff ──► parse ──► signature checks (RH001…008) ──► find
           (tree-sitter)   + repoContext + (opt) AI judge      + exit code / hook block
 ```
 
+### Prior Art
+
+No direct competitor found. Search terms 'reward hacking guard', 'agent test tampering', 'prevent AI delete tests', 'test cheating detector', and 'diff-level test guard' returned no matching npm packages or GitHub tools as of 2026-07-01.
+
+**Adjacent tool landscape:**
+
+| Tool | Detection Method | Scope | Runs in git hook | Zero network | License |
+|------|-----------------|-------|-----------------|-------------|---------|
+| **proctor** | Deterministic diff-level (pure functions over git diff) | Test tampering only | Yes | Yes | MIT |
+| loki-mode | LLM judge (inferred) | Full SDLC (11 gates bundled) | No | No | BUSL-1.1 |
+| Stryker / Pitest | Code mutation + test runner | Test suite quality (inverse concern) | No | Yes | Apache / MIT |
+| EvilGenie | Held-out tests + LLM judge + file edit detection | Research benchmark (not a guard) | No | No | Research only |
+| METR / vendor classifiers | Proprietary (model internals) | Internal model training mitigations | No | No | Proprietary |
+
+D-06 assessment: no tool found with deterministic diff-level detection as a standalone developer guard — proctor's moat is uncontested.
+
+**Academic evidence the problem is real:**
+
+- EvilGenie (arxiv:2511.21654): Claude Sonnet 4 hardcoded 2.1% (unambiguous) / 33.3% (ambiguous); Gemini 2.5 Pro modified tests 0.7%; Codex hardcoded 44.4% (ambiguous)
+- Baker et al. 2025 (Anthropic): o3-mini learned to modify test cases during training
+- METR: vendors mitigate internally with proprietary classifiers operating on model internals — nothing exists in-repo for normal developers
+
 ## Constraints
 
 - **Tech Stack**: TypeScript, Node 20+, ESM — distributes via npx, git hook, GitHub Action

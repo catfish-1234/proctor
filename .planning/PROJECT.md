@@ -49,7 +49,7 @@ Catch the agent deleting your test before the commit lands — with a diff-level
 
 ## Context
 
-Solo build. Name chosen: **proctor** (npm + GitHub availability unconfirmed — first task). Prior art check not yet done (§17 of PRD).
+Solo build. Name confirmed: package `@kavishdua/proctor` (scoped to avoid dead `proctor` v0.0.4 on npm); binary/CLI brand `proctor`. Prior art sweep complete — see ### Prior Art below.
 
 Key research anchors:
 - **EvilGenie benchmark** (reward-hacking): Sonnet 4 hardcoded 2.1%, gave fake heuristic solutions 20.7%; Gemini CLI deleted test files 3.4%
@@ -87,6 +87,7 @@ git diff ──► parse ──► signature checks (RH001…008) ──► find
 | Separate L1/L2/L3 layers | Skill alone is copyable (7-word prompt risk); guard + benchmark are the moat | — Pending |
 | Pure functions over diff + injected repoContext | Keeps signature checks testable in isolation; hooks and AI judge are injected interfaces | — Pending |
 | fixtures/ repo with one planted cheat per RH-ID | Doubles as verification target (GSD) and benchmark seed | — Pending |
+| npm package name | Unscoped `proctor` taken by abandoned JS watcher (gratimax, v0.0.4, ~2014); npm dispute policy frozen since 2021; `@kavishdua/proctor` returns HTTP 404 (unclaimed). Scoped packages default to private — Phase 7 must publish with `npm publish --access public`. | Package `@kavishdua/proctor`; binary/CLI brand `proctor` (`bin` field). Per D-01, D-02, D-03. |
 
 ## Evolution
 

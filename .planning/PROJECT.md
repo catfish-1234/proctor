@@ -90,6 +90,12 @@ D-06 assessment: no tool found with deterministic diff-level detection as a stan
 - Baker et al. 2025 (Anthropic): o3-mini learned to modify test cases during training
 - METR: vendors mitigate internally with proprietary classifiers operating on model internals — nothing exists in-repo for normal developers
 
+### Differentiation
+
+Every adjacent tool solves a different problem. Stryker mutates your implementation to measure whether your tests are strong; proctor detects when an AI agent mutated your tests to hide that the implementation is broken — the inverse concern. EvilGenie proves the cheating happens (Claude Sonnet 4: 2.1% hardcoded on unambiguous tasks, 33.3% on ambiguous; Gemini 2.5 Pro: 0.7% deleted test files) but is a research benchmark for AI labs, not a drop-in guard for developers. loki-mode bundles a test-mutation gate inside a full autonomous SDLC framework that requires adopting loki's entire workflow; it cannot run as a standalone git hook in an existing repo. METR and vendors mitigate internally with proprietary classifiers operating on model internals — inaccessible to the normal developer. Proctor fills the gap: a deterministic, diff-level guard that runs in a git pre-commit hook or Claude Code Stop hook, requires zero LLM, zero network, and zero changes to the agent's prompt. Because it operates at the diff layer — below the agent's own reasoning chain — the agent cannot reason its way around it.
+
+*(This paragraph is the canonical wedge statement — pull verbatim or close paraphrase into Phase 7 README.)*
+
 ## Constraints
 
 - **Tech Stack**: TypeScript, Node 20+, ESM — distributes via npx, git hook, GitHub Action

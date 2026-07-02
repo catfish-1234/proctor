@@ -1,0 +1,47 @@
+{
+  "name": "@kavishdua/proctor",
+  "version": "0.1.0",
+  "description": "Catch AI agents gaming their test suites",
+  "type": "module",
+  "bin": {
+    "proctor": "./dist/cli.js"
+  },
+  "main": "./dist/cli.js",
+  "exports": {
+    ".": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "proctor.schema.json"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "license": "MIT",
+  "keywords": [
+    "proctor",
+    "ai",
+    "testing",
+    "git-hook",
+    "claude"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "commander": "^13.1.0",
+    "fast-glob": "3.3.3",
+    "micromatch": "*",
+    "parse-diff": "0.12.0",
+    "picocolors": "1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.0",
+    "tsup": "8.5.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.9"
+  }
+}

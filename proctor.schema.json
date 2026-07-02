@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/kavishdua/proctor/proctor.schema.json",
+  "title": "Proctor Config",
+  "description": "Configuration for proctor — AI agent test-tampering guard",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^RH\\d{3}$" },
+      "description": "Rule IDs to enable. Defaults to all rules.",
+      "default": ["RH001","RH002","RH003","RH004","RH005","RH006","RH007","RH008"]
+    },
+    "testPathGlobs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Glob patterns identifying test files.",
+      "default": ["**/*.test.ts","**/*.test.js","**/*.spec.ts","**/*.spec.js","test/**/*","tests/**/*","__tests__/**/*"]
+    },
+    "severity": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "enum": ["error","warn","info"] },
+      "description": "Per-rule severity overrides. Keys are rule IDs (e.g. 'RH006')."
+    },
+    "ignorePatterns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "File glob patterns to ignore entirely.",
+      "default": []
+    },
+    "approvedTestChanges": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Allowlisted test-change descriptions (inline suppression backup).",
+      "default": []
+    }
+  },
+  "additionalProperties": false
+}

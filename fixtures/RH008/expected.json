@@ -1,0 +1,10 @@
+[
+  {
+    "ruleId": "RH008",
+    "severity": "warn",
+    "file": "calculator.test.ts",
+    "line": 17,
+    "message": "Tautological test: asserts a value computed by the code under test against itself.",
+    "remediation": "Replace with an assertion against a known expected value."
+  }
+]

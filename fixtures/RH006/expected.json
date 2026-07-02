@@ -1,0 +1,10 @@
+[
+  {
+    "ruleId": "RH006",
+    "severity": "warn",
+    "file": "__snapshots__/app.snap",
+    "line": 3,
+    "message": "Snapshot file rewritten without a stated reason in the commit message.",
+    "remediation": "Add a reason to the commit message or verify the snapshot update is intentional."
+  }
+]

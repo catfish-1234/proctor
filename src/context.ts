@@ -45,5 +45,13 @@ export async function buildRepoContext(cwd: string): Promise<RepoContext> {
   const isTestFile = (path: string): boolean =>
     micromatch.isMatch(path.replace(/\\/g, '/'), testPathGlobs);
 
-  return { cwd, testPathGlobs, testFiles, enabled, isTestFile };
+  const getLanguage = (filePath: string): 'ts' | 'js' | 'python' | 'unknown' => {
+    const ext = filePath.split('.').pop()?.toLowerCase();
+    if (ext === 'ts' || ext === 'tsx') return 'ts';
+    if (ext === 'js' || ext === 'jsx' || ext === 'mjs' || ext === 'cjs') return 'js';
+    if (ext === 'py') return 'python';
+    return 'unknown';
+  };
+
+  return { cwd, testPathGlobs, testFiles, enabled, isTestFile, getLanguage };
 }

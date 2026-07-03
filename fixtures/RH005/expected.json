@@ -1,0 +1,10 @@
+[
+  {
+    "ruleId": "RH005",
+    "severity": "error",
+    "file": "calculator.ts",
+    "line": 1,
+    "message": "Function body gutted: replaced with return undefined while tests assert richer behavior.",
+    "remediation": "Restore the real implementation logic."
+  }
+]

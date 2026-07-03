@@ -15,6 +15,7 @@ export interface RepoContext {
   testFiles: string[];            // resolved from globs
   enabled: string[];              // enabled rule IDs
   isTestFile: (path: string) => boolean;
+  getLanguage: (filePath: string) => 'ts' | 'js' | 'python' | 'unknown';
 }
 
 export interface ProctorConfig {

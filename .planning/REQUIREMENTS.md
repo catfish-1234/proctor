@@ -36,14 +36,14 @@ Source: PRD §5–14, research synthesis
 
 ### CLI Surface (CLI)
 
-- [ ] **CLI-01**: `proctor check [path]` command — analyzes working diff of `path` (default: cwd); prints findings with file:line, rule ID, severity, and one-sentence remediation
-- [ ] **CLI-02**: `proctor check --staged` flag — analyzes only staged changes (passes `--staged` to `git diff`)
-- [ ] **CLI-03**: `proctor check --ci` flag — suppresses non-error output, exits nonzero only on severity=error findings
+- [x] **CLI-01**: `proctor check [path]` command — analyzes working diff of `path` (default: cwd); prints findings with file:line, rule ID, severity, and one-sentence remediation
+- [x] **CLI-02**: `proctor check --staged` flag — analyzes only staged changes (passes `--staged` to `git diff`)
+- [x] **CLI-03**: `proctor check --ci` flag — suppresses non-error output, exits nonzero only on severity=error findings
 - [ ] **CLI-04**: `proctor check --json` flag — outputs `Finding[]` as JSON to stdout; pretty output to stderr
 - [ ] **CLI-05**: `proctor check --sarif` flag — outputs SARIF 2.1.0 JSON to stdout (minimum: `$schema`, `version`, `runs[].tool.driver.{name,rules[]}`, `runs[].results[].{ruleId,message.text,locations[],partialFingerprints}`)
 - [ ] **CLI-06**: `proctor check --ai` flag — enables LLM judge for RH004/005/008; offline mode behavior identical to no-flag mode
-- [ ] **CLI-07**: Exit codes enforced: 0 = clean, 1 = warnings only, 2 = any error-severity finding
-- [ ] **CLI-08**: `proctor install-hook` command — installs git pre-commit hook; detects husky presence and writes to `.husky/pre-commit` vs `.git/hooks/pre-commit`; uses `git add --chmod=+x` (not `chmod +x`) for Windows compatibility
+- [x] **CLI-07**: Exit codes enforced: 0 = clean, 1 = warnings only, 2 = any error-severity finding
+- [x] **CLI-08**: `proctor install-hook` command — installs git pre-commit hook; detects husky presence and writes to `.husky/pre-commit` vs `.git/hooks/pre-commit`; uses `git add --chmod=+x` (not `chmod +x`) for Windows compatibility
 - [ ] **CLI-09**: Inline suppression supported — `# proctor-ignore: RH006 reason: intentional redesign` on the line above or beside a finding location suppresses that rule for that line; reason is required
 - [ ] **CLI-10**: `proctor.config.json` config file supported — fields: `enabled` (rule IDs), `severity` overrides, `testPathGlobs`, `ignorePatterns`, `approvedTestChanges` allowlist
 

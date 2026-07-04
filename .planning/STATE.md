@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready_to_plan
-last_updated: "2026-07-04T02:45:26.915Z"
+last_updated: "2026-07-04T02:49:15.835Z"
 progress:
   total_phases: 8
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 11
-  completed_plans: 10
-  percent: 25
+  completed_plans: 11
+  percent: 38
 ---
 
 # Project State — proctor
@@ -19,7 +19,7 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Catch the agent deleting your test before the commit lands — with a diff-level guard the agent's own reasoning can't bypass.
-**Current focus:** Phase 2 — core rules + cli
+**Current focus:** Phase 3 — Claude Code Stop Hook
 
 ## Phases
 
@@ -36,7 +36,7 @@ See: .planning/PROJECT.md
 
 ## Current Phase
 
-Phase 2: Core Rules + CLI — Planned (5 plans, 3 waves, ready to execute)
+Phase 2: Core Rules + CLI — Complete (5/5 plans done)
 
 ## Performance Metrics
 
@@ -79,3 +79,4 @@ Phase 2: Core Rules + CLI — Planned (5 plans, 3 waves, ready to execute)
 | 2026-07-04 | 02 | 02 | RH001 (test deletion 3 paths) + RH002 (assertion weakening) signatures | d8deb80, 6f72b7a |
 | 2026-07-03 | 02 | 01 | RepoContext CLI-10 fields + pretty/json reporters with tests | 9714563 |
 | 2026-07-03 | 02 | 04 | Engine dispatcher: runChecks, suppression, ignore patterns, severity overrides | 5c311e2, 694c125, a6a35a3 |
+| 2026-07-04 | 02 | 05 | CLI wiring: check pipeline + install-hook action + smoke tests | 665ed8f |

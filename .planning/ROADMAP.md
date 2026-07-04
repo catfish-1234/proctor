@@ -10,7 +10,7 @@ Build order: horizontal layers in dependency order — each phase delivers one c
 
 - [x] **Phase 0: Prior Art & Name Resolution** — Resolve npm name conflict and confirm wedge before writing code
 - [x] **Phase 1: Foundation** — TypeScript ESM project scaffolded with diff parser, types, and fixtures (completed 2026-07-03)
-- [ ] **Phase 2: Core Rules + CLI** — First working tool: RH001/002/003/007, `proctor check`, git hook, inline suppression
+- [x] **Phase 2: Core Rules + CLI** — First working tool: RH001/002/003/007, `proctor check`, git hook, inline suppression (completed 2026-07-04)
 - [ ] **Phase 3: Claude Code Stop Hook** — Stop hook blocks agent turns on error-severity findings, exits 2
 - [ ] **Phase 4: AST Layer + Subtle Rules** — RH004/005/006/008 with AST-backed detection and `--ai` flag
 - [ ] **Phase 5: SARIF + GitHub Action** — CI integration via SARIF output and `action.yml`
@@ -64,7 +64,7 @@ Plans:
 - [x] 02-02-PLAN.md — RH001 (test deletion) + RH002 (weakened assertions) signatures + tests
 - [x] 02-03-PLAN.md — RH003 (skip patterns) + RH007 (config exclusions) signatures + tests
 - [x] 02-04-PLAN.md — Engine dispatcher: runChecks + inline suppression (CLI-09) + signatures/index.ts
-- [ ] 02-05-PLAN.md — CLI wiring: check action + install-hook action + smoke tests
+- [x] 02-05-PLAN.md — CLI wiring: check action + install-hook action + smoke tests
 
 ### Phase 3: Claude Code Stop Hook
 **Goal**: The Claude Code Stop hook blocks an agent turn on any error-severity finding by exiting 2, never 1
@@ -126,7 +126,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 0. Prior Art & Name Resolution | 1/1 | Complete   | 2026-07-01 |
 | 1. Foundation | 5/5 | Complete    | 2026-07-03 |
-| 2. Core Rules + CLI | 4/5 | In Progress|  |
+| 2. Core Rules + CLI | 5/5 | Complete    | 2026-07-04 |
 | 3. Claude Code Stop Hook | 0/? | Not started | - |
 | 4. AST Layer + Subtle Rules | 0/? | Not started | - |
 | 5. SARIF + GitHub Action | 0/? | Not started | - |

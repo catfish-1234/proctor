@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready_to_plan
-last_updated: "2026-07-04T02:40:54.658Z"
+last_updated: "2026-07-04T02:45:26.915Z"
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 11
-  completed_plans: 9
+  completed_plans: 10
   percent: 25
 ---
 
@@ -78,3 +78,4 @@ Phase 2: Core Rules + CLI — Planned (5 plans, 3 waves, ready to execute)
 | 2026-07-04 | 02 | 03 | RH003 (skip patterns) + RH007 (config exclusions) signatures | db87fcc |
 | 2026-07-04 | 02 | 02 | RH001 (test deletion 3 paths) + RH002 (assertion weakening) signatures | d8deb80, 6f72b7a |
 | 2026-07-03 | 02 | 01 | RepoContext CLI-10 fields + pretty/json reporters with tests | 9714563 |
+| 2026-07-03 | 02 | 04 | Engine dispatcher: runChecks, suppression, ignore patterns, severity overrides | 5c311e2, 694c125, a6a35a3 |

@@ -7,7 +7,7 @@ const PY_DEL = /^-\s*def test_/;
 
 function extractTestName(content: string): string {
   const m = content.match(/['"](.*?)['"]/);
-  return m ? m[1] : 'unknown';
+  return m?.[1] ?? 'unknown';
 }
 
 export function rh001(files: ParsedFile[], ctx: RepoContext): Finding[] {

@@ -16,6 +16,8 @@ export interface RepoContext {
   enabled: string[];              // enabled rule IDs
   isTestFile: (path: string) => boolean;
   getLanguage: (filePath: string) => 'ts' | 'js' | 'python' | 'unknown';
+  severity?: Record<string, Severity>;
+  ignorePatterns?: string[];
 }
 
 export interface ProctorConfig {

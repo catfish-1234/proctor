@@ -53,5 +53,5 @@ export async function buildRepoContext(cwd: string): Promise<RepoContext> {
     return 'unknown';
   };
 
-  return { cwd, testPathGlobs, testFiles, enabled, isTestFile, getLanguage };
+  return { cwd, testPathGlobs, testFiles, enabled, isTestFile, getLanguage, severity: config.severity, ignorePatterns: config.ignorePatterns };
 }

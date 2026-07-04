@@ -60,9 +60,9 @@ Plans:
   5. A `# proctor-ignore: RH003 reason: intentional` comment suppresses that finding; omitting `reason:` does NOT suppress
 **Plans**: 5 plans
 Plans:
-- [ ] 02-01-PLAN.md — Types + context extension (CLI-10), pretty reporter + json reporter (OUT-03, CLI-04)
-- [ ] 02-02-PLAN.md — RH001 (test deletion) + RH002 (weakened assertions) signatures + tests
-- [ ] 02-03-PLAN.md — RH003 (skip patterns) + RH007 (config exclusions) signatures + tests
+- [x] 02-01-PLAN.md — Types + context extension (CLI-10), pretty reporter + json reporter (OUT-03, CLI-04)
+- [x] 02-02-PLAN.md — RH001 (test deletion) + RH002 (weakened assertions) signatures + tests
+- [x] 02-03-PLAN.md — RH003 (skip patterns) + RH007 (config exclusions) signatures + tests
 - [ ] 02-04-PLAN.md — Engine dispatcher: runChecks + inline suppression (CLI-09) + signatures/index.ts
 - [ ] 02-05-PLAN.md — CLI wiring: check action + install-hook action + smoke tests
 
@@ -126,7 +126,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 0. Prior Art & Name Resolution | 1/1 | Complete   | 2026-07-01 |
 | 1. Foundation | 5/5 | Complete    | 2026-07-03 |
-| 2. Core Rules + CLI | 0/5 | In Progress | - |
+| 2. Core Rules + CLI | 3/5 | In Progress|  |
 | 3. Claude Code Stop Hook | 0/? | Not started | - |
 | 4. AST Layer + Subtle Rules | 0/? | Not started | - |
 | 5. SARIF + GitHub Action | 0/? | Not started | - |

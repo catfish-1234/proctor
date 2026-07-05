@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready_to_plan
-last_updated: "2026-07-04T02:49:15.835Z"
+last_updated: "2026-07-04T19:51:00.000Z"
 progress:
   total_phases: 8
   completed_phases: 3
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md
 | # | Name | Status | Requirements |
 |---|------|--------|--------------|
 | 0 | Prior Art & Name Resolution | ✓ Complete | PRIOR-01, PRIOR-02, PRIOR-03 |
-| 1 | Foundation | ◆ Planned (5 plans) | FOUND-01, FOUND-02, FOUND-03, FOUND-04, FOUND-05, FOUND-06 |
-| 2 | Core Rules + CLI | ◆ Planned (5 plans) | SIG-01–04, SIG-09, CLI-01–04, CLI-07–10, OUT-03 |
+| 1 | Foundation | ✓ Complete | FOUND-01, FOUND-02, FOUND-03, FOUND-04, FOUND-05, FOUND-06 |
+| 2 | Core Rules + CLI | ✓ Complete | SIG-01–04, SIG-09, CLI-01–04, CLI-07–10, OUT-03 |
 | 3 | Claude Code Stop Hook | ○ Not Started | SKILL-04, SKILL-05 |
 | 4 | AST Layer + Subtle Rules | ○ Not Started | AST-01–03, SIG-05–08, CLI-06 |
 | 5 | SARIF + GitHub Action | ○ Not Started | CLI-05, OUT-01, OUT-02 |
@@ -40,7 +40,7 @@ Phase 2: Core Rules + CLI — Complete (5/5 plans done)
 
 ## Performance Metrics
 
-- Phases completed: 0/8
+- Phases completed: 3/8
 - Requirements mapped: 47/47
 
 ## Accumulated Context

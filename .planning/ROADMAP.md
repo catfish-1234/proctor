@@ -74,7 +74,9 @@ Plans:
   1. A Claude Code session with a staged RH001 violation is blocked — the Stop hook exits 2 and the finding appears on stderr fed back to Claude
   2. A Claude Code session with a clean diff or warning-only findings proceeds without interruption (hook exits 0, never 1)
   3. `proctor install-claude-hook` writes the Stop hook entry to `.claude/settings.json`; `--global` flag writes to `~/.claude/settings.json`
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 03-01-PLAN.md — stop-hook subcommand + install-claude-hook implementation + smoke tests
 
 ### Phase 4: AST Layer + Subtle Rules
 **Goal**: RH004/005/006/008 are detectable via AST-backed analysis; `--ai` flag gates the ambiguous detectors; Python regex covers RH002/003 edge cases
@@ -127,7 +129,7 @@ Plans:
 | 0. Prior Art & Name Resolution | 1/1 | Complete   | 2026-07-01 |
 | 1. Foundation | 5/5 | Complete    | 2026-07-03 |
 | 2. Core Rules + CLI | 5/5 | Complete    | 2026-07-04 |
-| 3. Claude Code Stop Hook | 0/? | Not started | - |
+| 3. Claude Code Stop Hook | 0/1 | Not started | - |
 | 4. AST Layer + Subtle Rules | 0/? | Not started | - |
 | 5. SARIF + GitHub Action | 0/? | Not started | - |
 | 6. Skill, Adapters & Benchmark | 0/? | Not started | - |

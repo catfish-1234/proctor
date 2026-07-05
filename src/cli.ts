@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import { resolve, join } from 'node:path';
+import { homedir } from 'node:os';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { chmodSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -11,6 +12,15 @@ import { buildRepoContext } from './context.js';
 import { runChecks } from './engine.js';
 import { prettyReport } from './reporters/pretty.js';
 import { jsonReport } from './reporters/json.js';
+
+async function readStdin(): Promise<string> {
+  if (process.stdin.isTTY) return '';
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
 
 const program = new Command();
 
@@ -82,11 +92,55 @@ program
   });
 
 program
+  .command('stop-hook')
+  .description('Claude Code Stop hook — reads stdin JSON, exits 2 on error findings')
+  .action(async () => {
+    const raw = await readStdin();
+    let cwd = process.cwd();
+    try {
+      const input = JSON.parse(raw) as Record<string, unknown>;
+      if (input['stop_hook_active'] === true) process.exit(0);
+      if (typeof input['cwd'] === 'string' && input['cwd'].length > 0) cwd = input['cwd'] as string;
+    } catch { /* invalid JSON — use cwd fallback */ }
+    const result = spawnSync(process.execPath, [process.argv[1], 'check', '--staged', '--ci'], {
+      cwd,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      encoding: 'utf8',
+    });
+    if (result.error) process.exit(0); // fail-open per D-05
+    if (result.stdout) process.stderr.write(result.stdout);
+    if (result.stderr) process.stderr.write(result.stderr);
+    const code = result.status ?? 0;
+    process.exit(code === 2 ? 2 : 0);
+  });
+
+program
   .command('install-claude-hook')
   .description('Install Claude Code Stop hook')
   .option('--global', 'write to ~/.claude/settings.json')
-  .action(async () => {
-    console.error('not implemented yet');
+  .action(async (options: { global?: boolean }) => {
+    const dir = options.global ? join(homedir(), '.claude') : join(process.cwd(), '.claude');
+    const settingsPath = join(dir, 'settings.json');
+    let settings: Record<string, unknown> = {};
+    try {
+      settings = JSON.parse(await readFile(settingsPath, 'utf8')) as Record<string, unknown>;
+    } catch { /* ENOENT or invalid JSON */ }
+    // Idempotency check (D-08)
+    const stopGroups = ((settings['hooks'] as Record<string, unknown> | undefined)?.['Stop'] ?? []) as Array<{ hooks?: Array<{ command?: string }> }>;
+    const alreadyInstalled = stopGroups.some(g => g.hooks?.some(h => h.command?.includes('proctor stop-hook')));
+    if (alreadyInstalled) {
+      process.stdout.write('Already installed\n');
+      process.exit(0);
+    }
+    // Merge (D-07)
+    const hooks = ((settings['hooks'] ?? {}) as Record<string, unknown>);
+    const stop = ((hooks['Stop'] ?? []) as unknown[]);
+    stop.push({ hooks: [{ type: 'command', command: 'npx proctor stop-hook' }] });
+    hooks['Stop'] = stop;
+    settings['hooks'] = hooks;
+    await mkdir(dir, { recursive: true });
+    await writeFile(settingsPath, JSON.stringify(settings, null, 2), 'utf8');
+    process.stdout.write('Installed: ' + settingsPath + '\n');
   });
 
 program

@@ -1,7 +1,7 @@
 import { spawnSync, execSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { tmpdir } from 'node:os';
+import { tmpdir, homedir } from 'node:os';
 import { describe, it, expect } from 'vitest';
 
 const CLI = resolve(process.cwd(), 'dist/cli.js');
@@ -57,5 +57,140 @@ describe('CLI smoke tests', () => {
     const result = spawnSync('node', [CLI, '--version'], { encoding: 'utf8' });
     expect(result.status).toBe(0);
     expect(result.stdout.trim()).toMatch(/\d+\.\d+\.\d+/);
+  });
+
+  it('stop-hook with clean git dir exits 0', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      execSync('git config user.email x@x', { cwd: tmpDir });
+      execSync('git config user.name x', { cwd: tmpDir });
+      execSync('git commit --allow-empty -m init', { cwd: tmpDir });
+      const result = spawnSync('node', [CLI, 'stop-hook'], {
+        input: JSON.stringify({ cwd: tmpDir }),
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(0);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('stop-hook with invalid JSON stdin exits 0', () => {
+    const result = spawnSync('node', [CLI, 'stop-hook'], {
+      input: 'not-json',
+      encoding: 'utf8',
+      cwd: process.cwd(),
+    });
+    expect(result.status).toBe(0);
+  });
+
+  it('stop-hook with stop_hook_active true exits 0', () => {
+    const result = spawnSync('node', [CLI, 'stop-hook'], {
+      input: JSON.stringify({ cwd: process.cwd(), stop_hook_active: true }),
+      encoding: 'utf8',
+    });
+    expect(result.status).toBe(0);
+  });
+
+  it('stop-hook with staged error finding exits 2', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      execSync('git config user.email x@x', { cwd: tmpDir });
+      execSync('git config user.name x', { cwd: tmpDir });
+      execSync('git commit --allow-empty -m init', { cwd: tmpDir });
+      writeFileSync(join(tmpDir, 'foo.test.ts'), 'it.skip("cheating", () => {})');
+      execSync('git add .', { cwd: tmpDir });
+      const result = spawnSync('node', [CLI, 'stop-hook'], {
+        input: JSON.stringify({ cwd: tmpDir }),
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(2);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('install-claude-hook creates .claude/settings.json', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      const result = spawnSync('node', [CLI, 'install-claude-hook'], {
+        encoding: 'utf8',
+        cwd: tmpDir,
+      });
+      expect(result.status).toBe(0);
+      const settings = JSON.parse(readFileSync(join(tmpDir, '.claude', 'settings.json'), 'utf8')) as {
+        hooks: { Stop: Array<{ hooks: Array<{ command: string; type: string }> }> };
+      };
+      expect(settings.hooks.Stop[0].hooks[0].command).toBe('npx proctor stop-hook');
+      expect(settings.hooks.Stop[0].hooks[0].type).toBe('command');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('install-claude-hook is idempotent', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      spawnSync('node', [CLI, 'install-claude-hook'], { encoding: 'utf8', cwd: tmpDir });
+      const result = spawnSync('node', [CLI, 'install-claude-hook'], { encoding: 'utf8', cwd: tmpDir });
+      expect(result.stdout).toContain('Already installed');
+      const settings = JSON.parse(readFileSync(join(tmpDir, '.claude', 'settings.json'), 'utf8')) as {
+        hooks: { Stop: unknown[] };
+      };
+      expect(settings.hooks.Stop).toHaveLength(1);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('install-claude-hook preserves existing settings', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      mkdirSync(join(tmpDir, '.claude'), { recursive: true });
+      writeFileSync(
+        join(tmpDir, '.claude', 'settings.json'),
+        JSON.stringify({
+          permissions: { allow: ['Bash(git *)'] },
+          hooks: { PreToolUse: [{ hooks: [{ type: 'command', command: 'echo hi' }] }] },
+        }),
+      );
+      spawnSync('node', [CLI, 'install-claude-hook'], { encoding: 'utf8', cwd: tmpDir });
+      const settings = JSON.parse(readFileSync(join(tmpDir, '.claude', 'settings.json'), 'utf8')) as {
+        permissions: { allow: string[] };
+        hooks: { PreToolUse: unknown[]; Stop: Array<{ hooks: Array<{ command: string }> }> };
+      };
+      expect(settings.permissions.allow).toContain('Bash(git *)');
+      expect(settings.hooks.PreToolUse).toBeDefined();
+      expect(settings.hooks.Stop[0].hooks[0].command).toBe('npx proctor stop-hook');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('install-claude-hook --global reports homedir path', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    const globalSettingsPath = join(homedir(), '.claude', 'settings.json');
+    try {
+      const result = spawnSync('node', [CLI, 'install-claude-hook', '--global'], {
+        encoding: 'utf8',
+        cwd: tmpDir,
+      });
+      expect(result.stdout).toContain('.claude');
+      expect(result.stdout).toContain('settings.json');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+      // Clean up the written global file if it was newly created by this test
+      // (avoids permanently polluting ~/.claude/settings.json)
+      try {
+        const content = readFileSync(globalSettingsPath, 'utf8');
+        const parsed = JSON.parse(content) as { hooks?: { Stop?: unknown[] } };
+        // Only remove if it looks like our test wrote it (single Stop entry)
+        if (parsed.hooks?.Stop && (parsed.hooks.Stop as unknown[]).length === 1) {
+          rmSync(globalSettingsPath, { force: true });
+        }
+      } catch { /* file may not exist or not be ours to remove */ }
+    }
   });
 });

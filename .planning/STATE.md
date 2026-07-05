@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready_to_plan
-last_updated: "2026-07-04T19:51:00.000Z"
+last_updated: "2026-07-05T02:00:29.320Z"
 progress:
   total_phases: 8
-  completed_phases: 3
-  total_plans: 11
-  completed_plans: 11
-  percent: 38
+  completed_phases: 4
+  total_plans: 12
+  completed_plans: 12
+  percent: 50
 ---
 
 # Project State — proctor
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md
 | 0 | Prior Art & Name Resolution | ✓ Complete | PRIOR-01, PRIOR-02, PRIOR-03 |
 | 1 | Foundation | ✓ Complete | FOUND-01, FOUND-02, FOUND-03, FOUND-04, FOUND-05, FOUND-06 |
 | 2 | Core Rules + CLI | ✓ Complete | SIG-01–04, SIG-09, CLI-01–04, CLI-07–10, OUT-03 |
-| 3 | Claude Code Stop Hook | ○ Not Started | SKILL-04, SKILL-05 |
+| 3 | Claude Code Stop Hook | ✓ Complete | SKILL-04, SKILL-05 |
 | 4 | AST Layer + Subtle Rules | ○ Not Started | AST-01–03, SIG-05–08, CLI-06 |
 | 5 | SARIF + GitHub Action | ○ Not Started | CLI-05, OUT-01, OUT-02 |
 | 6 | Skill, Adapters & Benchmark | ○ Not Started | SKILL-01–03, BENCH-01–05 |
@@ -36,11 +36,11 @@ See: .planning/PROJECT.md
 
 ## Current Phase
 
-Phase 2: Core Rules + CLI — Complete (5/5 plans done)
+Phase 3: Claude Code Stop Hook — Complete (1/1 plans done)
 
 ## Performance Metrics
 
-- Phases completed: 3/8
+- Phases completed: 4/8
 - Requirements mapped: 47/47
 
 ## Accumulated Context
@@ -58,6 +58,8 @@ Phase 2: Core Rules + CLI — Complete (5/5 plans done)
 - Python support via regex in Phase 2 (diff-level); WASM AST deferred to v2
 - commander pinned to ^13.1.0 — v14/v15 require Node >=22.12.0, project targets Node 20
 - tsconfig requires `"types": ["node"]` explicitly — @types/node is installed but not auto-resolved without this field
+- stop-hook spawns proctor check --staged --ci as subprocess (D-10); exit 2 blocks, never exits 1
+- install-claude-hook uses smart merge + idempotency guard on command.includes('proctor stop-hook')
 
 ### Blockers
 
@@ -80,3 +82,4 @@ Phase 2: Core Rules + CLI — Complete (5/5 plans done)
 | 2026-07-03 | 02 | 01 | RepoContext CLI-10 fields + pretty/json reporters with tests | 9714563 |
 | 2026-07-03 | 02 | 04 | Engine dispatcher: runChecks, suppression, ignore patterns, severity overrides | 5c311e2, 694c125, a6a35a3 |
 | 2026-07-04 | 02 | 05 | CLI wiring: check pipeline + install-hook action + smoke tests | 665ed8f |
+| 2026-07-04 | 03 | 01 | stop-hook subcommand + install-claude-hook implementation + smoke tests | 414444c, 0c35f8a |

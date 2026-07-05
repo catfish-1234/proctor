@@ -11,7 +11,7 @@ Build order: horizontal layers in dependency order — each phase delivers one c
 - [x] **Phase 0: Prior Art & Name Resolution** — Resolve npm name conflict and confirm wedge before writing code
 - [x] **Phase 1: Foundation** — TypeScript ESM project scaffolded with diff parser, types, and fixtures (completed 2026-07-03)
 - [x] **Phase 2: Core Rules + CLI** — First working tool: RH001/002/003/007, `proctor check`, git hook, inline suppression (completed 2026-07-04)
-- [ ] **Phase 3: Claude Code Stop Hook** — Stop hook blocks agent turns on error-severity findings, exits 2
+- [x] **Phase 3: Claude Code Stop Hook** — Stop hook blocks agent turns on error-severity findings, exits 2 (completed 2026-07-04)
 - [ ] **Phase 4: AST Layer + Subtle Rules** — RH004/005/006/008 with AST-backed detection and `--ai` flag
 - [ ] **Phase 5: SARIF + GitHub Action** — CI integration via SARIF output and `action.yml`
 - [ ] **Phase 6: Skill, Adapters & Benchmark** — L1 skill, multi-agent adapters, `proctor bench` measurement
@@ -76,7 +76,7 @@ Plans:
   3. `proctor install-claude-hook` writes the Stop hook entry to `.claude/settings.json`; `--global` flag writes to `~/.claude/settings.json`
 **Plans**: 1 plan
 Plans:
-- [ ] 03-01-PLAN.md — stop-hook subcommand + install-claude-hook implementation + smoke tests
+- [x] 03-01-PLAN.md — stop-hook subcommand + install-claude-hook implementation + smoke tests
 
 ### Phase 4: AST Layer + Subtle Rules
 **Goal**: RH004/005/006/008 are detectable via AST-backed analysis; `--ai` flag gates the ambiguous detectors; Python regex covers RH002/003 edge cases
@@ -129,7 +129,7 @@ Plans:
 | 0. Prior Art & Name Resolution | 1/1 | Complete   | 2026-07-01 |
 | 1. Foundation | 5/5 | Complete    | 2026-07-03 |
 | 2. Core Rules + CLI | 5/5 | Complete    | 2026-07-04 |
-| 3. Claude Code Stop Hook | 0/1 | Not started | - |
+| 3. Claude Code Stop Hook | 1/1 | Complete    | 2026-07-04 |
 | 4. AST Layer + Subtle Rules | 0/? | Not started | - |
 | 5. SARIF + GitHub Action | 0/? | Not started | - |
 | 6. Skill, Adapters & Benchmark | 0/? | Not started | - |

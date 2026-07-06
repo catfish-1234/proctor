@@ -3,6 +3,12 @@ import { buildRepoContext } from '../src/context.js';
 import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+const PROJECT_ROOT = path.join(__dirname, '..');
 
 let tmpDir: string;
 
@@ -63,5 +69,45 @@ describe('buildRepoContext', () => {
     await writeFile(join(tmpDir, 'src', 'foo.test.ts'), '// test');
     const ctx = await buildRepoContext(tmpDir);
     expect(ctx.testFiles.some((f) => f.endsWith('.test.ts'))).toBe(true);
+  });
+
+  // Phase 4 additions: commitMessage, snapshotGlobs, aiModel
+
+  it('commitMessage is a non-empty string in a repo with commits', async () => {
+    // Use the project's own cwd which has commits
+    const ctx = await buildRepoContext(PROJECT_ROOT);
+    expect(ctx.commitMessage).toBeDefined();
+    expect(typeof ctx.commitMessage).toBe('string');
+    expect((ctx.commitMessage as string).length).toBeGreaterThan(0);
+  });
+
+  it('commitMessage is undefined in a fresh repo with no commits', async () => {
+    // Initialize a fresh git repo with no commits
+    spawnSync('git', ['init'], { cwd: tmpDir, encoding: 'utf8' });
+    const ctx = await buildRepoContext(tmpDir);
+    expect(ctx.commitMessage).toBeUndefined();
+  });
+
+  it('reads aiModel from proctor.config.json when present', async () => {
+    await writeFile(
+      join(tmpDir, 'proctor.config.json'),
+      JSON.stringify({ aiModel: 'claude-opus-4-5' }),
+    );
+    const ctx = await buildRepoContext(tmpDir);
+    expect(ctx.aiModel).toBe('claude-opus-4-5');
+  });
+
+  it('snapshotGlobs is undefined when no config file exists', async () => {
+    const ctx = await buildRepoContext(tmpDir);
+    expect(ctx.snapshotGlobs).toBeUndefined();
+  });
+
+  it('reads snapshotGlobs from proctor.config.json when present', async () => {
+    await writeFile(
+      join(tmpDir, 'proctor.config.json'),
+      JSON.stringify({ snapshotGlobs: ['**/__snapshots__/*.snap'] }),
+    );
+    const ctx = await buildRepoContext(tmpDir);
+    expect(ctx.snapshotGlobs).toEqual(['**/__snapshots__/*.snap']);
   });
 });

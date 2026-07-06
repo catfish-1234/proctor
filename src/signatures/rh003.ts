@@ -47,7 +47,11 @@ export function rh003(files: ParsedFile[], ctx: RepoContext): Finding[] {
 
   for (const file of files) {
     const filePath = file.to ?? file.from ?? '';
-    if (!ctx.isTestFile(filePath)) continue; // avoid false positives from non-test files using .skip()/.only()
+    const ext = filePath.split('.').pop()?.toLowerCase();
+    // For JS/TS files, only inspect test files — prevents false positives from library
+    // code that uses .skip() or .only() as unrelated method names (e.g. RxJS observable.skip(5))
+    // Python files pass through: their decorator patterns (@pytest.mark.skip etc.) are already specific enough
+    if (ext !== 'py' && !ctx.isTestFile(filePath)) continue;
     for (const chunk of file.chunks) {
       for (const change of chunk.changes) {
         if (change.type !== 'add') continue;

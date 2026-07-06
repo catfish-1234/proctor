@@ -42,11 +42,12 @@ function isSkipPattern(content: string): boolean {
   );
 }
 
-export function rh003(files: ParsedFile[], _ctx: RepoContext): Finding[] {
+export function rh003(files: ParsedFile[], ctx: RepoContext): Finding[] {
   const findings: Finding[] = [];
 
   for (const file of files) {
     const filePath = file.to ?? file.from ?? '';
+    if (!ctx.isTestFile(filePath)) continue; // avoid false positives from non-test files using .skip()/.only()
     for (const chunk of file.chunks) {
       for (const change of chunk.changes) {
         if (change.type !== 'add') continue;

@@ -59,10 +59,14 @@ export function rh002(files: ParsedFile[], _ctx: RepoContext): Finding[] {
       const dels = chunk.changes.filter(c => c.type === 'del');
       const adds = chunk.changes.filter(c => c.type === 'add');
 
+      // Track reported add-line numbers to avoid duplicate findings within the same chunk
+      const reported = new Set<number>();
+
       for (const del of dels) {
         if (!isStrongAssertion(del.content)) continue;
-        const weakAdd = adds.find(a => isWeakAssertion(a.content));
+        const weakAdd = adds.find(a => isWeakAssertion(a.content) && !reported.has((a as { ln: number }).ln));
         if (!weakAdd) continue;
+        reported.add((weakAdd as { ln: number }).ln);
 
         const fromLabel = extractLabel(del.content);
         const toLabel = extractLabel(weakAdd.content);
@@ -84,21 +88,23 @@ export function rh002(files: ParsedFile[], _ctx: RepoContext): Finding[] {
         const delPlaces = del.content.match(/places\s*=\s*(\d+)/);
 
         const weakerAdd = adds.find(a => {
+          if (reported.has((a as { ln: number }).ln)) return false; // already reported in this chunk
           // Case A: replaced with a weak assertion (assertTrue, assert True, pass, etc.)
           if (WEAK_PATTERNS.some(p => p.test(a.content))) return true;
           // Case B: still assertAlmostEqual but with fewer decimal places (looser tolerance)
+          // Also handles the case where del had no places= (default 7) but add has an explicit lower value
           if (ALMOST_EQUAL.test(a.content)) {
             const addPlaces = a.content.match(/places\s*=\s*(\d+)/);
-            return (
-              addPlaces !== null &&
-              delPlaces !== null &&
-              parseInt(addPlaces[1]!) < parseInt(delPlaces[1]!)
-            );
+            if (addPlaces === null) return false;
+            const addVal = parseInt(addPlaces[1]!);
+            if (delPlaces === null) return addVal < 7; // 7 is Python's default precision
+            return addVal < parseInt(delPlaces[1]!);
           }
           return false;
         });
 
         if (!weakerAdd) continue;
+        reported.add((weakerAdd as { ln: number }).ln);
 
         findings.push({
           ruleId: 'RH002',

@@ -102,7 +102,7 @@ program
       if (input['stop_hook_active'] === true) process.exit(0);
       if (typeof input['cwd'] === 'string' && input['cwd'].length > 0) cwd = input['cwd'] as string;
     } catch { /* invalid JSON — use cwd fallback */ }
-    const result = spawnSync(process.execPath, [process.argv[1], 'check', '--staged', '--ci'], {
+    const result = spawnSync(process.execPath, [process.argv[1] ?? '', 'check', '--staged', '--ci'], {
       cwd,
       stdio: ['ignore', 'pipe', 'pipe'],
       encoding: 'utf8',

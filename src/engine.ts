@@ -9,7 +9,9 @@ import micromatch from 'micromatch';
 
 const norm = (p: string) => p.replace(/\\/g, '/');
 
-const AST_RULES = ['RH002', 'RH004', 'RH005', 'RH008'];
+// AST_RULES lists rule IDs that actually consume ctx.ast.
+// Currently empty — no rule reads ctx.ast yet; update this list when a rule does.
+const AST_RULES: string[] = [];
 
 function buildAstMap(files: ParsedFile[], ctx: RepoContext): Map<string, TSESTree.Program> {
   const astMap = new Map<string, TSESTree.Program>();

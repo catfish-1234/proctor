@@ -4,7 +4,8 @@ import type { RepoContext, Finding } from '../types.js';
 // Tautological assertion patterns (D-14)
 const ASSERT_TRUE = /\bassert True\b/;
 const ASSERT_SELF = /\bassert\s+(\w+)\s*==\s*\1\b/;
-const EXPECT_SELF = /expect\((.+?)\)\.toBe\(\1\)/;
+// [^()]+ rejects nested parens — avoids .+? stopping at the first ) inside f(x)
+const EXPECT_SELF = /expect\(([^()]+)\)\.toBe\(\1\)/;
 const EXPECT_ZERO_ARG = /expect\(\s*\)\.(toBeTruthy|toBeDefined|toBeNull)\(\)/;
 
 function isTautology(content: string): boolean {

@@ -5,6 +5,7 @@ const SKIP_ONLY = /\.(skip|only)\s*\(/;
 const XIT = /\bxit\s*\(/;
 const XDESCRIBE = /\bxdescribe\s*\(/;
 const PYTEST_SKIP = /@pytest\.mark\.skip/;
+const PYTEST_SKIPIF = /@pytest\.mark\.skipif\b/;
 const UNITTEST_SKIP = /@unittest\.skip(?:Unless)?\b/;
 const BARE_SKIP = /^\+\s*@skip\b/;
 const COMMENTED_PY_TEST = /^\+\s*#.*def test_/;
@@ -15,6 +16,7 @@ function buildSkipMessage(content: string): string {
   if (XIT.test(content)) return 'Test was disabled with xit.';
   if (XDESCRIBE.test(content)) return 'Suite was disabled with xdescribe.';
   if (PYTEST_SKIP.test(content)) return 'Test was disabled with @pytest.mark.skip.';
+  if (PYTEST_SKIPIF.test(content)) return 'Test was conditionally disabled with @pytest.mark.skipif.';
   if (UNITTEST_SKIP.test(content)) return 'Test was disabled with @unittest.skip.';
   if (BARE_SKIP.test(content)) return 'Test was disabled with @skip.';
   if (COMMENTED_PY_TEST.test(content)) return 'Test function was commented out.';
@@ -33,6 +35,7 @@ function isSkipPattern(content: string): boolean {
     XIT.test(content) ||
     XDESCRIBE.test(content) ||
     PYTEST_SKIP.test(content) ||
+    PYTEST_SKIPIF.test(content) ||
     UNITTEST_SKIP.test(content) ||
     BARE_SKIP.test(content) ||
     COMMENTED_PY_TEST.test(content)

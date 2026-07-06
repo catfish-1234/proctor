@@ -8,6 +8,6 @@ export default defineConfig({
   splitting: false,
   clean: true,
   dts: false,
-  external: ['@anthropic-ai/sdk'],  // prevents SDK bundling; loaded from node_modules at runtime
+  external: ['@anthropic-ai/sdk', '@typescript-eslint/typescript-estree'],  // prevents bundling CJS packages; loaded from node_modules at runtime
   // shebang from src/cli.ts first line is preserved automatically by tsup
 });

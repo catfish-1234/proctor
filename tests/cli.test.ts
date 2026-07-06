@@ -194,3 +194,42 @@ describe('CLI smoke tests', () => {
     }
   });
 });
+
+describe('check --ai flag', () => {
+  it('exits 1 with informative message when ANTHROPIC_API_KEY is not set', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      execSync('git config user.email x@x', { cwd: tmpDir });
+      execSync('git config user.name x', { cwd: tmpDir });
+      execSync('git commit --allow-empty -m init', { cwd: tmpDir });
+      const env = { ...process.env, ANTHROPIC_API_KEY: '' };
+      const result = spawnSync('node', [CLI, 'check', '--ai'], {
+        cwd: tmpDir,
+        encoding: 'utf8',
+        env,
+      });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('--ai requires ANTHROPIC_API_KEY');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('exits 0 on clean diff without --ai (offline regression guard)', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      execSync('git config user.email x@x', { cwd: tmpDir });
+      execSync('git config user.name x', { cwd: tmpDir });
+      execSync('git commit --allow-empty -m init', { cwd: tmpDir });
+      const result = spawnSync('node', [CLI, 'check'], {
+        cwd: tmpDir,
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(0);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});

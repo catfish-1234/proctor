@@ -50,7 +50,7 @@ function makeFile(to: string, chunks: ParsedFile['chunks'] = []): ParsedFile {
 }
 
 describe('runChecks', () => {
-  it('returns findings from all enabled rules', () => {
+  it('returns findings from all enabled rules', async () => {
     const mockSigA = (_f: ParsedFile[], _c: RepoContext): Finding[] => [findingA];
     const mockSigB = (_f: ParsedFile[], _c: RepoContext): Finding[] => [findingB];
     // Inject via the real signatures array shape — use empty files; mock sigs ignore them
@@ -67,14 +67,14 @@ describe('runChecks', () => {
         ],
       } as unknown as ParsedFile['chunks'][number],
     ]);
-    const result = runChecks([skipFile], makeCtx({ enabled: ['RH003'] }));
+    const result = await runChecks([skipFile], makeCtx({ enabled: ['RH003'] }));
     // RH003 should fire; RH001/RH002/RH007 are also in signatures but findings not in enabled are filtered out
     expect(result.every(f => f.ruleId === 'RH003')).toBe(true);
     expect(result.length).toBeGreaterThan(0);
     void mockSigA; void mockSigB; // silence unused
   });
 
-  it('filters findings not in ctx.enabled', () => {
+  it('filters findings not in ctx.enabled', async () => {
     const skipFile = makeFile('src/calc.test.ts', [
       {
         content: '',
@@ -84,11 +84,11 @@ describe('runChecks', () => {
       } as unknown as ParsedFile['chunks'][number],
     ]);
     // Only RH001 enabled — RH003 firing should be filtered out
-    const result = runChecks([skipFile], makeCtx({ enabled: ['RH001'] }));
+    const result = await runChecks([skipFile], makeCtx({ enabled: ['RH001'] }));
     expect(result.every(f => f.ruleId === 'RH001')).toBe(true);
   });
 
-  it('suppresses finding when reason: is present in proctor-ignore comment on line above', () => {
+  it('suppresses finding when reason: is present in proctor-ignore comment on line above', async () => {
     // RH003 finding at line 5 → look for suppress comment at line 4
     const suppressFile = makeFile('src/calc.test.ts', [
       {
@@ -101,13 +101,13 @@ describe('runChecks', () => {
         ],
       } as unknown as ParsedFile['chunks'][number],
     ]);
-    const result = runChecks([suppressFile], makeCtx({ enabled: ['RH003'] }));
+    const result = await runChecks([suppressFile], makeCtx({ enabled: ['RH003'] }));
     // The RH003 finding at line 5 should be suppressed
     const rh003Findings = result.filter(f => f.ruleId === 'RH003' && f.line === 5);
     expect(rh003Findings).toHaveLength(0);
   });
 
-  it('does NOT suppress when reason: is absent from proctor-ignore comment', () => {
+  it('does NOT suppress when reason: is absent from proctor-ignore comment', async () => {
     const suppressFile = makeFile('src/calc.test.ts', [
       {
         content: '',
@@ -118,12 +118,12 @@ describe('runChecks', () => {
         ],
       } as unknown as ParsedFile['chunks'][number],
     ]);
-    const result = runChecks([suppressFile], makeCtx({ enabled: ['RH003'] }));
+    const result = await runChecks([suppressFile], makeCtx({ enabled: ['RH003'] }));
     const rh003Findings = result.filter(f => f.ruleId === 'RH003' && f.line === 5);
     expect(rh003Findings.length).toBeGreaterThan(0);
   });
 
-  it('does NOT suppress when proctor-ignore comment names wrong rule', () => {
+  it('does NOT suppress when proctor-ignore comment names wrong rule', async () => {
     const suppressFile = makeFile('src/calc.test.ts', [
       {
         content: '',
@@ -134,12 +134,12 @@ describe('runChecks', () => {
         ],
       } as unknown as ParsedFile['chunks'][number],
     ]);
-    const result = runChecks([suppressFile], makeCtx({ enabled: ['RH003'] }));
+    const result = await runChecks([suppressFile], makeCtx({ enabled: ['RH003'] }));
     const rh003Findings = result.filter(f => f.ruleId === 'RH003' && f.line === 5);
     expect(rh003Findings.length).toBeGreaterThan(0);
   });
 
-  it('filters findings by ctx.ignorePatterns', () => {
+  it('filters findings by ctx.ignorePatterns', async () => {
     const fixtureFile = makeFile('fixtures/some.test.ts', [
       {
         content: '',
@@ -148,14 +148,14 @@ describe('runChecks', () => {
         ],
       } as unknown as ParsedFile['chunks'][number],
     ]);
-    const result = runChecks(
+    const result = await runChecks(
       [fixtureFile],
       makeCtx({ enabled: ['RH003'], ignorePatterns: ['**/fixtures/**'] }),
     );
     expect(result).toHaveLength(0);
   });
 
-  it('applies severity overrides from ctx.severity', () => {
+  it('applies severity overrides from ctx.severity', async () => {
     const skipFile = makeFile('src/calc.test.ts', [
       {
         content: '',
@@ -164,11 +164,27 @@ describe('runChecks', () => {
         ],
       } as unknown as ParsedFile['chunks'][number],
     ]);
-    const result = runChecks(
+    const result = await runChecks(
       [skipFile],
       makeCtx({ enabled: ['RH003'], severity: { RH003: 'warn' } }),
     );
     expect(result.length).toBeGreaterThan(0);
     expect(result.every(f => f.severity === 'warn')).toBe(true);
+  });
+});
+
+describe('runChecks AST pre-pass', () => {
+  it('ctx.ast is empty when only RH001/RH003 are enabled (AST not needed)', async () => {
+    const ctx = makeCtx({ enabled: ['RH001', 'RH003'] });
+    await runChecks([], ctx);
+    expect(ctx.ast).toBeDefined();
+    expect(ctx.ast!.size).toBe(0);
+  });
+
+  it('ctx.ast is a Map when RH004 is enabled (AST pre-pass ran)', async () => {
+    const ctx = makeCtx({ enabled: ['RH004'] });
+    await runChecks([], ctx);
+    expect(ctx.ast).toBeDefined();
+    expect(ctx.ast).toBeInstanceOf(Map);
   });
 });

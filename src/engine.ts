@@ -1,16 +1,45 @@
 import type { ParsedFile } from './diff.js';
 import type { RepoContext, Finding, Severity } from './types.js';
 import { signatures } from './signatures/index.js';
+import type { TSESTree } from '@typescript-eslint/typescript-estree';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { parseSource } from './ast.js';
 import micromatch from 'micromatch';
 
-export function runChecks(files: ParsedFile[], ctx: RepoContext): Finding[] {
-  const raw = signatures.flatMap(sig => sig(files, ctx)).filter(f => ctx.enabled.includes(f.ruleId));
+const norm = (p: string) => p.replace(/\\/g, '/');
+
+const AST_RULES = ['RH002', 'RH004', 'RH005', 'RH008'];
+
+function buildAstMap(files: ParsedFile[], ctx: RepoContext): Map<string, TSESTree.Program> {
+  const astMap = new Map<string, TSESTree.Program>();
+  const needsAst = AST_RULES.some(r => ctx.enabled.includes(r));
+  if (!needsAst) return astMap;
+
+  for (const file of files) {
+    const filePath = norm(file.to ?? file.from ?? '');
+    const lang = ctx.getLanguage(filePath);
+    if (lang !== 'ts' && lang !== 'js') continue;
+    try {
+      const content = readFileSync(join(ctx.cwd, filePath), 'utf8');
+      const ast = parseSource(content);
+      if (ast) astMap.set(filePath, ast);
+      else process.stderr.write(`proctor: could not parse ${filePath}\n`);
+    } catch (e) {
+      process.stderr.write(`proctor: could not parse ${filePath}: ${String(e)}\n`);
+    }
+  }
+  return astMap;
+}
+
+export async function runChecks(files: ParsedFile[], ctx: RepoContext): Promise<Finding[]> {
+  ctx.ast = buildAstMap(files, ctx); // AST pre-pass BEFORE signatures
+  const results = await Promise.all(signatures.map(sig => Promise.resolve(sig(files, ctx))));
+  const raw = results.flat().filter(f => ctx.enabled.includes(f.ruleId));
   const afterSuppression = applySuppression(raw, files);
   const afterIgnore = applyIgnorePatterns(afterSuppression, ctx.ignorePatterns ?? []);
   return applySeverityOverrides(afterIgnore, ctx.severity ?? {});
 }
-
-const norm = (p: string) => p.replace(/\\/g, '/');
 
 function applySuppression(findings: Finding[], files: ParsedFile[]): Finding[] {
   return findings.filter(finding => {

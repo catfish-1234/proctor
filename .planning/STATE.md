@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready_to_plan
-last_updated: "2026-07-05T02:00:29.320Z"
+status: phase_complete
+last_updated: "2026-07-05T21:50:00.000Z"
 progress:
   total_phases: 8
-  completed_phases: 4
-  total_plans: 12
-  completed_plans: 12
-  percent: 50
+  completed_phases: 5
+  total_plans: 24
+  completed_plans: 18
+  percent: 63
 ---
 
 # Project State — proctor
@@ -19,7 +19,7 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Catch the agent deleting your test before the commit lands — with a diff-level guard the agent's own reasoning can't bypass.
-**Current focus:** Phase 3 — Claude Code Stop Hook
+**Current focus:** Phase 5 — SARIF + GitHub Action
 
 ## Phases
 
@@ -29,14 +29,15 @@ See: .planning/PROJECT.md
 | 1 | Foundation | ✓ Complete | FOUND-01, FOUND-02, FOUND-03, FOUND-04, FOUND-05, FOUND-06 |
 | 2 | Core Rules + CLI | ✓ Complete | SIG-01–04, SIG-09, CLI-01–04, CLI-07–10, OUT-03 |
 | 3 | Claude Code Stop Hook | ✓ Complete | SKILL-04, SKILL-05 |
-| 4 | AST Layer + Subtle Rules | ○ Not Started | AST-01–03, SIG-05–08, CLI-06 |
+| 4 | AST Layer + Subtle Rules | ✓ Complete | AST-01–03, SIG-05–08, CLI-06 |
 | 5 | SARIF + GitHub Action | ○ Not Started | CLI-05, OUT-01, OUT-02 |
 | 6 | Skill, Adapters & Benchmark | ○ Not Started | SKILL-01–03, BENCH-01–05 |
 | 7 | Distribution | ○ Not Started | DIST-01–03 |
 
 ## Current Phase
 
-Phase 3: Claude Code Stop Hook — Complete (1/1 plans done)
+Phase 4: AST Layer + Subtle Rules — Complete (6/6 plans)
+Phase 5: SARIF + GitHub Action — Not Started
 
 ## Performance Metrics
 
@@ -83,3 +84,9 @@ Phase 3: Claude Code Stop Hook — Complete (1/1 plans done)
 | 2026-07-03 | 02 | 04 | Engine dispatcher: runChecks, suppression, ignore patterns, severity overrides | 5c311e2, 694c125, a6a35a3 |
 | 2026-07-04 | 02 | 05 | CLI wiring: check pipeline + install-hook action + smoke tests | 665ed8f |
 | 2026-07-04 | 03 | 01 | stop-hook subcommand + install-claude-hook implementation + smoke tests | 414444c, 0c35f8a |
+| 2026-07-05 | 04 | 01 | Phase 4 deps + types.ts/context.ts field extensions | a8eb827, 578ef29, 5b5460c |
+| 2026-07-05 | 04 | 02 | AST singleton (src/ast.ts) + tsup dual-entry + dist/ai/judge.js | f2bead5, c8cdfab, 19cbed3 |
+| 2026-07-05 | 04 | 03 | RH006 snapshot detection + rh002/003 Python regex extensions | aafea89, 5519205, 687f9df |
+| 2026-07-05 | 04 | 04 | RH004 impl hardcoding + RH005 gutted function (AI-gated async) | 69889fc, d840093, a329398, 3d5bd7f |
+| 2026-07-05 | 04 | 05 | RH008 tautological assertions + engine async + all 8 sigs registered | dd2697c, 494d61f, 7c22d27 |
+| 2026-07-05 | 04 | 06 | --ai flag wiring: API key guard + dynamic judge import + smoke tests | 29e8584, 4b8070c |

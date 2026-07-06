@@ -12,7 +12,7 @@ Build order: horizontal layers in dependency order — each phase delivers one c
 - [x] **Phase 1: Foundation** — TypeScript ESM project scaffolded with diff parser, types, and fixtures (completed 2026-07-03)
 - [x] **Phase 2: Core Rules + CLI** — First working tool: RH001/002/003/007, `proctor check`, git hook, inline suppression (completed 2026-07-04)
 - [x] **Phase 3: Claude Code Stop Hook** — Stop hook blocks agent turns on error-severity findings, exits 2 (completed 2026-07-04)
-- [ ] **Phase 4: AST Layer + Subtle Rules** — RH004/005/006/008 with AST-backed detection and `--ai` flag
+- [x] **Phase 4: AST Layer + Subtle Rules** — RH004/005/006/008 with AST-backed detection and `--ai` flag (completed 2026-07-06)
 - [ ] **Phase 5: SARIF + GitHub Action** — CI integration via SARIF output and `action.yml`
 - [ ] **Phase 6: Skill, Adapters & Benchmark** — L1 skill, multi-agent adapters, `proctor bench` measurement
 - [ ] **Phase 7: Distribution** — npm publish, README, demo GIF, GitHub Action live
@@ -129,8 +129,8 @@ Plans:
 | 0. Prior Art & Name Resolution | 1/1 | Complete   | 2026-07-01 |
 | 1. Foundation | 5/5 | Complete    | 2026-07-03 |
 | 2. Core Rules + CLI | 5/5 | Complete    | 2026-07-04 |
-| 3. Claude Code Stop Hook | 1/1 | Complete    | 2026-07-04 |
-| 4. AST Layer + Subtle Rules | 0/? | Not started | - |
+| 3. Claude Code Stop Hook | 1/1 | Complete    | 2026-07-05 |
+| 4. AST Layer + Subtle Rules | 6/6 | Complete   | 2026-07-06 |
 | 5. SARIF + GitHub Action | 0/? | Not started | - |
 | 6. Skill, Adapters & Benchmark | 0/? | Not started | - |
 | 7. Distribution | 0/? | Not started | - |

@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import fg from 'fast-glob';
 import micromatch from 'micromatch';
 import type { RepoContext, ProctorConfig } from './types.js';
@@ -53,5 +54,28 @@ export async function buildRepoContext(cwd: string): Promise<RepoContext> {
     return 'unknown';
   };
 
-  return { cwd, testPathGlobs, testFiles, enabled, isTestFile, getLanguage, severity: config.severity, ignorePatterns: config.ignorePatterns };
+  // Phase 4: populate commitMessage from git log -1 --format=%s
+  // Guards on exit code — empty repo (no commits) exits 128; any non-zero = undefined
+  const logResult = spawnSync('git', ['log', '-1', '--format=%s'], { cwd, encoding: 'utf8' });
+  const commitMessage = (logResult.status === 0 && logResult.stdout.trim())
+    ? logResult.stdout.trim()
+    : undefined;
+
+  // Phase 4: read snapshotGlobs and aiModel from config (no defaults here — rh006.ts owns DEFAULT_SNAPSHOT_GLOBS)
+  const snapshotGlobs = config.snapshotGlobs;
+  const aiModel = config.aiModel;
+
+  return {
+    cwd,
+    testPathGlobs,
+    testFiles,
+    enabled,
+    isTestFile,
+    getLanguage,
+    severity: config.severity,
+    ignorePatterns: config.ignorePatterns,
+    commitMessage,
+    snapshotGlobs,
+    aiModel,
+  };
 }

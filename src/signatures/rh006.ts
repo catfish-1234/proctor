@@ -12,7 +12,9 @@ const DEFAULT_SNAPSHOT_GLOBS = [
 ];
 
 // D-10: commit message contains one of these keywords → reason stated → no finding
-const REASON_KEYWORDS = /snap|snapshot|golden|regenerat|intentional|expected|by design/i;
+// Patterns are intentionally specific to avoid suppression by unrelated words like
+// "snappy", "expected behavior", etc.
+const REASON_KEYWORDS = /\bsnapsho?t\b|golden\b|regenerat|intentional\b|by design\b/i;
 
 export function rh006(files: ParsedFile[], ctx: RepoContext): Finding[] {
   const findings: Finding[] = [];
@@ -27,9 +29,10 @@ export function rh006(files: ParsedFile[], ctx: RepoContext): Finding[] {
     const filePath = (file.to ?? file.from ?? '').replace(/\\/g, '/');
     if (!micromatch.isMatch(filePath, globs)) continue;
 
-    // Find first added line for the finding location
+    // Skip pure-deletion diffs — removing old snapshots is routine maintenance, not suspicious
     const firstAdd = file.chunks.flatMap(c => c.changes).find(c => c.type === 'add');
-    const line = firstAdd ? (firstAdd as { ln: number }).ln : 1;
+    if (!firstAdd) continue;
+    const line = (firstAdd as { ln: number }).ln;
 
     findings.push({
       ruleId: 'RH006',

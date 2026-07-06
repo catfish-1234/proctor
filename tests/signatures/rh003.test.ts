@@ -72,6 +72,14 @@ describe('rh003 — skip/disable patterns', () => {
     expect(findings[0].ruleId).toBe('RH003');
   });
 
+  it('detects @pytest.mark.skipif on an added line', () => {
+    const files = [makeAddFile('test_calculator.py', '+@pytest.mark.skipif(sys.version_info < (3, 8), reason="old python")', 10)];
+    const findings = rh003(files, ctx);
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.ruleId).toBe('RH003');
+    expect(findings[0]!.severity).toBe('error');
+  });
+
   it('does not flag del lines containing .skip', () => {
     const file: ParsedFile = {
       from: 'calculator.test.ts',

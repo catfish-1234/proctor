@@ -72,3 +72,53 @@ describe('rh002 — weakened assertion', () => {
     expect(rh002(files, ctx)).toEqual([]);
   });
 });
+
+describe('RH002 Python tolerance-widening', () => {
+  function makePythonFile(delContent: string, addContent: string, addLn = 10): ParsedFile[] {
+    return [{
+      from: 'test_calculator.py',
+      to: 'test_calculator.py',
+      chunks: [{
+        content: '',
+        changes: [
+          { type: 'del', del: true, ln: 9, content: delContent },
+          { type: 'add', add: true, ln: addLn, content: addContent },
+        ],
+        oldStart: 9, oldLines: 1, newStart: 10, newLines: 1,
+      }],
+      deleted: false,
+      new: false,
+    }];
+  }
+
+  it('detects assertAlmostEqual replaced with assertTrue (tolerance eliminated)', () => {
+    const files = makePythonFile(
+      '-        self.assertAlmostEqual(result, 3.14159, places=5)',
+      '+        self.assertTrue(result > 3)',
+    );
+    const findings = rh002(files, ctx);
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.ruleId).toBe('RH002');
+    expect(findings[0]!.severity).toBe('error');
+    expect(findings[0]!.line).toBe(10);
+  });
+
+  it('detects assertAlmostEqual with reduced places= (looser tolerance)', () => {
+    const files = makePythonFile(
+      '-        self.assertAlmostEqual(result, 3.14, places=4)',
+      '+        self.assertAlmostEqual(result, 3.14, places=2)',
+    );
+    const findings = rh002(files, ctx);
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.ruleId).toBe('RH002');
+  });
+
+  it('returns [] when places= value is increased (stricter assertion — not weaker)', () => {
+    const files = makePythonFile(
+      '-        self.assertAlmostEqual(result, 3.14, places=2)',
+      '+        self.assertAlmostEqual(result, 3.14, places=5)',
+    );
+    const findings = rh002(files, ctx);
+    expect(findings).toEqual([]);
+  });
+});

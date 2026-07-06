@@ -49,7 +49,7 @@ program
     }
     const { accepted } = classifyDiff(raw, files);
     const ctx = await buildRepoContext(cwd);
-    const findings = runChecks(accepted, ctx);
+    const findings = await runChecks(accepted, ctx);
     if (options.json) {
       process.stdout.write(jsonReport(findings) + '\n');
       prettyReport(findings, { stream: process.stderr, ci: options.ci });

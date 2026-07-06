@@ -60,7 +60,17 @@ program
       ctx.aiEnabled = true;
       ctx.judge = createAnthropicJudge(apiKey, model);
     }
-    const findings = await runChecks(accepted, ctx);
+    if (options.sarif) {
+      process.stderr.write('proctor: --sarif is not yet implemented (Phase 5)\n');
+      process.exit(1);
+    }
+    let findings: import('./types.js').Finding[];
+    try {
+      findings = await runChecks(accepted, ctx);
+    } catch (err) {
+      process.stderr.write('proctor: check failed: ' + String(err) + '\n');
+      process.exit(0); // fail-open per D-05
+    }
     if (options.json) {
       process.stdout.write(jsonReport(findings) + '\n');
       prettyReport(findings, { stream: process.stderr, ci: options.ci });

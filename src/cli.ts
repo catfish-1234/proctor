@@ -49,6 +49,17 @@ program
     }
     const { accepted } = classifyDiff(raw, files);
     const ctx = await buildRepoContext(cwd);
+    if (options.ai) {
+      const apiKey = process.env['ANTHROPIC_API_KEY'];
+      if (!apiKey) {
+        process.stderr.write('proctor: --ai requires ANTHROPIC_API_KEY env var. Set it or run without --ai.\n');
+        process.exit(1);
+      }
+      const { createAnthropicJudge } = await import('./ai/judge.js');
+      const model = ctx.aiModel ?? 'claude-haiku-4-5-20251001';
+      ctx.aiEnabled = true;
+      ctx.judge = createAnthropicJudge(apiKey, model);
+    }
     const findings = await runChecks(accepted, ctx);
     if (options.json) {
       process.stdout.write(jsonReport(findings) + '\n');

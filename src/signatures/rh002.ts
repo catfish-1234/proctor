@@ -33,6 +33,9 @@ function isWeakAssertion(content: string): boolean {
   return WEAK_PATTERNS.some(p => p.test(content));
 }
 
+// Python assertAlmostEqual pattern — matches tolerance-widening when places= value is reduced
+const ALMOST_EQUAL = /assertAlmostEqual\(/;
+
 /** Extract a short label like 'toBe(3)' or 'toBeDefined()' from a diff line. */
 function extractLabel(content: string): string {
   // Try to match a method call like .toXxx(...) or assertEqual(...)
@@ -71,6 +74,39 @@ export function rh002(files: ParsedFile[], _ctx: RepoContext): Finding[] {
           line: (weakAdd as { ln: number }).ln,
           message: `Assertion weakened from ${fromLabel} to ${toLabel}.`,
           remediation: 'Restore the specific value assertion to preserve test coverage strength.',
+        });
+      }
+
+      // Python assertAlmostEqual tolerance-widening: detect when places= value is reduced
+      // or when assertAlmostEqual is replaced with a weaker assertion (assertTrue/pass/etc.)
+      for (const del of dels) {
+        if (!ALMOST_EQUAL.test(del.content)) continue;
+        const delPlaces = del.content.match(/places\s*=\s*(\d+)/);
+
+        const weakerAdd = adds.find(a => {
+          // Case A: replaced with a weak assertion (assertTrue, assert True, pass, etc.)
+          if (WEAK_PATTERNS.some(p => p.test(a.content))) return true;
+          // Case B: still assertAlmostEqual but with fewer decimal places (looser tolerance)
+          if (ALMOST_EQUAL.test(a.content)) {
+            const addPlaces = a.content.match(/places\s*=\s*(\d+)/);
+            return (
+              addPlaces !== null &&
+              delPlaces !== null &&
+              parseInt(addPlaces[1]!) < parseInt(delPlaces[1]!)
+            );
+          }
+          return false;
+        });
+
+        if (!weakerAdd) continue;
+
+        findings.push({
+          ruleId: 'RH002',
+          severity: 'error',
+          file: filePath,
+          line: (weakerAdd as { ln: number }).ln,
+          message: 'Assertion weakened from assertAlmostEqual to a less precise check.',
+          remediation: 'Restore the specific precision in assertAlmostEqual or use assertEqual.',
         });
       }
     }

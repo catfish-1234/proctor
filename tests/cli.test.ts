@@ -13,6 +13,7 @@ describe('CLI smoke tests', () => {
     expect(result.stdout).toContain('--staged');
     expect(result.stdout).toContain('--ci');
     expect(result.stdout).toContain('--json');
+    expect(result.stdout).toContain('--sarif');
   });
 
   it('check in non-git dir exits 2 with proctor: on stderr', () => {
@@ -228,6 +229,30 @@ describe('check --ai flag', () => {
         encoding: 'utf8',
       });
       expect(result.status).toBe(0);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('check --sarif flag', () => {
+  it('produces valid SARIF JSON on stdout and exits 2 for a planted RH003 error finding', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      execSync('git config user.email x@x', { cwd: tmpDir });
+      execSync('git config user.name x', { cwd: tmpDir });
+      execSync('git commit --allow-empty -m init', { cwd: tmpDir });
+      writeFileSync(join(tmpDir, 'foo.test.ts'), 'it.skip("cheating", () => {})');
+      execSync('git add .', { cwd: tmpDir });
+      const result = spawnSync('node', [CLI, 'check', '--staged', '--sarif'], {
+        cwd: tmpDir,
+        encoding: 'utf8',
+      });
+      const parsed = JSON.parse(result.stdout) as { $schema: string; version: string };
+      expect(parsed.$schema).toBeDefined();
+      expect(parsed.version).toBe('2.1.0');
+      expect(result.status).toBe(2);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }

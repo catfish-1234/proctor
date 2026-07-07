@@ -12,6 +12,7 @@ import { buildRepoContext } from './context.js';
 import { runChecks } from './engine.js';
 import { prettyReport } from './reporters/pretty.js';
 import { jsonReport } from './reporters/json.js';
+import { sarifReport } from './reporters/sarif.js';
 
 async function readStdin(): Promise<string> {
   if (process.stdin.isTTY) return '';
@@ -60,16 +61,24 @@ program
       ctx.aiEnabled = true;
       ctx.judge = createAnthropicJudge(apiKey, model);
     }
-    if (options.sarif) {
-      process.stderr.write('proctor: --sarif is not yet implemented (Phase 5)\n');
-      process.exit(1);
-    }
     let findings: import('./types.js').Finding[];
     try {
       findings = await runChecks(accepted, ctx);
     } catch (err) {
       process.stderr.write('proctor: check failed: ' + String(err) + '\n');
       process.exit(0); // fail-open per D-05
+    }
+    if (options.sarif) {
+      const sarif = sarifReport(findings);
+      const hasError = findings.some(f => f.severity === 'error');
+      const hasWarn = findings.some(f => f.severity === 'warn');
+      await new Promise<void>((resolve) => {
+        process.stdout.write(sarif + '\n', () => {
+          process.exitCode = hasError ? 2 : hasWarn ? 1 : 0;
+          resolve();
+        });
+      });
+      return;
     }
     if (options.json) {
       process.stdout.write(jsonReport(findings) + '\n');

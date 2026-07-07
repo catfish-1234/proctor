@@ -1,0 +1,21 @@
+name: 'proctor'
+description: 'Catch AI agents gaming their test suites — SARIF + Code Scanning'
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v6
+      with:
+        node-version: '20'
+    - name: Build proctor
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: npm ci && npm run build
+    - name: Run proctor check --sarif
+      shell: bash
+      run: node "${{ github.workspace }}/dist/cli.js" check --staged --sarif > results.sarif
+    - name: Upload SARIF to Code Scanning
+      if: always()
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        sarif_file: results.sarif

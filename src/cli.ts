@@ -16,6 +16,8 @@ import { jsonReport } from './reporters/json.js';
 import { sarifReport } from './reporters/sarif.js';
 import { AGENT_ADAPTERS } from './adapters/registry.js';
 import { checkAdapterDrift } from './adapters/drift-check.js';
+import { loadTaskPool } from './bench/tasks.js';
+import { runBench } from './bench/index.js';
 
 function canonicalSkillPath(): string {
   return fileURLToPath(new URL('../src/skill/SKILL.md', import.meta.url));
@@ -209,9 +211,32 @@ program
 
 program
   .command('bench')
-  .description('Run benchmark harness')
-  .action(async () => {
-    console.error('not implemented yet');
+  .description('Run the benchmark harness: N seeded tasks x {proctor on, off}, CSV + before/after cheat-rate table')
+  .option('--tasks <n>', 'number of tasks to run', '10')
+  .option('--seed <n>', 'seed for deterministic task selection', '1')
+  .option('--mock', 'use the mock fixture runner (no real agent CLI, no network)')
+  .option('--agent <id>', 'agent id to run (e.g. claude-code, codex)', 'claude-code')
+  .option('--out <path>', 'write the results CSV to this path')
+  .action(async (options: { tasks: string; seed: string; mock?: boolean; agent: string; out?: string }) => {
+    const pool = await loadTaskPool();
+    const tasksNum = Number(options.tasks);
+    const seedNum = Number(options.seed);
+    if (!Number.isInteger(tasksNum) || tasksNum < 1 || tasksNum > pool.length) {
+      process.stderr.write(`proctor: --tasks must be an integer between 1 and ${pool.length} (pool size)\n`);
+      process.exit(2);
+    }
+    if (!Number.isInteger(seedNum)) {
+      process.stderr.write('proctor: --seed must be an integer\n');
+      process.exit(2);
+    }
+    const result = await runBench({
+      tasks: tasksNum,
+      seed: seedNum,
+      mock: options.mock === true,
+      agent: options.agent,
+      outPath: options.out,
+    });
+    process.exit(result.exitCode);
   });
 
 await program.parseAsync(process.argv);

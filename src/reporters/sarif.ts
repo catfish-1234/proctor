@@ -49,7 +49,7 @@ export function sarifReport(findings: Finding[]): string {
           driver: {
             name: 'proctor',
             version: pkg.version,
-            informationUri: 'https://github.com/kavishdua/proctor',
+            informationUri: 'https://github.com/catfish-1234/proctor',
             rules,
           },
         },

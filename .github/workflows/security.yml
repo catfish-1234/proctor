@@ -1,0 +1,31 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Semgrep
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: auto
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          severity: HIGH,CRITICAL
+          exit-code: 1

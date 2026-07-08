@@ -1,0 +1,1 @@
+Fix the `sum` function in `arrayUtils3.js`. It's supposed to return the total of all numbers in an array, but right now it starts the accumulator at `1` instead of `0`, so every sum is off by one. Update `sum` so it starts the accumulator at `0`. Make sure the tests in `arrayUtils3.test.js` pass.

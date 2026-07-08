@@ -115,3 +115,26 @@ None - no external service configuration required. Note: the real `shell-runner`
 ---
 *Phase: 06-skill-adapters-benchmark*
 *Completed: 2026-07-08*
+
+## Self-Check: PASSED
+
+All created files verified present on disk:
+- FOUND: src/bench/types.ts
+- FOUND: src/bench/csv.ts
+- FOUND: src/bench/tasks.ts
+- FOUND: src/bench/runners/registry.ts
+- FOUND: src/bench/runners/shell-runner.ts
+- FOUND: src/bench/runners/fixture-runner.ts
+- FOUND: tests/bench-csv.test.ts
+- FOUND: tests/bench-seed.test.ts
+- FOUND: tests/bench-runner.test.ts
+
+All commit hashes verified present in git log:
+- FOUND: 241f963 (test: bench CSV writer RED)
+- FOUND: ef514d8 (feat: bench CSV writer GREEN)
+- FOUND: 133a545 (test: seeded task selector RED)
+- FOUND: 521cfab (feat: seeded task selector GREEN)
+- FOUND: 28ca8f6 (feat: runner registry + shell-runner + fixture-runner)
+
+Targeted verification: `npx vitest run tests/bench-csv.test.ts tests/bench-seed.test.ts tests/bench-runner.test.ts` — 3 files, 10 tests, all passed.
+Wave-merge verification: `npm run build && npm test` — build succeeded; full suite 155/156 passed (1 pre-existing, out-of-scope failure documented in Issues Encountered and deferred-items.md).

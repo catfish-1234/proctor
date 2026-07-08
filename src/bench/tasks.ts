@@ -2,14 +2,34 @@
 // Security V5: task directory names are validated against /^task-\d+$/ before being
 // used in any path join, to prevent path traversal via a crafted task-pool entry name.
 
+import { existsSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import type { Dirent } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
-// src/bench/tasks.ts -> package root is two levels up (src/bench -> src -> root)
-const DEFAULT_TASKS_DIR = join(__dirname, '../../bench/tasks');
+
+/**
+ * Walks up from startDir looking for this package's package.json. A FIXED relative offset
+ * (e.g. "two levels up") only holds when this module runs unbundled from its source location
+ * (src/bench/tasks.ts). Once tsup bundles everything into a single dist/cli.js, import.meta.url
+ * points at dist/ instead, silently breaking a hardcoded "../../bench/tasks" join (it would
+ * resolve outside the package entirely). Walking up to find package.json works for both the
+ * unbundled (vitest, src/bench/tasks.ts) and bundled (dist/cli.js) cases.
+ */
+function findPackageRoot(startDir: string): string {
+  let dir = startDir;
+  for (let i = 0; i < 6; i++) {
+    if (existsSync(join(dir, 'package.json'))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return startDir;
+}
+
+const DEFAULT_TASKS_DIR = join(findPackageRoot(__dirname), 'bench/tasks');
 
 const TASK_NAME_RE = /^task-\d+$/;
 

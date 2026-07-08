@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { resolve, join } from 'node:path';
+import { resolve, join, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { chmodSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import pkg from '../package.json' with { type: 'json' };
 import { runGitDiff } from './diff.js';
 import { classifyDiff } from './pre-classifier.js';
@@ -13,6 +14,11 @@ import { runChecks } from './engine.js';
 import { prettyReport } from './reporters/pretty.js';
 import { jsonReport } from './reporters/json.js';
 import { sarifReport } from './reporters/sarif.js';
+import { AGENT_ADAPTERS } from './adapters/registry.js';
+
+function canonicalSkillPath(): string {
+  return fileURLToPath(new URL('../src/skill/SKILL.md', import.meta.url));
+}
 
 async function readStdin(): Promise<string> {
   if (process.stdin.isTTY) return '';
@@ -171,6 +177,20 @@ program
     await mkdir(dir, { recursive: true });
     await writeFile(settingsPath, JSON.stringify(settings, null, 2), 'utf8');
     process.stdout.write('Installed: ' + settingsPath + '\n');
+  });
+
+program
+  .command('install-skill')
+  .description('Deploy canonical SKILL.md to every supported agent adapter path')
+  .action(async () => {
+    const cwd = process.cwd();
+    const canonical = await readFile(canonicalSkillPath(), 'utf8');
+    for (const adapter of AGENT_ADAPTERS) {
+      const dest = join(cwd, adapter.relativePath);
+      await mkdir(dirname(dest), { recursive: true });
+      await writeFile(dest, canonical, 'utf8');
+      process.stdout.write('Installed: ' + dest + '\n');
+    }
   });
 
 program

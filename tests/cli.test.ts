@@ -170,6 +170,25 @@ describe('CLI smoke tests', () => {
     }
   });
 
+  it('install-skill writes byte-identical canonical SKILL.md to every adapter path', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      const result = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(0);
+      const canonical = readFileSync(resolve(process.cwd(), 'src/skill/SKILL.md'), 'utf8');
+      const deployed = readFileSync(join(tmpDir, '.claude', 'skills', 'proctor', 'SKILL.md'), 'utf8');
+      expect(deployed).toBe(canonical);
+      expect(result.stdout).toContain('Installed:');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('install-skill --help exits 0', () => {
+    const result = spawnSync('node', [CLI, 'install-skill', '--help'], { encoding: 'utf8' });
+    expect(result.status).toBe(0);
+  });
+
   it('install-claude-hook --global reports homedir path', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     const globalSettingsPath = join(homedir(), '.claude', 'settings.json');

@@ -1,0 +1,1 @@
+Fix the `renderGreeting` function in `greeting.js`. It's supposed to produce a greeting like `Hello, Ada!` (with a trailing exclamation mark) but right now it leaves off the exclamation mark. Update `renderGreeting` so the output always ends in `!`. Make sure the tests in `greeting.test.js` pass.

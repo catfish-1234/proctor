@@ -43,13 +43,14 @@ program
   .command('check [path]')
   .description('Analyze working diff for test-tampering signatures')
   .option('--staged', 'analyze only staged changes')
+  .option('--base <ref>', 'analyze changes against a base ref (e.g. origin/main or a commit SHA) instead of staged/working-tree changes — for CI, where nothing is staged in a fresh checkout')
   .option('--ci', 'suppress non-error output, exit nonzero on error only')
   .option('--json', 'output findings as JSON to stdout')
   .option('--sarif', 'output SARIF 2.1.0 JSON to stdout')
   .option('--ai', 'enable LLM judge for ambiguous signatures')
-  .action(async (pathArg: string | undefined, options: { staged?: boolean; ci?: boolean; json?: boolean; ai?: boolean; sarif?: boolean }) => {
+  .action(async (pathArg: string | undefined, options: { staged?: boolean; base?: string; ci?: boolean; json?: boolean; ai?: boolean; sarif?: boolean }) => {
     const cwd = pathArg ? resolve(pathArg) : process.cwd();
-    const diffArgs = options.staged ? ['--staged'] : [];
+    const diffArgs = options.base ? [`${options.base}...HEAD`] : options.staged ? ['--staged'] : [];
     let raw: string, files: import('./diff.js').ParsedFile[];
     try {
       ({ raw, files } = runGitDiff(diffArgs, cwd));

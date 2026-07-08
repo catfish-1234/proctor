@@ -11,6 +11,7 @@ describe('CLI smoke tests', () => {
     const result = spawnSync('node', [CLI, 'check', '--help'], { encoding: 'utf8' });
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('--staged');
+    expect(result.stdout).toContain('--base');
     expect(result.stdout).toContain('--ci');
     expect(result.stdout).toContain('--json');
     expect(result.stdout).toContain('--sarif');
@@ -370,6 +371,52 @@ describe('check --sarif flag', () => {
       expect(parsed.$schema).toBeDefined();
       expect(parsed.version).toBe('2.1.0');
       expect(result.status).toBe(2);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('check --base flag', () => {
+  // Regression test for the 05-03 checkpoint finding: `check --staged` is empty in CI
+  // (a fresh Actions checkout has nothing staged in the git index), so action.yml/CI
+  // must diff against a base ref instead. `--base <ref>` runs `git diff <ref>...HEAD`.
+  it('detects a finding committed after the base ref, with nothing staged', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      execSync('git config user.email x@x', { cwd: tmpDir });
+      execSync('git config user.name x', { cwd: tmpDir });
+      execSync('git commit --allow-empty -m base', { cwd: tmpDir });
+      const baseSha = execSync('git rev-parse HEAD', { cwd: tmpDir, encoding: 'utf8' }).trim();
+      writeFileSync(join(tmpDir, 'foo.test.ts'), 'it.skip("cheating", () => {})');
+      execSync('git add .', { cwd: tmpDir });
+      execSync('git commit -m "feat: add feature (plants RH003)"', { cwd: tmpDir });
+      // Nothing staged or unstaged at this point — only --base can see the finding.
+      const result = spawnSync('node', [CLI, 'check', '--base', baseSha], {
+        cwd: tmpDir,
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(2);
+      expect(result.stdout).toContain('RH003');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('exits 0 when there is no diff against the base ref', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      execSync('git config user.email x@x', { cwd: tmpDir });
+      execSync('git config user.name x', { cwd: tmpDir });
+      execSync('git commit --allow-empty -m base', { cwd: tmpDir });
+      const baseSha = execSync('git rev-parse HEAD', { cwd: tmpDir, encoding: 'utf8' }).trim();
+      const result = spawnSync('node', [CLI, 'check', '--base', baseSha], {
+        cwd: tmpDir,
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(0);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }

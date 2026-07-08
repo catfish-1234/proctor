@@ -104,3 +104,7 @@ None - plan executed exactly as written for Tasks 2 and 3. The pre-existing `src
 ---
 *Phase: 06-skill-adapters-benchmark*
 *Completed: 2026-07-07*
+
+## Self-Check: PASSED
+
+All created files verified present (`src/skill/SKILL.md`, `src/adapters/registry.ts`, `src/adapters/drift-check.ts`, `tests/skill.test.ts`, `tests/drift-check.test.ts`, `06-01-SUMMARY.md`) and all four task/plan commits verified in git log (`e1e8ab4`, `67993e9`, `8578665`, `3f05707`).

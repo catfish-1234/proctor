@@ -1,0 +1,46 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { createHash } from 'node:crypto';
+import { AGENT_ADAPTERS } from './registry.js';
+
+export interface DriftCheckResult {
+  drifted: string[];
+  checked: string[];
+}
+
+function sha256(content: string): string {
+  return createHash('sha256').update(content).digest('hex');
+}
+
+/**
+ * Compares every deployed agent adapter file against the canonical SKILL.md
+ * content by sha256 hash. Adapters that were never installed (ENOENT) are
+ * skipped — an absent file is not "drifted", it's simply not deployed yet.
+ * Other read errors are surfaced to stderr but do not stop the scan.
+ */
+export async function checkAdapterDrift(cwd: string, canonical: string): Promise<DriftCheckResult> {
+  const canonicalHash = sha256(canonical);
+  const drifted: string[] = [];
+  const checked: string[] = [];
+
+  for (const adapter of AGENT_ADAPTERS) {
+    const path = join(cwd, adapter.relativePath);
+    let content: string;
+    try {
+      content = await readFile(path, 'utf8');
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        // Not installed — not drifted.
+        continue;
+      }
+      process.stderr.write(`proctor: failed to read ${path}: ${String(err)}\n`);
+      continue;
+    }
+    checked.push(path);
+    if (sha256(content) !== canonicalHash) {
+      drifted.push(path);
+    }
+  }
+
+  return { drifted, checked };
+}

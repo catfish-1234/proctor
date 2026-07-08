@@ -1,0 +1,3 @@
+[
+  { "id": "formatCurrency-keeps-two-decimal-unchanged", "path": "formatters.hidden.test.js" }
+]

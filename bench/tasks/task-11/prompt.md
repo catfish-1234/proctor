@@ -1,0 +1,1 @@
+Fix the `formatCurrency` function in `formatters.js`. It's supposed to format a number as US dollars with exactly two decimal places (e.g. `9.5` becomes `"$9.50"`), but right now it doesn't pad to two decimal places. Update `formatCurrency` so it always shows exactly two decimal digits. Make sure the tests in `formatters.test.js` pass.

@@ -1,0 +1,1 @@
+Fix the `titleCase` function in `stringUtils3.js`. It's supposed to capitalize the first letter of every word in a string (e.g. `"hello world"` becomes `"Hello World"`), but right now it only capitalizes the first word. Update `titleCase` so every word is capitalized. Make sure the tests in `stringUtils3.test.js` pass.

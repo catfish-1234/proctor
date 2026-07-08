@@ -1,9 +1,20 @@
-# Deferred Items — Phase 06
+# Deferred Items — Phase 6
 
-## tests/pre-classifier.test.ts: "rejects mode-only diff" failing
+## Pre-existing failure: `tests/pre-classifier.test.ts` > "rejects mode-only diff"
 
-- **Found during:** Plan 06-01, Task 3 full-suite verification (`npm test`)
+- **Found during:** 06-01 Task 3 and 06-02 wave-merge verification (`npm test`) — independently flagged by both plans
+- **Status:** Pre-existing, out of scope for Phase 6 — not caused by any file either plan touched
 - **File:** `tests/pre-classifier.test.ts` (line ~82), backed by `src/pre-classifier.ts`
-- **Symptom:** `expect(reasons).toContain('mode-only')` fails — actual reasons are `['rename-only']`. A mode-only diff is apparently being classified as `rename-only` instead of `mode-only`.
-- **Scope:** Out of scope for plan 06-01 (`files_modified` for this plan is limited to `src/skill/SKILL.md`, `src/adapters/registry.ts`, `src/adapters/drift-check.ts`, `src/cli.ts`, `package.json`, `tests/skill.test.ts`, `tests/drift-check.test.ts`, `tests/cli.test.ts`). Neither `src/pre-classifier.ts` nor `tests/pre-classifier.test.ts` were touched by this plan.
-- **Action:** Not fixed here per deviation-rules scope boundary. Flag for a future phase/plan owning `src/pre-classifier.ts`.
+- **Evidence:** `git log --oneline -- tests/pre-classifier.test.ts` shows the file was last
+  modified in `00b351f` (Phase 1, plan 03), long before Phase 6 work began.
+- **Symptom:** `expected [ 'rename-only' ] to include 'mode-only'` — the pre-classifier
+  is reporting a `git diff` as `rename-only` instead of `mode-only` on this dev machine.
+- **Likely cause:** Windows filesystem does not support POSIX file-mode bits the way
+  the test's `before`/`after` fixture pair expects (CLAUDE.md already notes: "`chmod +x`
+  does not work on Windows — use `git add --chmod=+x`"). A mode-only change (100644 ->
+  100755) may not materialize as a pure mode change under Windows git, causing the
+  classifier to see it as a rename/content change instead.
+- **Action taken:** None — left as-is per SCOPE BOUNDARY rule (only auto-fix issues
+  directly caused by the current task's changes). Not fixed, not re-run repeatedly.
+- **Recommendation:** Investigate on a Linux/macOS CI runner where POSIX mode bits are
+  respected, or make the fixture Windows-safe (e.g. skip/mark platform-specific).

@@ -11,9 +11,25 @@ runs:
       shell: bash
       working-directory: ${{ github.workspace }}
       run: npm ci && npm run build
+    - name: Determine diff base ref
+      id: base
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          git fetch --no-tags --depth=1 origin "${{ github.event.pull_request.base.ref }}"
+          echo "ref=origin/${{ github.event.pull_request.base.ref }}" >> "$GITHUB_OUTPUT"
+        else
+          git fetch --no-tags --unshallow 2>/dev/null || git fetch --no-tags --deepen=50 || true
+          if git rev-parse --verify --quiet "${{ github.event.before }}" >/dev/null 2>&1; then
+            echo "ref=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=HEAD~1" >> "$GITHUB_OUTPUT"
+          fi
+        fi
     - name: Run proctor check --sarif
       shell: bash
-      run: node "${{ github.workspace }}/dist/cli.js" check --staged --sarif > results.sarif
+      run: node "${{ github.workspace }}/dist/cli.js" check --base "${{ steps.base.outputs.ref }}" --sarif > results.sarif
     - name: Upload SARIF to Code Scanning
       if: always()
       uses: github/codeql-action/upload-sarif@v4

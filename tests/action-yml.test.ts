@@ -21,8 +21,15 @@ describe('action.yml', () => {
     expect(actionYml).toContain('npm ci && npm run build');
   });
 
-  it('runs check --staged --sarif', () => {
-    expect(actionYml).toContain('check --staged --sarif');
+  it('runs check --base <ref> --sarif, not --staged (staged is always empty in a fresh CI checkout)', () => {
+    expect(actionYml).toContain('check --base');
+    expect(actionYml).toContain('--sarif');
+    expect(actionYml).not.toContain('check --staged --sarif');
+  });
+
+  it('determines a diff base ref for both pull_request and push events', () => {
+    expect(actionYml).toContain('github.event.pull_request.base.ref');
+    expect(actionYml).toContain('github.event.before');
   });
 
   it('uploads via github/codeql-action/upload-sarif@v4', () => {

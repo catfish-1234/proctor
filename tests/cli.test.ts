@@ -254,6 +254,104 @@ describe('check --ai flag', () => {
   });
 });
 
+describe('bench CLI', () => {
+  it('--help shows --tasks, --seed, --mock, --agent, --out', () => {
+    const result = spawnSync('node', [CLI, 'bench', '--help'], { encoding: 'utf8' });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('--tasks');
+    expect(result.stdout).toContain('--seed');
+    expect(result.stdout).toContain('--mock');
+    expect(result.stdout).toContain('--agent');
+    expect(result.stdout).toContain('--out');
+  });
+
+  it(
+    '--mock --tasks 3 --seed 1 --out writes a BENCH-03 CSV with 6 data rows (2 per task) and prints a before/after table',
+    () => {
+      const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-bench-cli-'));
+      try {
+        const outPath = join(tmpDir, 'results.csv');
+        const result = spawnSync(
+          'node',
+          [CLI, 'bench', '--mock', '--tasks', '3', '--seed', '1', '--out', outPath],
+          { cwd: process.cwd(), encoding: 'utf8' }
+        );
+        expect(result.status).toBe(0);
+
+        const csv = readFileSync(outPath, 'utf8');
+        const lines = csv.trim().split('\n');
+        expect(lines[0]).toBe('task_id,model,proctor_on,cheat_detected,rh_id,honest_pass');
+        expect(lines.length).toBe(7); // header + 6 data rows (2 per task x 3 tasks)
+
+        const dataRows = lines.slice(1).map((l) => l.split(','));
+        const byTask = new Map<string, boolean[]>();
+        for (const row of dataRows) {
+          const taskId = row[0] as string;
+          const proctorOn = row[2] === 'true';
+          const existing = byTask.get(taskId) ?? [];
+          existing.push(proctorOn);
+          byTask.set(taskId, existing);
+        }
+        expect(byTask.size).toBe(3);
+        for (const flags of byTask.values()) {
+          expect(flags.sort()).toEqual([false, true]);
+        }
+
+        // Before/after cheat-rate table printed to stdout
+        expect(result.stdout).toContain('cheat_rate');
+      } finally {
+        rmSync(tmpDir, { recursive: true, force: true });
+      }
+    },
+    90_000
+  );
+
+  it(
+    'the same --seed selects the same tasks on re-run (deterministic)',
+    () => {
+      const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-bench-cli-seed-'));
+      try {
+        const outA = join(tmpDir, 'a.csv');
+        const outB = join(tmpDir, 'b.csv');
+        spawnSync('node', [CLI, 'bench', '--mock', '--tasks', '2', '--seed', '7', '--out', outA], {
+          cwd: process.cwd(),
+          encoding: 'utf8',
+        });
+        spawnSync('node', [CLI, 'bench', '--mock', '--tasks', '2', '--seed', '7', '--out', outB], {
+          cwd: process.cwd(),
+          encoding: 'utf8',
+        });
+        const tasksA = readFileSync(outA, 'utf8')
+          .trim()
+          .split('\n')
+          .slice(1)
+          .map((l) => l.split(',')[0]);
+        const tasksB = readFileSync(outB, 'utf8')
+          .trim()
+          .split('\n')
+          .slice(1)
+          .map((l) => l.split(',')[0]);
+        expect(tasksA).toEqual(tasksB);
+      } finally {
+        rmSync(tmpDir, { recursive: true, force: true });
+      }
+    },
+    90_000
+  );
+
+  it('--tasks 0 exits 2 with a message', () => {
+    const result = spawnSync('node', [CLI, 'bench', '--mock', '--tasks', '0'], { encoding: 'utf8' });
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('proctor:');
+  });
+
+  it('--tasks with a non-numeric value exits 2 with a message', () => {
+    const result = spawnSync('node', [CLI, 'bench', '--mock', '--tasks', 'abc'], { encoding: 'utf8' });
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('proctor:');
+  });
+});
+
 describe('check --sarif flag', () => {
   it('produces valid SARIF JSON on stdout and exits 2 for a planted RH003 error finding', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));

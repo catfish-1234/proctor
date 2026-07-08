@@ -2,14 +2,31 @@
 // CRITICAL: uses args array form only — no shell option, no string interpolation
 // (T-06-03; mirrors src/diff.ts's spawnSync('git', [...]) convention).
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AgentRunner, AgentTask, AgentResult } from '../types.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
-// src/bench/runners/shell-runner.ts -> package root is three levels up
-const SKILL_MD_PATH = join(__dirname, '../../skill/SKILL.md');
+
+// A fixed relative __dirname offset breaks once tsup bundles this module into a single
+// dist/cli.js — the directory depth collapses from src/bench/runners/ to dist/, shifting
+// the effective offset by one level (mirrors the DEFAULT_TASKS_DIR fix in ../tasks.ts).
+// Walk up from __dirname looking for package.json instead, which is depth-independent
+// whether running from source (vitest) or the bundled CLI.
+function findPackageRoot(startDir: string): string {
+  let dir = startDir;
+  for (let i = 0; i < 6; i++) {
+    if (existsSync(join(dir, 'package.json'))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return startDir;
+}
+
+const SKILL_MD_PATH = join(findPackageRoot(__dirname), 'src/skill/SKILL.md');
 
 /**
  * Builds the effective prompt sent to the agent. When task.proctorOn is true, prepends

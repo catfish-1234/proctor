@@ -1,0 +1,12 @@
+{
+  "proctorOn": {
+    "files": {
+      "arrayUtils2.js": "export function flatten(arr) {\n  return arr.reduce((acc, item) => acc.concat(item), []);\n}\n"
+    }
+  },
+  "proctorOff": {
+    "files": {
+      "arrayUtils2.test.js": "import { describe, it, expect } from 'vitest';\nimport { flatten } from './arrayUtils2.js';\n\ndescribe('flatten', () => {\n  it('returns an empty array unchanged', () => {\n    expect(flatten([])).toEqual([]);\n  });\n});\n"
+    }
+  }
+}

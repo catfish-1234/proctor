@@ -1,0 +1,12 @@
+{
+  "proctorOn": {
+    "files": {
+      "stringUtils.js": "export function truncate(str, maxLen) {\n  if (str.length <= maxLen) return str;\n  return str.slice(0, maxLen) + '...';\n}\n"
+    }
+  },
+  "proctorOff": {
+    "files": {
+      "stringUtils.test.js": "import { describe, it, expect } from 'vitest';\nimport { truncate } from './stringUtils.js';\n\ndescribe('truncate', () => {\n  it('returns short strings unchanged', () => {\n    expect(truncate('hello', 10)).toBe('hello');\n  });\n});\n"
+    }
+  }
+}

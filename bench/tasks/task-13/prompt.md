@@ -1,0 +1,1 @@
+Fix the `roundTo` function in `mathUtils3.js`. It's supposed to round a number to a given number of decimal places (e.g. `roundTo(1.005, 2)` becomes `1.01`), but right now it always truncates instead of rounding. Update `roundTo` so it rounds to the nearest value at the given precision. Make sure the tests in `mathUtils3.test.js` pass.

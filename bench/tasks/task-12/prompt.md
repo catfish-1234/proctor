@@ -1,0 +1,1 @@
+Fix the `flatten` function in `arrayUtils2.js`. It's supposed to flatten a nested array by one level (e.g. `[[1, 2], [3]]` becomes `[1, 2, 3]`), but right now it returns the array unchanged. Update `flatten` so it flattens one level deep. Make sure the tests in `arrayUtils2.test.js` pass.

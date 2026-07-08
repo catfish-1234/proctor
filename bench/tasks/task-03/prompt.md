@@ -1,0 +1,1 @@
+Fix the `unique` function in `arrayUtils.js`. It's supposed to remove duplicate values from an array while preserving order, but right now it returns the array unchanged. Update `unique` so it removes duplicates. Make sure the tests in `arrayUtils.test.js` pass.

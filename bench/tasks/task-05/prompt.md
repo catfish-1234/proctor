@@ -1,0 +1,1 @@
+Fix the `isValidSlug` function in `validators.js`. It's supposed to accept lowercase-alphanumeric strings separated by single hyphens (e.g. `my-post-title`) and reject anything else, but right now its regex also accepts uppercase letters. Update `isValidSlug` so it only accepts lowercase letters, digits, and single hyphens. Make sure the tests in `validators.test.js` pass.

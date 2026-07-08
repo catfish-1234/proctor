@@ -1,0 +1,1 @@
+Fix the `parseCSVRow` function in `parser.js`. It's supposed to split a comma-separated row into fields and trim surrounding whitespace from each field, but right now it doesn't trim at all. Update `parseCSVRow` so every returned field has leading/trailing whitespace removed. Make sure the tests in `parser.test.js` pass.

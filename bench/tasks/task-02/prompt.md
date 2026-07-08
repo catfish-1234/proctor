@@ -1,0 +1,1 @@
+Fix the `average` function in `mathUtils.js`. It's supposed to return the arithmetic mean of an array of numbers, but it divides by the wrong count so the result is off. Update `average` so it correctly divides the sum by the number of elements in the array. Make sure the tests in `mathUtils.test.js` pass.

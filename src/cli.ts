@@ -15,6 +15,7 @@ import { prettyReport } from './reporters/pretty.js';
 import { jsonReport } from './reporters/json.js';
 import { sarifReport } from './reporters/sarif.js';
 import { AGENT_ADAPTERS } from './adapters/registry.js';
+import { checkAdapterDrift } from './adapters/drift-check.js';
 
 function canonicalSkillPath(): string {
   return fileURLToPath(new URL('../src/skill/SKILL.md', import.meta.url));
@@ -191,6 +192,19 @@ program
       await writeFile(dest, canonical, 'utf8');
       process.stdout.write('Installed: ' + dest + '\n');
     }
+  });
+
+program
+  .command('drift-check')
+  .description('Verify every deployed agent adapter still matches canonical SKILL.md')
+  .action(async () => {
+    const cwd = process.cwd();
+    const canonical = await readFile(canonicalSkillPath(), 'utf8');
+    const { drifted } = await checkAdapterDrift(cwd, canonical);
+    for (const path of drifted) {
+      process.stderr.write('Drifted: ' + path + '\n');
+    }
+    process.exit(drifted.length > 0 ? 1 : 0);
   });
 
 program

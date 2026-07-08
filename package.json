@@ -12,7 +12,8 @@
   },
   "files": [
     "dist",
-    "proctor.schema.json"
+    "proctor.schema.json",
+    "src/skill/SKILL.md"
   ],
   "engines": {
     "node": ">=20.0.0"
@@ -29,7 +30,8 @@
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "drift-check": "node dist/cli.js drift-check"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",

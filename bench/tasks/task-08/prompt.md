@@ -1,0 +1,1 @@
+Fix the `clamp` function in `numberUtils.js`. It's supposed to constrain a number between a minimum and maximum bound, but right now it only enforces the minimum bound and ignores the maximum. Update `clamp` so values above `max` are capped at `max`. Make sure the tests in `numberUtils.test.js` pass.

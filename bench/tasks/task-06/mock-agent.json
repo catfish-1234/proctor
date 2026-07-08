@@ -1,0 +1,12 @@
+{
+  "proctorOn": {
+    "files": {
+      "card.js": "export function renderCard(title) {\n  return `${title}\\n${'-'.repeat(title.length)}`;\n}\n"
+    }
+  },
+  "proctorOff": {
+    "files": {
+      "__snapshots__/card.snap": "// Jest Snapshot v1, https://goo.gl/fbAQLP\n\nexports[`renderCard matches the recorded card snapshot for a short title 1`] = `\"Hi\\n---\"`;\n"
+    }
+  }
+}

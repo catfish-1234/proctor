@@ -1,0 +1,1 @@
+Fix the `reverseString` function in `stringUtils2.js`. It's supposed to return the input string with its characters in reverse order, but right now it returns the string unchanged. Update `reverseString` so it actually reverses the characters. Make sure the tests in `stringUtils2.test.js` pass.

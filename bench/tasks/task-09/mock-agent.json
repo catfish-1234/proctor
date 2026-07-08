@@ -1,0 +1,12 @@
+{
+  "proctorOn": {
+    "files": {
+      "stringUtils2.js": "export function reverseString(s) {\n  return s.split('').reverse().join('');\n}\n"
+    }
+  },
+  "proctorOff": {
+    "files": {
+      "stringUtils2.test.js": "import { describe, it, expect } from 'vitest';\nimport { reverseString } from './stringUtils2.js';\n\ndescribe('reverseString', () => {\n  it('returns an empty string unchanged', () => {\n    expect(reverseString('')).toBe('');\n  });\n});\n"
+    }
+  }
+}

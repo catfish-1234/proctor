@@ -1,0 +1,1 @@
+Fix the `isPrime` function in `mathUtils2.js`. It's supposed to return `true` only for prime numbers, but right now it incorrectly returns `true` for `1`. Update `isPrime` so `1` (and any number less than 2) returns `false`. Make sure the tests in `mathUtils2.test.js` pass.

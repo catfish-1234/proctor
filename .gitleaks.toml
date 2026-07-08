@@ -1,0 +1,16 @@
+# Gitleaks configuration for proctor.
+#
+# Extends the built-in default ruleset and adds an allowlist for intentional
+# test fixtures. Proctor's benchmark fixtures plant fake/example diffs (one per
+# RH-ID check) to verify that each signature fires correctly. These are
+# canonical example values, NOT real credentials, so the secret scanner must
+# not block them.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Intentional sample content in planted-cheat benchmark fixtures"
+paths = [
+  '''fixtures/''',
+  '''src/bench/''',
+]

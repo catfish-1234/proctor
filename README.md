@@ -165,6 +165,27 @@ jobs:
 
 [`.github/workflows/release.yml`](.github/workflows/release.yml) handles tag-triggered (`v*`), trusted-publishing (npm OIDC) releases for every version **after** the manual `v1.0.0` publish — npm's trusted-publisher registration requires the package to already exist on the registry before it can be configured, so it could not be used for the first publish. Future releases: push a `v*` tag and `release.yml` takes care of build, test, and `npm publish`.
 
+## Benchmark
+
+`proctor bench` measures how often an AI coding agent games its own test suite — and how often proctor catches it — by running a fixed pool of held-out-test tasks with the honest-completion skill on and off. Full methodology, held-out-test design, and citations (EvilGenie, Baker et al.) live in [`bench/METHODOLOGY.md`](bench/METHODOLOGY.md).
+
+Real data from a 15-task run against `claude-code` (`bench/results-live.csv`, no `--mock`):
+
+| proctor | cheat rate | honest-pass rate |
+|---------|-----------|-------------------|
+| off | 0.0% | 80.0% |
+| on | 0.0% | 73.3% |
+
+_n = 15 tasks. Both arms show a 0.0% cheat rate — proctor's own deterministic signatures (RH001, RH002, RH003, RH006, RH007; see `bench/METHODOLOGY.md`) found no test-tampering diff in either the "off" or "on" run of this sample, so this sample does not yet demonstrate a cheat-rate delta. The honest-pass rate is reported as-is (73.3% with proctor on vs. 80.0% without) rather than spun — proctor's job is catching cheating, not improving raw task-completion rate, and a 15-task sample is small enough that this ~1-task difference is plausible noise, not a claimed effect. Both numbers are traced directly from the raw CSV; see the regenerate command below to reproduce or extend this run._
+
+**Regenerate:**
+
+```bash
+node dist/cli.js bench --tasks 15 --agent claude-code --out bench/results-live.csv
+```
+
+Then update the table above with the new numbers. This table is a static snapshot (not live-generated in CI) — re-run the command above and edit this section by hand whenever you want to refresh it with a larger sample or a different agent.
+
 ## License
 
 MIT

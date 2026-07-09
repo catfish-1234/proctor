@@ -1,6 +1,6 @@
 {
   "name": "@kavishdua/proctor",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Catch AI agents gaming their test suites",
   "type": "module",
   "bin": {
@@ -19,6 +19,10 @@
     "node": ">=20.0.0"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/catfish-1234/proctor.git"
+  },
   "keywords": [
     "proctor",
     "ai",
@@ -31,7 +35,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "drift-check": "node dist/cli.js drift-check"
+    "drift-check": "node dist/cli.js drift-check",
+    "verify:pack": "bash scripts/verify-pack.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",

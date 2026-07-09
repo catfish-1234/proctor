@@ -1,5 +1,15 @@
 # demo/demo.tape — two-scene proctor demo (DIST-03, D-03/D-04)
 # Regenerate with: vhs demo/demo.tape   (run from repo root so `demo.gif` lands there)
+#
+# NOTE: on this project's Windows dev machine, VHS's go-rod dependency hung
+# indefinitely (confirmed via isolated diagnosis — not tape-specific: even a
+# one-line tape hung, with headless Chrome and ttyd each working fine
+# standalone). The committed demo.gif was rendered via the fallback script
+# demo/render_demo_gif.py instead, which reproduces these same two scenes by
+# running the real proctor CLI and rasterizing its real output with Pillow —
+# no headless browser involved. If `vhs demo/demo.tape` works in your
+# environment, it remains the canonical way to regenerate demo.gif; this tape
+# is still the source of truth for the two-scene structure either way.
 Output demo.gif
 Require git
 Require node

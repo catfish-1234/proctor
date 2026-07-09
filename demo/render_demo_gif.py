@@ -167,24 +167,24 @@ def build_frames(diff_txt, check_txt, stophook_txt):
     frames = []
 
     title1 = "Scene 1 — proctor catches a test deletion"
-    frames.append((render_frame([prompt_line("git diff --staged")], title1), 6))
+    frames.append((render_frame([prompt_line("git diff --staged")], title1), 15))
     f2 = [prompt_line("git diff --staged")] + lines_from_ansi_text(diff_txt)
-    frames.append((render_frame(f2, title1), 10))
+    frames.append((render_frame(f2, title1), 35))
     f3 = [prompt_line("git diff --staged")] + lines_from_ansi_text(diff_txt)[:3] + \
         [[("", FG_DEFAULT, False, False)]] + [prompt_line("proctor check --staged")]
-    frames.append((render_frame(f3, title1), 6))
+    frames.append((render_frame(f3, title1), 15))
     f4 = [prompt_line("proctor check --staged")] + lines_from_ansi_text(check_txt)
-    frames.append((render_frame(f4, title1), 16))
+    frames.append((render_frame(f4, title1), 50))
 
     title2 = "Scene 2 — Claude Code Stop hook blocks the turn"
     comment = [[("# Claude Code session: agent attempts to delete a test to make it pass",
                  (98, 114, 164), False, True)]]
-    frames.append((render_frame(comment, title2), 8))
+    frames.append((render_frame(comment, title2), 20))
     cmd2 = "cat stop-hook-input.json | proctor stop-hook; echo EXIT_CODE=$?"
     f6 = comment + [[("", FG_DEFAULT, False, False)]] + [prompt_line(cmd2)]
-    frames.append((render_frame(f6, title2), 6))
+    frames.append((render_frame(f6, title2), 15))
     f7 = [prompt_line(cmd2)] + lines_from_ansi_text(stophook_txt)
-    frames.append((render_frame(f7, title2), 20))
+    frames.append((render_frame(f7, title2), 60))
 
     return frames
 

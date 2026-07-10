@@ -1,7 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 export interface JudgeContext {
-  ruleId: string;           // 'RH004' | 'RH005' | 'RH008'
+  verifierId: string;       // 'RH004' | 'RH005' — the only verifiers with an AI-gated fuzzy path;
+                             // RH008 and RH009-RH011's patterns are exact/precise enough to stay
+                             // fully deterministic (see each verifier's module comment)
   diffExcerpt: string;      // relevant diff lines as string
   explanation: string;      // one-sentence description of the cheat pattern
 }

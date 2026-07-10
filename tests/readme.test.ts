@@ -92,4 +92,62 @@ describe('README.md content', () => {
   it('does not link to the wrong GitHub org (kavishdua) for repo links', () => {
     expect(readmeContent).not.toContain('github.com/kavishdua');
   });
+
+  it('embeds the logo', () => {
+    expect(readmeContent).toContain('assets/proctor-logo.svg');
+  });
+
+  it('features the exam-invigilator character and launch line', () => {
+    expect(readmeContent).toMatch(/exam invigilator/i);
+    expect(readmeContent).toMatch(/deleted the test and told you it passed/i);
+  });
+
+  it('mentions the statusline badge and honest-pass badge concepts', () => {
+    expect(readmeContent).toMatch(/statusline badge/i);
+    expect(readmeContent).toContain('honest pass');
+  });
+
+  it('links to RESEARCH.md, which describes the Claim + Verifier core architecture', () => {
+    expect(readmeContent).toContain('RESEARCH.md');
+    const researchContent = readFileSync(join(__dirname, '../RESEARCH.md'), 'utf8');
+    expect(researchContent).toMatch(/\bVerifier\b/);
+    expect(researchContent).toMatch(/\bContext\b/);
+    expect(researchContent).toMatch(/\bReceipt\b/);
+  });
+
+  it('CLI reference documents the P1 --rules and --explain flags', () => {
+    expect(readmeContent).toContain('--rules');
+    expect(readmeContent).toContain('--explain');
+  });
+
+  it('embeds a generated honest-pass badge image linked to src/badge', () => {
+    expect(readmeContent).toContain('img.shields.io/badge/proctor-honest_pass');
+    expect(readmeContent).toContain('src/badge/index.ts');
+  });
+
+  it('has no em dashes', () => {
+    expect(readmeContent).not.toContain('—');
+  });
+
+  it('explains what the RH codes mean, in plain language', () => {
+    expect(readmeContent).toMatch(/what do the codes mean/i);
+  });
+
+  it('documents inline suppression with an anchor matching the links to it', () => {
+    expect(readmeContent).toContain('Inline suppression');
+    expect(readmeContent).toContain('#inline-suppression');
+  });
+});
+
+describe('RESEARCH.md content', () => {
+  const researchContent = readFileSync(join(__dirname, '../RESEARCH.md'), 'utf8');
+
+  it('exists and has no em dashes either', () => {
+    expect(researchContent.length).toBeGreaterThan(0);
+    expect(researchContent).not.toContain('—');
+  });
+
+  it('links back to the README for anyone who lands here first', () => {
+    expect(researchContent).toContain('README.md');
+  });
 });

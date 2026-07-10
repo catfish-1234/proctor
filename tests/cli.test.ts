@@ -15,6 +15,8 @@ describe('CLI smoke tests', () => {
     expect(result.stdout).toContain('--ci');
     expect(result.stdout).toContain('--json');
     expect(result.stdout).toContain('--sarif');
+    expect(result.stdout).toContain('--rules');
+    expect(result.stdout).toContain('--explain');
   });
 
   it('check in non-git dir exits 2 with proctor: on stderr', () => {
@@ -125,7 +127,7 @@ describe('CLI smoke tests', () => {
       const settings = JSON.parse(readFileSync(join(tmpDir, '.claude', 'settings.json'), 'utf8')) as {
         hooks: { Stop: Array<{ hooks: Array<{ command: string; type: string }> }> };
       };
-      expect(settings.hooks.Stop[0].hooks[0].command).toBe('npx proctor stop-hook');
+      expect(settings.hooks.Stop[0].hooks[0].command).toBe('npx @kavishdua/proctor stop-hook');
       expect(settings.hooks.Stop[0].hooks[0].type).toBe('command');
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
@@ -165,7 +167,7 @@ describe('CLI smoke tests', () => {
       };
       expect(settings.permissions.allow).toContain('Bash(git *)');
       expect(settings.hooks.PreToolUse).toBeDefined();
-      expect(settings.hooks.Stop[0].hooks[0].command).toBe('npx proctor stop-hook');
+      expect(settings.hooks.Stop[0].hooks[0].command).toBe('npx @kavishdua/proctor stop-hook');
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -212,6 +214,55 @@ describe('CLI smoke tests', () => {
           rmSync(globalSettingsPath, { force: true });
         }
       } catch { /* file may not exist or not be ours to remove */ }
+    }
+  });
+});
+
+describe('check honest-pass badge', () => {
+  it('prints the honest-pass badge line on a clean non-ci run', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      execSync('git config user.email x@x', { cwd: tmpDir });
+      execSync('git config user.name x', { cwd: tmpDir });
+      execSync('git commit --allow-empty -m init', { cwd: tmpDir });
+      const result = spawnSync('node', [CLI, 'check'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('✓ proctor: honest pass');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('suppresses the badge line under --ci', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      execSync('git config user.email x@x', { cwd: tmpDir });
+      execSync('git config user.name x', { cwd: tmpDir });
+      execSync('git commit --allow-empty -m init', { cwd: tmpDir });
+      const result = spawnSync('node', [CLI, 'check', '--ci'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(0);
+      expect(result.stdout).not.toContain('honest pass');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('does not print the honest-pass badge when an error finding is present', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      execSync('git config user.email x@x', { cwd: tmpDir });
+      execSync('git config user.name x', { cwd: tmpDir });
+      execSync('git commit --allow-empty -m init', { cwd: tmpDir });
+      writeFileSync(join(tmpDir, 'foo.test.ts'), 'it.skip("cheating", () => {})');
+      execSync('git add .', { cwd: tmpDir });
+      const result = spawnSync('node', [CLI, 'check', '--staged'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(2);
+      expect(result.stdout).not.toContain('honest pass');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 });
@@ -371,6 +422,71 @@ describe('check --sarif flag', () => {
       expect(parsed.$schema).toBeDefined();
       expect(parsed.version).toBe('2.1.0');
       expect(result.status).toBe(2);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('check --explain flag', () => {
+  it('prints the full explanation for a known verifier ID and exits 0 without touching git', () => {
+    // Run from a non-git tmpDir to prove --explain never attempts a diff.
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      const result = spawnSync('node', [CLI, 'check', '--explain', 'RH001'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('RH001');
+      expect(result.stdout).toContain('TestDeletedOrRenamed');
+      expect(result.stdout.length).toBeGreaterThan(50);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('exits 2 with an error message for an unknown verifier ID', () => {
+    const result = spawnSync('node', [CLI, 'check', '--explain', 'RH999'], { encoding: 'utf8' });
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain("unknown verifier ID 'RH999'");
+  });
+});
+
+describe('check --rules flag', () => {
+  it('narrows findings to only the requested verifier IDs', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      execSync('git config user.email x@x', { cwd: tmpDir });
+      execSync('git config user.name x', { cwd: tmpDir });
+      execSync('git commit --allow-empty -m init', { cwd: tmpDir });
+      writeFileSync(join(tmpDir, 'foo.test.ts'), 'it.skip("cheating", () => {})');
+      execSync('git add .', { cwd: tmpDir });
+      // RH003 fires on this diff; excluding it via --rules RH001 should leave a clean run.
+      const result = spawnSync('node', [CLI, 'check', '--staged', '--rules', 'RH001'], {
+        cwd: tmpDir,
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(0);
+      expect(result.stdout).not.toContain('RH003');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('still reports the finding when the requested rule is included', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      execSync('git config user.email x@x', { cwd: tmpDir });
+      execSync('git config user.name x', { cwd: tmpDir });
+      execSync('git commit --allow-empty -m init', { cwd: tmpDir });
+      writeFileSync(join(tmpDir, 'foo.test.ts'), 'it.skip("cheating", () => {})');
+      execSync('git add .', { cwd: tmpDir });
+      const result = spawnSync('node', [CLI, 'check', '--staged', '--rules', 'RH003'], {
+        cwd: tmpDir,
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(2);
+      expect(result.stdout).toContain('RH003');
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }

@@ -48,7 +48,7 @@ guard doing its job, not as a bug to work around.
 
 Each row below is sourced verbatim from `RULE_METADATA` in `src/rules.ts` —
 the same registry the tool itself uses to report findings. If you see one of
-these rule IDs (`RH001`–`RH008`) in a `proctor` finding, this table tells you
+these rule IDs (`RH001`–`RH011`) in a `proctor` finding, this table tells you
 what it caught.
 
 | RH-ID | Name | What It Catches |
@@ -61,6 +61,15 @@ what it caught.
 | RH006 | SnapshotRewrittenWithoutReason | Snapshot/golden file rewritten without a stated reason |
 | RH007 | TestExcludedViaConfig | Test excluded from run path via config change |
 | RH008 | TautologicalAssertion | Assertion always passes regardless of behavior |
+| RH009 | CoverageGaming | Trivial test added while real assertions removed |
+| RH010 | FailureMasking | Timeout/retry abuse, or a network mock manufacturing the expected answer |
+| RH011 | TypeLintSilencingSpam | Multiple type/lint suppression comments added to pass |
+
+RH004–RH011 are heuristic and higher-risk for false positives than RH001–003/007.
+Each is implemented conservatively — strong-signal-only, high precision over recall.
+RH004 and RH005 additionally accept `--ai` to catch fuzzier cases their deterministic
+core intentionally stays silent on. Run `proctor check --explain <RH-ID>` if you're
+unsure why one fired.
 
 If you're unsure whether a change you're about to make would trip one of
 these, don't make the change and ask a human instead — that is always

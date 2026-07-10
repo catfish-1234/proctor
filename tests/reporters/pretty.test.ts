@@ -3,21 +3,21 @@ import { prettyReport } from '../../src/reporters/pretty.js';
 import type { Finding } from '../../src/types.js';
 
 const errorFinding: Finding = {
-  ruleId: 'RH001',
+  verifierId: 'RH001',
   severity: 'error',
   file: 'src/foo.ts',
   line: 10,
   message: 'Test deleted',
-  remediation: 'Restore the test',
+  suggestion: 'Restore the test',
 };
 
 const warnFinding: Finding = {
-  ruleId: 'RH002',
+  verifierId: 'RH002',
   severity: 'warn',
   file: 'src/bar.ts',
   line: 5,
   message: 'Assertion weakened',
-  remediation: 'Use strict assertion',
+  suggestion: 'Use strict assertion',
 };
 
 let chunks: string[];

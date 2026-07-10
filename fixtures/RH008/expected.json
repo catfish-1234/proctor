@@ -1,10 +1,10 @@
 [
   {
-    "ruleId": "RH008",
+    "verifierId": "RH008",
     "severity": "warn",
     "file": "calculator.test.ts",
-    "line": 17,
-    "message": "Tautological test: asserts a value computed by the code under test against itself.",
-    "remediation": "Replace with an assertion against a known expected value."
+    "line": 18,
+    "message": "Tautological assertion — asserts `add(1, 2)` against itself — both sides are the identical expression — so it always passes regardless of behavior.",
+    "suggestion": "Replace with a meaningful assertion that checks actual output against a known expected value."
   }
 ]

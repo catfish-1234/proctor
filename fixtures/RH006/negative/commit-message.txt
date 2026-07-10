@@ -1,0 +1,1 @@
+regenerate snapshot: intentional copy change on the homepage banner

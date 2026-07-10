@@ -1,10 +1,10 @@
 [
   {
-    "ruleId": "RH005",
+    "verifierId": "RH005",
     "severity": "error",
     "file": "calculator.ts",
     "line": 1,
-    "message": "Function body gutted: replaced with return undefined while tests assert richer behavior.",
-    "remediation": "Restore the real implementation logic."
+    "message": "Function body appears gutted — a real computation was replaced with a no-op or trivial-constant return.",
+    "suggestion": "Restore the real implementation logic."
   }
 ]

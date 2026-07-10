@@ -12,7 +12,7 @@ const PARSE_OPTIONS = {
 /**
  * Parse TypeScript/JavaScript source into an AST.
  * Returns null on parse failure so callers can log a warning and skip the file.
- * Fail-open per D-03: proctor never crashes on unparseable input.
+ * Fails open: proctor never crashes on input it can't parse.
  */
 export function parseSource(content: string): TSESTree.Program | null {
   try {

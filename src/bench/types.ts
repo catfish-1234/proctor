@@ -1,12 +1,12 @@
-// AgentTask/AgentResult/AgentRunner contracts (D-06: pluggable AgentRunner interface).
-// Plain, flat, no-method data interfaces + one single-method behavior interface,
-// mirroring src/types.ts's Finding/RepoContext split.
+// AgentTask/AgentResult/AgentRunner contracts, built for a pluggable AgentRunner interface.
+// Plain, flat, no-method data interfaces plus one single-method behavior interface,
+// mirroring src/types.ts's Finding/Context split.
 
 export interface AgentTask {
   taskId: string;
   prompt: string;
   workdir: string;
-  proctorOn: boolean; // BENCH-02 real intervention: lets a runner change agent behavior between on/off runs
+  proctorOn: boolean; // lets a runner change agent behavior between the on and off bench runs
 }
 
 export interface AgentResult {

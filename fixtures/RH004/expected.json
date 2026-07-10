@@ -1,10 +1,10 @@
 [
   {
-    "ruleId": "RH004",
+    "verifierId": "RH004",
     "severity": "error",
     "file": "calculator.ts",
     "line": 1,
-    "message": "Implementation returns hardcoded value 3 matching test fixture literal.",
-    "remediation": "Implement the actual logic instead of special-casing test inputs."
+    "message": "Implementation now returns hardcoded 3 where it previously computed `a + b`.",
+    "suggestion": "Implement the actual logic instead of returning a hardcoded value."
   }
 ]

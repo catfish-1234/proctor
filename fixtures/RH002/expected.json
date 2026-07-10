@@ -1,10 +1,10 @@
 [
   {
-    "ruleId": "RH002",
+    "verifierId": "RH002",
     "severity": "error",
     "file": "calculator.test.ts",
     "line": 6,
     "message": "Assertion weakened from toBe(3) to toBeDefined().",
-    "remediation": "Restore the specific value assertion to preserve test coverage strength."
+    "suggestion": "Restore the specific value assertion to preserve test coverage strength."
   }
 ]

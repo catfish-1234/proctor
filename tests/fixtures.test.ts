@@ -6,7 +6,11 @@ import { fileURLToPath } from 'node:url';
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const fixturesRoot = join(__dirname, '../fixtures');
 
-const RH_IDS = ['RH001', 'RH002', 'RH003', 'RH004', 'RH005', 'RH006', 'RH007', 'RH008'];
+const RH_IDS = [
+  'RH001', 'RH002', 'RH003', 'RH004', 'RH005', 'RH006', 'RH007', 'RH008', 'RH009', 'RH010', 'RH011',
+];
+// P3 signatures each must also have a near-miss legitimate fixture that stays silent.
+const P3_IDS = ['RH004', 'RH005', 'RH006', 'RH008', 'RH009', 'RH010', 'RH011'];
 const PRECLASS_FILES = ['binary.diff', 'mode-only.diff', 'submodule.diff', 'crlf.diff', 'combined.diff', 'rename-only.diff'];
 
 describe('fixture structure', () => {
@@ -25,20 +29,31 @@ describe('fixture structure', () => {
       expect(Array.isArray(arr), `${id}: should be array`).toBe(true);
       expect(arr.length, `${id}: should be non-empty`).toBeGreaterThan(0);
       const item = arr[0];
-      expect(typeof item.ruleId, `${id}: ruleId type`).toBe('string');
+      expect(typeof item.verifierId, `${id}: verifierId type`).toBe('string');
       expect(['error', 'warn', 'info'], `${id}: severity value`).toContain(item.severity);
       expect(typeof item.file, `${id}: file type`).toBe('string');
       expect(typeof item.line, `${id}: line type`).toBe('number');
       expect(typeof item.message, `${id}: message type`).toBe('string');
-      expect(typeof item.remediation, `${id}: remediation type`).toBe('string');
+      expect(typeof item.suggestion, `${id}: suggestion type`).toBe('string');
     }
   });
 
-  it('each expected.json ruleId matches its directory', () => {
+  it('each expected.json verifierId matches its directory', () => {
     for (const id of RH_IDS) {
       const raw = readFileSync(join(fixturesRoot, id, 'expected.json'), 'utf8');
       const arr = JSON.parse(raw);
-      expect(arr[0].ruleId, `${id}: ruleId mismatch`).toBe(id);
+      expect(arr[0].verifierId, `${id}: verifierId mismatch`).toBe(id);
+    }
+  });
+
+  it('P3 signatures (RH004-011) each have a negative/ near-miss fixture with before/, after/, and an empty negative-expected.json', () => {
+    for (const id of P3_IDS) {
+      expect(existsSync(join(fixturesRoot, id, 'negative', 'before')), `${id}/negative/before/`).toBe(true);
+      expect(existsSync(join(fixturesRoot, id, 'negative', 'after')), `${id}/negative/after/`).toBe(true);
+      const negPath = join(fixturesRoot, id, 'negative-expected.json');
+      expect(existsSync(negPath), `${id}/negative-expected.json`).toBe(true);
+      const arr = JSON.parse(readFileSync(negPath, 'utf8'));
+      expect(arr, `${id}: negative-expected.json should be an empty array`).toEqual([]);
     }
   });
 
@@ -68,7 +83,7 @@ describe('fixture structure', () => {
     expect(content).toContain('similarity index 100%');
   });
 
-  it('FIXTURES.md exists and mentions all 8 RH-IDs', () => {
+  it('FIXTURES.md exists and mentions all RH-IDs', () => {
     const mdPath = join(fixturesRoot, 'FIXTURES.md');
     expect(existsSync(mdPath)).toBe(true);
     const md = readFileSync(mdPath, 'utf8');

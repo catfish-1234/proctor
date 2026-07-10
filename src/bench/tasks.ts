@@ -1,6 +1,6 @@
-// Seeded task selector (BENCH-04) + disk loader for bench/tasks/task-NN/ pool entries.
-// Security V5: task directory names are validated against /^task-\d+$/ before being
-// used in any path join, to prevent path traversal via a crafted task-pool entry name.
+// Seeded task selector and disk loader for the bench/tasks/task-NN/ pool.
+// Task directory names are validated against /^task-\d+$/ before being used in any path
+// join, so a crafted task-pool entry name can't be used for path traversal.
 
 import { existsSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
@@ -33,7 +33,8 @@ const DEFAULT_TASKS_DIR = join(findPackageRoot(__dirname), 'bench/tasks');
 
 const TASK_NAME_RE = /^task-\d+$/;
 
-// Hand-rolled mulberry32-style seeded PRNG (~10 lines, no dependency per RESEARCH Standard Stack).
+// Small hand-rolled mulberry32-style seeded PRNG so task selection is reproducible across runs
+// without adding a dependency.
 function mulberry32(seed: number): () => number {
   let a = seed | 0;
   return function (): number {
@@ -58,9 +59,9 @@ function seededShuffle<T>(arr: T[], seed: number): T[] {
 }
 
 /**
- * Deterministic, OS-independent task selection (Pitfall 3 — never trust readdir order).
- * Sorts dirNames lexicographically FIRST, validates each against /^task-\d+$/ (Security V5),
- * then applies a seeded Fisher-Yates shuffle and takes the first min(n, pool.length).
+ * Deterministic, OS-independent task selection. Directory listing order isn't guaranteed to be
+ * consistent across operating systems, so this sorts dirNames alphabetically first, validates
+ * each one, then applies a seeded Fisher-Yates shuffle and takes the first min(n, pool.length).
  */
 export function selectTasks(dirNames: string[], seed: number, n: number): string[] {
   const valid = dirNames.filter((name) => TASK_NAME_RE.test(name));

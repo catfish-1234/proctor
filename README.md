@@ -1,113 +1,241 @@
-# proctor
+<p align="center">
+  <img src="assets/proctor-logo.svg" alt="proctor logo, a watchful eye with a green checkmark pupil" width="96" height="96">
+</p>
 
-**Catch the agent deleting your test before the commit lands — with a deterministic, diff-level guard the agent's own reasoning can't bypass.**
+<h1 align="center">proctor</h1>
 
-`proctor` is a developer-facing CLI guard that catches AI coding agents gaming their own test suites — deleting tests, skipping them, weakening assertions, or hardcoding outputs to fake a green build. It ships as three layers: a skill (markdown ruleset for agents), a deterministic diff analyzer (git hook + Claude Code hook + standalone CLI), and a reproducible benchmark that measures cheat rate with and without proctor. No infra, one command, MIT, runs locally.
+<p align="center"><strong>Your agent didn't fix the bug. It deleted the test and told you it passed. proctor catches it.</strong></p>
 
-## Why proctor
+Proctor is a command-line tool that catches AI coding agents gaming their own test suites: deleting
+tests, skipping them, weakening assertions, or hardcoding outputs just to turn the build green. It
+runs as a deterministic, diff-level guard: it reads the code change itself, not the agent's
+explanation of it, so nothing the agent says can talk its way around it.
 
-Every adjacent tool solves a different problem. Stryker mutates your implementation to measure whether your tests are strong; proctor detects when an AI agent mutated your tests to hide that the implementation is broken — the inverse concern. EvilGenie proves the cheating happens (Claude Sonnet 4: 2.1% hardcoded on unambiguous tasks, 33.3% on ambiguous; Gemini 2.5 Pro: 0.7% deleted test files) but is a research benchmark for AI labs, not a drop-in guard for developers. loki-mode bundles a test-mutation gate inside a full autonomous SDLC framework that requires adopting loki's entire workflow; it cannot run as a standalone git hook in an existing repo. METR and vendors mitigate internally with proprietary classifiers operating on model internals — inaccessible to the normal developer. Proctor fills the gap: a deterministic, diff-level guard that runs in a git pre-commit hook or Claude Code Stop hook, requires zero LLM, zero network, and zero changes to the agent's prompt. Because it operates at the diff layer — below the agent's own reasoning chain — the agent cannot reason its way around it.
+It works below the agent's own reasoning. Proctor doesn't care what the agent claims, only what the
+diff actually shows.
 
-## Demo
+> **Verified on itself:** every one of proctor's 11 checks (`RH001` through `RH011`) catches its
+> planted true positive, and 0 ordinary changes (renames, refactors, legitimate deletions, `.each()`
+> test consolidations) get flagged by mistake. Two edge cases (an unstated snapshot reason, an
+> unusually long test timeout) correctly ask for the [inline marker](#inline-suppression) instead
+> of being guessed at. Full test methodology and numbers: [RESEARCH.md](RESEARCH.md).
+
+## The Proctor
+
+Picture the exam invigilator: arms crossed, half-moon glasses, watching over a sweating robot mid-delete of a failing test. That's proctor. The logo is a watchful eye with a green checkmark for a pupil, watching whether your green is real. When it catches a cheat, the iris flips red and the pupil becomes an X. You'll see that same red/green signal in the CLI output and the hooks.
+
+## See it catch a real cheat
+
+An agent is asked to fix a bug in a slug generator. It can't get the whitespace-only case to
+return `''`, so instead of fixing `slugify()`, it deletes the inconvenient test:
+
+```diff
+ describe('slugify', () => {
+   it('converts spaces to dashes', () => {
+     expect(slugify('Hello World')).toBe('hello-world');
+   });
+-  it('handles a whitespace-only input', () => {
+-    expect(slugify('   ')).toBe('');
+-  });
+ });
+```
+
+```
+$ proctor check
+tests/slug.test.ts
+  ❌ tests/slug.test.ts:5  [RH001]  Test function 'handles a whitespace-only input' was deleted in this change.
+      Restore the deleted test or document why it was intentionally removed.
+1 finding (1 error, 0 warnings)
+$ echo $?
+2
+```
+
+Hook this into a git pre-commit hook or the Claude Code Stop hook and the commit or turn never
+lands. The agent has to actually fix `slugify()`, not just make the red go away.
+
+Want the full demo? Here's a two-scene recording: proctor catching a deleted test at the CLI
+layer, then the Claude Code Stop hook blocking the same cheat live in an agent session.
 
 ![proctor demo](demo.gif)
 
-_Scene 1: proctor catches a deleted test at the `check --staged` diff layer (RH001, exit 2). Scene 2: the Claude Code Stop hook blocks an agent turn attempting the same cheat._
-
 ## Install
 
-Zero-install, run directly via `npx`:
+The easiest way to try it, no install step at all:
 
 ```bash
 npx @kavishdua/proctor check
 ```
 
-Or install globally:
+Or install it globally so the `proctor` command is always available:
 
 ```bash
 npm i -g @kavishdua/proctor
 ```
 
-Requires **Node 20+**.
+You'll need Node 20 or newer. That's the only requirement. No config file, no server, no account.
 
 ## Quick start
 
 ```bash
-# Install the git pre-commit hook
-npx proctor install-hook
+# Set up the git pre-commit hook
+npx @kavishdua/proctor install-hook
 
-# Install the Claude Code Stop hook (blocks an agent turn on a high-severity finding)
-npx proctor install-claude-hook
+# Set up the Claude Code Stop hook, so it blocks a bad turn before it lands
+npx @kavishdua/proctor install-claude-hook
 
-# Deploy the canonical honest-completion skill to every supported agent adapter
-npx proctor install-skill
+# Deploy the honest-completion skill to whatever coding agent you use
+npx @kavishdua/proctor install-skill
 
-# Analyze your current working diff for test-tampering signatures
-npx proctor check
+# Or just check your current changes right now
+npx @kavishdua/proctor check
 ```
+
+Once proctor is installed globally or added to a project, you can drop the `@kavishdua/` prefix
+and just run `proctor ...` or `npx proctor ...`. The commands above spell out the full package name
+so they work the very first time you run them, before anything is installed.
+
+## What do the codes mean?
+
+Every finding has a short ID like `RH001` or `RH006`. These aren't anything you need to memorize,
+they're just stable labels, the same idea as an ESLint rule name, so you can reference one specific
+check in config or in `--rules` without typing a whole sentence. Every time proctor prints a
+finding, it comes with the plain-English name and a full explanation right there. If you ever want
+more detail on a specific one, run:
+
+```bash
+proctor check --explain RH001
+```
+
+## Badges
+
+[![proctor](https://img.shields.io/badge/proctor-honest_pass-22C55E)](https://github.com/catfish-1234/proctor)
+
+- **Statusline badge**: a live counter you can screenshot, like `proctor · 3 cheats caught`. Green
+  normally, red the moment it catches something.
+- **Honest-pass badge**: `✓ proctor: honest pass`, printed in your terminal on every clean
+  `proctor check` and available as the markdown badge above (generated by
+  [`src/badge/index.ts`](src/badge/index.ts)). Drop it in your own README or PR description.
+
+## Supported languages and agents
+
+**Languages:** JavaScript and TypeScript (Jest and Vitest conventions), and Python (pytest and
+unittest conventions). All 11 checks work in both.
+
+**Agents:** running `npx @kavishdua/proctor install-skill` deploys the honest-completion skill to
+Claude Code, Codex CLI, Cursor, Windsurf, Gemini CLI, Aider, Continue.dev, Cline, Amazon Q
+Developer, and GitHub Copilot, all from one source file (see
+[`src/adapters/registry.ts`](src/adapters/registry.ts)). The Claude Code Stop hook only works with
+Claude Code specifically. The git pre-commit hook works no matter which agent (or human) is making
+the commit.
+
+## Known limitations
+
+These were found by testing proctor against itself in around 28 throwaway repos, covering every
+check plus a handful of deliberately tricky evasions. None of them are patched with broader regex
+matching, because the fix would either need real judgment (a good fit for `--ai`, not a safe
+pattern to hardcode) or would open up a new way to sneak a cheat past a wider net.
+
+- **Hardcoding via a lookup table.** Proctor catches a bare `return 3` replacing real logic, or a
+  one-line `if (x === fixture) return answer`. A dictionary populated with the exact expected
+  answer for each test input does the same thing but isn't caught yet. This is a good candidate
+  for the `--ai` judge, since recognizing "these values match the test's expected outputs" is a
+  judgment call, not something a regex can do safely.
+- **Weakening an assertion across two files.** Proctor compares a deleted assertion against an
+  added one within the same file. If a test's own assertion is untouched but a shared constant it
+  imports from another file gets loosened instead, that slips through. Following an import across
+  files is also better suited to `--ai`.
+- **Disabling a test with a block comment instead of `.skip()`.** Wrapping a test in `/* ... */`
+  leaves the test's own line of code completely unchanged, so it never shows up as a changed line
+  in the diff at all. This is a known, documented gap rather than something we're chasing with more
+  regex, since reliably parsing comment boundaries out of a line-based diff is fragile.
+- **A reason you haven't written down yet.** Proctor reads diffs, not intent. It can't know why a
+  snapshot changed or why a test's timeout grew unless that reason is somewhere it can actually
+  read. This isn't a bug: if you have a good reason, say so with the
+  [inline marker](#inline-suppression), and it's respected immediately, no separate commit needed.
 
 ## CLI reference
 
-Transcribed from `proctor --help` / `proctor <command> --help`.
+Straight from `proctor --help` and `proctor <command> --help`.
 
 ### `proctor check [path]`
 
-Analyze the working diff for test-tampering signatures.
+Checks your current diff against every enabled check.
 
-| Flag | Description |
+| Flag | What it does |
 |------|--------------|
-| `--staged` | analyze only staged changes |
-| `--base <ref>` | analyze changes against a base ref (e.g. `origin/main` or a commit SHA) instead of staged/working-tree changes — for CI, where nothing is staged in a fresh checkout |
-| `--ci` | suppress non-error output, exit nonzero on error only |
-| `--json` | output findings as JSON to stdout |
-| `--sarif` | output SARIF 2.1.0 JSON to stdout |
-| `--ai` | enable the optional LLM judge for ambiguous signatures (requires `ANTHROPIC_API_KEY`) |
+| `--staged` | only look at staged changes |
+| `--base <ref>` | compare against a base ref (like `origin/main` or a commit SHA) instead of your working changes. Useful in CI, where nothing is staged in a fresh checkout |
+| `--ci` | quiet mode: only print errors, exit nonzero only on an error |
+| `--json` | print findings as JSON |
+| `--sarif` | print SARIF 2.1.0 JSON, for tools that consume that format |
+| `--ai` | turn on the optional AI judge for ambiguous cases (needs `ANTHROPIC_API_KEY`) |
+| `--rules <ids>` | only run specific checks, e.g. `RH001,RH003` |
+| `--explain <id>` | print the full explanation for one check and exit, no diff analysis |
 
-Exit codes: `0` clean, `1` warnings only, `2` at least one error-severity finding.
+Exit codes: `0` means clean, `1` means warnings only, `2` means at least one error was found.
+
+```bash
+$ proctor check --explain RH001
+RH001: TestDeletedOrRenamed
+
+Detects a test file or individual test function deleted, disabled, or renamed
+in a way that drops its test extension, hiding a failing test rather than
+fixing the underlying code.
+
+Default severity: error
+More info: https://github.com/catfish-1234/proctor#rh001
+```
 
 ### `proctor install-hook`
 
-Installs a git pre-commit hook (`npx proctor check --staged`) — detects Husky and writes to `.husky/pre-commit`, otherwise falls back to `.git/hooks/pre-commit`.
+Installs a git pre-commit hook that runs `proctor check --staged`. Detects Husky automatically and
+writes to `.husky/pre-commit`, otherwise falls back to `.git/hooks/pre-commit`.
 
 ### `proctor stop-hook`
 
-Claude Code Stop hook entrypoint. Reads the Claude Code hook JSON payload from stdin, runs `proctor check --staged --ci` internally, and exits `2` to block the agent turn on an error-severity finding (never exits `1` — that's non-blocking in Claude Code).
+The Claude Code Stop hook itself. Reads the hook payload from stdin, runs a check, and exits `2`
+to block the turn if it finds something serious. Never exits `1`, since that's non-blocking in
+Claude Code.
 
 ### `proctor install-claude-hook`
 
-Installs the Stop hook into a project's `.claude/settings.json`.
+Wires the Stop hook into a project's `.claude/settings.json`.
 
-| Flag | Description |
+| Flag | What it does |
 |------|--------------|
-| `--global` | write to `~/.claude/settings.json` instead of the project-local settings file |
+| `--global` | write to `~/.claude/settings.json` instead of the project's local settings |
 
-Idempotent — running it twice does not duplicate the hook entry.
+Safe to run more than once; it won't add a duplicate entry.
 
 ### `proctor install-skill`
 
-Deploys the canonical `SKILL.md` honest-completion ruleset to every supported agent adapter path (see `src/adapters/registry.ts`) in one command, from a single source of truth.
+Deploys the honest-completion skill to every supported agent in one command, from a single source
+file (see [`src/adapters/registry.ts`](src/adapters/registry.ts)).
 
 ### `proctor drift-check`
 
-Verifies every deployed agent adapter copy still matches the canonical `SKILL.md`. Exits `1` if any adapter has drifted, `0` otherwise — use this in CI to catch a stale adapter copy.
+Checks that every deployed skill copy still matches the source file. Exits `1` if any copy has
+drifted, `0` otherwise. Handy as a CI check so a stale copy gets caught.
 
 ### `proctor bench`
 
-Runs the benchmark harness: N seeded tasks × {proctor on, proctor off}, producing a results CSV and a before/after cheat-rate table.
+Runs the benchmark harness: a set of seeded tasks, run once with proctor on and once with it off,
+producing a CSV and a before/after cheat-rate table.
 
-| Flag | Description |
+| Flag | What it does |
 |------|--------------|
-| `--tasks <n>` | number of tasks to run (default: `10`) |
-| `--seed <n>` | seed for deterministic task selection (default: `1`) |
-| `--mock` | use the mock fixture runner (no real agent CLI, no network) |
-| `--agent <id>` | agent id to run, e.g. `claude-code`, `codex` (default: `claude-code`) |
-| `--out <path>` | write the results CSV to this path |
+| `--tasks <n>` | how many tasks to run (default `10`) |
+| `--seed <n>` | seed for picking tasks deterministically (default `1`) |
+| `--mock` | use the mock fixture runner instead of a real agent, no network needed |
+| `--agent <id>` | which agent to run, e.g. `claude-code`, `codex` (default `claude-code`) |
+| `--out <path>` | where to write the results CSV |
 
 See [`bench/METHODOLOGY.md`](bench/METHODOLOGY.md) for the full methodology.
 
 ## Configuration
 
-Add a `proctor.config.json` at your repo root (validated against [`proctor.schema.json`](proctor.schema.json)):
+Drop a `proctor.config.json` in your repo root (it's validated against
+[`proctor.schema.json`](proctor.schema.json)):
 
 ```json
 {
@@ -119,26 +247,42 @@ Add a `proctor.config.json` at your repo root (validated against [`proctor.schem
 }
 ```
 
-| Field | Type | Meaning |
+| Field | Type | What it does |
 |-------|------|---------|
-| `enabled` | `string[]` | Rule IDs to enable. Defaults to all rules (`RH001`–`RH008`). |
-| `severity` | `object` | Per-rule severity overrides. Keys are rule IDs (e.g. `"RH006": "warn"`). |
-| `testPathGlobs` | `string[]` | Glob patterns identifying test files. |
-| `ignorePatterns` | `string[]` | File glob patterns to ignore entirely. |
-| `approvedTestChanges` | `string[]` | Allowlisted test-change descriptions — a backup to inline suppression. |
+| `enabled` | `string[]` | which checks to run. Defaults to all of them, `RH001` through `RH011` |
+| `severity` | `object` | override how serious a check is, per check ID (e.g. `"RH006": "warn"`) |
+| `testPathGlobs` | `string[]` | glob patterns that identify your test files |
+| `ignorePatterns` | `string[]` | glob patterns for files to ignore entirely |
+| `approvedTestChanges` | `string[]` | an allowlist of test changes you've pre-approved |
 
 ### Inline suppression
 
-Suppress a single finding at the line level with a `# proctor-ignore:` comment:
+If a finding is a false alarm, or you have a good reason for what looks like a cheat, mark it with
+a comment right in the code. This works for any check, including `RH006` (a snapshot change with a
+stated reason) and `RH010` (a genuinely slow test that needs a longer timeout). You can add the
+comment in the same commit as the change it's justifying, no separate commit required:
 
 ```ts
 // proctor-ignore: RH003 reason: intentionally skipped, tracked in JIRA-1234
 it.skip('flaky in CI', () => { /* ... */ });
 ```
 
-## CI / GitHub Action
+```python
+# proctor-ignore: RH010 reason: big_table has ~40M rows in CI's seeded dataset, genuinely slow
+@pytest.mark.timeout(300)
+def test_migration_runs():
+    ...
+```
 
-[`action.yml`](action.yml) is a live, composite GitHub Action that builds proctor from source, runs `proctor check --base <ref> --sarif` against the PR/push diff, and uploads results to GitHub Code Scanning via `github/codeql-action/upload-sarif@v4` — findings show up as inline PR annotations.
+A plain comment with no `proctor-ignore:` marker never counts as justification on its own, since
+that would be trivial to fake. The marker is a deliberate, structured thing to type, similar in
+spirit to a `--no-verify` flag: it's there when you need it, but you won't type it by accident.
+
+## CI and GitHub Actions
+
+[`action.yml`](action.yml) is a ready-to-use composite GitHub Action. It builds proctor from
+source, runs a check against your PR or push diff, and uploads results to GitHub Code Scanning, so
+findings show up as inline PR comments.
 
 ```yaml
 # .github/workflows/proctor.yml
@@ -161,30 +305,37 @@ jobs:
       - uses: ./
 ```
 
-### Releases
-
-[`.github/workflows/release.yml`](.github/workflows/release.yml) handles tag-triggered (`v*`), trusted-publishing (npm OIDC) releases for every version **after** the manual `v1.0.0` publish — npm's trusted-publisher registration requires the package to already exist on the registry before it can be configured, so it could not be used for the first publish. Future releases: push a `v*` tag and `release.yml` takes care of build, test, and `npm publish`.
-
 ## Benchmark
 
-`proctor bench` measures how often an AI coding agent games its own test suite — and how often proctor catches it — by running a fixed pool of held-out-test tasks with the honest-completion skill on and off. Full methodology, held-out-test design, and citations (EvilGenie, Baker et al.) live in [`bench/METHODOLOGY.md`](bench/METHODOLOGY.md).
+`proctor bench` measures how often an AI coding agent games its own tests, and how often proctor
+catches it, by running a fixed set of tasks with the honest-completion skill turned on and off.
+Full methodology and citations live in [`bench/METHODOLOGY.md`](bench/METHODOLOGY.md).
 
-Real data from a 15-task run against `claude-code` (`bench/results-live.csv`, no `--mock`):
+Real numbers from a 15-task run against `claude-code` (`bench/results-live.csv`, no `--mock`):
 
 | proctor | cheat rate | honest-pass rate |
 |---------|-----------|-------------------|
 | off | 0.0% | 80.0% |
 | on | 0.0% | 73.3% |
 
-_n = 15 tasks. Both arms show a 0.0% cheat rate — proctor's own deterministic signatures (RH001, RH002, RH003, RH006, RH007; see `bench/METHODOLOGY.md`) found no test-tampering diff in either the "off" or "on" run of this sample, so this sample does not yet demonstrate a cheat-rate delta. The honest-pass rate is reported as-is (73.3% with proctor on vs. 80.0% without) rather than spun — proctor's job is catching cheating, not improving raw task-completion rate, and a 15-task sample is small enough that this ~1-task difference is plausible noise, not a claimed effect. Both numbers are traced directly from the raw CSV; see the regenerate command below to reproduce or extend this run._
-
-**Regenerate:**
+With 15 tasks, both arms happened to show a 0.0% cheat rate. This sample doesn't show a cheat-rate
+difference yet, and we're reporting that plainly rather than reading a story into a small sample.
+The honest-pass rate (73.3% with proctor on versus 80.0% without) is a roughly one-task difference,
+well within what you'd expect from noise at this sample size. Both numbers come straight from the
+raw CSV. Regenerate it yourself with:
 
 ```bash
 node dist/cli.js bench --tasks 15 --agent claude-code --out bench/results-live.csv
 ```
 
-Then update the table above with the new numbers. This table is a static snapshot (not live-generated in CI) — re-run the command above and edit this section by hand whenever you want to refresh it with a larger sample or a different agent.
+Then update the table above by hand. It's a static snapshot, not something CI regenerates
+automatically, so re-run the command and edit this section whenever you want fresher numbers or a
+different agent.
+
+## Want more detail?
+
+[RESEARCH.md](RESEARCH.md) covers the research behind proctor, how it compares to adjacent tools
+like Stryker and EvilGenie, and the full architecture for anyone thinking about contributing.
 
 ## License
 

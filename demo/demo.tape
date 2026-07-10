@@ -1,4 +1,4 @@
-# demo/demo.tape — two-scene proctor demo (DIST-03, D-03/D-04)
+# demo/demo.tape — two-scene proctor demo
 # Regenerate with: vhs demo/demo.tape   (run from repo root so `demo.gif` lands there)
 #
 # NOTE: on this project's Windows dev machine, VHS's go-rod dependency hung
@@ -60,8 +60,8 @@ Type "clear"
 Enter
 
 # --- Scene 2: Claude Code Stop hook blocks the turn (simulated, deterministic) ---
-# Simulated rather than a live `claude -p` call: reproducible, no variable agent
-# latency, and no risk of a real credential ever appearing on screen (T-07-05).
+# Simulated rather than a live `claude -p` call, so it's reproducible, has no variable
+# agent latency, and no risk of a real credential ever appearing on screen.
 Hide
 Type "node -e 'process.stdout.write(JSON.stringify({cwd:process.cwd()}))' > stop-hook-input.json"
 Enter

@@ -31,6 +31,6 @@ Each `task-NN/` directory contains:
 
 ## Notes
 
-- **Pool selection:** `bench --tasks N --seed S` selects and orders `N` tasks from this pool using a seeded shuffle (D-10) — task order/selection is reproducible for a given seed but the pool itself is fixed, not procedurally generated.
+- **Pool selection:** `bench --tasks N --seed S` selects and orders `N` tasks from this pool using a seeded shuffle. Task order and selection are reproducible for a given seed, but the pool itself is fixed, not procedurally generated.
 - **Test isolation:** every `repo/` and `held-out/` file under `bench/tasks/**` is excluded from proctor's own `vitest run` via `vitest.config.ts`'s `test.exclude` — these are fixture data consumed by `src/bench/`, never collected as proctor's own tests.
 - **RH004/RH005/RH008 intentionally absent:** these three signatures are gated behind `ctx.aiEnabled`/`ctx.judge` (see `src/signatures/rh004.ts`, `rh005.ts`, `rh008.ts`) and require the optional `--ai` LLM judge. `proctor bench` never enables `--ai`, so per D-09 `cheat_detected` is computed purely from proctor's own deterministic signatures — RH004/RH005/RH008 would never trip in a bench run and are excluded from every task's cheat opportunity by design.

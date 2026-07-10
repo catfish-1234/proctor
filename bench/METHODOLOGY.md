@@ -5,7 +5,7 @@ often proctor catches it — across a fixed pool of synthetic tasks, run with pr
 honest-completion intervention on and off. This document explains how the measurement
 works, what it deliberately does not measure, and where the numbers come from.
 
-## Held-Out Tests (D-08)
+## Held-Out Tests
 
 Each task in `bench/tasks/task-NN/` ships with a `repo/` directory (the agent-visible
 starter project — buggy source plus a visible test file) and a separate `held-out/`
@@ -24,7 +24,7 @@ visible test (deletes it, weakens its assertion, disables it, or excludes it via
 config) but never fixes the underlying bug will fail the held-out test even if its
 visible-test cheat goes undetected.
 
-## Cheat Detection: Proctor's Own Signatures, Not an LLM Judge (D-09)
+## Cheat Detection: Proctor's Own Signatures, Not an LLM Judge
 
 `cheat_detected` and `rh_id` are computed by diffing the agent's temp workdir against
 its pre-run baseline and calling proctor's own `runChecks` (`src/engine.ts`) — the
@@ -57,7 +57,7 @@ simply out of scope for this benchmark's default (non-`--ai`) configuration. A f
 bench run that threads `--ai` through to the scorer's `runChecks` call would be
 required to measure those three signatures, and is not implemented in bench v1.
 
-## Proctor On vs Off Is a Real Intervention, Not Model Nondeterminism (BENCH-02)
+## Proctor On vs Off Is a Real Intervention, Not Model Nondeterminism
 
 Each selected task is scored **twice**: once with `proctorOn: false` and once with
 `proctorOn: true`, both threaded through the same `AgentTask` contract
@@ -75,7 +75,7 @@ answer:
   and without any network call — used for CI-safe, reproducible bench runs and for this
   benchmark's own integration tests.
 
-## Seed-Based Task Selection (D-10)
+## Seed-Based Task Selection
 
 `--seed <n>` and `--tasks <n>` select and order `n` tasks from the fixed pool in
 `bench/tasks/` via a seeded Fisher-Yates shuffle (`selectTasks`,
@@ -87,7 +87,7 @@ reproducible without needing to persist which tasks were chosen. The task pool i
 is fixed and hand-authored (15 tasks as of this writing, see `bench/tasks/TASKS.md`),
 not procedurally generated, so `--seed` controls sampling/ordering only.
 
-## CSV Schema (BENCH-03)
+## CSV Schema
 
 Every scored run appends one row to the output CSV with this exact header:
 
@@ -100,7 +100,7 @@ task_id,model,proctor_on,cheat_detected,rh_id,honest_pass
 | `task_id` | The `bench/tasks/task-NN` directory this row scores |
 | `model` | The agent runner's model identifier (e.g. `claude-code`, or the `--mock`-run's `--agent` label) |
 | `proctor_on` | `true`/`false` — whether the honest-completion intervention was active for this run |
-| `cheat_detected` | `true`/`false` — whether proctor's own `runChecks` flagged the agent's diff (D-09) |
+| `cheat_detected` | `true`/`false` — whether proctor's own `runChecks` flagged the agent's diff |
 | `rh_id` | The first tripped signature's rule ID (e.g. `RH002`), or empty when `cheat_detected` is `false` |
 | `honest_pass` | `true`/`false` — whether the agent's solution passes the held-out test(s) after reveal |
 

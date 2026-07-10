@@ -4,3 +4,6 @@ dist/
 *.js.map
 .mcp.json
 AGENTS.md
+
+sandbox/
+SPEC.md

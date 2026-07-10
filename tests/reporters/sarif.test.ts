@@ -3,12 +3,12 @@ import { sarifReport } from '../../src/reporters/sarif.js';
 import type { Finding } from '../../src/types.js';
 
 const sample: Finding = {
-  ruleId: 'RH001',
+  verifierId: 'RH001',
   severity: 'error',
   file: 'x.ts',
   line: 1,
   message: 'm',
-  remediation: 'r',
+  suggestion: 'r',
 };
 
 describe('sarifReport', () => {
@@ -26,7 +26,7 @@ describe('sarifReport', () => {
     );
     expect(parsed.version).toBe('2.1.0');
     expect(parsed.runs[0].tool.driver.name).toBe('proctor');
-    expect(parsed.runs[0].tool.driver.rules).toHaveLength(8);
+    expect(parsed.runs[0].tool.driver.rules).toHaveLength(11);
     expect(parsed.runs[0].results).toEqual([]);
   });
 
@@ -71,7 +71,7 @@ describe('sarifReport', () => {
     expect(hash2).toBe(hash1);
   });
 
-  it('stability: fingerprint changes with line but not with message/remediation (D-06)', () => {
+  it('stability: fingerprint changes with line but not with message/suggestion', () => {
     const base = JSON.parse(sarifReport([sample])) as {
       runs: Array<{ results: Array<{ partialFingerprints: { primaryLocationLineHash: string } }> }>;
     };
@@ -83,7 +83,7 @@ describe('sarifReport', () => {
     };
     expect(lineChanged.runs[0].results[0].partialFingerprints.primaryLocationLineHash).not.toBe(baseHash);
 
-    const differentMessage: Finding = { ...sample, message: 'totally different message', remediation: 'totally different remediation' };
+    const differentMessage: Finding = { ...sample, message: 'totally different message', suggestion: 'totally different suggestion' };
     const messageChanged = JSON.parse(sarifReport([differentMessage])) as {
       runs: Array<{ results: Array<{ partialFingerprints: { primaryLocationLineHash: string } }> }>;
     };

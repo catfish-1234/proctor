@@ -1,10 +1,10 @@
 [
   {
-    "ruleId": "RH001",
+    "verifierId": "RH001",
     "severity": "error",
     "file": "calculator.test.ts",
     "line": 5,
     "message": "Test function 'adds two numbers' was deleted in this change.",
-    "remediation": "Restore the deleted test or document why it was intentionally removed."
+    "suggestion": "Restore the deleted test or document why it was intentionally removed."
   }
 ]

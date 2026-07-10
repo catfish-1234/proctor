@@ -65,7 +65,7 @@ index abc1234..def5678 100644
 
 const CRLF_DIFF = CLEAN_UNIFIED_DIFF.replace(/\n/g, '\r\n');
 
-describe('classifyDiff pre-classifier (FOUND-03)', () => {
+describe('classifyDiff pre-classifier', () => {
   it('rejects binary diff', () => {
     const raw = readFixture('binary.diff', BINARY_DIFF);
     const files = parseDiff(raw);

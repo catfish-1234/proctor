@@ -9,8 +9,8 @@ function levelFor(severity: Finding['severity']): 'error' | 'warning' | 'note' {
   return 'note';
 }
 
-function fingerprint(ruleId: string, file: string, line: number): string {
-  return createHash('sha256').update(`${ruleId}:${file}:${line}`).digest('hex');
+function fingerprint(verifierId: string, file: string, line: number): string {
+  return createHash('sha256').update(`${verifierId}:${file}:${line}`).digest('hex');
 }
 
 export function sarifReport(findings: Finding[]): string {
@@ -24,9 +24,9 @@ export function sarifReport(findings: Finding[]): string {
   }));
 
   const results = findings.map(f => ({
-    ruleId: f.ruleId,
+    ruleId: f.verifierId,
     level: levelFor(f.severity),
-    message: { text: `${f.message} ${f.remediation}` },
+    message: { text: `${f.message} ${f.suggestion}` },
     locations: [
       {
         physicalLocation: {
@@ -36,7 +36,7 @@ export function sarifReport(findings: Finding[]): string {
       },
     ],
     partialFingerprints: {
-      primaryLocationLineHash: fingerprint(f.ruleId, f.file, f.line),
+      primaryLocationLineHash: fingerprint(f.verifierId, f.file, f.line),
     },
   }));
 

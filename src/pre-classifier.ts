@@ -25,9 +25,9 @@ export function classifyDiff(raw: string, files: ParsedFile[]): ClassificationRe
     return { accepted, rejected };
   }
 
-  // Split raw into per-file sections for binary detection.
-  // parse-diff does not set a .binary property, so we detect from the raw text.
-  // ponytail: O(n) split + linear scan — fine for any realistic diff size
+  // Split raw into per-file sections for binary detection. parse-diff does not set a .binary
+  // property, so binary files are detected from the raw text instead. A single split plus a
+  // linear scan is plenty fast for any realistic diff size.
   const sections = raw.split(/^(?=diff --git )/m).filter(s => s.startsWith('diff --git '));
 
   files.forEach((file, i) => {

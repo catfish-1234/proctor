@@ -3,13 +3,11 @@ import { Command } from 'commander';
 import { resolve, join, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { chmodSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import pkg from '../package.json' with { type: 'json' };
 import { runGitDiff } from './diff.js';
 import { classifyDiff } from './pre-classifier.js';
-import { buildRepoContext } from './context.js';
+import { buildContext } from './context/index.js';
 import { runChecks } from './engine.js';
 import { prettyReport } from './reporters/pretty.js';
 import { jsonReport } from './reporters/json.js';
@@ -18,6 +16,11 @@ import { AGENT_ADAPTERS } from './adapters/registry.js';
 import { checkAdapterDrift } from './adapters/drift-check.js';
 import { loadTaskPool } from './bench/tasks.js';
 import { runBench } from './bench/index.js';
+import { installPreCommitHook } from './hooks/pre-commit.js';
+import { parseStopHookInput, runStopHookCheck } from './hooks/stop-hook.js';
+import { RULE_METADATA } from './rules.js';
+import { buildReceipt } from './receipt.js';
+import { badgeLine } from './badge/index.js';
 
 function canonicalSkillPath(): string {
   return fileURLToPath(new URL('../src/skill/SKILL.md', import.meta.url));
@@ -41,14 +44,25 @@ program
 
 program
   .command('check [path]')
-  .description('Analyze working diff for test-tampering signatures')
+  .description('Analyze working diff against every enabled Verifier (test-tampering signatures are the first Verifier type)')
   .option('--staged', 'analyze only staged changes')
   .option('--base <ref>', 'analyze changes against a base ref (e.g. origin/main or a commit SHA) instead of staged/working-tree changes — for CI, where nothing is staged in a fresh checkout')
   .option('--ci', 'suppress non-error output, exit nonzero on error only')
   .option('--json', 'output findings as JSON to stdout')
   .option('--sarif', 'output SARIF 2.1.0 JSON to stdout')
   .option('--ai', 'enable LLM judge for ambiguous signatures')
-  .action(async (pathArg: string | undefined, options: { staged?: boolean; base?: string; ci?: boolean; json?: boolean; ai?: boolean; sarif?: boolean }) => {
+  .option('--rules <ids>', 'comma-separated list of verifier IDs to run (narrows the enabled set, e.g. RH001,RH003)')
+  .option('--explain <id>', 'print the full explanation for a verifier ID and exit — no diff analysis')
+  .action(async (pathArg: string | undefined, options: { staged?: boolean; base?: string; ci?: boolean; json?: boolean; ai?: boolean; sarif?: boolean; rules?: string; explain?: string }) => {
+    if (options.explain) {
+      const meta = RULE_METADATA[options.explain];
+      if (!meta) {
+        process.stderr.write(`proctor: unknown verifier ID '${options.explain}'\n`);
+        process.exit(2);
+      }
+      process.stdout.write(`${options.explain}: ${meta.name}\n\n${meta.fullDescription}\n\nDefault severity: ${meta.defaultLevel}\nMore info: ${meta.helpUri}\n`);
+      process.exit(0);
+    }
     const cwd = pathArg ? resolve(pathArg) : process.cwd();
     const diffArgs = options.base ? [`${options.base}...HEAD`] : options.staged ? ['--staged'] : [];
     let raw: string, files: import('./diff.js').ParsedFile[];
@@ -59,7 +73,12 @@ program
       process.exit(2);
     }
     const { accepted } = classifyDiff(raw, files);
-    const ctx = await buildRepoContext(cwd);
+    const ctx = await buildContext(cwd, accepted);
+    ctx.committedDiff = Boolean(options.base);
+    if (options.rules) {
+      const requested = options.rules.split(',').map(s => s.trim()).filter(Boolean);
+      ctx.enabled = ctx.enabled.filter(id => requested.includes(id));
+    }
     if (options.ai) {
       const apiKey = process.env['ANTHROPIC_API_KEY'];
       if (!apiKey) {
@@ -73,10 +92,10 @@ program
     }
     let findings: import('./types.js').Finding[];
     try {
-      findings = await runChecks(accepted, ctx);
+      findings = await runChecks(ctx);
     } catch (err) {
       process.stderr.write('proctor: check failed: ' + String(err) + '\n');
-      process.exit(0); // fail-open per D-05
+      process.exit(0); // fail open: never block a commit because proctor itself errored
     }
     if (options.sarif) {
       const sarif = sarifReport(findings);
@@ -90,11 +109,14 @@ program
       });
       return;
     }
+    const receipt = buildReceipt(findings);
     if (options.json) {
       process.stdout.write(jsonReport(findings) + '\n');
       prettyReport(findings, { stream: process.stderr, ci: options.ci });
+      if (receipt.status === 'honest-pass' && !options.ci) process.stderr.write(badgeLine(receipt) + '\n');
     } else {
       prettyReport(findings, { stream: process.stdout, ci: options.ci });
+      if (receipt.status === 'honest-pass' && !options.ci) process.stdout.write(badgeLine(receipt) + '\n');
     }
     const hasError = findings.some(f => f.severity === 'error');
     const hasWarn = findings.some(f => f.severity === 'warn');
@@ -107,28 +129,8 @@ program
   .command('install-hook')
   .description('Install git pre-commit hook')
   .action(async () => {
-    const cwd = process.cwd();
-    const hookContent = '#!/bin/sh\nnpx proctor check --staged\n';
-
-    let hasHusky = false;
-    try {
-      const pkgJson = JSON.parse(await readFile(join(cwd, 'package.json'), 'utf8')) as Record<string, unknown>;
-      hasHusky = 'husky' in ((pkgJson['devDependencies'] ?? {}) as Record<string, unknown>);
-    } catch { /* ENOENT or parse failure */ }
-
-    if (hasHusky) {
-      const hookPath = join(cwd, '.husky', 'pre-commit');
-      await mkdir(join(cwd, '.husky'), { recursive: true });
-      await writeFile(hookPath, hookContent, 'utf8');
-      spawnSync('git', ['add', '--chmod=+x', hookPath], { cwd });
-      process.stdout.write('Installed: ' + hookPath + '\n');
-    } else {
-      const hookPath = join(cwd, '.git', 'hooks', 'pre-commit');
-      await mkdir(join(cwd, '.git', 'hooks'), { recursive: true });
-      await writeFile(hookPath, hookContent, 'utf8');
-      try { chmodSync(hookPath, 0o755); } catch { /* Windows — acceptable */ }
-      process.stdout.write('Installed: ' + hookPath + '\n');
-    }
+    const hookPath = await installPreCommitHook(process.cwd());
+    process.stdout.write('Installed: ' + hookPath + '\n');
   });
 
 program
@@ -136,22 +138,11 @@ program
   .description('Claude Code Stop hook — reads stdin JSON, exits 2 on error findings')
   .action(async () => {
     const raw = await readStdin();
-    let cwd = process.cwd();
-    try {
-      const input = JSON.parse(raw) as Record<string, unknown>;
-      if (input['stop_hook_active'] === true) process.exit(0);
-      if (typeof input['cwd'] === 'string' && input['cwd'].length > 0) cwd = input['cwd'] as string;
-    } catch { /* invalid JSON — use cwd fallback */ }
-    const result = spawnSync(process.execPath, [process.argv[1] ?? '', 'check', '--staged', '--ci'], {
-      cwd,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      encoding: 'utf8',
-    });
-    if (result.error) process.exit(0); // fail-open per D-05
-    if (result.stdout) process.stderr.write(result.stdout);
-    if (result.stderr) process.stderr.write(result.stderr);
-    const code = result.status ?? 0;
-    process.exit(code === 2 ? 2 : 0);
+    const { cwd, skip } = parseStopHookInput(raw, process.cwd());
+    if (skip) process.exit(0);
+    const { exitCode, output } = runStopHookCheck(cwd, process.argv[1] ?? '');
+    if (output) process.stderr.write(output);
+    process.exit(exitCode);
   });
 
 program
@@ -165,17 +156,20 @@ program
     try {
       settings = JSON.parse(await readFile(settingsPath, 'utf8')) as Record<string, unknown>;
     } catch { /* ENOENT or invalid JSON */ }
-    // Idempotency check (D-08)
+    // Skip if the hook is already installed, so running this command twice is a no-op.
     const stopGroups = ((settings['hooks'] as Record<string, unknown> | undefined)?.['Stop'] ?? []) as Array<{ hooks?: Array<{ command?: string }> }>;
     const alreadyInstalled = stopGroups.some(g => g.hooks?.some(h => h.command?.includes('proctor stop-hook')));
     if (alreadyInstalled) {
       process.stdout.write('Already installed\n');
       process.exit(0);
     }
-    // Merge (D-07)
+    // Merge into any existing settings rather than overwriting them.
     const hooks = ((settings['hooks'] ?? {}) as Record<string, unknown>);
     const stop = ((hooks['Stop'] ?? []) as unknown[]);
-    stop.push({ hooks: [{ type: 'command', command: 'npx proctor stop-hook' }] });
+    // Fully-scoped npx spec (not bare `npx proctor`) — see preCommitHookContent()'s comment in
+    // src/hooks/pre-commit.ts for why: a bare bin name only resolves via npx after a persistent
+    // install, which the README's zero-install flow doesn't guarantee.
+    stop.push({ hooks: [{ type: 'command', command: `npx ${pkg.name} stop-hook` }] });
     hooks['Stop'] = stop;
     settings['hooks'] = hooks;
     await mkdir(dir, { recursive: true });

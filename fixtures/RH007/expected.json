@@ -1,10 +1,10 @@
 [
   {
-    "ruleId": "RH007",
+    "verifierId": "RH007",
     "severity": "error",
     "file": "jest.config.ts",
     "line": 2,
     "message": "Test path ignore pattern added to jest config excluding calculator.test.ts.",
-    "remediation": "Remove testPathIgnorePatterns entry added in this change."
+    "suggestion": "Remove testPathIgnorePatterns entry added in this change."
   }
 ]

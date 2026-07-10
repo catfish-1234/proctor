@@ -1,0 +1,10 @@
+[
+  {
+    "verifierId": "RH009",
+    "severity": "warn",
+    "file": "calculator.test.ts",
+    "line": 5,
+    "message": "Trivial test added with no specific-value assertion while 2 real assertions were removed from this file.",
+    "suggestion": "Restore the removed assertions, or make the new test assert a specific expected value."
+  }
+]

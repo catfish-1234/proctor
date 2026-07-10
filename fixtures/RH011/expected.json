@@ -1,0 +1,18 @@
+[
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "parser.ts",
+    "line": 2,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "parser.ts",
+    "line": 7,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  }
+]

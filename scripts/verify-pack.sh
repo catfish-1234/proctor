@@ -35,8 +35,8 @@ echo "==> Packing tarball..."
 TARBALL="$(npm pack --silent | tail -n 1)"
 echo "    produced: $TARBALL"
 
-# Critical (Pitfall 4): install and run from a mktemp dir OUTSIDE the repo
-# tree so npm/node cannot resolve the repo's own node_modules or dist/.
+# Install and run from a mktemp dir outside the repo tree, so npm/node can't accidentally
+# resolve the repo's own node_modules or dist/ instead of the packed tarball's.
 TMPDIR_VERIFY="$(mktemp -d)"
 echo "==> Installing into isolated temp dir: $TMPDIR_VERIFY"
 cd "$TMPDIR_VERIFY"

@@ -1,0 +1,10 @@
+[
+  {
+    "verifierId": "RH010",
+    "severity": "warn",
+    "file": "network.test.ts",
+    "line": 6,
+    "message": "jest.retryTimes(5) added — masks a flaky or failing test by re-running it instead of fixing it.",
+    "suggestion": "Fix the underlying flakiness instead of retrying past it."
+  }
+]

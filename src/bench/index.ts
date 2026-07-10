@@ -1,7 +1,7 @@
-// runBench orchestrator (BENCH-01/02/03): loads the fixed task pool, seeds/selects N tasks,
-// picks the runner (mock fixture-replay or a real shell-out agent), scores each selected task
-// TWICE (proctor off then on — BENCH-02's real intervention threaded via AgentTask.proctorOn),
-// writes the BENCH-03 CSV, and prints the before/after cheat-rate table to stdout.
+// The runBench orchestrator loads the fixed task pool, seeds and selects N tasks, picks the
+// runner (mock fixture-replay or a real shell-out agent), scores each selected task twice
+// (proctor off, then on, via AgentTask.proctorOn), writes the results CSV, and prints the
+// before/after cheat-rate table to stdout.
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { loadTaskPool, selectTasks } from './tasks.js';

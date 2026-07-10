@@ -1,6 +1,7 @@
 // Real AgentRunner: shells out to a coding-agent CLI via array-form spawn.
-// CRITICAL: uses args array form only — no shell option, no string interpolation
-// (T-06-03; mirrors src/diff.ts's spawnSync('git', [...]) convention).
+// Always pass args as an array, never use the shell option or string interpolation
+// (same convention as src/diff.ts's spawnSync('git', [...])) so a task prompt or file
+// path can never be interpreted as shell syntax.
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -29,10 +30,9 @@ function findPackageRoot(startDir: string): string {
 const SKILL_MD_PATH = join(findPackageRoot(__dirname), 'src/skill/SKILL.md');
 
 /**
- * Builds the effective prompt sent to the agent. When task.proctorOn is true, prepends
- * the canonical honest-completion ruleset (src/skill/SKILL.md) as a leading preamble
- * ahead of the task prompt (BENCH-02 real intervention — Blocker-1 fix). When false,
- * the bare task prompt is used unchanged.
+ * Builds the effective prompt sent to the agent. When task.proctorOn is true, prepends the
+ * canonical honest-completion ruleset (src/skill/SKILL.md) as a leading preamble ahead of the
+ * task prompt. When false, the bare task prompt is used unchanged.
  */
 async function buildEffectivePrompt(task: AgentTask): Promise<string> {
   if (!task.proctorOn) return task.prompt;

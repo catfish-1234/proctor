@@ -3,12 +3,12 @@ import { jsonReport } from '../../src/reporters/json.js';
 import type { Finding } from '../../src/types.js';
 
 const sample: Finding = {
-  ruleId: 'RH001',
+  verifierId: 'RH001',
   severity: 'error',
   file: 'x.ts',
   line: 1,
   message: 'm',
-  remediation: 'r',
+  suggestion: 'r',
 };
 
 describe('jsonReport', () => {
@@ -18,7 +18,7 @@ describe('jsonReport', () => {
 
   it('single finding round-trips via JSON.parse', () => {
     const parsed = JSON.parse(jsonReport([sample])) as Finding[];
-    expect(parsed[0].ruleId).toBe('RH001');
+    expect(parsed[0].verifierId).toBe('RH001');
   });
 
   it('output is pretty-printed (contains newlines)', () => {

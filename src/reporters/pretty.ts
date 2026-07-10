@@ -29,8 +29,8 @@ export function prettyReport(findings: Finding[], opts?: PrettyOptions): void {
     out.write(pc.bold(file) + '\n');
     for (const f of group) {
       const badge = f.severity === 'error' ? pc.red('❌') : pc.yellow('⚠️ ');
-      out.write(`  ${badge} ${f.file}:${f.line}  [${f.ruleId}]  ${f.message}\n`);
-      out.write(`      ${pc.dim(f.remediation)}\n`);
+      out.write(`  ${badge} ${f.file}:${f.line}  [${f.verifierId}]  ${f.message}\n`);
+      out.write(`      ${pc.dim(f.suggestion)}\n`);
     }
   }
 

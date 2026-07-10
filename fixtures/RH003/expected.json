@@ -1,10 +1,10 @@
 [
   {
-    "ruleId": "RH003",
+    "verifierId": "RH003",
     "severity": "error",
     "file": "calculator.test.ts",
     "line": 5,
     "message": "Test 'adds two numbers' was disabled with .skip.",
-    "remediation": "Remove .skip and fix the underlying test failure."
+    "suggestion": "Remove .skip and fix the underlying test failure."
   }
 ]

@@ -1,7 +1,9 @@
 import { basename } from 'node:path';
 import type { Context, Finding, Verifier } from '../types.js';
 
-const JS_TS_DEL = /^-\s*(?:it|test|describe)\s*\(/;
+// Modifier forms (it.each, test.skip, describe.only, ...) are deletions of tests too — keep
+// this in sync with JS_TS_ADD below so both sides of the pairing see the same shapes.
+const JS_TS_DEL = /^-\s*(?:it|test|describe)(?:\.\w+)?\s*\(/;
 const PY_DEL = /^-\s*def test_/;
 
 // A deleted test-declaration line only counts as a real deletion if nothing plausibly

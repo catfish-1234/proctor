@@ -8,6 +8,9 @@ const PYTEST_SKIPIF = /@pytest\.mark\.skipif\b/;
 const UNITTEST_SKIP = /@unittest\.skip(?:Unless)?\b/;
 const BARE_SKIP = /^\+\s*@skip\b/;
 const COMMENTED_PY_TEST = /^\+\s*#.*def test_/;
+// Commenting a test out disables it exactly like .skip does. Requires the quote after the
+// paren (a test-declaration shape) so prose like `// test(x) is slow` doesn't match.
+const COMMENTED_JS_TEST = /^\+\s*\/\/.*\b(?:it|test|describe)(?:\.\w+)?\s*\(\s*['"`]/;
 
 function buildSkipMessage(content: string): string {
   const m = content.match(/\.(skip|only)\s*\(\s*['"`](.*?)['"`]/);
@@ -19,6 +22,7 @@ function buildSkipMessage(content: string): string {
   if (UNITTEST_SKIP.test(content)) return 'Test was disabled with @unittest.skip.';
   if (BARE_SKIP.test(content)) return 'Test was disabled with @skip.';
   if (COMMENTED_PY_TEST.test(content)) return 'Test function was commented out.';
+  if (COMMENTED_JS_TEST.test(content)) return 'Test was commented out.';
   return 'Test was disabled.';
 }
 
@@ -37,7 +41,8 @@ function isSkipPattern(content: string): boolean {
     PYTEST_SKIPIF.test(content) ||
     UNITTEST_SKIP.test(content) ||
     BARE_SKIP.test(content) ||
-    COMMENTED_PY_TEST.test(content)
+    COMMENTED_PY_TEST.test(content) ||
+    COMMENTED_JS_TEST.test(content)
   );
 }
 

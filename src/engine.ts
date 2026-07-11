@@ -69,12 +69,14 @@ function effectiveLineOf(change: DiffChange): number {
  * shouldn't silence a finding it wasn't written for.
  */
 function applySuppression(findings: Finding[], files: ParsedFile[]): Finding[] {
+  // One path may be repo-relative and the other cwd-relative, so allow a suffix match — but
+  // only on a '/' boundary, so `foo.ts` never matches `myfoo.ts`.
+  const sameFile = (a: string, b: string): boolean =>
+    a === b || a.endsWith('/' + b) || b.endsWith('/' + a);
   return findings.filter(finding => {
-    const matchedFile = files.find(f => {
-      const fp = norm(f.to ?? f.from ?? '');
-      const ff = norm(finding.file);
-      return fp.endsWith(ff) || ff.endsWith(fp);
-    });
+    const matchedFile = files.find(f =>
+      sameFile(norm(f.to ?? f.from ?? ''), norm(finding.file)),
+    );
     if (!matchedFile) return true; // can't locate → keep
 
     const relevantChunk = matchedFile.chunks.find(chunk =>

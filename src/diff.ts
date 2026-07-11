@@ -11,9 +11,11 @@ export type ParsedFile = ReturnType<typeof parseDiff>[number];
  * Normalizes CRLF to LF in stdout before passing it to parseDiff.
  */
 export function runGitDiff(args: string[], cwd: string): { raw: string; files: ParsedFile[] } {
-  const result = spawnSync('git', ['diff', ...args], { cwd, encoding: 'utf8' });
+  // Default maxBuffer is 1 MiB, which large diffs (lockfile churn, generated files) exceed —
+  // spawnSync then reports ENOBUFS with status null and the diff is never analyzed.
+  const result = spawnSync('git', ['diff', ...args], { cwd, encoding: 'utf8', maxBuffer: 512 * 1024 * 1024 });
   if (result.status !== 0) {
-    throw new Error((result.stderr as string) || 'git diff failed');
+    throw new Error((result.stderr as string) || result.error?.message || 'git diff failed');
   }
   const raw = (result.stdout as string).replace(/\r\n/g, '\n');
   return { raw, files: parseDiff(raw) };

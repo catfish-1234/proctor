@@ -9,7 +9,7 @@ const RETRY_THRESHOLD = 2; // a single retry is common for genuinely flaky infra
 const TIMEOUT_MS_THRESHOLD = 120_000; // 2 minutes
 const TIMEOUT_S_THRESHOLD = 120;
 
-const NETWORK_MOCK_RE = /\.(?:mockResolvedValue|mockReturnValue)\(\s*([^)]+?)\s*\)|\.reply\(\s*\d+\s*,\s*([^)]+?)\s*\)/;
+const NETWORK_MOCK_RE = /\.(?:mockResolvedValue|mockReturnValue)(?:Once)?\(\s*([^)]+?)\s*\)|\.reply\(\s*\d+\s*,\s*([^)]+?)\s*\)/;
 const ASSERTION_LITERAL_RE = /\.(?:toBe|toEqual)\(\s*([^)]+?)\s*\)|assertEqual\([^,]+,\s*([^)]+?)\)/;
 
 function normalize(s: string): string {

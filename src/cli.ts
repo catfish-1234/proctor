@@ -64,7 +64,9 @@ program
       process.exit(0);
     }
     const cwd = pathArg ? resolve(pathArg) : process.cwd();
-    const diffArgs = options.base ? [`${options.base}...HEAD`] : options.staged ? ['--staged'] : [];
+    // --end-of-options stops git from parsing a ref that begins with '-' as a git option
+    // (e.g. --base "--output=x" would otherwise write the diff to a file).
+    const diffArgs = options.base ? ['--end-of-options', `${options.base}...HEAD`] : options.staged ? ['--staged'] : [];
     let raw: string, files: import('./diff.js').ParsedFile[];
     try {
       ({ raw, files } = runGitDiff(diffArgs, cwd));
@@ -73,10 +75,18 @@ program
       process.exit(2);
     }
     const { accepted } = classifyDiff(raw, files);
-    const ctx = await buildContext(cwd, accepted);
+    // Config comes from the diff baseline (HEAD, or the --base ref), never the working tree —
+    // otherwise the diff being checked could disable proctor in the same change it cheats in.
+    const ctx = await buildContext(cwd, accepted, { configRef: options.base ?? 'HEAD' });
     ctx.committedDiff = Boolean(options.base);
     if (options.rules) {
       const requested = options.rules.split(',').map(s => s.trim()).filter(Boolean);
+      const unknown = requested.filter(id => !RULE_METADATA[id]);
+      if (requested.length === 0 || unknown.length > 0) {
+        // A typo'd rule list must not silently run zero verifiers and mint an honest pass.
+        process.stderr.write(`proctor: unknown verifier ID(s) in --rules: ${unknown.join(', ') || '(empty list)'}\n`);
+        process.exit(2);
+      }
       ctx.enabled = ctx.enabled.filter(id => requested.includes(id));
     }
     if (options.ai) {
@@ -103,7 +113,9 @@ program
       const hasWarn = findings.some(f => f.severity === 'warn');
       await new Promise<void>((resolve) => {
         process.stdout.write(sarif + '\n', () => {
-          process.exitCode = hasError ? 2 : hasWarn ? 1 : 0;
+          // Same --ci contract as the non-SARIF path below: warnings only affect the exit
+          // code when --ci is not set.
+          process.exitCode = hasError ? 2 : hasWarn && !options.ci ? 1 : 0;
           resolve();
         });
       });
@@ -120,9 +132,10 @@ program
     }
     const hasError = findings.some(f => f.severity === 'error');
     const hasWarn = findings.some(f => f.severity === 'warn');
-    if (hasError) process.exit(2);
-    if (hasWarn) process.exit(1);
-    process.exit(0);
+    // Set exitCode and return (rather than process.exit) so pending stdout pipe writes drain
+    // before the process ends — same hazard the SARIF branch above guards against.
+    // Under --ci, warnings do not affect the exit code ("exit nonzero on error only").
+    process.exitCode = hasError ? 2 : hasWarn && !options.ci ? 1 : 0;
   });
 
 program
@@ -153,9 +166,20 @@ program
     const dir = options.global ? join(homedir(), '.claude') : join(process.cwd(), '.claude');
     const settingsPath = join(dir, 'settings.json');
     let settings: Record<string, unknown> = {};
+    let rawSettings: string | undefined;
     try {
-      settings = JSON.parse(await readFile(settingsPath, 'utf8')) as Record<string, unknown>;
-    } catch { /* ENOENT or invalid JSON */ }
+      rawSettings = await readFile(settingsPath, 'utf8');
+    } catch { /* ENOENT — no settings yet, start fresh */ }
+    if (rawSettings !== undefined) {
+      try {
+        settings = JSON.parse(rawSettings) as Record<string, unknown>;
+      } catch {
+        // A malformed settings file must not be silently replaced — that would destroy
+        // whatever configuration the user had in it.
+        process.stderr.write(`proctor: ${settingsPath} exists but is not valid JSON; fix it manually and re-run\n`);
+        process.exit(2);
+      }
+    }
     // Skip if the hook is already installed, so running this command twice is a no-op.
     const stopGroups = ((settings['hooks'] as Record<string, unknown> | undefined)?.['Stop'] ?? []) as Array<{ hooks?: Array<{ command?: string }> }>;
     const alreadyInstalled = stopGroups.some(g => g.hooks?.some(h => h.command?.includes('proctor stop-hook')));

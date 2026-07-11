@@ -50,6 +50,21 @@ describe('prettyReport', () => {
     expect(out).toContain('RH002');
   });
 
+  it('info finding shows ℹ️ badge and reconciles in the summary count', () => {
+    const infoFinding: Finding = {
+      verifierId: 'RH006',
+      severity: 'info',
+      file: 'src/baz.ts',
+      line: 2,
+      message: 'Snapshot rewritten',
+      suggestion: 'State a reason',
+    };
+    prettyReport([errorFinding, infoFinding], { stream });
+    const out = chunks.join('');
+    expect(out).toContain('ℹ️');
+    expect(out).toContain('2 findings (1 error, 0 warnings, 1 info)');
+  });
+
   it('two findings same file: file header appears once', () => {
     const second: Finding = { ...errorFinding, line: 20, message: 'Another issue' };
     prettyReport([errorFinding, second], { stream });

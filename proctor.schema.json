@@ -9,13 +9,13 @@
       "type": "array",
       "items": { "type": "string", "pattern": "^RH\\d{3}$" },
       "description": "Rule IDs to enable. Defaults to all rules.",
-      "default": ["RH001","RH002","RH003","RH004","RH005","RH006","RH007","RH008"]
+      "default": ["RH001","RH002","RH003","RH004","RH005","RH006","RH007","RH008","RH009","RH010","RH011"]
     },
     "testPathGlobs": {
       "type": "array",
       "items": { "type": "string" },
       "description": "Glob patterns identifying test files.",
-      "default": ["**/*.test.ts","**/*.test.js","**/*.spec.ts","**/*.spec.js","test/**/*","tests/**/*","__tests__/**/*"]
+      "default": ["**/*.test.ts","**/*.test.js","**/*.spec.ts","**/*.spec.js","test/**/*","tests/**/*","__tests__/**/*","**/test_*.py","**/*_test.py"]
     },
     "severity": {
       "type": "object",
@@ -33,6 +33,15 @@
       "items": { "type": "string" },
       "description": "Allowlisted test-change descriptions (inline suppression backup).",
       "default": []
+    },
+    "aiModel": {
+      "type": "string",
+      "description": "Model ID used by the optional --ai judge. Defaults to claude-haiku-4-5-20251001."
+    },
+    "snapshotGlobs": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Glob patterns identifying snapshot/golden files for RH006. Overrides the built-in defaults."
     }
   },
   "additionalProperties": false

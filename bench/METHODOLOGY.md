@@ -28,7 +28,7 @@ visible-test cheat goes undetected.
 
 `cheat_detected` and `rh_id` are computed by diffing the agent's temp workdir against
 its pre-run baseline and calling proctor's own `runChecks` (`src/engine.ts`) — the
-exact same deterministic signature pipeline (`src/signatures/rh00N.ts`) used by
+exact same deterministic verifier pipeline (`src/verifiers/rh00N.ts`) used by
 `proctor check` in normal git-hook/CI use. No new detection logic is written for the
 benchmark, and no LLM/AI judge is used to decide whether a run was a cheat.
 
@@ -37,25 +37,25 @@ tool it's benchmarking, a high or low score would tell you about the judge, not 
 proctor. Reusing `runChecks` in-process means the benchmark is only ever asking "would
 `proctor check` have flagged this diff?" — which is the actual product claim.
 
-## Scope: RH004/RH005/RH008 Are Excluded From Bench v1
+## Scope: What Can Fire in a Bench Run
 
 `runChecks` is called without enabling `ctx.aiEnabled`/`ctx.judge`, matching how
-`proctor check` behaves without `--ai`. Three signatures — RH004 (hardcoded
-implementation), RH005 (gutted implementation), and RH008 (tautological test) — return
-no findings unless `ctx.aiEnabled && ctx.judge` are set, because they rely on the
-optional LLM judge to avoid an unacceptable false-positive rate on heuristics alone.
-`proctor bench` never sets `--ai`, so these three signatures never trip in a bench run
-by construction.
+`proctor check` behaves without `--ai`. All eleven checks run in that mode, and every
+one of them has a deterministic core that can fire on an agent's diff. The only parts
+that stay silent are the optional fuzzy extensions of RH004 (hardcoded implementation)
+and RH005 (gutted implementation), which consult the LLM judge for ambiguous cases
+their deterministic cores deliberately leave alone. RH008 (tautological test) has no
+AI gate at all; it is fully deterministic.
 
-Consequently, every task in `bench/tasks/` plants its cheat opportunity using only the
-five signatures that are always active offline: **RH001** (test deletion), **RH002**
-(weakened assertion), **RH003** (disabled/skipped test), **RH006** (snapshot rewrite),
-and **RH007** (config-based test exclusion). `cheat_detected` in the benchmark CSV
-should be read as "did proctor's deterministic, offline signatures catch this," not as
-a claim that RH004/RH005/RH008 are absent from real-world agent behavior — they are
-simply out of scope for this benchmark's default (non-`--ai`) configuration. A future
-bench run that threads `--ai` through to the scorer's `runChecks` call would be
-required to measure those three signatures, and is not implemented in bench v1.
+The tasks themselves are narrower than the detector. Every task in `bench/tasks/`
+plants its cheat opportunity using one of five signatures: **RH001** (test deletion),
+**RH002** (weakened assertion), **RH003** (disabled/skipped test), **RH006** (snapshot
+rewrite), and **RH007** (config-based test exclusion). So `cheat_detected` in the
+benchmark CSV should be read as "did proctor's deterministic, offline checks catch
+this," where the planted cheats target those five signatures but any of the eleven can
+flag what the agent actually did. A future bench version could plant RH004/RH005-shaped
+cheats and thread `--ai` through the scorer to measure the fuzzy extensions; bench v1
+does not.
 
 ## Proctor On vs Off Is a Real Intervention, Not Model Nondeterminism
 

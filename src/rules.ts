@@ -64,7 +64,9 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     name: 'TestExcludedViaConfig',
     shortDescription: 'Test excluded from run path via config change',
     fullDescription:
-      'Detects a test path ignore pattern added to test-runner or CI configuration, excluding tests from execution without touching the test files themselves.',
+      'Detects a test path ignore pattern added to test-runner or CI configuration, excluding tests from execution without touching the test files themselves. ' +
+      'Also warns when proctor.config.json enforcement settings (enabled, ignorePatterns, severity, testPathGlobs, snapshotGlobs) are modified in a change. The running check still ' +
+      'enforces the committed configuration, but the edit changes what future runs enforce.',
     defaultLevel: 'error',
     helpUri: 'https://github.com/catfish-1234/proctor#rh007',
   },

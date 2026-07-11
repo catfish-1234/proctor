@@ -4,7 +4,7 @@
 
 function csvField(v: string | number | boolean): string {
   const s = String(v);
-  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
 
 export function toCsvRow(fields: (string | number | boolean)[]): string {

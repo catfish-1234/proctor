@@ -37,6 +37,15 @@ function isNonTrivialReturn(content: string): boolean {
 const JS_SELF_MOCK_RE = /\b(?:jest|vi)\.mock\(\s*['"`](\.[\w./-]+)['"`]/;
 const PY_MOCK_PATCH_RE = /(?:unittest\.)?mock\.patch(?:\.object)?\(\s*['"`]([\w.]+)['"`]/;
 
+// A test file named test_time.py legitimately patches stdlib 'time.sleep' — a dotted-path
+// segment that is a well-known stdlib/ubiquitous module shouldn't count as the module under
+// test. Deliberately short: only modules that are commonly patched in tests.
+const PY_COMMON_MODULES = new Set([
+  'time', 'os', 'sys', 'json', 're', 'math', 'random', 'datetime', 'io', 'pathlib',
+  'subprocess', 'socket', 'logging', 'uuid', 'urllib', 'http', 'threading', 'asyncio',
+  'shutil', 'tempfile', 'hashlib', 'requests',
+]);
+
 function baseName(p: string): string {
   const file = p.split('/').pop() ?? p;
   return file
@@ -90,7 +99,13 @@ async function run(context: Context): Promise<Finding[]> {
           const pyMatch = add.content.match(PY_MOCK_PATCH_RE);
           const mockedTarget = jsMatch?.[1] ?? pyMatch?.[1];
           if (!mockedTarget) continue;
-          if (baseName(mockedTarget) !== baseName(filePath)) continue;
+          // Python patch targets are dotted module paths ('pkg.calculator.add'), so the module
+          // under test can be any segment, not the whole string. JS targets are file paths.
+          const testedModule = baseName(filePath);
+          const isSelfMock = jsMatch
+            ? baseName(mockedTarget) === testedModule
+            : !PY_COMMON_MODULES.has(testedModule) && mockedTarget.split('.').includes(testedModule);
+          if (!isSelfMock) continue;
           findings.push({
             verifierId: 'RH005',
             severity: 'error',

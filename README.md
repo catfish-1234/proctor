@@ -191,6 +191,11 @@ More info: https://github.com/catfish-1234/proctor#rh001
 Installs a git pre-commit hook that runs `proctor check --staged`. Detects Husky automatically and
 writes to `.husky/pre-commit`, otherwise falls back to `.git/hooks/pre-commit`.
 
+Only error-severity findings block the commit. Warnings are printed so you see them, but the
+commit still goes through, the same policy the Claude Code Stop hook follows. If you already have
+a pre-commit hook from another tool, proctor backs it up to `pre-commit.bak` before writing its
+own, and tells you it did.
+
 ### `proctor stop-hook`
 
 The Claude Code Stop hook itself. Reads the hook payload from stdin, runs a check, and exits `2`
@@ -254,6 +259,14 @@ Drop a `proctor.config.json` in your repo root (it's validated against
 | `testPathGlobs` | `string[]` | glob patterns that identify your test files |
 | `ignorePatterns` | `string[]` | glob patterns for files to ignore entirely |
 | `approvedTestChanges` | `string[]` | an allowlist of test changes you've pre-approved |
+| `aiModel` | `string` | which model the optional `--ai` judge uses. Defaults to `claude-haiku-4-5-20251001` |
+| `snapshotGlobs` | `string[]` | glob patterns that identify snapshot and golden files for `RH006` |
+
+One important detail: during a check, proctor reads `proctor.config.json` from the committed
+version (`HEAD`, or the `--base` ref), not from your working tree. This is deliberate. If the
+config were read from the working tree, the very diff being checked could turn proctor off in the
+same change it cheats in. Commit your config first and it takes effect; an uncommitted config edit
+is reported on stderr and flagged by `RH007`, but not honored until it lands.
 
 ### Inline suppression
 
@@ -302,8 +315,11 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: ./
+      - uses: catfish-1234/proctor@main
 ```
+
+If you are working inside the proctor repo itself, use `uses: ./` instead of the
+`catfish-1234/proctor@main` reference.
 
 ## Benchmark
 

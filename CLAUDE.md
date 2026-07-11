@@ -37,7 +37,7 @@ src/
   types.ts                 # Verifier / Context / Finding / ProctorConfig shapes
   engine.ts                # runs the enabled verifiers, aggregates findings
   diff.ts                  # git diff parsing
-  pre-classifier.ts        # rejects binary/mode-only/submodule/combined diffs before analysis
+  pre-classifier.ts        # rejects binary/mode-only/rename-only/submodule/combined diffs before analysis
   ast.ts                   # AST parsing for JS/TS
   rules.ts                 # RULE_METADATA: name, description, and severity for every check ID
   brand.ts                 # name, color tokens, character and launch copy
@@ -59,8 +59,8 @@ tests/                      # mirrors src/, one test file per module
 
 - Every check is a pure function: `Verifier.run(context: Context) => Finding[]`. No I/O, no
   network, no global state inside a verifier.
-- The pre-classifier runs before any check logic, and rejects binary, mode-only, submodule, and
-  combined diffs up front.
+- The pre-classifier runs before any check logic, and rejects binary, mode-only, rename-only,
+  submodule, and combined diffs up front.
 - The Claude Code Stop hook exits `2` to block a turn. It never exits `1`, since that's
   non-blocking in Claude Code.
 - On Windows, `chmod +x` doesn't work. Use `git add --chmod=+x` instead.

@@ -1,6 +1,6 @@
 # Fixtures Index
 
-Single source of truth for all benchmark fixtures. No per-fixture READMEs.
+Single source of truth for all verifier fixtures (the planted true-positive and near-miss cases the RH checks are tested against). The benchmark's task fixtures live separately under `bench/tasks/`. No per-fixture READMEs.
 
 ## RH001 — Test Deletion
 

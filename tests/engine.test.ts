@@ -72,6 +72,31 @@ describe('runChecks', () => {
     expect(rh003Findings).toHaveLength(0);
   });
 
+  it('does not suppress via a marker in a file whose path merely ends with the finding file name', async () => {
+    // foo.test.ts has the skip (finding); myfoo.test.ts has a valid marker at the same lines.
+    // A bare endsWith match would let myfoo.test.ts's marker suppress foo.test.ts's finding.
+    const colliderFile = makeFile('myfoo.test.ts', [
+      {
+        content: '',
+        changes: [
+          { type: 'add', content: '+ # proctor-ignore: RH003 reason: intentional', ln: 4 } as unknown as ParsedFile['chunks'][number]['changes'][number],
+          { type: 'add', content: '+ const unrelated = 1;', ln: 5 } as unknown as ParsedFile['chunks'][number]['changes'][number],
+        ],
+      } as unknown as ParsedFile['chunks'][number],
+    ]);
+    const skipFile = makeFile('foo.test.ts', [
+      {
+        content: '',
+        changes: [
+          { type: 'add', content: '+ it.skip("test", () => {})', ln: 5 } as unknown as ParsedFile['chunks'][number]['changes'][number],
+        ],
+      } as unknown as ParsedFile['chunks'][number],
+    ]);
+    const result = await runChecks(makeCtx({ files: [colliderFile, skipFile], enabled: ['RH003'] }));
+    const fooFindings = result.filter(f => f.verifierId === 'RH003' && f.file === 'foo.test.ts');
+    expect(fooFindings).toHaveLength(1);
+  });
+
   it('does NOT suppress when reason: is absent from proctor-ignore comment', async () => {
     const suppressFile = makeFile('src/calc.test.ts', [
       {

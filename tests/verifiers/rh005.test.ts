@@ -191,6 +191,55 @@ describe('rh005 — gutted function detection (deterministic core)', () => {
     const findings = await rh005.run(ctx);
     expect(findings).toEqual([]);
   });
+
+  it('flags a Python test that patches the module under test via a dotted target', async () => {
+    const file: ParsedFile = {
+      from: 'tests/test_calculator.py',
+      to: 'tests/test_calculator.py',
+      chunks: [{
+        content: '',
+        changes: [{ type: 'add', add: true, ln: 4, content: "+    with mock.patch('pkg.calculator.add'):" }],
+        oldStart: 4, oldLines: 0, newStart: 4, newLines: 1,
+      }],
+      deleted: false, new: false,
+    };
+    const ctx: Context = { ...baseCtx, files: [file], isTestFile: () => true, aiEnabled: false, judge: undefined };
+    const findings = await rh005.run(ctx);
+    expect(findings.length).toBe(1);
+    expect(findings[0].message).toContain('pkg.calculator.add');
+  });
+
+  it('returns [] when a test file named after a stdlib module patches that module (test_time.py + time.sleep)', async () => {
+    const file: ParsedFile = {
+      from: 'tests/test_time.py',
+      to: 'tests/test_time.py',
+      chunks: [{
+        content: '',
+        changes: [{ type: 'add', add: true, ln: 4, content: "+    with mock.patch('time.sleep'):" }],
+        oldStart: 4, oldLines: 0, newStart: 4, newLines: 1,
+      }],
+      deleted: false, new: false,
+    };
+    const ctx: Context = { ...baseCtx, files: [file], isTestFile: () => true, aiEnabled: false, judge: undefined };
+    const findings = await rh005.run(ctx);
+    expect(findings).toEqual([]);
+  });
+
+  it('returns [] when a Python test patches an unrelated module (legitimate dependency mock)', async () => {
+    const file: ParsedFile = {
+      from: 'tests/test_calculator.py',
+      to: 'tests/test_calculator.py',
+      chunks: [{
+        content: '',
+        changes: [{ type: 'add', add: true, ln: 4, content: "+    with mock.patch('requests.get'):" }],
+        oldStart: 4, oldLines: 0, newStart: 4, newLines: 1,
+      }],
+      deleted: false, new: false,
+    };
+    const ctx: Context = { ...baseCtx, files: [file], isTestFile: () => true, aiEnabled: false, judge: undefined };
+    const findings = await rh005.run(ctx);
+    expect(findings).toEqual([]);
+  });
 });
 
 describe('rh005 — AI-gated fuzzy path (ambiguous gutting, no clear prior computation)', () => {

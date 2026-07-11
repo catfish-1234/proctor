@@ -30,6 +30,24 @@ describe('checkAdapterDrift (unit)', () => {
     }
   });
 
+  it('does not count a CRLF-only difference as drift (Windows autocrlf checkout)', async () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      const canonical = 'line one\nline two\n';
+      const [adapter] = AGENT_ADAPTERS;
+      const adapterPath = join(tmpDir, adapter.relativePath);
+      mkdirSync(dirname(adapterPath), { recursive: true });
+      writeFileSync(adapterPath, canonical.replace(/\n/g, '\r\n'), 'utf8');
+
+      const { drifted, checked } = await checkAdapterDrift(tmpDir, canonical);
+
+      expect(drifted).toEqual([]);
+      expect(checked).toContain(adapterPath);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it('does not count a never-installed (absent) adapter as drifted', async () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {

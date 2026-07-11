@@ -33,6 +33,19 @@ describe('bench/runners fixture-runner', () => {
     expect(existsSync(join(workdir, 'src/calc.ts'))).toBe(false);
   });
 
+  it('rejects a mock file path that escapes the workdir', async () => {
+    tmpDir = mkdtempSync(join(tmpdir(), 'proctor-bench-'));
+    const mock: MockAgentFile = {
+      proctorOn: { files: { '../escape.txt': 'outside\n' } },
+      proctorOff: { files: {} },
+    };
+    writeFileSync(join(tmpDir, 'mock-agent.json'), JSON.stringify(mock), 'utf8');
+    const runner = createFixtureRunner('mock-model');
+    const task: AgentTask = { taskId: 'task-01', prompt: 'fix the bug', workdir: tmpDir, proctorOn: true };
+    await expect(runner.run(task)).rejects.toThrow(/escapes workdir/);
+    expect(existsSync(join(tmpDir, '..', 'escape.txt'))).toBe(false);
+  });
+
   it('proctorOn:true writes the proctorOn (honest) file set and returns exitCode 0, no network', async () => {
     const workdir = setup();
     const runner = createFixtureRunner('mock-model');

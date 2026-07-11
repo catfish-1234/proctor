@@ -25,6 +25,8 @@ const CONFIG_FIELDS = [
   'testPathGlobs',
   'ignorePatterns',
   'approvedTestChanges',
+  'aiModel',
+  'snapshotGlobs',
 ];
 
 describe('README.md content', () => {

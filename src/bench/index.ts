@@ -55,11 +55,19 @@ export async function runBench(opts: RunBenchOptions): Promise<RunBenchResult> {
   }
 
   const rows: ScoredRow[] = [];
+  let failedTasks = 0;
   for (const entry of selectedEntries) {
-    const offRow = await scoreTask(entry.dir, runner, false);
-    rows.push(offRow);
-    const onRow = await scoreTask(entry.dir, runner, true);
-    rows.push(onRow);
+    // A single broken task (unreadable prompt.md, git failure in its repo) shouldn't abort
+    // the run and discard every row already scored — warn, skip, keep going.
+    try {
+      const offRow = await scoreTask(entry.dir, runner, false);
+      rows.push(offRow);
+      const onRow = await scoreTask(entry.dir, runner, true);
+      rows.push(onRow);
+    } catch (err) {
+      failedTasks++;
+      process.stderr.write(`proctor: bench task ${entry.taskId} failed, skipping: ${String(err instanceof Error ? err.message : err)}\n`);
+    }
   }
 
   const csv = CSV_HEADER + rows.map((r) => toCsvRow([r.taskId, r.model, r.proctorOn, r.cheatDetected, r.rhId, r.honestPass])).join('');
@@ -71,5 +79,5 @@ export async function runBench(opts: RunBenchOptions): Promise<RunBenchResult> {
 
   cheatRateTable(rows, { stream: process.stdout });
 
-  return { csv, rows, exitCode: 0 };
+  return { csv, rows, exitCode: failedTasks > 0 ? 1 : 0 };
 }

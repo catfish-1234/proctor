@@ -78,4 +78,50 @@ describe('rh007 — config exclusion patterns', () => {
     expect(findings[0].verifierId).toBe('RH007');
     expect(findings[0].line).toBe(5);
   });
+
+  it('detects an unquoted exclude: with a test-looking value in vitest.config.ts (warn — heuristic)', () => {
+    const files = [makeAddFile('vitest.config.ts', "+    exclude: ['**/payments.test.ts'],", 8)];
+    const findings = rh007.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0].verifierId).toBe('RH007');
+    expect(findings[0].severity).toBe('warn');
+    expect(findings[0].line).toBe(8);
+  });
+
+  it('does not flag an unquoted exclude: whose value is not test-like (coverage/build exclude)', () => {
+    const files = [makeAddFile('vitest.config.ts', "+    exclude: ['node_modules/**'],", 8)];
+    expect(rh007.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('flags an enforcement-key edit to proctor.config.json as a warn', () => {
+    const files = [makeAddFile('proctor.config.json', '+  "enabled": [],', 2)];
+    const findings = rh007.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0].verifierId).toBe('RH007');
+    expect(findings[0].severity).toBe('warn');
+    expect(findings[0].message).toContain('enabled');
+  });
+
+  it('does not flag a proctor.config.json edit that touches no enforcement key', () => {
+    const files = [makeAddFile('proctor.config.json', '+  "aiModel": "claude-haiku-4-5-20251001",', 2)];
+    expect(rh007.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('does not flag an unquoted exclude: of test globs when the chunk shows coverage context', () => {
+    const file: ParsedFile = {
+      from: 'vitest.config.ts',
+      to: 'vitest.config.ts',
+      chunks: [{
+        content: '',
+        changes: [
+          { type: 'normal', normal: true, ln1: 7, ln2: 7, content: '    coverage: {' },
+          { type: 'add', add: true, ln: 8, content: "+      exclude: ['**/*.test.ts']," },
+        ],
+        oldStart: 7, oldLines: 1, newStart: 7, newLines: 2,
+      }],
+      deleted: false,
+      new: false,
+    };
+    expect(rh007.run({ ...baseCtx, files: [file] })).toEqual([]);
+  });
 });

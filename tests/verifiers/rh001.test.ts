@@ -150,6 +150,15 @@ describe('rh001 — path 2 add/del reconciliation (renames, reformats, .skip wra
     expect(findings.length).toBe(1);
   });
 
+  it('flags deletion of a modifier-form test (test.each) with no reconciling add', () => {
+    const files = makeFile([
+      { type: 'del', del: true, ln: 5, content: "-  test.each([[1, 2], [3, 4]])('adds %i and %i', (a, b) => {" },
+    ]);
+    const findings = rh001.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0].verifierId).toBe('RH001');
+  });
+
   it('Python: suppresses a renamed test function', () => {
     const files: ParsedFile[] = [{
       from: 'test_shipping.py',

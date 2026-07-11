@@ -1,7 +1,7 @@
 import { spawnSync, execSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { tmpdir, homedir } from 'node:os';
+import { tmpdir } from 'node:os';
 import { describe, it, expect } from 'vitest';
 
 const CLI = resolve(process.cwd(), 'dist/cli.js');
@@ -38,6 +38,25 @@ describe('CLI smoke tests', () => {
       expect(result.status).toBe(0);
       const hookContent = readFileSync(join(tmpDir, '.git', 'hooks', 'pre-commit'), 'utf8');
       expect(hookContent).toContain('proctor check --staged');
+      // warn→allow mapping: exit 1 (warnings only) must not block the commit
+      expect(hookContent).toContain('if [ "$status" -eq 1 ]; then exit 0; fi');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('install-hook backs up an existing foreign pre-commit hook to .bak before overwriting', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      const hookPath = join(tmpDir, '.git', 'hooks', 'pre-commit');
+      mkdirSync(join(tmpDir, '.git', 'hooks'), { recursive: true });
+      const foreign = '#!/bin/sh\necho existing-lint-hook\n';
+      writeFileSync(hookPath, foreign, 'utf8');
+      const result = spawnSync('node', [CLI, 'install-hook'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(0);
+      expect(readFileSync(hookPath, 'utf8')).toContain('proctor check --staged');
+      expect(readFileSync(hookPath + '.bak', 'utf8')).toBe(foreign);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -192,28 +211,141 @@ describe('CLI smoke tests', () => {
     expect(result.status).toBe(0);
   });
 
-  it('install-claude-hook --global reports homedir path', () => {
+  it('install-claude-hook --global writes into the (sandboxed) home directory', () => {
+    // HOME/USERPROFILE are overridden so os.homedir() resolves into a temp sandbox —
+    // this test must NEVER read or write the developer's real ~/.claude/settings.json.
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
-    const globalSettingsPath = join(homedir(), '.claude', 'settings.json');
+    const tmpHome = mkdtempSync(join(tmpdir(), 'proctor-home-'));
     try {
       const result = spawnSync('node', [CLI, 'install-claude-hook', '--global'], {
         encoding: 'utf8',
         cwd: tmpDir,
+        env: { ...process.env, HOME: tmpHome, USERPROFILE: tmpHome },
       });
       expect(result.stdout).toContain('.claude');
       expect(result.stdout).toContain('settings.json');
+      const written = JSON.parse(readFileSync(join(tmpHome, '.claude', 'settings.json'), 'utf8')) as { hooks?: { Stop?: unknown[] } };
+      expect(written.hooks?.Stop).toHaveLength(1);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
-      // Clean up the written global file if it was newly created by this test
-      // (avoids permanently polluting ~/.claude/settings.json)
-      try {
-        const content = readFileSync(globalSettingsPath, 'utf8');
-        const parsed = JSON.parse(content) as { hooks?: { Stop?: unknown[] } };
-        // Only remove if it looks like our test wrote it (single Stop entry)
-        if (parsed.hooks?.Stop && (parsed.hooks.Stop as unknown[]).length === 1) {
-          rmSync(globalSettingsPath, { force: true });
-        }
-      } catch { /* file may not exist or not be ours to remove */ }
+      rmSync(tmpHome, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('config self-neutralization defense', () => {
+  it('still catches a cheat when the same change disables proctor via proctor.config.json', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      execSync('git config user.email x@x', { cwd: tmpDir });
+      execSync('git config user.name x', { cwd: tmpDir });
+      execSync('git commit --allow-empty -m init', { cwd: tmpDir });
+      // The cheat and the config that would disable its detection land in the same change.
+      // proctor-ignore: RH003 reason: planted cheat fixture written as a string into a temp repo, not a real skipped test
+      writeFileSync(join(tmpDir, 'foo.test.ts'), 'it.skip("cheating", () => {})');
+      writeFileSync(join(tmpDir, 'proctor.config.json'), JSON.stringify({ enabled: [] }));
+      execSync('git add .', { cwd: tmpDir });
+      const result = spawnSync('node', [CLI, 'check', '--staged'], { cwd: tmpDir, encoding: 'utf8' });
+      // Enforcement uses the committed (absent) config, so RH003 still fires: exit 2.
+      expect(result.status).toBe(2);
+      expect(result.stdout).toContain('RH003');
+      expect(result.stderr).toContain('differs from the version at HEAD');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('honors a config that was committed before the change being checked', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      execSync('git config user.email x@x', { cwd: tmpDir });
+      execSync('git config user.name x', { cwd: tmpDir });
+      writeFileSync(join(tmpDir, 'proctor.config.json'), JSON.stringify({ enabled: ['RH001'] }));
+      execSync('git add .', { cwd: tmpDir });
+      execSync('git commit -m "add config"', { cwd: tmpDir });
+      // proctor-ignore: RH003 reason: planted cheat fixture written as a string into a temp repo, not a real skipped test
+      writeFileSync(join(tmpDir, 'foo.test.ts'), 'it.skip("cheating", () => {})');
+      execSync('git add foo.test.ts', { cwd: tmpDir });
+      const result = spawnSync('node', [CLI, 'check', '--staged'], { cwd: tmpDir, encoding: 'utf8' });
+      // RH003 is disabled by the committed config, so the skip goes unflagged: exit 0.
+      expect(result.status).toBe(0);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('check --rules validation', () => {
+  it('exits 2 on an unknown rule ID instead of silently running zero verifiers', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      execSync('git config user.email x@x', { cwd: tmpDir });
+      execSync('git config user.name x', { cwd: tmpDir });
+      execSync('git commit --allow-empty -m init', { cwd: tmpDir });
+      const result = spawnSync('node', [CLI, 'check', '--rules', 'RH001,RH999'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('RH999');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('install-claude-hook settings safety', () => {
+  it('refuses to overwrite a malformed settings.json instead of destroying it', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      const settingsPath = join(tmpDir, '.claude', 'settings.json');
+      mkdirSync(join(tmpDir, '.claude'), { recursive: true });
+      const malformed = '{ "hooks": { broken json ';
+      writeFileSync(settingsPath, malformed, 'utf8');
+      const result = spawnSync('node', [CLI, 'install-claude-hook'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('not valid JSON');
+      expect(readFileSync(settingsPath, 'utf8')).toBe(malformed);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('check --ci exit semantics', () => {
+  // A staged snapshot rewrite triggers RH006, which is warn severity — the right shape for
+  // testing that warnings exit 1 normally but 0 under --ci ("exit nonzero on error only").
+  function setupWarnOnlyRepo(): string {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    execSync('git init', { cwd: tmpDir });
+    execSync('git config user.email x@x', { cwd: tmpDir });
+    execSync('git config user.name x', { cwd: tmpDir });
+    mkdirSync(join(tmpDir, '__snapshots__'), { recursive: true });
+    writeFileSync(join(tmpDir, '__snapshots__', 'app.snap'), 'exports[`a`] = `1`;\n');
+    execSync('git add .', { cwd: tmpDir });
+    execSync('git commit -m init', { cwd: tmpDir });
+    writeFileSync(join(tmpDir, '__snapshots__', 'app.snap'), 'exports[`a`] = `2`;\n');
+    execSync('git add .', { cwd: tmpDir });
+    return tmpDir;
+  }
+
+  it('exits 1 on a warn-only finding without --ci', () => {
+    const tmpDir = setupWarnOnlyRepo();
+    try {
+      const result = spawnSync('node', [CLI, 'check', '--staged'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(1);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('exits 0 on a warn-only finding under --ci (errors only affect the exit code)', () => {
+    const tmpDir = setupWarnOnlyRepo();
+    try {
+      const result = spawnSync('node', [CLI, 'check', '--staged', '--ci'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(0);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 });
@@ -533,6 +665,27 @@ describe('check --base flag', () => {
         encoding: 'utf8',
       });
       expect(result.status).toBe(0);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('treats a dash-prefixed --base value as a literal (invalid) ref, not a git option', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      execSync('git config user.email x@x', { cwd: tmpDir });
+      execSync('git config user.name x', { cwd: tmpDir });
+      execSync('git commit --allow-empty -m base', { cwd: tmpDir });
+      // Without --end-of-options, git would honor --output=<file> and write the diff there,
+      // silently producing an empty analysis instead of an error.
+      const result = spawnSync('node', [CLI, 'check', '--base', '--output=pwned'], {
+        cwd: tmpDir,
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('proctor:');
+      expect(existsSync(join(tmpDir, 'pwned...HEAD'))).toBe(false);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }

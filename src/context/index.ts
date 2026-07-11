@@ -29,19 +29,55 @@ const DEFAULT_ENABLED = [
  * buildContext: discover() -> buildContext() -> run Verifier[] -> aggregate Findings.
  * `files` is the diff already discovered by the caller (runGitDiff + classifyDiff). buildContext
  * folds it into Context alongside repo-level signals (test globs, language detection, config).
+ *
+ * When `opts.configRef` is set, proctor.config.json is read from that git ref instead of the
+ * working tree. The CLI always sets it (HEAD, or the --base ref): the guard's own configuration
+ * must come from the diff baseline, otherwise the change under inspection could disable proctor
+ * in the very commit it cheats in (e.g. add `{"enabled": []}` alongside a deleted test).
+ * Without configRef (unit tests, library callers) the working-tree file is read as before.
  */
-export async function buildContext(cwd: string, files: ParsedFile[]): Promise<Context> {
+export async function buildContext(cwd: string, files: ParsedFile[], opts?: { configRef?: string }): Promise<Context> {
   let config: ProctorConfig = {};
 
-  try {
-    const raw = await readFile(join(cwd, 'proctor.config.json'), 'utf8');
-    config = JSON.parse(raw) as ProctorConfig;
-  } catch (err: unknown) {
-    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-      // malformed JSON — warn and fall back to defaults
-      process.stderr.write(`proctor: failed to parse proctor.config.json: ${String(err)}\n`);
+  if (opts?.configRef) {
+    let baselineRaw: string | undefined;
+    try {
+      ({ stdout: baselineRaw } = await execFileAsync(
+        'git', ['show', `${opts.configRef}:proctor.config.json`], { cwd },
+      ));
+    } catch {
+      // Config doesn't exist at the baseline ref (or the ref is unborn) — run with defaults.
     }
-    // ENOENT is expected when no config exists — silent fallback
+    if (baselineRaw !== undefined) {
+      try {
+        config = JSON.parse(baselineRaw) as ProctorConfig;
+      } catch (err) {
+        process.stderr.write(`proctor: failed to parse proctor.config.json at ${opts.configRef}: ${String(err)}\n`);
+      }
+    }
+    // Surface (but do not honor) an uncommitted config change, so the drift is visible instead
+    // of silently ignored. Line endings are normalized so autocrlf checkouts don't false-alarm.
+    try {
+      const workingTree = await readFile(join(cwd, 'proctor.config.json'), 'utf8');
+      if (workingTree.replace(/\r\n/g, '\n') !== (baselineRaw ?? '').replace(/\r\n/g, '\n')) {
+        process.stderr.write(`proctor: proctor.config.json differs from the version at ${opts.configRef}; enforcement uses the committed version\n`);
+      }
+    } catch {
+      if (baselineRaw !== undefined) {
+        process.stderr.write(`proctor: proctor.config.json was deleted in the working tree; enforcement uses the version at ${opts.configRef}\n`);
+      }
+    }
+  } else {
+    try {
+      const raw = await readFile(join(cwd, 'proctor.config.json'), 'utf8');
+      config = JSON.parse(raw) as ProctorConfig;
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        // malformed JSON — warn and fall back to defaults
+        process.stderr.write(`proctor: failed to parse proctor.config.json: ${String(err)}\n`);
+      }
+      // ENOENT is expected when no config exists — silent fallback
+    }
   }
 
   const testPathGlobs = config.testPathGlobs ?? DEFAULT_GLOBS;
@@ -61,7 +97,8 @@ export async function buildContext(cwd: string, files: ParsedFile[]): Promise<Co
 
   const getLanguage = (filePath: string): 'ts' | 'js' | 'python' | 'unknown' => {
     const ext = filePath.split('.').pop()?.toLowerCase();
-    if (ext === 'ts' || ext === 'tsx') return 'ts';
+    // proctor-ignore: RH004 reason: extension-to-language mapping table, not a fixture hardcode
+    if (ext === 'ts' || ext === 'tsx' || ext === 'mts' || ext === 'cts') return 'ts';
     if (ext === 'js' || ext === 'jsx' || ext === 'mjs' || ext === 'cjs') return 'js';
     if (ext === 'py') return 'python';
     return 'unknown';

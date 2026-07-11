@@ -118,4 +118,29 @@ describe('buildContext', () => {
     const ctx = await buildContext(tmpDir, []);
     expect(ctx.snapshotGlobs).toEqual(['**/__snapshots__/*.snap']);
   });
+
+  it('configRef reads the committed config, ignoring an uncommitted working-tree override', async () => {
+    const git = (...args: string[]) => spawnSync('git', args, { cwd: tmpDir, encoding: 'utf8' });
+    git('init');
+    git('config', 'user.email', 'x@x');
+    git('config', 'user.name', 'x');
+    await writeFile(join(tmpDir, 'proctor.config.json'), JSON.stringify({ enabled: ['RH001'] }));
+    git('add', '.');
+    git('commit', '-m', 'add config');
+    // The working tree now tries to disable everything; committed config must win.
+    await writeFile(join(tmpDir, 'proctor.config.json'), JSON.stringify({ enabled: [] }));
+    const ctx = await buildContext(tmpDir, [], { configRef: 'HEAD' });
+    expect(ctx.enabled).toEqual(['RH001']);
+  });
+
+  it('configRef falls back to defaults when no config exists at the ref, even if one exists uncommitted', async () => {
+    const git = (...args: string[]) => spawnSync('git', args, { cwd: tmpDir, encoding: 'utf8' });
+    git('init');
+    git('config', 'user.email', 'x@x');
+    git('config', 'user.name', 'x');
+    git('commit', '--allow-empty', '-m', 'init');
+    await writeFile(join(tmpDir, 'proctor.config.json'), JSON.stringify({ enabled: [] }));
+    const ctx = await buildContext(tmpDir, [], { configRef: 'HEAD' });
+    expect(ctx.enabled).toHaveLength(11);
+  });
 });

@@ -8,8 +8,11 @@ export interface DriftCheckResult {
   checked: string[];
 }
 
+// Normalize CRLF before hashing: git autocrlf checkouts on Windows rewrite deployed adapter
+// files to CRLF while the packaged canonical stays LF, which would flag every adapter as
+// drifted. Line-ending churn isn't drift; any content change still is.
 function sha256(content: string): string {
-  return createHash('sha256').update(content).digest('hex');
+  return createHash('sha256').update(content.replace(/\r\n/g, '\n')).digest('hex');
 }
 
 /**

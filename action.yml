@@ -7,9 +7,12 @@ runs:
       uses: actions/setup-node@v6
       with:
         node-version: '20'
+    # Build in the action's own checkout (github.action_path), not the consumer's workspace —
+    # when this action is used from another repo, github.workspace is that repo and has no
+    # proctor sources to build.
     - name: Build proctor
       shell: bash
-      working-directory: ${{ github.workspace }}
+      working-directory: ${{ github.action_path }}
       run: npm ci && npm run build
     - name: Determine diff base ref
       id: base
@@ -30,7 +33,7 @@ runs:
         fi
     - name: Run proctor check --sarif
       shell: bash
-      run: node "${{ github.workspace }}/dist/cli.js" check --base "${{ steps.base.outputs.ref }}" --sarif > results.sarif
+      run: node "${{ github.action_path }}/dist/cli.js" check --base "${{ steps.base.outputs.ref }}" --sarif > results.sarif
     - name: Upload SARIF to Code Scanning
       if: always()
       uses: github/codeql-action/upload-sarif@v4

@@ -81,6 +81,18 @@ describe('rh003 — skip/disable patterns', () => {
     expect(findings[0]!.severity).toBe('error');
   });
 
+  it('detects a commented-out JS test', () => {
+    const files = [makeAddFile('calculator.test.ts', "+  // it('adds two numbers', () => {", 7)];
+    const findings = rh003.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.message).toContain('commented out');
+  });
+
+  it('does not flag a prose comment that mentions a test name without a declaration shape', () => {
+    const files = [makeAddFile('calculator.test.ts', '+  // test(a, b) is covered by the cases below', 7)];
+    expect(rh003.run({ ...baseCtx, files })).toEqual([]);
+  });
+
   it('does not flag del lines containing .skip', () => {
     const file: ParsedFile = {
       from: 'calculator.test.ts',

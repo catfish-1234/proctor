@@ -34,6 +34,12 @@ export interface StopHookResult {
  * finding visible.
  */
 export function runStopHookCheck(cwd: string, cliPath: string): StopHookResult {
+  // A globally-installed hook fires in every project, including non-git directories, where
+  // `check` exits 2 with "not a git repository" — an infra failure, not a finding. Blocking
+  // every turn there would make the global install unusable, so allow instead.
+  const inRepo = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd, stdio: 'ignore' });
+  if (inRepo.error || inRepo.status !== 0) return { exitCode: 0, output: '' };
+
   const result = spawnSync(process.execPath, [cliPath, 'check', '--staged', '--ci'], {
     cwd,
     stdio: ['ignore', 'pipe', 'pipe'],

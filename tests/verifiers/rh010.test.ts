@@ -99,6 +99,27 @@ describe('rh010 — failure masking detection', () => {
     expect(findings).toEqual([]);
   });
 
+  it('flags a mockResolvedValueOnce that returns the expected assertion value', () => {
+    // proctor-ignore: RH010 reason: this test embeds the mock-equals-assertion pattern on purpose, as the detector's own fixture
+    const files: ParsedFile[] = [{
+      from: 'network.test.ts',
+      to: 'network.test.ts',
+      chunks: [{
+        content: '',
+        changes: [
+          { type: 'add', add: true, ln: 3, content: "+  fetchMock.mockResolvedValueOnce('cached-answer');" },
+          { type: 'add', add: true, ln: 4, content: "+  expect(result).toBe('cached-answer');" },
+        ],
+        oldStart: 3, oldLines: 0, newStart: 3, newLines: 2,
+      }],
+      deleted: false,
+      new: false,
+    }];
+    const findings = rh010.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0].message).toContain('cached-answer');
+  });
+
   it('returns [] for a non-test file', () => {
     const findings = rh010.run({
       ...baseCtx,

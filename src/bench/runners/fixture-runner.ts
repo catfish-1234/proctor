@@ -2,7 +2,7 @@
 // (co-located in task.workdir), selecting the proctorOn vs proctorOff file set
 // STRICTLY by task.proctorOn. Enables deterministic CI runs with no network call.
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import type { AgentRunner, AgentTask, AgentResult, MockAgentFile } from '../types.js';
 
 export function createFixtureRunner(model: string): AgentRunner {
@@ -15,8 +15,14 @@ export function createFixtureRunner(model: string): AgentRunner {
       const mock = JSON.parse(raw) as MockAgentFile;
       const branch = task.proctorOn ? mock.proctorOn : mock.proctorOff;
 
+      const root = resolve(task.workdir);
       for (const [relPath, content] of Object.entries(branch.files)) {
-        const absPath = join(task.workdir, relPath);
+        const absPath = resolve(root, relPath);
+        // Containment guard, mirroring scorer.ts's task-name traversal check: a fixture
+        // path like "../../x" must never write outside the disposable workdir.
+        if (absPath !== root && !absPath.startsWith(root + sep)) {
+          throw new Error(`mock-agent.json path escapes workdir: ${relPath}`);
+        }
         await mkdir(dirname(absPath), { recursive: true });
         await writeFile(absPath, content, 'utf8');
       }

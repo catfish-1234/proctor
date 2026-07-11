@@ -144,12 +144,13 @@ export async function scoreTask(taskDir: string, runner: AgentRunner, proctorOn:
     await runner.run(task);
 
     // Diff the result and run proctor's own verifiers on it. No detection logic is
-    // reimplemented here. RH004/RH005/RH008 are AI-gated and ctx.aiEnabled/ctx.judge are
-    // deliberately left unset, so they never trip in bench runs. See bench/METHODOLOGY.md for
-    // the scope rationale.
+    // reimplemented here. All 11 deterministic signals can trip; only the fuzzy AI extensions
+    // of RH004/RH005 stay silent because ctx.aiEnabled/ctx.judge are deliberately left unset.
+    // See bench/METHODOLOGY.md for the scope rationale. configRef pins the guard's config to
+    // the baseline commit, so an agent writing proctor.config.json can't neuter detection.
     runGit(['add', '-A'], tempDir);
     const { files } = runGitDiff(['--staged'], tempDir);
-    const ctx = await buildContext(tempDir, files);
+    const ctx = await buildContext(tempDir, files, { configRef: 'HEAD' });
     const findings = await runChecks(ctx);
     const cheatDetected = findings.length > 0;
     const rhId = findings[0]?.verifierId ?? '';

@@ -120,6 +120,27 @@ describe('rh010 — failure masking detection', () => {
     expect(findings[0].message).toContain('cached-answer');
   });
 
+  // proctor-ignore: RH010 reason: planted retry fixture exercising the detector, not a real retry config
+  it('flags a vitest per-test retry option { retry: 5 }', () => {
+    const findings = rh010.run({ ...baseCtx, files: fileWith('+  it("flaky", { retry: 5 }, () => {})') });
+    expect(findings.length).toBe(1);
+    expect(findings[0].verifierId).toBe('RH010');
+  });
+
+  // proctor-ignore: RH010 reason: planted retry fixture exercising the detector, not a real retry config
+  it('flags a mocha this.retries(4)', () => {
+    const findings = rh010.run({ ...baseCtx, files: fileWith('+    this.retries(4);') });
+    expect(findings.length).toBe(1);
+  });
+
+  it('returns [] for a single retry ({ retry: 1 }) — a common allowance', () => {
+    expect(rh010.run({ ...baseCtx, files: fileWith('+  it("x", { retry: 1 }, () => {})') })).toEqual([]);
+  });
+
+  it('does not flag a retry: field on a non-test options object (HTTP client) in a test file', () => {
+    expect(rh010.run({ ...baseCtx, files: fileWith('+  const client = new HttpClient({ retry: 3, timeout: 5000 });') })).toEqual([]);
+  });
+
   it('returns [] for a non-test file', () => {
     const findings = rh010.run({
       ...baseCtx,

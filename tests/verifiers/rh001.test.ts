@@ -103,6 +103,25 @@ describe('rh001 — test deletion', () => {
     const findings = rh001.run({ ...baseCtx, files });
     expect(findings.length).toBe(2); // both are test files deleted alone — both flag
   });
+
+  it('path 1: still flags a generic-named test deletion co-deleted with a same-named impl in a DIFFERENT dir (evasion guard)', () => {
+    // Deleting foo/index.test.ts and hiding it behind an unrelated bar/index.ts must not suppress.
+    const files: ParsedFile[] = [
+      { from: 'src/foo/index.test.ts', to: undefined, chunks: [], deleted: true, new: false },
+      { from: 'src/bar/index.ts', to: undefined, chunks: [], deleted: true, new: false },
+    ];
+    const findings = rh001.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0].verifierId).toBe('RH001');
+  });
+
+  it('path 1: still suppresses a generic-named coordinated removal in the SAME directory', () => {
+    const files: ParsedFile[] = [
+      { from: 'src/foo/index.test.ts', to: undefined, chunks: [], deleted: true, new: false },
+      { from: 'src/foo/index.ts', to: undefined, chunks: [], deleted: true, new: false },
+    ];
+    expect(rh001.run({ ...baseCtx, files })).toEqual([]);
+  });
 });
 
 describe('rh001 — path 2 add/del reconciliation (renames, reformats, .skip wraps, .each consolidation)', () => {

@@ -215,6 +215,29 @@ describe('runChecks', () => {
     expect(result.length).toBeGreaterThan(0);
     expect(result.every(f => f.severity === 'warn')).toBe(true);
   });
+
+  // proctor-ignore: RH003 reason: planted fixture string exercising the engine, not a real disabled test
+  it('a throwing AI judge does not discard other verifiers\' findings (allSettled + judge catch)', async () => {
+    // RH003 fires deterministically; RH004 has a fuzzy candidate whose judge throws (e.g. a 429).
+    const testFile = makeFile('src/calc.test.ts', [
+      { content: '', changes: [
+        { type: 'add', content: '+ it.skip("x", () => {})', ln: 3 } as unknown as ParsedFile['chunks'][number]['changes'][number],
+        { type: 'add', content: '+ expect(r).toBe(99)', ln: 4 } as unknown as ParsedFile['chunks'][number]['changes'][number],
+      ] } as unknown as ParsedFile['chunks'][number],
+    ]);
+    const implFile = makeFile('src/calc.ts', [
+      { content: '', changes: [
+        { type: 'add', content: '+  return 99;', ln: 2 } as unknown as ParsedFile['chunks'][number]['changes'][number],
+      ] } as unknown as ParsedFile['chunks'][number],
+    ]);
+    const throwingJudge = { judge: async () => { throw new Error('429 rate limited'); } };
+    const result = await runChecks(makeCtx({
+      files: [testFile, implFile], enabled: ['RH003', 'RH004'],
+      aiEnabled: true, judge: throwingJudge,
+    }));
+    // The RH003 finding must survive the judge failure.
+    expect(result.some(f => f.verifierId === 'RH003')).toBe(true);
+  });
 });
 
 describe('runChecks AST pre-pass', () => {

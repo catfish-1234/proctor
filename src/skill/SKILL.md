@@ -63,7 +63,7 @@ what it caught.
 | RH008 | TautologicalAssertion | Assertion always passes regardless of behavior |
 | RH009 | CoverageGaming | Trivial test added while real assertions removed |
 | RH010 | FailureMasking | Timeout/retry abuse, or a network mock manufacturing the expected answer |
-| RH011 | TypeLintSilencingSpam | Multiple type/lint suppression comments added to pass |
+| RH011 | TypeLintSilencingSpam | Type/lint suppression comments added to pass (spam, or one file-wide directive) |
 
 RH004–RH011 are heuristic and higher-risk for false positives than RH001–003/007.
 Each is implemented conservatively — strong-signal-only, high precision over recall.

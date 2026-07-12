@@ -12,7 +12,8 @@ const STRONG_PATTERNS = [
   /assert\s+.+\s*==\s*.+/,
 ];
 
-// Weak assertion patterns (vague assertions)
+// Unconditionally-weak matchers: these assert almost nothing regardless of context, so replacing
+// any removed strong assertion in the same chunk with one is a weakening.
 const WEAK_PATTERNS = [
   /\.toBeDefined\(\)/,
   /\.toBeTruthy\(\)/,
@@ -24,12 +25,32 @@ const WEAK_PATTERNS = [
   /^\+\s*pass\s*$/,
 ];
 
+// Contextually-weak matchers. Ordering comparisons (toBeGreaterThan(0)) and a whole-argument
+// expect.anything() are LEGITIMATE on their own (positive counts, non-deterministic fields), so
+// they only count as a weakening when they replace a strong assertion on the SAME subject
+// (e.g. `expect(x).toBe(42)` -> `expect(x).toBeGreaterThan(0)`). A nested `expect.any(String)`
+// inside an object is a normal idiom and is deliberately NOT treated as weak.
+const ORDERING_WEAK = /\.toBe(?:GreaterThan|LessThan)(?:OrEqual)?\(/;
+const SOLE_ANYTHING = /\.(?:toBe|toEqual|toStrictEqual)\(\s*expect\.anything\(\)\s*\)/;
+
 function isStrongAssertion(content: string): boolean {
+  // `.toEqual(expect.anything())` matches a STRONG shape but asserts nothing — exclude it.
+  if (SOLE_ANYTHING.test(content)) return false;
   return STRONG_PATTERNS.some(p => p.test(content));
 }
 
 function isWeakAssertion(content: string): boolean {
   return WEAK_PATTERNS.some(p => p.test(content));
+}
+
+function isContextualWeak(content: string): boolean {
+  return ORDERING_WEAK.test(content) || SOLE_ANYTHING.test(content);
+}
+
+/** The subject of an `expect(<subject>).matcher(...)` assertion, whitespace-normalized, or null. */
+function extractSubject(content: string): string | null {
+  const m = content.match(/expect\(\s*(.+?)\s*\)\s*\./);
+  return m ? m[1]!.replace(/\s+/g, '') : null;
 }
 
 // Python assertAlmostEqual pattern — matches tolerance-widening when places= value is reduced
@@ -64,7 +85,23 @@ function run(context: Context): Finding[] {
 
       for (const del of dels) {
         if (!isStrongAssertion(del.content)) continue;
-        const weakAdd = adds.find(a => isWeakAssertion(a.content) && !reported.has((a as { ln: number }).ln));
+        const delSubject = extractSubject(del.content);
+        const weakAdd = adds.find(a => {
+          if (reported.has((a as { ln: number }).ln)) return false;
+          // Unconditionally-weak add pairs with any removed strong assertion in the chunk.
+          if (isWeakAssertion(a.content)) return true;
+          // Contextually-weak add only counts when it targets the SAME subject as the removed
+          // strong assertion, so an unrelated legit `toBeGreaterThan(0)` elsewhere doesn't pair.
+          if (isContextualWeak(a.content)) {
+            const addSubject = extractSubject(a.content);
+            if (delSubject === null || addSubject === null || delSubject !== addSubject) return false;
+            // If a strong assertion on the same subject still survives among the adds, the value
+            // is not actually weakened (e.g. keeping `toBe(6)` while adding a redundant range check).
+            const stillStrong = adds.some(o => isStrongAssertion(o.content) && extractSubject(o.content) === addSubject);
+            return !stillStrong;
+          }
+          return false;
+        });
         if (!weakAdd) continue;
         reported.add((weakAdd as { ln: number }).ln);
 

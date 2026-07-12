@@ -72,6 +72,65 @@ describe('rh002 — weakened assertion', () => {
     }];
     expect(rh002.run({ ...baseCtx, files })).toEqual([]);
   });
+
+  function pair(del: string, add: string): ParsedFile[] {
+    return [{
+      from: 'calc.test.ts', to: 'calc.test.ts',
+      chunks: [{ content: '', changes: [
+        { type: 'del', del: true, ln: 5, content: del },
+        { type: 'add', add: true, ln: 6, content: add },
+      ], oldStart: 5, oldLines: 1, newStart: 6, newLines: 1 }],
+      deleted: false, new: false,
+    }];
+  }
+
+  it('detects exact value weakened to an ordering comparison (toBe → toBeGreaterThan)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pair('-  expect(total(c)).toBe(42);', '+  expect(total(c)).toBeGreaterThan(0);') });
+    expect(findings.length).toBe(1);
+    expect(findings[0].verifierId).toBe('RH002');
+  });
+
+  it('detects a specific object assertion weakened to expect.anything()', () => {
+    const findings = rh002.run({ ...baseCtx, files: pair('-  expect(u).toEqual({ id: 1 });', '+  expect(u).toEqual(expect.anything());') });
+    expect(findings.length).toBe(1);
+  });
+
+  it('returns [] when a specific toBe value merely changes (not a weakening)', () => {
+    expect(rh002.run({ ...baseCtx, files: pair('-  expect(x).toBe(1);', '+  expect(x).toBe(2);') })).toEqual([]);
+  });
+
+  it('does not flag an unrelated toBeGreaterThan when a strong assertion on a DIFFERENT subject was removed', () => {
+    const files: ParsedFile[] = [{
+      from: 'calc.test.ts', to: 'calc.test.ts',
+      chunks: [{ content: '', changes: [
+        { type: 'del', del: true, ln: 3, content: '-  expect(parseConfig(raw)).toEqual({ mode: "fast" });' },
+        { type: 'add', add: true, ln: 4, content: '+  expect(parseConfig(raw)).toEqual({ mode: "fast", ttl: 5 });' },
+        { type: 'add', add: true, ln: 5, content: '+  expect(result.items.length).toBeGreaterThan(0);' },
+      ], oldStart: 3, oldLines: 1, newStart: 3, newLines: 2 }],
+      deleted: false, new: false,
+    }];
+    expect(rh002.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('does not flag the nested expect.any(String) field idiom (non-deterministic field)', () => {
+    expect(rh002.run({ ...baseCtx, files: pair(
+      '-  expect(user).toEqual({ id: "fixed-id", name: "Alice" });',
+      '+  expect(user).toEqual({ id: expect.any(String), name: "Alice" });',
+    ) })).toEqual([]);
+  });
+
+  it('does not flag an added range check when an exact assertion on the same subject survives', () => {
+    const files: ParsedFile[] = [{
+      from: 'calc.test.ts', to: 'calc.test.ts',
+      chunks: [{ content: '', changes: [
+        { type: 'del', del: true, ln: 3, content: '-  expect(count).toBe(5);' },
+        { type: 'add', add: true, ln: 4, content: '+  expect(count).toBe(6);' },
+        { type: 'add', add: true, ln: 5, content: '+  expect(count).toBeGreaterThan(0);' },
+      ], oldStart: 3, oldLines: 1, newStart: 3, newLines: 2 }],
+      deleted: false, new: false,
+    }];
+    expect(rh002.run({ ...baseCtx, files })).toEqual([]);
+  });
 });
 
 describe('RH002 Python tolerance-widening', () => {

@@ -3,7 +3,16 @@
 import path from 'node:path';
 import type { Context, Finding, Verifier } from '../types.js';
 
-const CONFIG_FILE_RE = /(?:jest|vitest)\.config\.[mc]?[jt]s$|tsconfig(?:\.[^/]*)?\.json$|(?:pytest\.ini|setup\.cfg|pyproject\.toml|conftest\.py)$/;
+// Covers jest/vitest config in .{m,c}{j,t}s AND jest.config.json (a supported Jest format), plus
+// vite.config.* (where Vitest config commonly lives), tsconfig, and the Python config files.
+const CONFIG_FILE_RE = /(?:jest|vitest|vite)\.config\.(?:[mc]?[jt]s|json)$|(?:^|\/)jest\.config\.json$|tsconfig(?:\.[^/]*)?\.json$|(?:pytest\.ini|setup\.cfg|pyproject\.toml|conftest\.py)$/;
+
+// package.json can carry a Jest config inline ("jest": { "testPathIgnorePatterns": [...] }). It is
+// not a dedicated config file, so it's handled separately and only for testPathIgnorePatterns —
+// the unambiguous "exclude tests from the run" key. testMatch/testRegex are omitted here because
+// a first-time add is indistinguishable from a narrowing edit on a single line.
+const PACKAGE_JSON_RE = /(?:^|\/)package\.json$/;
+const JEST_EXCLUSION_KEY_RE = /"(testPathIgnorePatterns)"\s*:/;
 
 // proctor's own config: enforcement is pinned to the committed version (see buildContext's
 // configRef), so an in-diff edit can't neuter checks — but the edit itself is still worth
@@ -19,6 +28,7 @@ function configLabel(filePath: string): string {
   const base = path.basename(filePath);
   if (/^jest\.config\./.test(base)) return 'jest config';
   if (/^vitest\.config\./.test(base)) return 'vitest config';
+  if (/^vite\.config\./.test(base)) return 'vite/vitest config';
   if (/^tsconfig/.test(base)) return 'tsconfig';
   if (base === 'pytest.ini') return 'pytest config';
   return base;
@@ -73,6 +83,27 @@ function run(context: Context): Finding[] {
       continue;
     }
 
+    // package.json: only jest-specific exclusion keys count, so unrelated edits don't fire.
+    if (PACKAGE_JSON_RE.test(filePath.replace(/\\/g, '/'))) {
+      for (const chunk of file.chunks) {
+        for (const change of chunk.changes) {
+          if (change.type !== 'add') continue;
+          const keyMatch = change.content.match(JEST_EXCLUSION_KEY_RE);
+          if (!keyMatch) continue;
+          const quoted = change.content.slice(change.content.indexOf(keyMatch[0]) + keyMatch[0].length).match(/['"`]([^'"`\r\n]+)['"`]/);
+          findings.push({
+            verifierId: 'RH007',
+            severity: 'error',
+            file: filePath,
+            line: change.ln,
+            message: `Test path ignore pattern added to package.json Jest config excluding ${quoted ? quoted[1] : 'test files'}.`,
+            suggestion: `Remove the ${keyMatch[1]!} entry added in this change.`,
+          });
+        }
+      }
+      continue;
+    }
+
     if (!isConfigFile(filePath)) continue;
 
     for (const chunk of file.chunks) {
@@ -90,16 +121,18 @@ function run(context: Context): Finding[] {
         const { key, afterMatch } = matched;
         const quotedMatch = afterMatch.match(/['"`]([^'"`\r\n]+)['"`]/);
         const excludedVal = quotedMatch ? quotedMatch[1] : 'test files';
-        // The bare `exclude:` key only counts when the excluded value on the line looks like a
-        // test path — otherwise it's likely a coverage/build exclude, not test-run gaming.
-        if (key === 'exclude' && (chunkMentionsCoverage || !/test|spec/i.test(quotedMatch?.[1] ?? ''))) continue;
+        // Both the bare `exclude:` and the quoted `"exclude":` (tsconfig/jest json) keys only
+        // count when the excluded value looks test-like. tsconfig `"exclude": ["node_modules",
+        // "dist"]` and coverage excludes are routine build config, not test-run gaming.
+        const isExcludeKey = key === 'exclude' || key === '"exclude"';
+        if (isExcludeKey && (chunkMentionsCoverage || !/test|spec/i.test(quotedMatch?.[1] ?? ''))) continue;
 
         findings.push({
           verifierId: 'RH007',
-          // The bare-key form can't fully distinguish test.exclude from a coverage exclude
-          // outside the visible chunk, so it warns rather than blocks; the exact-key patterns
-          // (testPathIgnorePatterns, "exclude": ...) stay errors.
-          severity: key === 'exclude' ? 'warn' : 'error',
+          // The exclude keys can't fully distinguish a test-run exclusion from a coverage/build
+          // exclude outside the visible chunk, so they warn rather than block; the dedicated
+          // test-run keys (testPathIgnorePatterns, testMatch, ...) stay errors.
+          severity: isExcludeKey ? 'warn' : 'error',
           file: filePath,
           line: change.ln,
           message: `Test path ignore pattern added to ${configLabel(filePath)} excluding ${excludedVal}.`,

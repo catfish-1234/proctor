@@ -14,6 +14,15 @@ const RETURN_EXPR_RE = /return[ \t]+([^;{}\n]*[^;{}\s\n])[;}\s]*$/;
 
 const TRIVIAL_RETURN_VALUES = new Set(['null', 'undefined', 'none', 'pass']);
 
+// Control flow before a `return` on the same line makes it a conditional guard, not the whole
+// body — `if (cond) return 2;` is an early return, not a hardcoded implementation. `|` alone is
+// excluded (union types); only `||` counts. (RH005 has its own copy, per the per-file convention.)
+const CONDITIONAL_BEFORE_RE = /\b(?:if|else|for|while|switch|case)\b|\?|&&|\|\|/;
+function isConditionalReturn(line: string): boolean {
+  const idx = line.search(/\breturn\b/);
+  return idx >= 0 && CONDITIONAL_BEFORE_RE.test(line.slice(0, idx));
+}
+
 // The return-literal signal anchors the literal to end-of-line, so a trailing `// comment`,
 // `/* */`, or TS `as Type`/`satisfies Type` cast would otherwise let `return 42; // total` slip
 // past. Strip that trailing noise before matching. Exported-shape kept local per the one-pure-
@@ -75,8 +84,12 @@ async function run(context: Context): Promise<Finding[]> {
 
       // Strong signal 1, fully deterministic: a real computed return is replaced by a bare literal.
       for (const add of adds) {
-        const addMatch = stripTrailingNoise(add.content).match(RETURN_LITERAL_RE);
+        const strippedAdd = stripTrailingNoise(add.content);
+        const addMatch = strippedAdd.match(RETURN_LITERAL_RE);
         if (!addMatch) continue;
+        // A conditional guard `if (cond) return 2;` returning a literal is not a hardcoded body
+        // (literal-input special-casing is handled separately by signal 2, BRANCH_LITERAL_RE).
+        if (isConditionalReturn(strippedAdd.replace(/^\+\s*/, ''))) continue;
         const literal = addMatch[1]!;
         const line = (add as { ln: number }).ln;
 

@@ -23,10 +23,14 @@ afterEach(async () => {
 describe('buildContext', () => {
   it('returns default globs when no config file exists', async () => {
     const ctx = await buildContext(tmpDir, []);
-    expect(ctx.testPathGlobs).toHaveLength(9);
-    expect(ctx.testPathGlobs).toContain('**/*.test.ts');
-    expect(ctx.testPathGlobs).toContain('**/test_*.py');
-    expect(ctx.testPathGlobs).toContain('**/*_test.py');
+    expect(ctx.testPathGlobs).toHaveLength(7);
+    // The default globs must classify the common test-file shapes, including React/Vue .tsx/.jsx.
+    expect(ctx.isTestFile('src/foo.test.ts')).toBe(true);
+    expect(ctx.isTestFile('src/Button.test.tsx')).toBe(true);
+    expect(ctx.isTestFile('src/Button.spec.jsx')).toBe(true);
+    expect(ctx.isTestFile('tests/test_thing.py')).toBe(true);
+    expect(ctx.isTestFile('src/thing_test.py')).toBe(true);
+    expect(ctx.isTestFile('src/foo.ts')).toBe(false);
     expect(ctx.enabled).toHaveLength(11);
     expect(ctx.enabled).toContain('RH001');
   });
@@ -69,7 +73,7 @@ describe('buildContext', () => {
   it('falls back to defaults when config JSON is malformed', async () => {
     await writeFile(join(tmpDir, 'proctor.config.json'), '{ invalid json }');
     const ctx = await buildContext(tmpDir, []);
-    expect(ctx.testPathGlobs).toHaveLength(9);
+    expect(ctx.testPathGlobs).toHaveLength(7);
   });
 
   it('testFiles resolved from globs relative to cwd', async () => {
@@ -161,7 +165,7 @@ describe('buildContext', () => {
   it('ignores testPathGlobs that are not an array of strings', async () => {
     await writeFile(join(tmpDir, 'proctor.config.json'), JSON.stringify({ testPathGlobs: [1, 2, 3] }));
     const ctx = await buildContext(tmpDir, []);
-    expect(ctx.testPathGlobs).toHaveLength(9); // fell back to DEFAULT_GLOBS
+    expect(ctx.testPathGlobs).toHaveLength(7); // fell back to DEFAULT_GLOBS
   });
 
   it('drops an unknown enabled rule ID (typo) and keeps the known ones', async () => {

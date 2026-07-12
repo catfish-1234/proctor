@@ -99,10 +99,11 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
   },
   RH011: {
     name: 'TypeLintSilencingSpam',
-    shortDescription: 'Multiple type/lint suppression comments added to pass',
+    shortDescription: 'Type/lint suppression comments added to pass (spam, or one file-wide directive)',
     fullDescription:
       'Detects @ts-ignore/@ts-expect-error, `# type: ignore`, `# noqa`, `eslint-disable`, or `# pylint: disable` comments added to silence errors instead of fixing them. ' +
-      'Fires only when 2 or more are added in the same change — a single suppression is often a legitimate, justified exception.',
+      'Fires when 2 or more per-line suppressions are added in the same change (a single per-line suppression is often a legitimate, justified exception), OR when even a single ' +
+      'file-wide directive is added (a whole-file TypeScript nocheck, a blanket ESLint disable with no rule list, or a file-level flake8 noqa), since those silence every rule for the whole file.',
     defaultLevel: 'warning',
     helpUri: 'https://github.com/catfish-1234/proctor#rh011',
   },

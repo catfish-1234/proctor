@@ -71,12 +71,18 @@ describe('rh007 — config exclusion patterns', () => {
     expect(rh007.run({ ...baseCtx, files: [file] })).toEqual([]);
   });
 
-  it('detects "exclude": in tsconfig.json', () => {
-    const files = [makeAddFile('tsconfig.json', '+"exclude": ["dist"]', 5)];
+  it('detects a test-like "exclude": in tsconfig.json (warn — heuristic)', () => {
+    const files = [makeAddFile('tsconfig.json', '+"exclude": ["**/*.test.ts"]', 5)];
     const findings = rh007.run({ ...baseCtx, files });
     expect(findings.length).toBe(1);
     expect(findings[0].verifierId).toBe('RH007');
+    expect(findings[0].severity).toBe('warn');
     expect(findings[0].line).toBe(5);
+  });
+
+  it('does NOT flag a routine build "exclude": in tsconfig.json (node_modules/dist)', () => {
+    const files = [makeAddFile('tsconfig.json', '+"exclude": ["node_modules", "dist"]', 5)];
+    expect(rh007.run({ ...baseCtx, files })).toEqual([]);
   });
 
   it('detects an unquoted exclude: with a test-looking value in vitest.config.ts (warn — heuristic)', () => {
@@ -104,6 +110,32 @@ describe('rh007 — config exclusion patterns', () => {
 
   it('does not flag a proctor.config.json edit that touches no enforcement key', () => {
     const files = [makeAddFile('proctor.config.json', '+  "aiModel": "claude-haiku-4-5-20251001",', 2)];
+    expect(rh007.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('detects testPathIgnorePatterns added to jest.config.json', () => {
+    const files = [makeAddFile('jest.config.json', '+  "testPathIgnorePatterns": ["<rootDir>/src/broken.test.ts"],', 4)];
+    const findings = rh007.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0].severity).toBe('error');
+  });
+
+  it('detects a test exclude added to vite.config.ts (where vitest config lives)', () => {
+    const files = [makeAddFile('vite.config.ts', "+      exclude: ['**/payments.test.ts'],", 8)];
+    const findings = rh007.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+  });
+
+  it('detects a jest testPathIgnorePatterns block added to package.json', () => {
+    const files = [makeAddFile('package.json', '+    "testPathIgnorePatterns": ["broken.test.ts"],', 20)];
+    const findings = rh007.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0].severity).toBe('error');
+    expect(findings[0].message).toContain('package.json');
+  });
+
+  it('does not flag an unrelated package.json edit', () => {
+    const files = [makeAddFile('package.json', '+    "version": "1.2.3",', 3)];
     expect(rh007.run({ ...baseCtx, files })).toEqual([]);
   });
 

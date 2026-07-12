@@ -5,14 +5,19 @@ import type { Context, Finding, Verifier } from '../types.js';
 // which have to weigh a hardcoded or gutted change against what it replaced.
 const ASSERT_TRUE = /\bassert True\b/;
 const ASSERT_SELF = /\bassert\s+(\w+)\s*==\s*\1\b/;
+// Python unittest: assertEqual(x, x) compares a value against itself.
+const ASSERT_EQUAL_SELF = /\bassertEqual\(\s*([\w.]+)\s*,\s*\1\s*\)/;
 // Non-greedy `.+?` (not `[^()]+`) so nested calls compare equal too: expect(f(x)).toBe(f(x)).
-const EXPECT_SELF = /expect\((.+?)\)\.toBe\(\1\)/;
+// toEqual/toStrictEqual against the identical expression are tautologies just like toBe.
+const EXPECT_SELF = /expect\((.+?)\)\.(?:toBe|toEqual|toStrictEqual)\(\1\)/;
 const EXPECT_ZERO_ARG = /expect\(\s*\)\.(toBeTruthy|toBeDefined|toBeNull)\(\)/;
 
 function tautologyReason(content: string): string | null {
   if (ASSERT_TRUE.test(content)) return "asserts the literal constant `True`, which can never fail";
   const selfMatch = content.match(ASSERT_SELF);
   if (selfMatch) return `asserts \`${selfMatch[1]!} == ${selfMatch[1]!}\`, a value against itself`;
+  const assertEqualSelf = content.match(ASSERT_EQUAL_SELF);
+  if (assertEqualSelf) return `asserts \`assertEqual(${assertEqualSelf[1]!}, ${assertEqualSelf[1]!})\`, a value against itself`;
   const expectMatch = content.match(EXPECT_SELF);
   if (expectMatch) return `asserts \`${expectMatch[1]!}\` against itself — both sides are the identical expression`;
   if (EXPECT_ZERO_ARG.test(content)) return 'asserts on an empty `expect()` with no value under test';

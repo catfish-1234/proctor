@@ -17,13 +17,17 @@ const SUPPRESSION_PATTERNS = [
 // below does, is the wrong way to measure "how much did this silence."
 const FILEWIDE_ESLINT_DISABLE_RE = /\/\*\s*eslint-disable\s*\*\//;
 const FILEWIDE_FLAKE8_NOQA_RE = /#\s*flake8:\s*noqa\b/;
+// proctor-ignore: RH011 reason: this detector line necessarily contains the token it matches; not a real suppression
+// Matches the file-wide TypeScript type-check disable directive, which has a bigger blast
+// radius than a single per-line type suppression.
+const FILEWIDE_TS_NOCHECK_RE = /@ts-nocheck\b/;
 
 // A single suppression is often legitimate (third-party types with no stubs, a documented
 // exception). "Spam" means multiple added in the same change, and that's the actual signal.
 const SPAM_THRESHOLD = 2;
 
 function isFilewideSuppression(content: string): boolean {
-  return FILEWIDE_ESLINT_DISABLE_RE.test(content) || FILEWIDE_FLAKE8_NOQA_RE.test(content);
+  return FILEWIDE_ESLINT_DISABLE_RE.test(content) || FILEWIDE_FLAKE8_NOQA_RE.test(content) || FILEWIDE_TS_NOCHECK_RE.test(content);
 }
 
 function isSuppression(content: string): boolean {

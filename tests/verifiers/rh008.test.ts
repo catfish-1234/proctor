@@ -79,4 +79,17 @@ describe('rh008 — tautological assertion detection (fully deterministic, no AI
     });
     expect(findings).toEqual([]);
   });
+
+  // proctor-ignore: RH008 reason: planted tautology fixture exercising the detector, not a real assertion
+  it('flags `expect(x).toEqual(x)` self-comparison (not just toBe)', () => {
+    const findings = rh008.run({ ...baseCtx, files: fileWith('tests/math.test.ts', '+  expect(foo).toEqual(foo);') });
+    expect(findings.length).toBe(1);
+  });
+
+  // proctor-ignore: RH008 reason: planted tautology fixture exercising the detector, not a real assertion
+  it('flags Python `assertEqual(x, x)` self-comparison', () => {
+    const findings = rh008.run({ ...baseCtx, isTestFile: () => true, files: fileWith('tests/test_math.py', '+    self.assertEqual(result, result)') });
+    expect(findings.length).toBe(1);
+    expect(findings[0].message).toContain('assertEqual');
+  });
 });

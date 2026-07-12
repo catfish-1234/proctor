@@ -25,6 +25,57 @@ const DEFAULT_ENABLED = [
   'RH001', 'RH002', 'RH003', 'RH004', 'RH005', 'RH006', 'RH007', 'RH008', 'RH009', 'RH010', 'RH011',
 ];
 
+const VALID_SEVERITIES = new Set(['error', 'warn', 'info']);
+
+/**
+ * Config is parsed from untrusted JSON and only type-cast, so a hand-edited file can hold the
+ * wrong shape (e.g. `"enabled": "RH001"` or `"severity": {"RH001": "warning"}`). Normalize each
+ * field to a safe value and warn on anything dropped, so a typo can't crash the run or silently
+ * disable enforcement (a non-array `enabled` would run zero verifiers and mint an honest pass).
+ */
+function normalizeConfig(config: ProctorConfig): ProctorConfig {
+  const out: ProctorConfig = { ...config };
+  const warn = (msg: string) => process.stderr.write(`proctor: ${msg}\n`);
+
+  const stringArray = (key: 'enabled' | 'testPathGlobs' | 'ignorePatterns' | 'snapshotGlobs' | 'approvedTestChanges') => {
+    const val = config[key];
+    if (val === undefined) return;
+    if (!Array.isArray(val) || val.some(v => typeof v !== 'string')) {
+      warn(`config '${key}' must be an array of strings; ignoring it`);
+      delete out[key];
+    }
+  };
+  stringArray('enabled');
+  stringArray('testPathGlobs');
+  stringArray('ignorePatterns');
+  stringArray('snapshotGlobs');
+  stringArray('approvedTestChanges');
+
+  if (config.severity !== undefined) {
+    if (typeof config.severity !== 'object' || config.severity === null || Array.isArray(config.severity)) {
+      warn(`config 'severity' must be an object mapping rule IDs to a severity; ignoring it`);
+      delete out.severity;
+    } else {
+      const clean: Record<string, 'error' | 'warn' | 'info'> = {};
+      for (const [id, level] of Object.entries(config.severity)) {
+        if (typeof level === 'string' && VALID_SEVERITIES.has(level)) {
+          clean[id] = level as 'error' | 'warn' | 'info';
+        } else {
+          warn(`config severity for '${id}' must be one of error/warn/info (got ${JSON.stringify(level)}); ignoring that entry`);
+        }
+      }
+      out.severity = clean;
+    }
+  }
+
+  if (config.aiModel !== undefined && typeof config.aiModel !== 'string') {
+    warn(`config 'aiModel' must be a string; ignoring it`);
+    delete out.aiModel;
+  }
+
+  return out;
+}
+
 /**
  * buildContext: discover() -> buildContext() -> run Verifier[] -> aggregate Findings.
  * `files` is the diff already discovered by the caller (runGitDiff + classifyDiff). buildContext
@@ -79,6 +130,8 @@ export async function buildContext(cwd: string, files: ParsedFile[], opts?: { co
       // ENOENT is expected when no config exists — silent fallback
     }
   }
+
+  config = normalizeConfig(config);
 
   const testPathGlobs = config.testPathGlobs ?? DEFAULT_GLOBS;
   const enabled = config.enabled ?? DEFAULT_ENABLED;

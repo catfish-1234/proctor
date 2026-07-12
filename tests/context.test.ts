@@ -143,4 +143,24 @@ describe('buildContext', () => {
     const ctx = await buildContext(tmpDir, [], { configRef: 'HEAD' });
     expect(ctx.enabled).toHaveLength(11);
   });
+
+  it('falls back to default enabled when config enabled is not an array (malformed)', async () => {
+    await writeFile(join(tmpDir, 'proctor.config.json'), JSON.stringify({ enabled: 'RH001' }));
+    const ctx = await buildContext(tmpDir, []);
+    expect(ctx.enabled).toHaveLength(11);
+  });
+
+  it('drops an invalid severity value ("warning") instead of applying it', async () => {
+    await writeFile(join(tmpDir, 'proctor.config.json'), JSON.stringify({ severity: { RH001: 'warning', RH002: 'warn' } }));
+    const ctx = await buildContext(tmpDir, []);
+    // 'warning' is not a valid Severity, so RH001's entry is dropped; the valid RH002 stays.
+    expect(ctx.severity?.RH001).toBeUndefined();
+    expect(ctx.severity?.RH002).toBe('warn');
+  });
+
+  it('ignores testPathGlobs that are not an array of strings', async () => {
+    await writeFile(join(tmpDir, 'proctor.config.json'), JSON.stringify({ testPathGlobs: [1, 2, 3] }));
+    const ctx = await buildContext(tmpDir, []);
+    expect(ctx.testPathGlobs).toHaveLength(9); // fell back to DEFAULT_GLOBS
+  });
 });

@@ -117,6 +117,30 @@ describe('classifyDiff pre-classifier', () => {
     expect(reasons).toContain('rename-only');
   });
 
+  it('does NOT reject a rename that drops the test extension (RH001 must see it)', () => {
+    // Renaming foo.test.ts -> foo.ts stops the runner collecting it: an RH001 cheat, not routine.
+    const raw = `diff --git a/src/calc.test.ts b/src/calc.ts
+similarity index 100%
+rename from src/calc.test.ts
+rename to src/calc.ts
+`;
+    const files = parseDiff(raw);
+    const result = classifyDiff(raw, files);
+    expect(result.rejected.map(r => r.reason)).not.toContain('rename-only');
+    expect(result.accepted.length).toBe(1);
+  });
+
+  it('still rejects a rename-only diff between two non-test files', () => {
+    const raw = `diff --git a/src/old.ts b/src/new.ts
+similarity index 100%
+rename from src/old.ts
+rename to src/new.ts
+`;
+    const files = parseDiff(raw);
+    const result = classifyDiff(raw, files);
+    expect(result.rejected.map(r => r.reason)).toContain('rename-only');
+  });
+
   it('passes a clean unified diff through accepted', () => {
     const raw = CLEAN_UNIFIED_DIFF;
     const files = parseDiff(raw);

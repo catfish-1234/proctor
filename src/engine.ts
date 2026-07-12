@@ -43,8 +43,15 @@ function buildAstMap(context: Context): Map<string, TSESTree.Program> {
 export async function runChecks(context: Context): Promise<Finding[]> {
   context.ast = buildAstMap(context); // AST pre-pass BEFORE verifiers run
   const activeVerifiers = VERIFIERS.filter(v => context.enabled.includes(v.id));
-  const results = await Promise.all(activeVerifiers.map(v => Promise.resolve(v.run(context))));
-  const raw = results.flat();
+  // allSettled, not all: one verifier throwing (e.g. an --ai judge HTTP error inside RH004/RH005)
+  // must not discard every other verifier's findings. A rejected verifier contributes nothing and
+  // is logged, rather than collapsing the whole run to zero findings and a false honest pass.
+  const settled = await Promise.allSettled(activeVerifiers.map(v => Promise.resolve(v.run(context))));
+  const raw: Finding[] = [];
+  settled.forEach((result, i) => {
+    if (result.status === 'fulfilled') raw.push(...result.value);
+    else process.stderr.write(`proctor: verifier ${activeVerifiers[i]!.id} failed: ${String(result.reason)}\n`);
+  });
   const afterSuppression = applySuppression(raw, context.files);
   const afterIgnore = applyIgnorePatterns(afterSuppression, context.ignorePatterns ?? []);
   return applySeverityOverrides(afterIgnore, context.severity ?? {});

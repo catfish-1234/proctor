@@ -186,6 +186,33 @@ describe('rh005 — gutted function detection (deterministic core)', () => {
     expect(findings[0].message).toContain('./calculator');
   });
 
+  it('flags an alias-path self-mock (@/calculator), not just relative paths', async () => {
+    const ctx: Context = { ...baseCtx, files: [makeSelfMockFile('@/calculator')], aiEnabled: false, judge: undefined };
+    const findings = await rh005.run(ctx);
+    expect(findings.length).toBe(1);
+    expect(findings[0].message).toContain('@/calculator');
+  });
+
+  it('flags a bare/src-path self-mock (src/calculator)', async () => {
+    const ctx: Context = { ...baseCtx, files: [makeSelfMockFile('src/calculator')], aiEnabled: false, judge: undefined };
+    const findings = await rh005.run(ctx);
+    expect(findings.length).toBe(1);
+  });
+
+  it('still flags a gutted return hidden behind a TS cast', async () => {
+    const file: ParsedFile = {
+      from: 'src/calculator.ts', to: 'src/calculator.ts',
+      chunks: [{ content: '', changes: [
+        { type: 'del', del: true, ln: 3, content: '-  const a = doSomething();' },
+        { type: 'del', del: true, ln: 4, content: '-  return finalize(a);' },
+        { type: 'add', add: true, ln: 3, content: '+  return null as any;' },
+      ], oldStart: 1, oldLines: 2, newStart: 1, newLines: 1 }],
+      deleted: false, new: false,
+    };
+    const findings = await rh005.run({ ...baseCtx, files: [file], aiEnabled: false, judge: undefined });
+    expect(findings.length).toBe(1);
+  });
+
   it('returns [] when a test file mocks an unrelated module (legitimate dependency mock)', async () => {
     const ctx: Context = { ...baseCtx, files: [makeSelfMockFile('./api-client')], aiEnabled: false, judge: undefined };
     const findings = await rh005.run(ctx);
@@ -207,6 +234,26 @@ describe('rh005 — gutted function detection (deterministic core)', () => {
     const findings = await rh005.run(ctx);
     expect(findings.length).toBe(1);
     expect(findings[0].message).toContain('pkg.calculator.add');
+  });
+
+  it('returns [] when a test patches a third-party submodule sharing the tested basename (test_utils.py + requests.utils.x)', async () => {
+    const file: ParsedFile = {
+      from: 'tests/test_utils.py', to: 'tests/test_utils.py',
+      chunks: [{ content: '', changes: [{ type: 'add', add: true, ln: 4, content: "+    with mock.patch('requests.utils.default_headers'):" }], oldStart: 4, oldLines: 0, newStart: 4, newLines: 1 }],
+      deleted: false, new: false,
+    };
+    const findings = await rh005.run({ ...baseCtx, files: [file], isTestFile: () => true, aiEnabled: false, judge: undefined });
+    expect(findings).toEqual([]);
+  });
+
+  it('returns [] for a bare-package self-mock name (vi.mock("color") in color.test.ts is a dependency mock)', async () => {
+    const file: ParsedFile = {
+      from: 'color.test.ts', to: 'color.test.ts',
+      chunks: [{ content: '', changes: [{ type: 'add', add: true, ln: 2, content: '+vi.mock("color");' }], oldStart: 1, oldLines: 0, newStart: 2, newLines: 1 }],
+      deleted: false, new: false,
+    };
+    const findings = await rh005.run({ ...baseCtx, files: [file], aiEnabled: false, judge: undefined });
+    expect(findings).toEqual([]);
   });
 
   it('returns [] when a test file named after a stdlib module patches that module (test_time.py + time.sleep)', async () => {

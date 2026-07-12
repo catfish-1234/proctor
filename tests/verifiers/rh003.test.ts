@@ -107,4 +107,63 @@ describe('rh003 — skip/disable patterns', () => {
     };
     expect(rh003.run({ ...baseCtx, files: [file] })).toEqual([]);
   });
+
+  // proctor-ignore: RH003 reason: the strings below are planted fixtures exercising the detector, not real disabled tests
+  it('detects chained modifier forms it.skip.each / describe.only.each', () => {
+    for (const line of ['+  it.skip.each([[1, 2]])("adds %i", () => {})', '+  describe.only.each(cases)("suite", () => {})']) {
+      const files = [makeAddFile('calculator.test.ts', line, 5)];
+      expect(rh003.run({ ...baseCtx, files }).length, line).toBe(1);
+    }
+  });
+
+  // proctor-ignore: RH003 reason: planted fixtures exercising the detector, not real disabled tests
+  it('detects jest/jasmine aliases xtest, fit, fdescribe', () => {
+    for (const line of ['+  xtest("case", () => {})', '+  fit("only this", () => {})', '+  fdescribe("only this suite", () => {})']) {
+      const files = [makeAddFile('calculator.test.ts', line, 5)];
+      expect(rh003.run({ ...baseCtx, files }).length, line).toBe(1);
+    }
+  });
+
+  // proctor-ignore: RH003 reason: planted fixtures exercising the detector, not real disabled tests
+  it('detects it.todo and bracket-notation skip', () => {
+    for (const line of ['+  it.todo("later")', `+  it['skip']("case", () => {})`]) {
+      const files = [makeAddFile('calculator.test.ts', line, 5)];
+      expect(rh003.run({ ...baseCtx, files }).length, line).toBe(1);
+    }
+  });
+
+  // proctor-ignore: RH003 reason: planted fixtures exercising the detector, not real disabled tests
+  it('detects imperative Python skips (pytest.skip, skipTest, SkipTest)', () => {
+    for (const line of ['+    pytest.skip("later")', '+        self.skipTest("wip")', '+    raise unittest.SkipTest']) {
+      const files = [makeAddFile('test_calculator.py', line, 5)];
+      expect(rh003.run({ ...baseCtx, files }).length, line).toBe(1);
+    }
+  });
+
+  it('does not flag a normal it()/test() declaration', () => {
+    const files = [makeAddFile('calculator.test.ts', '+  it("adds two numbers", () => { expect(add(1,2)).toBe(3); })', 5)];
+    expect(rh003.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('does not flag model.fit() / scaler.fit() in Python (member call, not the jasmine fit global)', () => {
+    for (const line of ['+    model.fit(X_train, y_train)', '+    scaler.fit(X)', '+    pipeline.fit(data)']) {
+      const files = [makeAddFile('src/train.py', line, 5)];
+      expect(rh003.run({ ...baseCtx, files, isTestFile: () => false }).length, line).toBe(0);
+    }
+  });
+
+  it('does not flag a query-builder .skip(10) in a JS test file', () => {
+    const files = [makeAddFile('a.test.ts', '+  const rows = await query.skip(10).limit(5);', 5)];
+    expect(rh003.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('does not flag a domain .todo() method call in a test file', () => {
+    const files = [makeAddFile('todoList.test.ts', '+  expect(list.todo("buy milk")).toBeDefined();', 5)];
+    expect(rh003.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('does not flag Python constructs on a JS file or JS constructs on a Python file (language-scoped)', () => {
+    // `fit(` is a JS jasmine global; on a .py file RH003 uses only the Python pattern set.
+    expect(rh003.run({ ...baseCtx, files: [makeAddFile('src/model.py', '+fit(a, b)', 5)], isTestFile: () => false })).toEqual([]);
+  });
 });

@@ -65,4 +65,11 @@ describe('rh011 — type/lint silencing spam detection', () => {
     const findings = rh011.run({ ...baseCtx, files });
     expect(findings.length).toBe(2);
   });
+
+  // proctor-ignore: RH011 reason: planted file-wide-suppression fixture exercising the detector, not a real suppression
+  it('flags a single ts-nocheck directive as a file-wide suppression', () => {
+    const findings = rh011.run({ ...baseCtx, files: fileWithLines(['+// @ts-nocheck']) });
+    expect(findings.length).toBe(1);
+    expect(findings[0].message).toContain('File-wide');
+  });
 });

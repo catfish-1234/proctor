@@ -4,6 +4,14 @@ const RETRY_TIMES_RE = /jest\.retryTimes\(\s*(\d+)/;
 const SET_TIMEOUT_RE = /jest\.setTimeout\(\s*(\d+)/;
 const PYTEST_FLAKY_RE = /@pytest\.mark\.flaky\(\s*reruns\s*=\s*(\d+)/;
 const PYTEST_TIMEOUT_RE = /@pytest\.mark\.timeout\(\s*(\d+)/;
+// Vitest per-test/suite retry option (`it('x', { retry: 3 }, fn)`) and mocha `this.retries(3)`.
+// VITEST_RETRY is gated to a test-declaration line (below) so an unrelated `{ retry: 3 }` on an
+// HTTP-client/DB-pool options object in a test file isn't mistaken for a test retry. Tradeoff:
+// a retry option split onto its own line (multi-line `it(` call) is not detected; avoiding the
+// false positive is worth missing that rarer form, since this signal is only warn-severity.
+const VITEST_RETRY_RE = /\bretry:\s*(\d+)/;
+const TEST_DECL_LINE_RE = /\b(?:it|test|describe)\s*\(/;
+const MOCHA_RETRIES_RE = /\bthis\.retries\(\s*(\d+)/;
 
 const RETRY_THRESHOLD = 2; // a single retry is common for genuinely flaky infra; 2+ is abuse
 const TIMEOUT_MS_THRESHOLD = 120_000; // 2 minutes
@@ -53,6 +61,19 @@ function run(context: Context): Finding[] {
             file: filePath,
             line,
             message: `jest.retryTimes(${retryM[1]!}) added — masks a flaky or failing test by re-running it instead of fixing it.`,
+            suggestion: 'Fix the underlying flakiness instead of retrying past it.',
+          });
+          continue;
+        }
+
+        const vitestRetryM = (TEST_DECL_LINE_RE.test(content) ? content.match(VITEST_RETRY_RE) : null) ?? content.match(MOCHA_RETRIES_RE);
+        if (vitestRetryM && Number(vitestRetryM[1]) >= RETRY_THRESHOLD) {
+          findings.push({
+            verifierId: 'RH010',
+            severity: 'warn',
+            file: filePath,
+            line,
+            message: `Test retry count of ${vitestRetryM[1]!} added — masks a flaky or failing test by re-running it instead of fixing it.`,
             suggestion: 'Fix the underlying flakiness instead of retrying past it.',
           });
           continue;

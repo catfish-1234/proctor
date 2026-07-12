@@ -5,6 +5,13 @@ export interface ClassificationResult {
   rejected: Array<{ file: ParsedFile | null; reason: string }>;
 }
 
+// Extensions that make a path a test file. Kept local and deliberately simple: this only decides
+// whether a rename-only diff is worth keeping for RH001 (renaming a test to drop its extension),
+// so it doesn't need the full configurable testPathGlobs the verifiers use.
+const TEST_FILE_RE = /(?:\.(?:test|spec)\.[jt]sx?|(?:^|\/)test_[^/]*\.py|_test\.py)$/;
+const dropsTestExtension = (from: string, to: string): boolean =>
+  TEST_FILE_RE.test(from) && !TEST_FILE_RE.test(to);
+
 /**
  * Classify diff files, rejecting six categories of non-analyzable input.
  * Checks run in this order:
@@ -61,8 +68,17 @@ export function classifyDiff(raw: string, files: ParsedFile[]): ClassificationRe
       return;
     }
 
-    // 5. Rename-only (no content change, just rename)
-    if (file.from !== file.to && file.chunks.length === 0 && !file.deleted && !file.new) {
+    // 5. Rename-only (no content change, just rename).
+    // Exception: a rename that drops the test extension (foo.test.ts -> foo.ts) is exactly the
+    // RH001 "disable a whole test file by renaming it" cheat. Those must reach the verifiers,
+    // so only reject rename-only diffs that are NOT test-extension drops.
+    if (
+      file.from !== file.to &&
+      file.chunks.length === 0 &&
+      !file.deleted &&
+      !file.new &&
+      !dropsTestExtension(file.from ?? '', file.to ?? '')
+    ) {
       rejected.push({ file, reason: 'rename-only' });
       return;
     }

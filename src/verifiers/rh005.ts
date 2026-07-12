@@ -1,4 +1,5 @@
 import type { Context, Finding, Verifier } from '../types.js';
+import { stripTrailingNoise } from './rh004.js';
 
 // Deterministic strong signal: an added line's return statement collapses to null/undefined/None,
 // tolerant of a trailing brace on the same line (`{ return undefined; }`).
@@ -17,10 +18,13 @@ const LITERAL_TOKEN = '(?:"[^"\\n]*"|\'[^\'\\n]*\'|`[^`\\n]*`|-?\\d+(?:\\.\\d+)?
 const BARE_LITERAL_RE = new RegExp(`^${LITERAL_TOKEN}$`);
 
 function isGuttedAdd(content: string): boolean {
-  const wholeLine = content.replace(/^\+\s*/, '').trim();
+  // Strip trailing comments / TS casts so `return null; // TODO` and `return null as any;` are
+  // caught the same as a bare `return null;` (see stripTrailingNoise in rh004).
+  const stripped = stripTrailingNoise(content);
+  const wholeLine = stripped.replace(/^\+\s*/, '').trim();
   if (wholeLine === 'pass') return true; // Python: bare `pass` body
   if (/^\{\s*\}$/.test(wholeLine)) return true; // JS/TS: empty body `{}`
-  return GUTTED_RETURN_RE.test(content) || GUTTED_TRIVIAL_CONSTANT_RE.test(content);
+  return GUTTED_RETURN_RE.test(stripped) || GUTTED_TRIVIAL_CONSTANT_RE.test(stripped);
 }
 
 function isNonTrivialReturn(content: string): boolean {
@@ -29,22 +33,52 @@ function isNonTrivialReturn(content: string): boolean {
   const expr = m[1]!.trim();
   if (expr.length === 0) return false;
   if (TRIVIAL_RETURN_VALUES.has(expr.toLowerCase())) return false;
+  // Must contain an identifier/number to be a real computation — a lone `(` from a multi-line
+  // `return (` is not (mirrors isNonTrivialExpr in rh004).
+  if (!/[A-Za-z0-9_]/.test(expr)) return false;
   return !BARE_LITERAL_RE.test(expr);
 }
 
 // Deterministic strong signal: a test file mocks the exact module/unit it is testing, such as
 // `jest.mock('./foo')`/`vi.mock('./foo')` inside foo.test.ts, or Python `mock.patch('pkg.foo')`.
-const JS_SELF_MOCK_RE = /\b(?:jest|vi)\.mock\(\s*['"`](\.[\w./-]+)['"`]/;
+// Capture any module specifier, not just relative paths: alias/bare forms like `@/calculator`
+// or `src/calculator` self-mock the unit under test just as `./calculator` does. baseName() of
+// the last path segment is compared, so an unrelated dependency mock still won't match.
+const JS_SELF_MOCK_RE = /\b(?:jest|vi)\.mock\(\s*['"`]([^'"`\n]+)['"`]/;
 const PY_MOCK_PATCH_RE = /(?:unittest\.)?mock\.patch(?:\.object)?\(\s*['"`]([\w.]+)['"`]/;
 
 // A test file named test_time.py legitimately patches stdlib 'time.sleep' — a dotted-path
 // segment that is a well-known stdlib/ubiquitous module shouldn't count as the module under
 // test. Deliberately short: only modules that are commonly patched in tests.
 const PY_COMMON_MODULES = new Set([
+  // stdlib
   'time', 'os', 'sys', 'json', 're', 'math', 'random', 'datetime', 'io', 'pathlib',
   'subprocess', 'socket', 'logging', 'uuid', 'urllib', 'http', 'threading', 'asyncio',
-  'shutil', 'tempfile', 'hashlib', 'requests',
+  'shutil', 'tempfile', 'hashlib', 'collections', 'functools', 'itertools',
+  // ubiquitous third-party roots — a dotted patch target starting here is an external, not self
+  'requests', 'numpy', 'np', 'pandas', 'pd', 'scipy', 'sklearn', 'torch', 'tensorflow',
+  'django', 'flask', 'sqlalchemy', 'pydantic', 'boto3', 'aiohttp', 'httpx',
 ]);
+
+// A JS self-mock is of the unit under test, which is always imported by a relative (`./x`) or
+// alias/workspace (`@/x`, `src/x`) specifier — never a bare package name. `vi.mock('color')` in
+// color.test.ts is isolating the third-party `color` dependency, not self-mocking, so a bare
+// single-segment specifier is exempt.
+function isJsSelfMock(specifier: string, testedModule: string): boolean {
+  const isLocal = specifier.startsWith('.') || specifier.includes('/');
+  return isLocal && baseName(specifier) === testedModule;
+}
+
+// A Python patch target is a dotted path (`pkg.calculator.add`). It's a self-mock only when the
+// tested module appears as a segment AND the path doesn't start with a well-known external/stdlib
+// package — so `requests.utils.default_headers` in test_utils.py (utils is a segment of a
+// third-party path) is not mistaken for a self-mock.
+function isPySelfMock(target: string, testedModule: string): boolean {
+  if (PY_COMMON_MODULES.has(testedModule)) return false;
+  const segments = target.split('.');
+  if (PY_COMMON_MODULES.has(segments[0] ?? '')) return false;
+  return segments.includes(testedModule);
+}
 
 function baseName(p: string): string {
   const file = p.split('/').pop() ?? p;
@@ -99,12 +133,10 @@ async function run(context: Context): Promise<Finding[]> {
           const pyMatch = add.content.match(PY_MOCK_PATCH_RE);
           const mockedTarget = jsMatch?.[1] ?? pyMatch?.[1];
           if (!mockedTarget) continue;
-          // Python patch targets are dotted module paths ('pkg.calculator.add'), so the module
-          // under test can be any segment, not the whole string. JS targets are file paths.
           const testedModule = baseName(filePath);
           const isSelfMock = jsMatch
-            ? baseName(mockedTarget) === testedModule
-            : !PY_COMMON_MODULES.has(testedModule) && mockedTarget.split('.').includes(testedModule);
+            ? isJsSelfMock(mockedTarget, testedModule)
+            : isPySelfMock(mockedTarget, testedModule);
           if (!isSelfMock) continue;
           findings.push({
             verifierId: 'RH005',
@@ -122,11 +154,18 @@ async function run(context: Context): Promise<Finding[]> {
   if (!ctx.aiEnabled || !ctx.judge) return findings;
 
   for (const c of fuzzyCandidates) {
-    const isCheat = await ctx.judge.judge({
-      verifierId: 'RH005',
-      diffExcerpt: c.excerpt,
-      explanation: 'The function body was gutted — replaced with a no-op return — but there is no clear prior computation in the diff to compare against.',
-    });
+    // A judge error must not abort the verifier and discard deterministic findings — treat as
+    // "not a cheat" (same fail-safe as RH004's fuzzy path).
+    let isCheat = false;
+    try {
+      isCheat = await ctx.judge.judge({
+        verifierId: 'RH005',
+        diffExcerpt: c.excerpt,
+        explanation: 'The function body was gutted — replaced with a no-op return — but there is no clear prior computation in the diff to compare against.',
+      });
+    } catch (err) {
+      process.stderr.write(`proctor: RH005 AI judge failed, skipping fuzzy candidate: ${String(err)}\n`);
+    }
     if (isCheat) {
       findings.push({
         verifierId: 'RH005',

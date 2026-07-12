@@ -42,7 +42,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
     "@typescript-eslint/typescript-estree": "^8.62.1",
-    "commander": "^13.1.0",
+    "commander": "^15.0.0",
     "fast-glob": "3.3.3",
     "micromatch": "^4.0.8",
     "parse-diff": "0.12.0",

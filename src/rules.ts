@@ -19,15 +19,19 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     name: 'AssertionWeakened',
     shortDescription: 'Assertion weakened or precision reduced',
     fullDescription:
-      'Detects a specific-value assertion softened into a vague check (e.g. toBe(x) to toBeDefined()), or numeric comparison precision/tolerance widened, reducing the test\'s ability to catch regressions.',
+      'Detects a specific-value assertion softened into a vague check (e.g. toBe(x) to toBeDefined()), an exact value replaced by an ordering comparison on the same subject, ' +
+      'or numeric comparison precision/tolerance widened. Also covers the Python forms: a `assert x == y` reduced to a bare `assert x` (the expected value dropped), and an assertEqual ' +
+      'swapped for a vaguer matcher (assertIsNotNone/assertGreater/...) on the same value.',
     defaultLevel: 'error',
     helpUri: 'https://github.com/catfish-1234/proctor#rh002',
   },
   RH003: {
     name: 'TestSkippedOrDisabled',
-    shortDescription: 'Test disabled via skip/only decorator',
+    shortDescription: 'Test disabled, skipped, or commented out',
     fullDescription:
-      'Detects a test disabled via .skip/.only, xit/xdescribe, or pytest/unittest skip decorators, removing it from the executed test suite without deleting the source.',
+      'Detects a test removed from the run without deleting its source. JS/TS: .skip/.only, xit/xdescribe, fit/fdescribe/xtest, .todo, a bracket-notation skip, or a commented-out test. ' +
+      'Python: @pytest.mark.skip/skipif/xfail, a module-level pytestmark, __test__ = False, @unittest.skip, a commented-out test, and imperative runtime skips (pytest.skip/self.skipTest/SkipTest ' +
+      'inside a named test module).',
     defaultLevel: 'error',
     helpUri: 'https://github.com/catfish-1234/proctor#rh003',
   },

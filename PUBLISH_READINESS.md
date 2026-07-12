@@ -94,7 +94,7 @@ From that install:
 
 ## 5. Full test suite
 
-`npm run build` clean, `npx tsc --noEmit` clean, `npm test`: **402/402 passing, 41 files.**
+`npm run build` clean, `npx tsc --noEmit` clean, `npm test`: **471/471 passing, 43 files.**
 
 ## Summary
 
@@ -104,7 +104,7 @@ From that install:
 | 2 | Badge/image URLs resolve, don't 404 | ✅ pass (verified live) |
 | 3 | Hook installers write a command that works for a real npm end user | ❌ → ✅ **fixed** (bare `npx proctor` doesn't resolve for a fresh install; now scoped) |
 | 4 | Packed tarball: check/skill/hook all work, nothing unpublished reached, no eager devDependency imports | ✅ pass (verified from a real isolated install) |
-| 5 | Full test suite | ✅ 402/402 |
+| 5 | Full test suite | ✅ 471/471 |
 
 **One real bug found and fixed this pass** (item 3) — everything else was already correct and is
 now independently re-verified rather than just re-asserted. Still not published, still not tagged.

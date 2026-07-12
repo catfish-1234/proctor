@@ -145,9 +145,13 @@ async function run(context: Context): Promise<Finding[]> {
           }
         }
       } else {
+        // Language-scope the mock matchers: the broadened bare `patch('x')` form would otherwise
+        // match a JS HTTP-client call like `client.patch('users')` in users.test.ts and be misread
+        // as a Python self-mock. JS mock forms (jest/vi.mock) likewise don't apply to Python.
+        const isPy = filePath.endsWith('.py');
         for (const add of adds) {
-          const jsMatch = add.content.match(JS_SELF_MOCK_RE);
-          const pyMatch = add.content.match(PY_MOCK_PATCH_RE);
+          const jsMatch = !isPy ? add.content.match(JS_SELF_MOCK_RE) : null;
+          const pyMatch = isPy ? add.content.match(PY_MOCK_PATCH_RE) : null;
           const mockedTarget = jsMatch?.[1] ?? pyMatch?.[1];
           if (!mockedTarget) continue;
           const testedModule = baseName(filePath);

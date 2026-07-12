@@ -13,7 +13,7 @@ const dropsTestExtension = (from: string, to: string): boolean =>
   TEST_FILE_RE.test(from) && !TEST_FILE_RE.test(to);
 
 /**
- * Classify diff files, rejecting six categories of non-analyzable input.
+ * Classify diff files, rejecting five categories of non-analyzable input.
  * Checks run in this order:
  *   1. combined-diff  (raw string, rejects entire diff)
  *   2. binary         (raw section per file — parse-diff does not expose a .binary field)

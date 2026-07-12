@@ -68,7 +68,7 @@ specific reasoning on each).
 
 - [x] Full build (`npm run build`) — clean.
 - [x] Typecheck (`npx tsc --noEmit`) — clean.
-- [x] Full test suite (`npm test`) — 402/402 passing, 41 files.
+- [x] Full test suite (`npm test`) — 471/471 passing, 43 files.
 - [x] Fixtures suite (`tests/fixtures.test.ts`, `tests/fixtures-p3.test.ts`) — every RH001–RH011
       true-positive fixture flags, every near-miss fixture stays silent.
 - [x] Final dogfood run against the same 28 sandbox repos, 4 rounds — 12/12 Part A strict catch

@@ -55,6 +55,11 @@ function isNonTrivialExpr(expr: string): boolean {
 const BRANCH_LITERAL_RE = new RegExp(
   `if\\s*\\([^)]*===?\\s*(${LITERAL_TOKEN})[^)]*\\)\\s*return\\s+(${LITERAL_TOKEN})`
 );
+// Python form of signal 2: a colon-terminated conditional (no parens) that branches on an
+// equality with a literal and returns a literal, e.g. a one-line `if <var> equals N: return M`.
+const PY_BRANCH_LITERAL_RE = new RegExp(
+  `if\\s+[^:]*==\\s*(${LITERAL_TOKEN})[^:]*:\\s*return\\s+(${LITERAL_TOKEN})`
+);
 
 // Extract string/number literals from a diff line. Only used by the AI-gated fuzzy path below.
 const LITERAL_RE = /(?:["'`])([^"'`\n]+?)(?:["'`])|(?<!\w)(\d+(?:\.\d+)?)(?!\w)/g;
@@ -113,9 +118,10 @@ async function run(context: Context): Promise<Finding[]> {
         }
       }
 
-      // Strong signal 2, fully deterministic: a single-line special case on a literal input.
+      // Strong signal 2, fully deterministic: a single-line special case on a literal input,
+      // in either JS (parenthesized, ===) or Python (colon, ==) form.
       for (const add of adds) {
-        const branchMatch = add.content.match(BRANCH_LITERAL_RE);
+        const branchMatch = add.content.match(BRANCH_LITERAL_RE) ?? add.content.match(PY_BRANCH_LITERAL_RE);
         if (!branchMatch) continue;
         findings.push({
           verifierId: 'RH004',

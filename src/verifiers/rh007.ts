@@ -47,6 +47,9 @@ const EXCLUSION_PATTERNS: Array<{ re: RegExp; key: string }> = [
   { re: /ignore\s*=/, key: 'ignore' },
   { re: /testpaths\s*=/, key: 'testpaths' },
   { re: /collect_ignore/, key: 'collect_ignore' },
+  // pytest addopts with a -k/-m/--deselect expression deselects matching tests from every run.
+  // Ambiguous (can be legit default selection), so reported as warn below.
+  { re: /\baddopts\b[^\n]*(?:\s-k\b|\s-m\b|--deselect\b)/, key: 'addopts' },
 ];
 
 function matchExclusion(content: string): { key: string; afterMatch: string } | null {
@@ -126,13 +129,13 @@ function run(context: Context): Finding[] {
         // "dist"]` and coverage excludes are routine build config, not test-run gaming.
         const isExcludeKey = key === 'exclude' || key === '"exclude"';
         if (isExcludeKey && (chunkMentionsCoverage || !/test|spec/i.test(quotedMatch?.[1] ?? ''))) continue;
+        // exclude keys and pytest addopts -k/-m are ambiguous (coverage/build excludes, default
+        // test selection), so they warn; the dedicated test-run keys stay errors.
+        const isSoftKey = isExcludeKey || key === 'addopts';
 
         findings.push({
           verifierId: 'RH007',
-          // The exclude keys can't fully distinguish a test-run exclusion from a coverage/build
-          // exclude outside the visible chunk, so they warn rather than block; the dedicated
-          // test-run keys (testPathIgnorePatterns, testMatch, ...) stay errors.
-          severity: isExcludeKey ? 'warn' : 'error',
+          severity: isSoftKey ? 'warn' : 'error',
           file: filePath,
           line: change.ln,
           message: `Test path ignore pattern added to ${configLabel(filePath)} excluding ${excludedVal}.`,

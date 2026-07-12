@@ -17,12 +17,19 @@ const FOCUS_ALIAS = /(?<![.\w])(?:xtest|fit|fdescribe)\s*\(/;
 const BRACKET_SKIP = /\b(?:it|test|describe)\s*\[\s*['"`](?:skip|only)['"`]\s*\]/;
 const PYTEST_SKIP = /@pytest\.mark\.skip/;
 const PYTEST_SKIPIF = /@pytest\.mark\.skipif\b/;
+// @pytest.mark.xfail marks a test as an expected failure, so a currently-failing test decorated
+// with it turns the suite green — the same evasion as a skip.
+const PYTEST_XFAIL = /@pytest\.mark\.xfail\b/;
+// Module-level `pytestmark = pytest.mark.skip/skipif/xfail` disables every test in the file.
+const PYTESTMARK = /\bpytestmark\s*=\s*pytest\.mark\.(?:skip|skipif|xfail)\b/;
+// `__test__ = False` on a class/module tells the collector to skip everything under it.
+const DUNDER_TEST_FALSE = /^\+\s*__test__\s*=\s*False\b/;
 const UNITTEST_SKIP = /@unittest\.skip(?:Unless)?\b/;
 const BARE_SKIP = /^\+\s*@skip\b/;
 // Imperative skips that disable at runtime without a decorator. `.skipTest(` is anchored to a
 // self/cls receiver so it reads as the unittest method, not an arbitrary `.skipTest(` call.
 const PY_IMPERATIVE_SKIP = /\bpytest\.skip\s*\(|\bself\.skipTest\s*\(|\b(?:unittest\.)?SkipTest\b/;
-const COMMENTED_PY_TEST = /^\+\s*#.*def test_/;
+const COMMENTED_PY_TEST = /^\+\s*#.*(?:async\s+)?def test_/;
 // Commenting a test out disables it exactly like .skip does. Requires the quote after the
 // paren (a test-declaration shape) so prose like `// test(x) is slow` doesn't match.
 const COMMENTED_JS_TEST = /^\+\s*\/\/.*\b(?:it|test|describe)(?:\.\w+)?\s*\(\s*['"`]/;
@@ -38,6 +45,9 @@ function buildSkipMessage(content: string): string {
   if (BRACKET_SKIP.test(content)) return 'Test was disabled with a bracket-notation skip/only.';
   if (PYTEST_SKIP.test(content)) return 'Test was disabled with @pytest.mark.skip.';
   if (PYTEST_SKIPIF.test(content)) return 'Test was conditionally disabled with @pytest.mark.skipif.';
+  if (PYTEST_XFAIL.test(content)) return 'Test was marked @pytest.mark.xfail (a failure now passes the suite).';
+  if (PYTESTMARK.test(content)) return 'Module-level pytestmark disables every test in this file.';
+  if (DUNDER_TEST_FALSE.test(content)) return 'Test collection disabled with __test__ = False.';
   if (UNITTEST_SKIP.test(content)) return 'Test was disabled with @unittest.skip.';
   if (BARE_SKIP.test(content)) return 'Test was disabled with @skip.';
   if (PY_IMPERATIVE_SKIP.test(content)) return 'Test was disabled with an imperative skip (pytest.skip/skipTest/SkipTest).';
@@ -55,11 +65,24 @@ function buildSuggestion(content: string): string {
 // Language-scoped so JS constructs (fit/xtest/it.skip) never run against Python code and Python
 // constructs (pytest.skip/SkipTest) never run against JS — cross-language matches were pure noise.
 const JS_PATTERNS = [SKIP_ONLY, TODO_RE, XIT, XDESCRIBE, FOCUS_ALIAS, BRACKET_SKIP, COMMENTED_JS_TEST];
-const PY_PATTERNS = [PYTEST_SKIP, PYTEST_SKIPIF, UNITTEST_SKIP, BARE_SKIP, PY_IMPERATIVE_SKIP, COMMENTED_PY_TEST];
+// Decorator/module-level Python disables: unambiguous and safe to flag on any changed .py file.
+const PY_DECORATOR_PATTERNS = [PYTEST_SKIP, PYTEST_SKIPIF, PYTEST_XFAIL, PYTESTMARK, DUNDER_TEST_FALSE, UNITTEST_SKIP, BARE_SKIP, COMMENTED_PY_TEST];
+// Imperative runtime skips (`pytest.skip(...)`, `self.skipTest(...)`) are legitimate in fixtures
+// and conftest.py (e.g. an env-conditional skip), so they only count inside a named test module.
+const PY_TESTFILE_PATTERNS = [PY_IMPERATIVE_SKIP];
 
-function isSkipPattern(content: string, isPython: boolean): boolean {
-  const patterns = isPython ? PY_PATTERNS : JS_PATTERNS;
-  return patterns.some(re => re.test(content));
+// A named pytest/unittest test module (test_x.py / x_test.py), excluding conftest.py and other
+// setup files where an imperative skip is normal.
+function isPyTestModule(filePath: string): boolean {
+  const base = filePath.split('/').pop() ?? filePath;
+  const named = /^test_.*\.py$/.test(base) || /_test\.py$/.test(base);
+  return named && base !== 'conftest.py';
+}
+
+function isSkipPattern(content: string, isPython: boolean, pyTestModule: boolean): boolean {
+  if (!isPython) return JS_PATTERNS.some(re => re.test(content));
+  if (PY_DECORATOR_PATTERNS.some(re => re.test(content))) return true;
+  return pyTestModule && PY_TESTFILE_PATTERNS.some(re => re.test(content));
 }
 
 function run(context: Context): Finding[] {
@@ -71,14 +94,16 @@ function run(context: Context): Finding[] {
     const filePath = file.to ?? file.from ?? '';
     const ext = filePath.split('.').pop()?.toLowerCase();
     const isPython = ext === 'py';
+    const pyTestModule = isPython && isPyTestModule(filePath);
     // For JS/TS files, only inspect test files — prevents false positives from library
     // code that uses .skip() or .only() as unrelated method names (e.g. RxJS observable.skip(5)).
-    // Python files pass through: their decorator/imperative patterns are already specific enough.
+    // Python files pass through: their decorator patterns are already specific enough (imperative
+    // skips are further gated to named test modules inside isSkipPattern).
     if (!isPython && !ctx.isTestFile(filePath)) continue;
     for (const chunk of file.chunks) {
       for (const change of chunk.changes) {
         if (change.type !== 'add') continue;
-        if (!isSkipPattern(change.content, isPython)) continue;
+        if (!isSkipPattern(change.content, isPython, pyTestModule)) continue;
         findings.push({
           verifierId: 'RH003',
           severity: 'error',

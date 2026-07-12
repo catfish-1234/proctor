@@ -21,13 +21,16 @@ const FILEWIDE_FLAKE8_NOQA_RE = /#\s*flake8:\s*noqa\b/;
 // Matches the file-wide TypeScript type-check disable directive, which has a bigger blast
 // radius than a single per-line type suppression.
 const FILEWIDE_TS_NOCHECK_RE = /@ts-nocheck\b/;
+// A file-level mypy ignore-errors directive disables mypy for the whole file — the Python
+// analogue of the TypeScript file-wide nocheck directive.
+const FILEWIDE_MYPY_RE = /#\s*mypy:\s*ignore-errors\b/;
 
 // A single suppression is often legitimate (third-party types with no stubs, a documented
 // exception). "Spam" means multiple added in the same change, and that's the actual signal.
 const SPAM_THRESHOLD = 2;
 
 function isFilewideSuppression(content: string): boolean {
-  return FILEWIDE_ESLINT_DISABLE_RE.test(content) || FILEWIDE_FLAKE8_NOQA_RE.test(content) || FILEWIDE_TS_NOCHECK_RE.test(content);
+  return FILEWIDE_ESLINT_DISABLE_RE.test(content) || FILEWIDE_FLAKE8_NOQA_RE.test(content) || FILEWIDE_TS_NOCHECK_RE.test(content) || FILEWIDE_MYPY_RE.test(content);
 }
 
 function isSuppression(content: string): boolean {

@@ -4,7 +4,7 @@ import type { Context, Finding, Verifier } from '../types.js';
 // Modifier forms (it.each, test.skip, describe.only, ...) are deletions of tests too — keep
 // this in sync with JS_TS_ADD below so both sides of the pairing see the same shapes.
 const JS_TS_DEL = /^-\s*(?:it|test|describe)(?:\.\w+)?\s*\(/;
-const PY_DEL = /^-\s*def test_/;
+const PY_DEL = /^-\s*(?:async\s+)?def test_/;
 
 // A deleted test-declaration line only counts as a real deletion if nothing plausibly
 // representing the same test was added in the same chunk. Matches any modifier (.skip/.only/
@@ -14,7 +14,7 @@ const PY_DEL = /^-\s*def test_/;
 // many-tests-collapsed-into-one-parameterized-test consolidation is recognized too. A stricter
 // title-equality check couldn't catch that case.
 const JS_TS_ADD = /^\+\s*(?:it|test|describe)(?:\.\w+)?\s*\(/;
-const PY_ADD = /^\+\s*def test_/;
+const PY_ADD = /^\+\s*(?:async\s+)?def test_/;
 
 function extractTestName(content: string): string {
   const m = content.match(/['"](.*?)['"]/);
@@ -117,7 +117,7 @@ function run(context: Context): Finding[] {
             suggestion: 'Restore the deleted test or document why it was intentionally removed.',
           });
         } else if (PY_DEL.test(change.content)) {
-          const name = change.content.replace(/^-\s*def /, '').replace(/\s*\(.*/, '');
+          const name = change.content.replace(/^-\s*(?:async\s+)?def /, '').replace(/\s*\(.*/, '');
           findings.push({
             verifierId: 'RH001',
             severity: 'error',

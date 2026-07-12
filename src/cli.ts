@@ -71,7 +71,13 @@ program
     try {
       ({ raw, files } = runGitDiff(diffArgs, cwd));
     } catch (err) {
-      process.stderr.write('proctor: ' + String(err) + '\n');
+      const msg = String(err);
+      // Give the common "not in a git repo" case a clean one-line message instead of git's raw
+      // multi-line --no-index usage dump.
+      const clean = /not a git repository/i.test(msg)
+        ? `not a git repository (run proctor inside a git repo)`
+        : msg.replace(/^Error:\s*/, '');
+      process.stderr.write('proctor: ' + clean + '\n');
       process.exit(2);
     }
     const { accepted } = classifyDiff(raw, files);

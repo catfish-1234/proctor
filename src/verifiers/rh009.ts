@@ -18,7 +18,7 @@ const STRONG_ASSERTION_RE = [
   /assert\s+\S.*(?:==|!=|<=|>=|<|>)\s*\S/,
 ];
 
-const TEST_DECL_RE = /^\+\s*(?:it|test)\s*\(\s*['"`]|^\+\s*def\s+test_/;
+const TEST_DECL_RE = /^\+\s*(?:it|test)\s*\(\s*['"`]|^\+\s*(?:async\s+)?def\s+test_/;
 
 function isStrongAssertion(content: string): boolean {
   return STRONG_ASSERTION_RE.some(re => re.test(content));

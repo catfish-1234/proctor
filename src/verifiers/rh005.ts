@@ -59,7 +59,10 @@ function isNonTrivialReturn(content: string): boolean {
 // or `src/calculator` self-mock the unit under test just as `./calculator` does. baseName() of
 // the last path segment is compared, so an unrelated dependency mock still won't match.
 const JS_SELF_MOCK_RE = /\b(?:jest|vi)\.mock\(\s*['"`]([^'"`\n]+)['"`]/;
-const PY_MOCK_PATCH_RE = /(?:unittest\.)?mock\.patch(?:\.object)?\(\s*['"`]([\w.]+)['"`]/;
+// Matches both `mock.patch('x')`/`unittest.mock.patch(...)` and the far more common bare form
+// after `from unittest.mock import patch`: `@patch('x')` / `patch('x')`. The `@` or `mock.` or a
+// bare `patch(` at a word boundary all qualify; isPySelfMock still gates on the tested module.
+const PY_MOCK_PATCH_RE = /(?:@|\b(?:unittest\.)?mock\.)?\bpatch(?:\.object)?\(\s*['"`]([\w.]+)['"`]/;
 
 // A test file named test_time.py legitimately patches stdlib 'time.sleep' — a dotted-path
 // segment that is a well-known stdlib/ubiquitous module shouldn't count as the module under

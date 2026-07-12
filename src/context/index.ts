@@ -11,10 +11,10 @@ import type { ParsedFile } from '../diff.js';
 import { RULE_METADATA } from '../rules.js';
 
 const DEFAULT_GLOBS = [
-  '**/*.test.ts',
-  '**/*.test.js',
-  '**/*.spec.ts',
-  '**/*.spec.js',
+  // Brace-expanded so React/Vue `.test.tsx`/`.spec.jsx` and ESM `.test.mts`/`.mjs` test files
+  // are recognized, not just plain .ts/.js — otherwise those tests escape every test-file check.
+  '**/*.test.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+  '**/*.spec.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
   'test/**/*',
   'tests/**/*',
   '__tests__/**/*',

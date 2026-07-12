@@ -9,6 +9,18 @@ const GUTTED_RETURN_RE = /return\s*(?:null|undefined|None)\s*;?\s*\}*\s*$/;
 // would often be a type error. Deliberately narrow (universal "zero values" only) so it can't
 // absorb a legitimate business constant (e.g. `return 'USD';`), which stays RH004/fuzzy territory.
 const GUTTED_TRIVIAL_CONSTANT_RE = /return\s*(?:true|false|0|''|""|``|\[\]|\{\})\s*;?\s*\}*\s*$/;
+// Control flow on the same line before the `return` makes it a conditional early return (a guard),
+// not a gutted body: `if (!visible) return null;` is legitimate. Distinct from a single-line
+// function body `foo() { return null; }`, where nothing conditional precedes the return. Note `|`
+// alone is not listed (it appears in union types like `number | undefined`); only `||` counts.
+const CONDITIONAL_BEFORE_RE = /\b(?:if|else|for|while|switch|case)\b|\?|&&|\|\|/;
+
+/** True when the added line's return-to-trivial is a conditional guard, not a gutted body. */
+function isConditionalReturn(line: string): boolean {
+  const idx = line.search(/\breturn\b/);
+  if (idx < 0) return false;
+  return CONDITIONAL_BEFORE_RE.test(line.slice(0, idx));
+}
 // A deleted line's return expression, for pairing against the gutted add above.
 const NONTRIVIAL_RETURN_RE = /return\s+([^;{}\n]+)\s*;?\s*\}*\s*$/;
 const TRIVIAL_RETURN_VALUES = new Set(['null', 'undefined', 'none', 'pass']);
@@ -24,7 +36,9 @@ function isGuttedAdd(content: string): boolean {
   const wholeLine = stripped.replace(/^\+\s*/, '').trim();
   if (wholeLine === 'pass') return true; // Python: bare `pass` body
   if (/^\{\s*\}$/.test(wholeLine)) return true; // JS/TS: empty body `{}`
-  return GUTTED_RETURN_RE.test(stripped) || GUTTED_TRIVIAL_CONSTANT_RE.test(stripped);
+  if (!GUTTED_RETURN_RE.test(stripped) && !GUTTED_TRIVIAL_CONSTANT_RE.test(stripped)) return false;
+  // Exclude a conditional early return (guard clause) — that's legitimate, not a gutted body.
+  return !isConditionalReturn(wholeLine);
 }
 
 function isNonTrivialReturn(content: string): boolean {

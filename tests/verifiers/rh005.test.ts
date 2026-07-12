@@ -213,6 +213,20 @@ describe('rh005 — gutted function detection (deterministic core)', () => {
     expect(findings.length).toBe(1);
   });
 
+  it('does NOT flag a conditional guard `if (!visible) return null;` (early return, not a gutted body)', async () => {
+    const file: ParsedFile = {
+      from: 'src/Component.tsx', to: 'src/Component.tsx',
+      chunks: [{ content: '', changes: [
+        { type: 'del', del: true, ln: 3, content: '-  return renderFull(props);' },
+        { type: 'add', add: true, ln: 3, content: '+  if (!props.visible) return null;' },
+        { type: 'add', add: true, ln: 4, content: '+  return renderFull(props);' },
+      ], oldStart: 1, oldLines: 1, newStart: 1, newLines: 2 }],
+      deleted: false, new: false,
+    };
+    const findings = await rh005.run({ ...baseCtx, files: [file], aiEnabled: false, judge: undefined });
+    expect(findings).toEqual([]);
+  });
+
   it('returns [] when a test file mocks an unrelated module (legitimate dependency mock)', async () => {
     const ctx: Context = { ...baseCtx, files: [makeSelfMockFile('./api-client')], aiEnabled: false, judge: undefined };
     const findings = await rh005.run(ctx);

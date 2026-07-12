@@ -223,6 +223,20 @@ describe('rh004 — deterministic strong signals (no AI needed)', () => {
     expect(findings).toEqual([]);
   });
 
+  it('does NOT flag a conditional guard `if (cond) return 2;` returning a literal (not a hardcoded body)', async () => {
+    const files: ParsedFile[] = [{
+      from: 'src/api.ts', to: 'src/api.ts',
+      chunks: [{ content: '', changes: [
+        { type: 'del', del: true, ln: 1, content: '-  return computeVersion(cfg);' },
+        { type: 'add', add: true, ln: 1, content: '+  if (cfg.legacy) return 2;' },
+        { type: 'add', add: true, ln: 2, content: '+  return computeVersion(cfg);' },
+      ], oldStart: 1, oldLines: 1, newStart: 1, newLines: 2 }],
+      deleted: false, new: false,
+    }];
+    const findings = await rh004.run({ ...baseCtx, files, aiEnabled: false, judge: undefined });
+    expect(findings).toEqual([]);
+  });
+
   it('a judge that throws does not abort the verifier (deterministic findings survive)', async () => {
     const throwingJudge = { judge: async () => { throw new Error('429 rate limited'); } };
     // implAndTest triggers a fuzzy candidate; the deterministic set here is empty, but the call must resolve, not reject.

@@ -15,7 +15,7 @@
       "type": "array",
       "items": { "type": "string" },
       "description": "Glob patterns identifying test files.",
-      "default": ["**/*.test.ts","**/*.test.js","**/*.spec.ts","**/*.spec.js","test/**/*","tests/**/*","__tests__/**/*","**/test_*.py","**/*_test.py"]
+      "default": ["**/*.test.{ts,tsx,mts,cts,js,jsx,mjs,cjs}","**/*.spec.{ts,tsx,mts,cts,js,jsx,mjs,cjs}","test/**/*","tests/**/*","__tests__/**/*","**/test_*.py","**/*_test.py"]
     },
     "severity": {
       "type": "object",

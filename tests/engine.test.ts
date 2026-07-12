@@ -72,6 +72,21 @@ describe('runChecks', () => {
     expect(rh003Findings).toHaveLength(0);
   });
 
+  it('does NOT suppress when the proctor-ignore marker is on a DELETED line (removed justification)', async () => {
+    // The marker and the flagged skip are both present, but the marker line is being removed.
+    const file = makeFile('src/calc.test.ts', [
+      {
+        content: '',
+        changes: [
+          { type: 'del', content: '- # proctor-ignore: RH003 reason: legacy', ln: 4 } as unknown as ParsedFile['chunks'][number]['changes'][number],
+          { type: 'add', content: '+ it.skip("test", () => {})', ln: 5 } as unknown as ParsedFile['chunks'][number]['changes'][number],
+        ],
+      } as unknown as ParsedFile['chunks'][number],
+    ]);
+    const result = await runChecks(makeCtx({ files: [file], enabled: ['RH003'] }));
+    expect(result.filter(f => f.verifierId === 'RH003' && f.line === 5).length).toBeGreaterThan(0);
+  });
+
   it('does not suppress via a marker in a file whose path merely ends with the finding file name', async () => {
     // foo.test.ts has the skip (finding); myfoo.test.ts has a valid marker at the same lines.
     // A bare endsWith match would let myfoo.test.ts's marker suppress foo.test.ts's finding.

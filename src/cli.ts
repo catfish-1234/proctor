@@ -88,6 +88,12 @@ program
         process.exit(2);
       }
       ctx.enabled = ctx.enabled.filter(id => requested.includes(id));
+      if (ctx.enabled.length === 0) {
+        // Every requested ID is valid but none is in the active/config-enabled set, so the run
+        // would check nothing and mint a false honest pass. Fail loudly instead.
+        process.stderr.write(`proctor: --rules ${requested.join(',')} matched no enabled verifier (config 'enabled' may exclude them)\n`);
+        process.exit(2);
+      }
     }
     if (options.ai) {
       const apiKey = process.env['ANTHROPIC_API_KEY'];

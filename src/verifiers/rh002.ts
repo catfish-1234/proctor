@@ -47,9 +47,14 @@ function isContextualWeak(content: string): boolean {
   return ORDERING_WEAK.test(content) || SOLE_ANYTHING.test(content);
 }
 
-/** The subject of an `expect(<subject>).matcher(...)` assertion, whitespace-normalized, or null. */
+/**
+ * The subject of an `expect(<subject>).matcher(...)` assertion, whitespace-normalized, or null.
+ * The balanced-parens capture `(?:[^()]|\([^()]*\))*` handles one level of nesting (`expect(foo(x))`)
+ * and is ReDoS-safe — every alternative consumes at least one char with no ambiguity, so a long
+ * whitespace run inside expect(...) can't cause catastrophic backtracking.
+ */
 function extractSubject(content: string): string | null {
-  const m = content.match(/expect\(\s*(.+?)\s*\)\s*\./);
+  const m = content.match(/expect\(((?:[^()]|\([^()]*\))*)\)\s*\./);
   return m ? m[1]!.replace(/\s+/g, '') : null;
 }
 

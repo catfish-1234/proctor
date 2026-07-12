@@ -163,4 +163,16 @@ describe('buildContext', () => {
     const ctx = await buildContext(tmpDir, []);
     expect(ctx.testPathGlobs).toHaveLength(9); // fell back to DEFAULT_GLOBS
   });
+
+  it('drops an unknown enabled rule ID (typo) and keeps the known ones', async () => {
+    await writeFile(join(tmpDir, 'proctor.config.json'), JSON.stringify({ enabled: ['RH001', 'RH01', 'RH003'] }));
+    const ctx = await buildContext(tmpDir, []);
+    expect(ctx.enabled).toEqual(['RH001', 'RH003']);
+  });
+
+  it('falls back to defaults when enabled lists ONLY unknown IDs (no silent zero-verifier run)', async () => {
+    await writeFile(join(tmpDir, 'proctor.config.json'), JSON.stringify({ enabled: ['RH01', 'NOPE'] }));
+    const ctx = await buildContext(tmpDir, []);
+    expect(ctx.enabled).toHaveLength(11);
+  });
 });

@@ -40,12 +40,15 @@ export function runStopHookCheck(cwd: string, cliPath: string): StopHookResult {
   const inRepo = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd, stdio: 'ignore' });
   if (inRepo.error || inRepo.status !== 0) return { exitCode: 0, output: '' };
 
+  // 60s timeout so a pathological check can never wedge the agent's turn forever. On timeout
+  // spawnSync sets status=null and error, which the fail-open below maps to "allow".
   const result = spawnSync(process.execPath, [cliPath, 'check', '--staged', '--ci'], {
     cwd,
     stdio: ['ignore', 'pipe', 'pipe'],
     encoding: 'utf8',
+    timeout: 60_000,
   });
-  if (result.error) return { exitCode: 0, output: '' }; // fail open: never block a turn because proctor itself errored
+  if (result.error || result.status === null) return { exitCode: 0, output: '' }; // fail open: never block a turn because proctor itself errored or timed out
   const output = (result.stdout ?? '') + (result.stderr ?? '');
   const code = result.status ?? 0;
   return { exitCode: code === 2 ? 2 : 0, output };

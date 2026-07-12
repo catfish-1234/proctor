@@ -292,6 +292,23 @@ describe('check --rules validation', () => {
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
+
+  it('exits 2 when --rules requests a valid rule that config has disabled (empty intersection)', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      execSync('git config user.email x@x', { cwd: tmpDir });
+      execSync('git config user.name x', { cwd: tmpDir });
+      writeFileSync(join(tmpDir, 'proctor.config.json'), JSON.stringify({ enabled: ['RH002'] }));
+      execSync('git add .', { cwd: tmpDir });
+      execSync('git commit -m init', { cwd: tmpDir });
+      const result = spawnSync('node', [CLI, 'check', '--rules', 'RH001'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('matched no enabled verifier');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('install-claude-hook settings safety', () => {

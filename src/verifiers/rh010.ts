@@ -17,8 +17,10 @@ const RETRY_THRESHOLD = 2; // a single retry is common for genuinely flaky infra
 const TIMEOUT_MS_THRESHOLD = 120_000; // 2 minutes
 const TIMEOUT_S_THRESHOLD = 120;
 
-const NETWORK_MOCK_RE = /\.(?:mockResolvedValue|mockReturnValue)(?:Once)?\(\s*([^)]+?)\s*\)|\.reply\(\s*\d+\s*,\s*([^)]+?)\s*\)/;
-const ASSERTION_LITERAL_RE = /\.(?:toBe|toEqual)\(\s*([^)]+?)\s*\)|assertEqual\([^,]+,\s*([^)]+?)\)/;
+// Greedy `[^)]*` up to the closing paren is linear (no whitespace/lazy overlap → ReDoS-safe);
+// the captured value is passed through normalize()/assertionLiterals which trim surrounding space.
+const NETWORK_MOCK_RE = /\.(?:mockResolvedValue|mockReturnValue)(?:Once)?\(([^)]*)\)|\.reply\(\s*\d+\s*,([^)]*)\)/;
+const ASSERTION_LITERAL_RE = /\.(?:toBe|toEqual)\(([^)]*)\)|assertEqual\([^,]+,([^)]*)\)/;
 
 function normalize(s: string): string {
   return s.trim().replace(/;$/, '');

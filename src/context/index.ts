@@ -8,6 +8,7 @@ const execFileAsync = promisify(execFile);
 import micromatch from 'micromatch';
 import type { Context, ProctorConfig } from '../types.js';
 import type { ParsedFile } from '../diff.js';
+import { RULE_METADATA } from '../rules.js';
 
 const DEFAULT_GLOBS = [
   '**/*.test.ts',
@@ -50,6 +51,20 @@ function normalizeConfig(config: ProctorConfig): ProctorConfig {
   stringArray('ignorePatterns');
   stringArray('snapshotGlobs');
   stringArray('approvedTestChanges');
+
+  // Validate enabled rule IDs against the known registry: a typo like ["RH01"] would otherwise
+  // pass the array-of-strings check, match no verifier, and silently mint a false honest pass.
+  if (Array.isArray(out.enabled)) {
+    const unknown = out.enabled.filter(id => !(id in RULE_METADATA));
+    if (unknown.length > 0) {
+      warn(`config 'enabled' has unknown rule ID(s): ${unknown.join(', ')} (known IDs are ${Object.keys(RULE_METADATA).join(', ')})`);
+      out.enabled = out.enabled.filter(id => id in RULE_METADATA);
+      if (out.enabled.length === 0) {
+        warn(`config 'enabled' listed only unknown rule IDs — no verifiers would run; falling back to defaults`);
+        delete out.enabled;
+      }
+    }
+  }
 
   if (config.severity !== undefined) {
     if (typeof config.severity !== 'object' || config.severity === null || Array.isArray(config.severity)) {

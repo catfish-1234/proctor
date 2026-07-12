@@ -7,8 +7,10 @@ const LITERAL_TOKEN = '(?:"[^"\\n]*"|\'[^\'\\n]*\'|`[^`\\n]*`|-?\\d+(?:\\.\\d+)?
 // trailing a function's closing brace(s) on the same line, e.g. `{ return 3; }`).
 const RETURN_LITERAL_RE = new RegExp(`return\\s+(${LITERAL_TOKEN})\\s*;?\\s*\\}*\\s*$`);
 
-// A deleted line's return expression, for pairing against RETURN_LITERAL_RE.
-const RETURN_EXPR_RE = /return\s+([^;{}\n]+)\s*;?\s*\}*\s*$/;
+// A deleted line's return expression, for pairing against RETURN_LITERAL_RE. The capture ends in
+// a non-space/non-delimiter char and the trailing `;`/`}`/space run is a disjoint class, so a long
+// whitespace run can't cause catastrophic backtracking (ReDoS) — the two parts never overlap.
+const RETURN_EXPR_RE = /return[ \t]+([^;{}\n]*[^;{}\s\n])[;}\s]*$/;
 
 const TRIVIAL_RETURN_VALUES = new Set(['null', 'undefined', 'none', 'pass']);
 
@@ -18,7 +20,10 @@ const TRIVIAL_RETURN_VALUES = new Set(['null', 'undefined', 'none', 'pass']);
 // function-per-file convention (RH005 has its own copy, same as the duplicated LITERAL_TOKEN).
 export function stripTrailingNoise(content: string): string {
   let s = content.replace(/\/\/[^\n]*$/, '').replace(/\/\*[^\n]*?\*\/\s*$/, '').replace(/\s+$/, '');
-  s = s.replace(/\s+(?:as|satisfies)\s+[A-Za-z0-9_.<>[\]|&, ]+?(\s*;?\s*\}*)\s*$/, '$1').replace(/\s+$/, '');
+  // The lookbehind requires a real value char before the cast, so the leading whitespace can't be
+  // scanned from every position in a long space run (that unanchored scan was the ReDoS). The type
+  // is a single contiguous token (disjoint from the trailing `;`/`}`/space class).
+  s = s.replace(/(?<=[\w)\]'"`])\s+(?:as|satisfies)\s+[A-Za-z0-9_.<>[\]|&,]+([;}\s]*)$/, '$1').replace(/\s+$/, '');
   return s;
 }
 

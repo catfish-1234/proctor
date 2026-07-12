@@ -95,6 +95,10 @@ function applySuppression(findings: Finding[], files: ParsedFile[]): Finding[] {
     if (!relevantChunk) return true;
 
     for (const change of relevantChunk.changes) {
+      // A removed marker must not suppress: a `del` line carrying `proctor-ignore` means the
+      // justification was deleted (or a pre-planted marker is being used to mask a file deletion).
+      // Only added/context lines count.
+      if (change.type === 'del') continue;
       const content = change.content.replace(/^[ +\-]/, '');
       const m = /proctor-ignore:\s*(\S+)\s+reason:\s*(.+)/.exec(content);
       if (m && m[1] === finding.verifierId && m[2]?.trim()) return false; // suppress

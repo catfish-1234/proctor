@@ -4,6 +4,8 @@ import type { Context, Finding, Verifier } from '../types.js';
 // matches them, so this check is fully deterministic and needs no AI judge, unlike RH004/RH005,
 // which have to weigh a hardcoded or gutted change against what it replaced.
 const ASSERT_TRUE = /\bassert True\b/;
+// unittest: assertTrue(True) / assertFalse(False) always pass regardless of behavior.
+const ASSERT_CONST = /\bassert(?:True|False)\(\s*(?:True|False)\s*\)/;
 const ASSERT_SELF = /\bassert\s+(\w+)\s*==\s*\1\b/;
 // Python unittest: assertEqual(x, x) compares a value against itself.
 const ASSERT_EQUAL_SELF = /\bassertEqual\(\s*([\w.]+)\s*,\s*\1\s*\)/;
@@ -14,6 +16,7 @@ const EXPECT_ZERO_ARG = /expect\(\s*\)\.(toBeTruthy|toBeDefined|toBeNull)\(\)/;
 
 function tautologyReason(content: string): string | null {
   if (ASSERT_TRUE.test(content)) return "asserts the literal constant `True`, which can never fail";
+  if (ASSERT_CONST.test(content)) return 'asserts a literal constant (assertTrue(True)/assertFalse(False)), which can never fail';
   const selfMatch = content.match(ASSERT_SELF);
   if (selfMatch) return `asserts \`${selfMatch[1]!} == ${selfMatch[1]!}\`, a value against itself`;
   const assertEqualSelf = content.match(ASSERT_EQUAL_SELF);

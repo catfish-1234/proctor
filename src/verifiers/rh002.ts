@@ -74,6 +74,40 @@ function extractLabel(content: string): string {
   return content.replace(/^[+-]\s*/, '').trim().slice(0, 30);
 }
 
+const PY_COMPARISON_OP_RE = /==|!=|<=|>=|<|>/;
+
+// LHS of a Python `assert LHS <op> RHS`, whitespace-normalized. Procedural (indexOf/slice) rather
+// than a lazy regex, to stay linear-time on adversarial input.
+function pyAssertComparisonLhs(line: string): string | null {
+  const s = line.replace(/^[-+]\s*/, '');
+  if (!/^assert\b/.test(s)) return null;
+  const op = s.match(PY_COMPARISON_OP_RE);
+  if (!op || op.index === undefined) return null;
+  const lhs = s.slice('assert'.length, op.index).trim().replace(/\s+/g, '');
+  return lhs || null;
+}
+
+// A bare `assert X` (no comparison operator), whitespace-normalized — the weakened form.
+function pyBareAssertExpr(line: string): string | null {
+  const m = line.replace(/^\+\s*/, '').match(/^assert\s+(.+)$/);
+  if (!m) return null;
+  const expr = m[1]!.trim();
+  if (PY_COMPARISON_OP_RE.test(expr)) return null; // still a comparison, not weakened
+  return expr.replace(/\s+/g, '') || null;
+}
+
+// First argument (subject) of assertEqual(SUBJ, ...), whitespace-normalized.
+function pyAssertEqualSubject(line: string): string | null {
+  const m = line.match(/\bassert(?:Equal|Equals)\(\s*([^,]*),/);
+  return m ? m[1]!.replace(/\s+/g, '') || null : null;
+}
+
+// Subject of a vaguer unittest matcher that a specific assertEqual might be weakened into.
+function pyWeakMatcherSubject(line: string): string | null {
+  const m = line.match(/\bassert(?:IsNotNone|IsNone|Greater(?:Equal)?|Less(?:Equal)?)\(\s*([^,)]*)/);
+  return m ? m[1]!.replace(/\s+/g, '') || null : null;
+}
+
 function run(context: Context): Finding[] {
   const files = context.files;
   const findings: Finding[] = [];
@@ -156,6 +190,38 @@ function run(context: Context): Finding[] {
           message: 'Assertion weakened from assertAlmostEqual to a less precise check.',
           suggestion: 'Restore the specific precision in assertAlmostEqual or use assertEqual.',
         });
+      }
+
+      // Python assert weakening, same-subject: `assert x == y` -> `assert x` (drop the RHS), or
+      // `assertEqual(x, ...)` -> `assertIsNotNone(x)`/`assertGreater(x, ...)`/etc. Only on .py.
+      if (filePath.endsWith('.py')) {
+        for (const del of dels) {
+          const lhs = pyAssertComparisonLhs(del.content);
+          if (lhs) {
+            const wa = adds.find(a => !reported.has((a as { ln: number }).ln) && pyBareAssertExpr(a.content) === lhs);
+            if (wa) {
+              reported.add((wa as { ln: number }).ln);
+              findings.push({
+                verifierId: 'RH002', severity: 'error', file: filePath, line: (wa as { ln: number }).ln,
+                message: 'Assertion weakened from an equality check to a bare truthiness assert (the expected value was dropped).',
+                suggestion: 'Restore the `== expected` comparison so the test checks the actual value.',
+              });
+              continue;
+            }
+          }
+          const subj = pyAssertEqualSubject(del.content);
+          if (subj) {
+            const wa = adds.find(a => !reported.has((a as { ln: number }).ln) && pyWeakMatcherSubject(a.content) === subj);
+            if (wa) {
+              reported.add((wa as { ln: number }).ln);
+              findings.push({
+                verifierId: 'RH002', severity: 'error', file: filePath, line: (wa as { ln: number }).ln,
+                message: 'Assertion weakened from assertEqual to a less specific matcher on the same value.',
+                suggestion: 'Restore assertEqual against the expected value.',
+              });
+            }
+          }
+        }
       }
     }
   }

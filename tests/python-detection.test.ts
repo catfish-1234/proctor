@@ -51,4 +51,10 @@ describe('Python detection (audit 12)', () => {
     const f = await run(rh002, 'test_x.py', [['del', '-    self.assertEqual(result, 42)'], ['add', '+    self.assertIsNotNone(other)']], { isTestFile: () => true });
     expect(f.length).toBe(0);
   });
+
+  it('RH005 does NOT treat a JS HTTP-client .patch() call as a Python self-mock (language-scoped)', async () => {
+    // client.patch('users') in users.test.ts must not be read as patch() self-mock of `users`.
+    const f = await run(rh005, 'users.test.ts', [['add', "+  await client.patch('users', body);"]], { isTestFile: () => true, getLanguage: () => 'ts' as const });
+    expect(f.length).toBe(0);
+  });
 });

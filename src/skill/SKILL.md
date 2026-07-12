@@ -55,7 +55,7 @@ what it caught.
 |-------|------|------------------|
 | RH001 | TestDeletedOrRenamed | Test file or test function deleted or renamed |
 | RH002 | AssertionWeakened | Assertion weakened or precision reduced |
-| RH003 | TestSkippedOrDisabled | Test disabled via skip/only decorator |
+| RH003 | TestSkippedOrDisabled | Test disabled, skipped, or commented out |
 | RH004 | ImplementationHardcodesFixture | Implementation hardcodes test fixture value |
 | RH005 | FunctionBodyGutted | Function body replaced with a stub |
 | RH006 | SnapshotRewrittenWithoutReason | Snapshot/golden file rewritten without a stated reason |

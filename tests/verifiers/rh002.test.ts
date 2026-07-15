@@ -221,6 +221,95 @@ describe('RH002 — new-language flat matcher pairs (LANG-04)', () => {
   });
 });
 
+describe('RH002 — same-subject / macro weakening for Rust, Ruby, AssertJ (LANG-04)', () => {
+  it('Rust: assert_eq!(result, 3) -> assert!(result.is_some()) is caught (same subject)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator.rs',
+      '-    assert_eq!(result, 3);',
+      '+    assert!(result.is_some());',
+    ) });
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.verifierId).toBe('RH002');
+  });
+
+  it('Rust: an unrelated assert!(other.is_ok()) on a DIFFERENT subject does not pair', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator.rs',
+      '-    assert_eq!(result, 3);',
+      '+    assert!(other.is_ok());',
+    ) });
+    expect(findings).toEqual([]);
+  });
+
+  it('Rust: assert_eq! weakened to a bare assert!(true) is caught (subject dropped)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator.rs',
+      '-    assert_eq!(result, 3);',
+      '+    assert!(true);',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('Rust detection fires even when the file is not under a tests/ directory (not gated on isTestFile)', () => {
+    const files: ParsedFile[] = [{
+      from: 'src/calculator.rs', to: 'src/calculator.rs',
+      chunks: [{ content: '', changes: [
+        { type: 'del', del: true, ln: 5, content: '-    assert_eq!(result, 3);' },
+        { type: 'add', add: true, ln: 6, content: '+    assert!(result.is_some());' },
+      ], oldStart: 5, oldLines: 1, newStart: 6, newLines: 1 }],
+      deleted: false, new: false,
+    }];
+    // baseCtx.isTestFile only matches '.test.' — this file wouldn't pass that gate, proving
+    // the Rust block doesn't rely on it.
+    expect(rh002.run({ ...baseCtx, files })).toHaveLength(1);
+  });
+
+  it('Ruby RSpec: expect(result).to eq(3) -> expect(result).to be_truthy is caught (same subject)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_spec.rb',
+      '-    expect(result).to eq(3)',
+      '+    expect(result).to be_truthy',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('Ruby RSpec: expect(other).not_to be_nil on a DIFFERENT subject does not pair', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_spec.rb',
+      '-    expect(result).to eq(3)',
+      '+    expect(other).not_to be_nil',
+    ) });
+    expect(findings).toEqual([]);
+  });
+
+  it('Ruby Minitest: assert_equal 3, result -> assert result is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.rb',
+      '-    assert_equal 3, result',
+      '+    assert result',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('AssertJ: assertThat(result).isEqualTo(3) -> assertThat(result).isNotNull() is caught (same subject)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorTest.java',
+      '-    assertThat(result).isEqualTo(3);',
+      '+    assertThat(result).isNotNull();',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('AssertJ: an unrelated assertThat(other).isNotNull() on a DIFFERENT subject does not pair', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorTest.java',
+      '-    assertThat(result).isEqualTo(3);',
+      '+    assertThat(other).isNotNull();',
+    ) });
+    expect(findings).toEqual([]);
+  });
+});
+
 describe('RH002 Python tolerance-widening', () => {
   function makePythonFile(delContent: string, addContent: string, addLn = 10): ParsedFile[] {
     return [{

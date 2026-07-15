@@ -23,6 +23,27 @@ const JEST_EXCLUSION_KEY_RE = /"(testPathIgnorePatterns)"\s*:/;
 const PROCTOR_CONFIG_RE = /(?:^|\/)proctor\.config\.json$/;
 const PROCTOR_ENFORCEMENT_KEY_RE = /"(enabled|ignorePatterns|severity|testPathGlobs|snapshotGlobs)"\s*:/;
 
+// Go has no dedicated exclusion config file the way Jest/pytest/PHPUnit do (RESEARCH RH007
+// section B). Its closest equivalent is a build-tag directive added to the top of an existing
+// _test.go file: without passing the tag at `go test -tags <tag>` time, the whole file is
+// silently excluded from compilation and therefore from every future test run — functionally
+// identical to testPathIgnorePatterns, but expressed as an in-file directive on the test file
+// itself, not a separate config file. This is a structurally distinct branch (closer to RH003's
+// "directive added to a test file" model than to this file's CONFIG_FILE_RE model — see Pitfall
+// 2 in RESEARCH), restricted strictly to _test.go files so an ordinary build tag on regular Go
+// source never fires.
+function isGoTestFile(filePath: string): boolean {
+  return /_test\.go$/.test(filePath);
+}
+
+function stripDiffPrefix(content: string): string {
+  return content.replace(/^[+-]/, '').trim();
+}
+
+function isGoBuildTagLine(content: string): boolean {
+  return /^\/\/go:build\b/.test(content) || /^\/\/\s*\+build\b/.test(content);
+}
+
 function isConfigFile(filePath: string): boolean {
   return CONFIG_FILE_RE.test(filePath);
 }
@@ -179,6 +200,41 @@ function run(context: Context): Finding[] {
             line: change.ln,
             message: `Test path ignore pattern added to package.json Jest config excluding ${quoted ? quoted[1] : 'test files'}.`,
             suggestion: `Remove the ${keyMatch[1]!} entry added in this change.`,
+          });
+        }
+      }
+      continue;
+    }
+
+    // Go build-tag-on-test-file branch: language-scoped to _test.go files only, so it can't
+    // run against non-Go files or Go source files outside the test-file naming convention.
+    if (isGoTestFile(filePath)) {
+      // A build tag that merely moved (e.g. reformatted onto an adjacent line) shouldn't be
+      // re-flagged as newly added — collect any build-tag lines removed anywhere in this file's
+      // diff first, so an added line with identical tag text can be recognized as a non-cheat.
+      const deletedTagLines = new Set<string>();
+      for (const chunk of file.chunks) {
+        for (const change of chunk.changes) {
+          if (change.type !== 'del') continue;
+          const stripped = stripDiffPrefix(change.content);
+          if (isGoBuildTagLine(stripped)) deletedTagLines.add(stripped);
+        }
+      }
+
+      for (const chunk of file.chunks) {
+        for (const change of chunk.changes) {
+          if (change.type !== 'add') continue;
+          const stripped = stripDiffPrefix(change.content);
+          if (!isGoBuildTagLine(stripped)) continue;
+          if (deletedTagLines.has(stripped)) continue;
+
+          findings.push({
+            verifierId: 'RH007',
+            severity: 'error',
+            file: filePath,
+            line: change.ln,
+            message: `Build tag '${stripped}' added to test file ${path.basename(filePath)}, silently excluding it from \`go test\` unless the tag is passed.`,
+            suggestion: 'Remove the build tag or document why this test file is gated behind it.',
           });
         }
       }

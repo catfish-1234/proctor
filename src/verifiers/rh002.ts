@@ -10,6 +10,20 @@ const STRONG_PATTERNS = [
   /assertIn\(/,
   /assertRaises\(/,
   /assert\s+.+\s*==\s*.+/,
+  // Go (testify)
+  /\bassert\.Equal\(/,
+  /\brequire\.Equal\(/,
+  // Java / Kotlin (kotlin.test) — bare `assertEquals(...)`, JUnit-style
+  /\bassertEquals\(/,
+  // PHP (PHPUnit) — anchored to an instance/static receiver since assertEquals/assertSame are
+  // TestCase methods, never bare top-level calls; the receiver disambiguates the generic token
+  /(?:->|::)\s*assertEquals\(/,
+  /(?:->|::)\s*assertSame\(/,
+  // C# (xUnit / NUnit / MSTest)
+  /\bAssert\.Equal\(/,
+  /\bAssert\.AreEqual\(/,
+  // Kotlin (Kotest infix matcher) — `x shouldBe y`, excluding `shouldBe null` (that's the weak form)
+  /\bshouldBe\s+(?!null\b)/,
 ];
 
 // Unconditionally-weak matchers: these assert almost nothing regardless of context, so replacing
@@ -23,6 +37,18 @@ const WEAK_PATTERNS = [
   /assertTrue\(/,
   /assert True/,
   /^\+\s*pass\s*$/,
+  // Go (testify)
+  /\bassert\.NotNil\(/,
+  /\bassert\.True\(/,
+  /\bassert\.NotEmpty\(/,
+  // Java / Kotlin (kotlin.test) — bare `assertNotNull(...)`; also matches PHP's
+  // `$this->assertNotNull(...)`/`self::assertNotNull(...)` since `\b` holds at a `->`/`::` boundary
+  /\bassertNotNull\(/,
+  // C# (xUnit / NUnit / MSTest)
+  /\bAssert\.NotNull\(/,
+  /\bAssert\.IsNotNull\(/,
+  // Kotlin (Kotest infix matcher)
+  /\bshouldNotBe\s+null\b/,
 ];
 
 // Contextually-weak matchers. Ordering comparisons (toBeGreaterThan(0)) and a whole-argument
@@ -66,8 +92,23 @@ function extractLabel(content: string): string {
   // Try to match a method call like .toXxx(...) or assertEqual(...)
   const methodCall = content.match(/\.(to\w+\([^)]*\))/);
   if (methodCall) return methodCall[1] ?? '';
+  // AssertJ fluent chain: assertThat(x).isEqualTo(3) / assertThat(x).isNotNull() — matched BEFORE
+  // the generic assertCall pattern below, which would otherwise truncate the label at the first
+  // `)` and lose the distinguishing trailing matcher (`assertThat(x)` for both strong and weak).
+  const assertThatChain = content.match(/(assertThat\([^)]*\)\.\w+\([^)]*\))/);
+  if (assertThatChain) return assertThatChain[1] ?? '';
   const assertCall = content.match(/(assert\w*\([^)]*\))/);
   if (assertCall) return assertCall[1] ?? '';
+  // Rust macros: assert_eq!(...) / assert!(...) — balanced-parens capture (mirrors extractSubject)
+  // since the argument itself often contains a nested call, e.g. assert!(result.is_some()).
+  const rustMacro = content.match(/(assert(?:_eq)?!\s*\((?:[^()]|\([^()]*\))*\))/);
+  if (rustMacro) return rustMacro[1] ?? '';
+  // Dotted call shapes: Go testify (assert.Equal(...)), C# (Assert.Equal(...))
+  const dottedCall = content.match(/\b([A-Za-z_]\w*\.[A-Za-z_]\w*\([^)]*\))/);
+  if (dottedCall) return dottedCall[1] ?? '';
+  // RSpec: expect(x).to eq(3) / expect(x).to be_truthy / expect(x).not_to be_nil
+  const rspecCall = content.match(/(expect\([^)]*\)\.(?:not_to|to_not|to)\s+\w+(?:\([^)]*\))?)/);
+  if (rspecCall) return rspecCall[1] ?? '';
   const assertEq = content.match(/assert\s+(.+?)\s*==\s*(.+)/);
   if (assertEq) return `assert ${(assertEq[1] ?? '').trim()} == ${(assertEq[2] ?? '').trim()}`;
   // Fallback: trim leading +/- and whitespace, cap at 30 chars
@@ -107,6 +148,76 @@ function pyWeakMatcherSubject(line: string): string | null {
   const m = line.match(/\bassert(?:IsNotNone|IsNone|Greater(?:Equal)?|Less(?:Equal)?)\(\s*([^,)]*)/);
   return m ? m[1]!.replace(/\s+/g, '') || null : null;
 }
+
+// ---------------------------------------------------------------------------
+// Rust: assert_eq!(SUBJECT, ...) macro weakened to assert!(SUBJECT.is_some()/.is_ok()) (same
+// subject) or a bare assert!(true) (subject dropped entirely). Structurally mirrors
+// pyAssertComparisonLhs/pyBareAssertExpr. NOT gated on isTestFile — Rust unit tests conventionally
+// live in the same .rs file as the implementation (#[cfg(test)] mod tests), so file-extension
+// gating (below, in run()) is used instead of the test-file gate other languages rely on.
+// ---------------------------------------------------------------------------
+const RUST_ASSERT_EQ_RE = /\bassert_eq!\s*\(\s*([^,]+),/;
+const RUST_BARE_ASSERT_PREDICATE_RE = /\bassert!\s*\(\s*(!?)([^)]+?)\.(is_some|is_ok|is_none)\(\)\s*\)/;
+const RUST_BARE_TRUE_RE = /\bassert!\s*\(\s*true\s*\)/;
+
+function rustAssertEqSubject(line: string): string | null {
+  const s = line.replace(/^[-+]\s*/, '');
+  const m = s.match(RUST_ASSERT_EQ_RE);
+  return m ? m[1]!.trim().replace(/\s+/g, '') || null : null;
+}
+
+// Subject of a weaker `assert!(SUBJECT.is_some())` / `assert!(SUBJECT.is_ok())` /
+// `assert!(!SUBJECT.is_none())` add line. A non-negated `.is_none()` is a different, stronger
+// claim (asserting absence), not a weakening of an equality check, so it's excluded.
+function rustBareAssertSubject(line: string): string | null {
+  const s = line.replace(/^\+\s*/, '');
+  const m = s.match(RUST_BARE_ASSERT_PREDICATE_RE);
+  if (!m) return null;
+  const negated = m[1] === '!';
+  const predicate = m[3];
+  if (predicate === 'is_none' && !negated) return null;
+  return m[2]!.trim().replace(/\s+/g, '') || null;
+}
+
+// ---------------------------------------------------------------------------
+// Ruby RSpec: expect(SUBJECT).to eq/equal/match(...) weakened to expect(SUBJECT).to be_truthy /
+// not_to be_nil / be_a(...) on the SAME subject. Reuses extractSubject()'s balanced-parens shape
+// (expect(...) is not JS-specific — the shape is identical in RSpec).
+// ---------------------------------------------------------------------------
+const RSPEC_STRONG_MATCHER_RE = /\.to\s+(?:eq|equal|match)\(/;
+const RSPEC_WEAK_MATCHER_RE = /\.to\s+be_truthy\b|\.(?:not_to|to_not)\s+be_nil\b|\.to\s+be_a\(/;
+
+// ---------------------------------------------------------------------------
+// Ruby Minitest: `assert_equal expected, actual` weakened to a bare `assert actual`, structurally
+// identical to Python's pyAssertEqualSubject/pyBareAssertExpr pair — except the subject is the
+// SECOND argument, since Minitest's assert_equal signature is (expected, actual), the reverse of
+// how pyAssertEqualSubject reads Python's assertEqual(first, second).
+// ---------------------------------------------------------------------------
+function rubyAssertEqualSubject(line: string): string | null {
+  const s = line.replace(/^[-+]\s*/, '');
+  const m = s.match(/\bassert_equal\s*\(?\s*[^,]+,\s*([^,)]+)\)?/);
+  return m ? m[1]!.trim().replace(/\s+/g, '') || null : null;
+}
+
+function rubyBareAssertSubject(line: string): string | null {
+  const s = line.replace(/^\+\s*/, '');
+  if (/^assert_/.test(s)) return null; // exclude assert_equal/assert_xxx — bare `assert` only
+  const m = s.match(/^assert\s*\(?\s*([^,)]+)\)?\s*$/);
+  return m ? m[1]!.trim().replace(/\s+/g, '') || null : null;
+}
+
+// ---------------------------------------------------------------------------
+// AssertJ (Java/Kotlin): assertThat(SUBJECT).isEqualTo(...)/isSameAs(...) weakened to
+// assertThat(SUBJECT).isNotNull()/isPresent() on the SAME subject. The fluent chain means the
+// subject is the assertThat(...) argument, not the trailing matcher — same-subject extraction
+// (mirroring extractSubject) is more reliable here than a flat pair-list.
+// ---------------------------------------------------------------------------
+function extractAssertThatSubject(content: string): string | null {
+  const m = content.match(/assertThat\(((?:[^()]|\([^()]*\))*)\)\s*\./);
+  return m ? m[1]!.replace(/\s+/g, '') : null;
+}
+const ASSERTJ_STRONG_MATCHER_RE = /\.(?:isEqualTo|isSameAs)\(/;
+const ASSERTJ_WEAK_MATCHER_RE = /\.(?:isNotNull|isPresent)\(\)/;
 
 function run(context: Context): Finding[] {
   const files = context.files;
@@ -221,6 +332,90 @@ function run(context: Context): Finding[] {
               });
             }
           }
+        }
+      }
+
+      // Rust: assert_eq! macro weakened to assert!(...) same-subject, or a bare assert!(true).
+      // Gated on file extension (.rs), NOT isTestFile — Rust tests commonly live inline with impl.
+      if (filePath.endsWith('.rs')) {
+        for (const del of dels) {
+          const subj = rustAssertEqSubject(del.content);
+          if (!subj) continue;
+          const wa = adds.find(a => {
+            if (reported.has((a as { ln: number }).ln)) return false;
+            if (RUST_BARE_TRUE_RE.test(a.content)) return true;
+            return rustBareAssertSubject(a.content) === subj;
+          });
+          if (!wa) continue;
+          reported.add((wa as { ln: number }).ln);
+          const fromLabel = extractLabel(del.content);
+          const toLabel = extractLabel(wa.content);
+          findings.push({
+            verifierId: 'RH002', severity: 'error', file: filePath, line: (wa as { ln: number }).ln,
+            message: `Assertion weakened from ${fromLabel} to ${toLabel}.`,
+            suggestion: 'Restore the assert_eq! comparison against the expected value.',
+          });
+        }
+      }
+
+      // Ruby: RSpec same-subject matcher weakening + Minitest assert_equal -> bare assert.
+      if (filePath.endsWith('.rb')) {
+        for (const del of dels) {
+          if (!RSPEC_STRONG_MATCHER_RE.test(del.content)) continue;
+          const subj = extractSubject(del.content);
+          if (!subj) continue;
+          const wa = adds.find(a =>
+            !reported.has((a as { ln: number }).ln) &&
+            RSPEC_WEAK_MATCHER_RE.test(a.content) &&
+            extractSubject(a.content) === subj
+          );
+          if (!wa) continue;
+          reported.add((wa as { ln: number }).ln);
+          const fromLabel = extractLabel(del.content);
+          const toLabel = extractLabel(wa.content);
+          findings.push({
+            verifierId: 'RH002', severity: 'error', file: filePath, line: (wa as { ln: number }).ln,
+            message: `Assertion weakened from ${fromLabel} to ${toLabel}.`,
+            suggestion: 'Restore the specific matcher (eq/equal/match) against the expected value.',
+          });
+        }
+
+        for (const del of dels) {
+          const subj = rubyAssertEqualSubject(del.content);
+          if (!subj) continue;
+          const wa = adds.find(a => !reported.has((a as { ln: number }).ln) && rubyBareAssertSubject(a.content) === subj);
+          if (!wa) continue;
+          reported.add((wa as { ln: number }).ln);
+          const fromLabel = extractLabel(del.content);
+          const toLabel = extractLabel(wa.content);
+          findings.push({
+            verifierId: 'RH002', severity: 'error', file: filePath, line: (wa as { ln: number }).ln,
+            message: `Assertion weakened from ${fromLabel} to ${toLabel}.`,
+            suggestion: 'Restore the assert_equal comparison against the expected value.',
+          });
+        }
+      }
+
+      // AssertJ (Java/Kotlin): assertThat(subject).isEqualTo/isSameAs(...) -> isNotNull()/isPresent() same-subject.
+      if (filePath.endsWith('.java') || filePath.endsWith('.kt')) {
+        for (const del of dels) {
+          if (!ASSERTJ_STRONG_MATCHER_RE.test(del.content)) continue;
+          const subj = extractAssertThatSubject(del.content);
+          if (!subj) continue;
+          const wa = adds.find(a =>
+            !reported.has((a as { ln: number }).ln) &&
+            ASSERTJ_WEAK_MATCHER_RE.test(a.content) &&
+            extractAssertThatSubject(a.content) === subj
+          );
+          if (!wa) continue;
+          reported.add((wa as { ln: number }).ln);
+          const fromLabel = extractLabel(del.content);
+          const toLabel = extractLabel(wa.content);
+          findings.push({
+            verifierId: 'RH002', severity: 'error', file: filePath, line: (wa as { ln: number }).ln,
+            message: `Assertion weakened from ${fromLabel} to ${toLabel}.`,
+            suggestion: 'Restore the specific AssertJ matcher against the expected value.',
+          });
         }
       }
     }

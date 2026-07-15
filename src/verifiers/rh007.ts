@@ -45,7 +45,10 @@ function isGoBuildTagLine(content: string): boolean {
 }
 
 function isConfigFile(filePath: string): boolean {
-  return CONFIG_FILE_RE.test(filePath);
+  // Normalize Windows backslash separators so the (?:^|\/)-anchored new-language patterns (which
+  // require a forward-slash path separator, matching PROCTOR_CONFIG_RE/PACKAGE_JSON_RE's existing
+  // convention below) still match an absolute Windows path.
+  return CONFIG_FILE_RE.test(filePath.replace(/\\/g, '/'));
 }
 
 function configLabel(filePath: string): string {
@@ -129,7 +132,7 @@ const EXCLUSION_PATTERNS: ExclusionPattern[] = [
   // doc.rust-lang.org/cargo/reference/cargo-targets.html "The test field" — see SUMMARY), so
   // error. Carved out below to only fire when the same diff chunk shows a `[[test]]` header,
   // since the identical key is also legitimate on `[[bin]]`/`[[example]]` targets.
-  { re: /\btest\s*=\s*false\b/, key: 'cargoTestFalse', severity: 'error', langs: ['cargo'] },
+  { re: /\btest\s*=\s*false\b/, key: 'cargoTestFalse', severity: 'error', langs: ['cargo'], suggestionLabel: "the 'test = false'" },
   // RSpec: --exclude-pattern is a dedicated, unambiguous exclusion flag in .rspec.
   { re: /--exclude-pattern\b/, key: 'rspecExcludePattern', severity: 'error', langs: ['rspec'], suggestionLabel: 'the --exclude-pattern' },
   // PHPUnit: <exclude> inside <testsuite> is unambiguous (error); group-based exclusion is more

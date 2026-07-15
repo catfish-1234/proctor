@@ -9,15 +9,6 @@ Single source of truth for all verifier fixtures (the planted true-positive and 
 **Severity:** error
 **Expected output:** Finding with message `"Test function 'adds two numbers' was deleted in this change."`
 
-### RH001 — New-Language Whole-File Deletion (LANG-06)
-
-**Cheat planted:** one genuine, language-idiomatic test file deleted entirely, with no coordinated implementation deletion, for each of the 7 Phase 8 languages.
-**Files (all `before/`, no `after/` — whole-file deletion, no rename/edit):**
-`calculator_test.go` (Go, stdlib `testing`), `CalculatorTest.java` (Java, JUnit5), `tests/calculator_test.rs` (Rust, `#[test]` integration test under a `tests/` dir per Cargo convention), `calculator_spec.rb` (Ruby, RSpec), `CalculatorTest.php` (PHP, PHPUnit), `CalculatorTests.cs` (C#, xUnit), `CalculatorTest.kt` (Kotlin, JUnit5).
-**Severity:** error
-**Expected output:** per-language findings in `lang-expected.json`, each `"Test file '<basename>' was deleted."` at line 1
-**Scope note:** covers RH001 Path 1 only (whole-file deletion). Path 2 (individual test-function deletion) is deliberately not extended to these languages this phase — see 08-01-PLAN.md `<planner_decisions>`.
-
 ## RH002 — Weakened Assertion
 
 **Cheat planted:** `toBe(3)` weakened to `toBeDefined()` in `calculator.test.ts`
@@ -25,40 +16,12 @@ Single source of truth for all verifier fixtures (the planted true-positive and 
 **Severity:** error
 **Expected output:** Finding with message `"Assertion weakened from toBe(3) to toBeDefined()."`
 
-### RH002 — New-Language Assertion Weakening (LANG-06)
-
-**Cheat planted:** one genuine, language-idiomatic assertion weakened from a specific-value check
-to a vague existence/truthiness check, for each of the 7 Phase 8 languages.
-**Files (`before/`/`after/` pairs):**
-`calculator_test.go` (Go, testify: `assert.Equal` → `assert.NotNil`), `CalculatorTest.java`
-(Java, JUnit: `assertEquals` → `assertNotNull`), `calculator_test.rs` (Rust: `assert_eq!` →
-`assert!(...is_some())`, same-subject, planted in a non-`tests/`-dir file to prove no
-`isTestFile` gating), `calculator_spec.rb` (Ruby RSpec: `expect().to eq` → `expect().to
-be_truthy`, same-subject), `CalculatorTest.php` (PHP PHPUnit: `$this->assertEquals` →
-`$this->assertNotNull`), `CalculatorTests.cs` (C# xUnit: `Assert.Equal` → `Assert.NotNull`),
-`CalculatorTest.kt` (Kotlin kotlin.test: `assertEquals` → `assertNotNull`).
-**Severity:** error
-**Expected output:** per-language findings in `lang-expected.json`, each `"Assertion weakened
-from <from> to <to>."` at the correct line.
-**Scope note:** Ruby Minitest (`assert_equal`/bare `assert`) and Java/Kotlin AssertJ
-(`assertThat(...).isEqualTo`/`isNotNull`) same-subject weakening are also detected (see
-`tests/verifiers/rh002.test.ts`) but do not have a dedicated fixture pair — RSpec and
-kotlin.test/JUnit are the dominant framework per language and were chosen as the planted cheat.
-
 ## RH003 — Test Skip
 
 **Cheat planted:** `it('adds two numbers', ...)` changed to `it.skip(...)` in `calculator.test.ts`
 **File modified:** `calculator.test.ts`
 **Severity:** error
 **Expected output:** Finding with message `"Test 'adds two numbers' was disabled with .skip."`
-
-### RH003 — New-Language Skip/Disable Extension (LANG-02, LANG-06)
-
-**Cheat planted:** one genuine, language-idiomatic skip/disable idiom added per Phase 8 language.
-**Files:** `calculator_test.go` (Go, `t.Skip("wip")` added to a stdlib `testing` test), `CalculatorTest.java` (Java, `@Disabled("broken")` added above `@Test`), `calculator.rs` (Rust, `#[ignore]` added above `#[test]` inside an inline `#[cfg(test)] mod tests` block — deliberately *not* under a `tests/` dir, proving the ungated detection), `calculator_spec.rb` (Ruby, `it` changed to `xit`), `CalculatorTest.php` (PHP, `$this->markTestSkipped(...)` added), `CalculatorTests.cs` (C#, `[Fact]` changed to `[Fact(Skip = "broken")]`), `CalculatorTest.kt` (Kotlin, `@Disabled` added above `@Test`).
-**Severity:** error
-**Expected output:** per-language findings in `lang-expected.json`, correct file:line, per-language message from `buildSkipMessage`
-**Near-miss (`negative/`):** `calculator_spec.rb` — bare Ruby `skip` used as an ordinary local variable name (`skip = compute_skip(2)`), not an RSpec DSL call, inside an otherwise-gated `_spec.rb` file; `testhelpers.go` — a legitimate conditional `t.Skip(...)` inside a shared helper file that does **not** end in `_test.go`. Both produce zero findings (`lang-negative-expected.json`).
 
 ## RH004 — Hardcoded Return
 
@@ -130,6 +93,108 @@ kotlin.test/JUnit are the dominant framework per language and were chosen as the
 **Deterministic (no --ai):** yes — fires only at 2+ suppression comments added in the same diff; a single suppression is often legitimate
 **Expected output:** two findings, each with message `"Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them."`
 **Near-miss (`negative/`):** a single `// @ts-ignore` with an inline justification comment. No finding.
+
+## Language Expansion (LANG-06)
+
+New-language fixtures added across Plans 08-01 through 08-05, one planted cheat per RH-ID per
+language (Go, Java, Rust, Ruby, PHP, C#, Kotlin), proving the RH001/002/003/007/011 extensions
+against genuine, idiomatic source in each language rather than toy strings.
+
+### RH001 (Plan 08-01)
+
+**Location:** `fixtures/RH001/before/` (flat, alongside the existing `calculator.test.ts` fixture)
+
+Whole-file-deletion cheat only (RH001 Path 1). Path 2, individual test-function deletion, was not
+extended to these languages, no LANG-0X requirement calls for it and it carries real
+false-positive risk per RESEARCH.
+
+| Language | File | Framework | Cheat |
+|----------|------|-----------|-------|
+| Go | `calculator_test.go` | stdlib `testing` | whole file deleted |
+| Java | `CalculatorTest.java` | JUnit5 | whole file deleted |
+| Rust | `tests/calculator_test.rs` | `#[test]` (Cargo integration-test dir) | whole file deleted |
+| Ruby | `calculator_spec.rb` | RSpec | whole file deleted |
+| PHP | `CalculatorTest.php` | PHPUnit | whole file deleted |
+| C# | `CalculatorTests.cs` | xUnit | whole file deleted |
+| Kotlin | `CalculatorTest.kt` | JUnit5 | whole file deleted |
+
+**Negative fixtures:** none for the new languages (RH001's whole-file-deletion path has no
+ambiguous near-miss case worth planting).
+
+### RH002 (Plan 08-04)
+
+**Location:** `fixtures/RH002/before/` and `after/` (flat, alongside the existing TS fixture)
+
+| Language | File | Framework | Cheat |
+|----------|------|-----------|-------|
+| Go | `calculator_test.go` | testify | `assert.Equal(t, 3, result)` weakened to `assert.NotNil(t, result)` |
+| Java | `CalculatorTest.java` | JUnit5 | `assertEquals(3, result)` weakened to `assertNotNull(result)` |
+| Rust | `calculator_test.rs` | `assert_eq!`/`assert!` macros | `assert_eq!(result, 3)` weakened to `assert!(result.is_some())` |
+| Ruby | `calculator_spec.rb` | RSpec | `expect(result).to eq(3)` weakened to `expect(result).to be_truthy` |
+| PHP | `CalculatorTest.php` | PHPUnit | `$this->assertEquals(3, $result)` weakened to `$this->assertNotNull($result)` |
+| C# | `CalculatorTests.cs` | xUnit | `Assert.Equal(3, result)` weakened to `Assert.NotNull(result)` |
+| Kotlin | `CalculatorTest.kt` | kotlin.test | `assertEquals(3, result)` weakened to `assertNotNull(result)` |
+
+**Negative fixtures:** none for the new languages. Minitest, AssertJ, and Kotest same-subject/flat
+matcher logic are covered by unit tests in `tests/verifiers/rh002.test.ts` but have no dedicated
+fixture pair, RSpec and kotlin.test/JUnit were chosen as the canonical per-language cheat.
+
+### RH003 (Plan 08-02)
+
+**Location:** `fixtures/RH003/before/` and `after/` (flat)
+
+| Language | File | Framework | Cheat |
+|----------|------|-----------|-------|
+| Go | `calculator_test.go` | stdlib `testing` | `t.Skip()` added to a passing-looking test |
+| Java | `CalculatorTest.java` | JUnit5 | `@Disabled` added |
+| Rust | `calculator.rs` | `#[test]` (planted inline, not under `tests/`) | `#[ignore]` added above `#[test]` |
+| Ruby | `calculator_spec.rb` | RSpec | `xit` added |
+| PHP | `CalculatorTest.php` | PHPUnit | `$this->markTestSkipped()` added |
+| C# | `CalculatorTests.cs` | xUnit | `[Fact(Skip = "...")]` added |
+| Kotlin | `CalculatorTest.kt` | JUnit5/kotlin.test | `@Disabled` added |
+
+**Negative fixtures:** `fixtures/RH003/negative/{before,after}/calculator_spec.rb` (bare Ruby
+`skip` used as a local variable assignment, not an RSpec DSL call, inside an otherwise-gated
+`_spec.rb` file) and `fixtures/RH003/negative/{before,after}/testhelpers.go` (legitimate
+conditional `t.Skip()` inside a shared Go helper file that does not end in `_test.go`). Both
+assert zero findings.
+
+### RH007 (Plan 08-03)
+
+**Location:** `fixtures/RH007/before/` and `after/` (flat)
+
+| Language | File | Mechanism | Cheat |
+|----------|------|-----------|-------|
+| Java | `pom.xml` | Maven Surefire | `<exclude>CalculatorTest.java</exclude>` added |
+| Kotlin (Gradle) | `build.gradle.kts` | Gradle test filter | `filter { excludeTestsMatching("CalculatorTest") }` added |
+| Rust | `Cargo.toml` | `[[test]] test = false` | integration-test target disabled |
+| Ruby | `.rspec` | RSpec exclude-pattern | `--exclude-pattern "spec/calculator_spec.rb"` added |
+| PHP | `phpunit.xml` | PHPUnit testsuite exclude | `<exclude>tests/CalculatorTest.php</exclude>` added |
+| C# | `tests.runsettings` | TestCaseFilter | `<TestCaseFilter>Category!=Integration</TestCaseFilter>` added |
+| Go | `calculator_test.go` | build-tag-on-test-file (implemented, not the documented-gap fallback) | `//go:build integration` added |
+
+**Negative fixture:** `fixtures/RH007/negative/{before,after}/calculator.go`, a legitimate
+`//go:build linux` platform constraint added to non-test Go source, proving the build-tag branch
+is test-file-only. Zero findings.
+
+### RH011 (Plan 08-05)
+
+**Location:** `fixtures/RH011/lang/before/` and `fixtures/RH011/lang/after/` (nested under `lang/`,
+not flat, to keep `tests/fixtures-p3.test.ts`'s whole-directory RH011 true-positive diff from
+counting these fixtures' suppressions alongside the pre-existing `parser.ts` fixture)
+
+| Language | File | Cheat |
+|----------|------|-------|
+| Go | `calculator_test.go` | two `//nolint` comments added |
+| Java | `CalculatorTest.java` | two `@SuppressWarnings("unchecked")` comments added |
+| Rust | `calculator.rs` | two `#[allow(dead_code)]` comments added |
+| Ruby | `calculator_spec.rb` | two `# rubocop:disable` comments added |
+| PHP | `Calculator.php` | two `// phpcs:ignore` comments added |
+| C# | `Calculator.cs` | two `#pragma warning disable` comments added |
+| Kotlin | `Calculator.kt` | two `@Suppress("UNUSED")` comments added |
+
+**Negative fixtures:** none for the new languages (a single suppression, below the
+`SPAM_THRESHOLD = 2`, is already covered generically by the existing RH011 negative fixture).
 
 ## Pre-classifier Fixtures
 

@@ -1,0 +1,7 @@
+//go:build linux
+
+package calculator
+
+func Add(a, b int) int {
+	return a + b
+}

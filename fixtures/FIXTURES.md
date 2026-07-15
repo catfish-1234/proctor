@@ -25,6 +25,26 @@ Single source of truth for all verifier fixtures (the planted true-positive and 
 **Severity:** error
 **Expected output:** Finding with message `"Assertion weakened from toBe(3) to toBeDefined()."`
 
+### RH002 — New-Language Assertion Weakening (LANG-06)
+
+**Cheat planted:** one genuine, language-idiomatic assertion weakened from a specific-value check
+to a vague existence/truthiness check, for each of the 7 Phase 8 languages.
+**Files (`before/`/`after/` pairs):**
+`calculator_test.go` (Go, testify: `assert.Equal` → `assert.NotNil`), `CalculatorTest.java`
+(Java, JUnit: `assertEquals` → `assertNotNull`), `calculator_test.rs` (Rust: `assert_eq!` →
+`assert!(...is_some())`, same-subject, planted in a non-`tests/`-dir file to prove no
+`isTestFile` gating), `calculator_spec.rb` (Ruby RSpec: `expect().to eq` → `expect().to
+be_truthy`, same-subject), `CalculatorTest.php` (PHP PHPUnit: `$this->assertEquals` →
+`$this->assertNotNull`), `CalculatorTests.cs` (C# xUnit: `Assert.Equal` → `Assert.NotNull`),
+`CalculatorTest.kt` (Kotlin kotlin.test: `assertEquals` → `assertNotNull`).
+**Severity:** error
+**Expected output:** per-language findings in `lang-expected.json`, each `"Assertion weakened
+from <from> to <to>."` at the correct line.
+**Scope note:** Ruby Minitest (`assert_equal`/bare `assert`) and Java/Kotlin AssertJ
+(`assertThat(...).isEqualTo`/`isNotNull`) same-subject weakening are also detected (see
+`tests/verifiers/rh002.test.ts`) but do not have a dedicated fixture pair — RSpec and
+kotlin.test/JUnit are the dominant framework per language and were chosen as the planted cheat.
+
 ## RH003 — Test Skip
 
 **Cheat planted:** `it('adds two numbers', ...)` changed to `it.skip(...)` in `calculator.test.ts`

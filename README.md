@@ -118,8 +118,42 @@ proctor check --explain RH001
 
 ## Supported languages and agents
 
-**Languages:** JavaScript and TypeScript (Jest and Vitest conventions), and Python (pytest and
-unittest conventions). All 11 checks work in both.
+**Languages:** JavaScript and TypeScript (Jest and Vitest conventions) and Python (pytest and
+unittest conventions) have full coverage across all 11 checks. Go, Java, Rust, Ruby, PHP, C#, and
+Kotlin are covered by the five diff-level signature checks (RH001, RH002, RH003, RH007, RH011)
+that operate on pattern matching rather than AST parsing. The table below is the per-language,
+per-check support matrix.
+
+| RH-ID | JS/TS | Python | Go | Java | Rust | Ruby | PHP | C# | Kotlin |
+|-------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| RH001 (test deletion) | ✅ | ✅ (file/rename path) | ✅ (file/rename path) | ✅ (file/rename path) | ✅ (file/rename path) | ✅ (file/rename path) | ✅ (file/rename path) | ✅ (file/rename path) | ✅ (file/rename path) |
+| RH002 (assertion weakened) | ✅ | ✅ | ✅ (testify only; stdlib comparison-weakening not covered) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (kotlin.test/AssertJ; Kotest flat pair unit-tested, no dedicated fixture) |
+| RH003 (skip/disable) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (JUnit5/kotlin.test; Kotest x-forms only, `enabled = false` not covered) |
+| RH004 (hardcoded fixture) | ✅ (AST) | ✅ (regex) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| RH005 (gutted function) | ✅ (AST) | ✅ (regex) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| RH006 (snapshot rewrite) | ✅ | n/a (no snapshot convention) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| RH007 (config exclusion) | ✅ | ✅ | ✅ (build tag added to a `_test.go` file) | ✅ (Maven `pom.xml`) | ✅ (`Cargo.toml`) | ✅ (`.rspec`) | ✅ (`phpunit.xml`) | ✅ (`.runsettings`) | ✅ (Gradle `build.gradle.kts`) |
+| RH008 (tautological test) | ✅ (AST) | n/a | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| RH011 (suppression spam) | ✅ | ✅ | ✅ (line-scoped only) | ✅ (line/declaration-scoped only, no file-wide equivalent in Java) | ✅ (line-scoped + file-wide via `#![allow]`) | ✅ (line-scoped only; unclosed-disable file-wide gap documented) | ✅ (line-scoped + file-wide via `phpcs:ignoreFile`) | ✅ (line-scoped only; unrestored-pragma file-wide gap documented) | ✅ (line-scoped + file-wide via `@file:Suppress`) |
+
+RH004, RH005, RH006, and RH008 stay **JS/TS/Python-only** by design. They require either full AST
+parsing (`@typescript-eslint/typescript-estree`, which is JS/TS-only) or the `--ai` judge fallback
+for ambiguous cases. Reimplementing gutted-function/hardcoded-return/tautological-assertion
+detection as pure regex heuristics per language would carry a much higher false-positive risk than
+the diff-line signature checks above, so this is a stated architectural boundary, not an oversight.
+
+Documented gaps: Go's RH002 coverage is testify-only, stdlib comparison-weakening isn't
+pattern-matched. Kotlin's Kotest `enabled = false` skip form isn't covered, it's too generic a
+token to anchor safely. Go, Ruby, and C# don't have a genuine file-wide suppression detector for
+RH011, Go's file-wide `//nolint`, Ruby's unclosed `rubocop:disable`, and C#'s unrestored `#pragma
+warning disable` all require forward-scanning past the diff line, which proctor's line-level model
+doesn't do. None of these are silently absent, they're listed here and in `proctor check --explain
+<ID>`.
+
+C#, Java, and Kotlin test-file detection is filename-convention-based (`*Tests.cs`/`*Test.cs`,
+Maven Surefire patterns, `*Test.kt`), not attribute-based, so a test file with an unconventional
+name won't be recognized. This is the same accepted limitation the project already has for
+JS/TS/Python.
 
 **Agents:** running `npx @kavishdua/proctor install-skill` deploys the honest-completion skill to
 Claude Code, Codex CLI, Cursor, Windsurf, Gemini CLI, Aider, Continue.dev, Cline, Amazon Q

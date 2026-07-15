@@ -139,6 +139,23 @@ describe('README.md content', () => {
     expect(readmeContent).toContain('Inline suppression');
     expect(readmeContent).toContain('#inline-suppression');
   });
+
+  it('documents the per-language support matrix (LANG-07)', () => {
+    const newLanguages = ['Go', 'Java', 'Rust', 'Ruby', 'PHP', 'C#', 'Kotlin'];
+    for (const lang of newLanguages) {
+      expect(readmeContent).toContain(lang);
+    }
+    // The matrix table itself, keyed by its RH-ID column header.
+    expect(readmeContent).toMatch(/\|\s*RH-ID\s*\|/);
+  });
+
+  it('marks RH004/RH005/RH006/RH008 as JS/TS/Python-only with a stated rationale', () => {
+    expect(readmeContent).toContain('JS/TS/Python-only');
+    expect(readmeContent).toContain('RH004');
+    expect(readmeContent).toContain('RH005');
+    expect(readmeContent).toContain('RH006');
+    expect(readmeContent).toContain('RH008');
+  });
 });
 
 describe('RESEARCH.md content', () => {

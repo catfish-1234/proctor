@@ -23,7 +23,7 @@ afterEach(async () => {
 describe('buildContext', () => {
   it('returns default globs when no config file exists', async () => {
     const ctx = await buildContext(tmpDir, []);
-    expect(ctx.testPathGlobs).toHaveLength(7);
+    expect(ctx.testPathGlobs).toHaveLength(20);
     // The default globs must classify the common test-file shapes, including React/Vue .tsx/.jsx.
     expect(ctx.isTestFile('src/foo.test.ts')).toBe(true);
     expect(ctx.isTestFile('src/Button.test.tsx')).toBe(true);
@@ -33,6 +33,39 @@ describe('buildContext', () => {
     expect(ctx.isTestFile('src/foo.ts')).toBe(false);
     expect(ctx.enabled).toHaveLength(11);
     expect(ctx.enabled).toContain('RH001');
+  });
+
+  it('isTestFile recognizes the 7 new-language test-file conventions', async () => {
+    const ctx = await buildContext(tmpDir, []);
+    expect(ctx.isTestFile('calculator_test.go')).toBe(true);
+    expect(ctx.isTestFile('CalculatorTest.java')).toBe(true);
+    expect(ctx.isTestFile('src/test/java/FooTest.java')).toBe(true);
+    expect(ctx.isTestFile('tests/integration.rs')).toBe(true);
+    expect(ctx.isTestFile('calculator_spec.rb')).toBe(true);
+    expect(ctx.isTestFile('calculator_test.rb')).toBe(true);
+    expect(ctx.isTestFile('CalculatorTest.php')).toBe(true);
+    expect(ctx.isTestFile('CalculatorTests.cs')).toBe(true);
+    expect(ctx.isTestFile('src/test/kotlin/FooTest.kt')).toBe(true);
+    // Non-test source in the new languages must not be misclassified as a test file.
+    expect(ctx.isTestFile('src/calculator.go')).toBe(false);
+    expect(ctx.isTestFile('src/Main.java')).toBe(false);
+  });
+
+  it('getLanguage classifies the 7 new languages by extension', async () => {
+    const ctx = await buildContext(tmpDir, []);
+    expect(ctx.getLanguage('a.go')).toBe('go');
+    expect(ctx.getLanguage('A.java')).toBe('java');
+    expect(ctx.getLanguage('a.rs')).toBe('rust');
+    expect(ctx.getLanguage('a.rb')).toBe('ruby');
+    expect(ctx.getLanguage('a.php')).toBe('php');
+    expect(ctx.getLanguage('a.cs')).toBe('csharp');
+    expect(ctx.getLanguage('a.kt')).toBe('kotlin');
+    expect(ctx.getLanguage('a.kts')).toBe('kotlin');
+    // No regression for existing extensions.
+    expect(ctx.getLanguage('a.ts')).toBe('ts');
+    expect(ctx.getLanguage('a.js')).toBe('js');
+    expect(ctx.getLanguage('a.py')).toBe('python');
+    expect(ctx.getLanguage('a.txt')).toBe('unknown');
   });
 
   it('embeds the discovered diff files onto context.files', async () => {
@@ -73,7 +106,7 @@ describe('buildContext', () => {
   it('falls back to defaults when config JSON is malformed', async () => {
     await writeFile(join(tmpDir, 'proctor.config.json'), '{ invalid json }');
     const ctx = await buildContext(tmpDir, []);
-    expect(ctx.testPathGlobs).toHaveLength(7);
+    expect(ctx.testPathGlobs).toHaveLength(20);
   });
 
   it('testFiles resolved from globs relative to cwd', async () => {
@@ -165,7 +198,7 @@ describe('buildContext', () => {
   it('ignores testPathGlobs that are not an array of strings', async () => {
     await writeFile(join(tmpDir, 'proctor.config.json'), JSON.stringify({ testPathGlobs: [1, 2, 3] }));
     const ctx = await buildContext(tmpDir, []);
-    expect(ctx.testPathGlobs).toHaveLength(7); // fell back to DEFAULT_GLOBS
+    expect(ctx.testPathGlobs).toHaveLength(20); // fell back to DEFAULT_GLOBS
   });
 
   it('drops an unknown enabled rule ID (typo) and keeps the known ones', async () => {

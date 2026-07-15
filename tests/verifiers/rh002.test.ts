@@ -133,6 +133,94 @@ describe('rh002 — weakened assertion', () => {
   });
 });
 
+function pairAt(filename: string, del: string, add: string, delLn = 5, addLn = 6): ParsedFile[] {
+  return [{
+    from: filename, to: filename,
+    chunks: [{ content: '', changes: [
+      { type: 'del', del: true, ln: delLn, content: del },
+      { type: 'add', add: true, ln: addLn, content: add },
+    ], oldStart: delLn, oldLines: 1, newStart: addLn, newLines: 1 }],
+    deleted: false, new: false,
+  }];
+}
+
+describe('RH002 — new-language flat matcher pairs (LANG-04)', () => {
+  it('Go (testify): assert.Equal -> assert.NotNil is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.go',
+      '-\tassert.Equal(t, 3, result)',
+      '+\tassert.NotNil(t, result)',
+    ) });
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.verifierId).toBe('RH002');
+  });
+
+  it('Java (JUnit): assertEquals -> assertNotNull is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorTest.java',
+      '-        assertEquals(3, result);',
+      '+        assertNotNull(result);',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('PHP (PHPUnit): $this->assertEquals -> $this->assertNotNull is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorTest.php',
+      '-        $this->assertEquals(3, $result);',
+      '+        $this->assertNotNull($result);',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('C# (xUnit): Assert.Equal -> Assert.NotNull is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorTests.cs',
+      '-        Assert.Equal(3, result);',
+      '+        Assert.NotNull(result);',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('C# (NUnit): Assert.AreEqual -> Assert.IsNotNull is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorTests.cs',
+      '-        Assert.AreEqual(3, x);',
+      '+        Assert.IsNotNull(x);',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('Kotlin (kotlin.test): assertEquals -> assertNotNull is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorTest.kt',
+      '-        assertEquals(3, result)',
+      '+        assertNotNull(result)',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('Kotlin (Kotest): result shouldBe 42 -> result shouldNotBe null is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorTest.kt',
+      '-        result shouldBe 42',
+      '+        result shouldNotBe null',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('a lone weak add with no removed strong assertion yields no finding', () => {
+    const files: ParsedFile[] = [{
+      from: 'CalculatorTest.java', to: 'CalculatorTest.java',
+      chunks: [{ content: '', changes: [
+        { type: 'add', add: true, ln: 6, content: '+        assertNotNull(other);' },
+      ], oldStart: 5, oldLines: 0, newStart: 6, newLines: 1 }],
+      deleted: false, new: false,
+    }];
+    expect(rh002.run({ ...baseCtx, files })).toEqual([]);
+  });
+});
+
 describe('RH002 Python tolerance-widening', () => {
   function makePythonFile(delContent: string, addContent: string, addLn = 10): ParsedFile[] {
     return [{

@@ -10,6 +10,20 @@ const STRONG_PATTERNS = [
   /assertIn\(/,
   /assertRaises\(/,
   /assert\s+.+\s*==\s*.+/,
+  // Go (testify)
+  /\bassert\.Equal\(/,
+  /\brequire\.Equal\(/,
+  // Java / Kotlin (kotlin.test) — bare `assertEquals(...)`, JUnit-style
+  /\bassertEquals\(/,
+  // PHP (PHPUnit) — anchored to an instance/static receiver since assertEquals/assertSame are
+  // TestCase methods, never bare top-level calls; the receiver disambiguates the generic token
+  /(?:->|::)\s*assertEquals\(/,
+  /(?:->|::)\s*assertSame\(/,
+  // C# (xUnit / NUnit / MSTest)
+  /\bAssert\.Equal\(/,
+  /\bAssert\.AreEqual\(/,
+  // Kotlin (Kotest infix matcher) — `x shouldBe y`, excluding `shouldBe null` (that's the weak form)
+  /\bshouldBe\s+(?!null\b)/,
 ];
 
 // Unconditionally-weak matchers: these assert almost nothing regardless of context, so replacing
@@ -23,6 +37,18 @@ const WEAK_PATTERNS = [
   /assertTrue\(/,
   /assert True/,
   /^\+\s*pass\s*$/,
+  // Go (testify)
+  /\bassert\.NotNil\(/,
+  /\bassert\.True\(/,
+  /\bassert\.NotEmpty\(/,
+  // Java / Kotlin (kotlin.test) — bare `assertNotNull(...)`; also matches PHP's
+  // `$this->assertNotNull(...)`/`self::assertNotNull(...)` since `\b` holds at a `->`/`::` boundary
+  /\bassertNotNull\(/,
+  // C# (xUnit / NUnit / MSTest)
+  /\bAssert\.NotNull\(/,
+  /\bAssert\.IsNotNull\(/,
+  // Kotlin (Kotest infix matcher)
+  /\bshouldNotBe\s+null\b/,
 ];
 
 // Contextually-weak matchers. Ordering comparisons (toBeGreaterThan(0)) and a whole-argument
@@ -66,8 +92,22 @@ function extractLabel(content: string): string {
   // Try to match a method call like .toXxx(...) or assertEqual(...)
   const methodCall = content.match(/\.(to\w+\([^)]*\))/);
   if (methodCall) return methodCall[1] ?? '';
+  // AssertJ fluent chain: assertThat(x).isEqualTo(3) / assertThat(x).isNotNull() — matched BEFORE
+  // the generic assertCall pattern below, which would otherwise truncate the label at the first
+  // `)` and lose the distinguishing trailing matcher (`assertThat(x)` for both strong and weak).
+  const assertThatChain = content.match(/(assertThat\([^)]*\)\.\w+\([^)]*\))/);
+  if (assertThatChain) return assertThatChain[1] ?? '';
   const assertCall = content.match(/(assert\w*\([^)]*\))/);
   if (assertCall) return assertCall[1] ?? '';
+  // Rust macros: assert_eq!(...) / assert!(...)
+  const rustMacro = content.match(/(assert(?:_eq)?!\s*\([^)]*\))/);
+  if (rustMacro) return rustMacro[1] ?? '';
+  // Dotted call shapes: Go testify (assert.Equal(...)), C# (Assert.Equal(...))
+  const dottedCall = content.match(/\b([A-Za-z_]\w*\.[A-Za-z_]\w*\([^)]*\))/);
+  if (dottedCall) return dottedCall[1] ?? '';
+  // RSpec: expect(x).to eq(3) / expect(x).to be_truthy / expect(x).not_to be_nil
+  const rspecCall = content.match(/(expect\([^)]*\)\.(?:not_to|to_not|to)\s+\w+(?:\([^)]*\))?)/);
+  if (rspecCall) return rspecCall[1] ?? '';
   const assertEq = content.match(/assert\s+(.+?)\s*==\s*(.+)/);
   if (assertEq) return `assert ${(assertEq[1] ?? '').trim()} == ${(assertEq[2] ?? '').trim()}`;
   // Fallback: trim leading +/- and whitespace, cap at 30 chars

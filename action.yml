@@ -4,7 +4,7 @@ runs:
   using: composite
   steps:
     - name: Setup Node
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v7
       with:
         node-version: '20'
     # Build in the action's own checkout (github.action_path), not the consumer's workspace —

@@ -157,3 +157,66 @@ describe('rh007 — config exclusion patterns', () => {
     expect(rh007.run({ ...baseCtx, files: [file] })).toEqual([]);
   });
 });
+
+describe('rh007 — new-language config exclusion + Go build-tag branch (LANG-03/LANG-06)', () => {
+  const langExpected: Array<{ verifierId: string; severity: string; file: string; line: number; message: string; suggestion: string }> =
+    JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH007', 'lang-expected.json'), 'utf8'));
+
+  const cases: Array<[filename: string, label: string]> = [
+    ['pom.xml', 'Maven pom.xml surefire <exclude>'],
+    ['build.gradle.kts', 'Gradle excludeTestsMatching'],
+    ['Cargo.toml', "Cargo.toml [[test]] test = false"],
+    ['.rspec', 'RSpec --exclude-pattern'],
+    ['phpunit.xml', 'PHPUnit <exclude>'],
+    ['tests.runsettings', '.runsettings <TestCaseFilter>'],
+    ['calculator_test.go', 'Go build-tag added to _test.go file'],
+  ];
+
+  for (const [filename, label] of cases) {
+    it(`detects ${label} (${filename})`, () => {
+      const expected = langExpected.find(e => e.file === filename);
+      expect(expected, `no lang-expected.json entry for ${filename}`).toBeTruthy();
+
+      const files = fixtureDiff('RH007', filename);
+      const findings = rh007.run({ ...baseCtx, files });
+      const normalised = findings.map(f => ({ ...f, file: path.basename(f.file) }));
+      expect(normalised).toMatchObject([expected]);
+    });
+  }
+
+  it('does NOT flag a legitimate //go:build tag added to a non-test .go file (negative fixture)', () => {
+    const files = fixtureDiff('RH007/negative', 'calculator.go');
+    const findings = rh007.run({ ...baseCtx, files });
+    const negativeExpected = JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH007', 'lang-negative-expected.json'), 'utf8'));
+    expect(findings).toEqual(negativeExpected);
+  });
+
+  it('does not double-fire on the Cargo.toml dependency line `ignore = "0.4"` sharing a diff with the true positive', () => {
+    // Regression guard for the configLang() scoping fix: the pytest-only `ignore\s*=` pattern
+    // must never match a Cargo.toml file, even though the fixture's before/after both contain a
+    // real `ignore = "0.4"` dependency line (unchanged context, not part of the diff's add set).
+    const files = fixtureDiff('RH007', 'Cargo.toml');
+    const findings = rh007.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.line).toBe(12);
+  });
+
+  it('does not flag a build tag added to a _test.go file when the identical tag line merely moved', () => {
+    const file: ParsedFile = {
+      from: 'calculator_test.go',
+      to: 'calculator_test.go',
+      chunks: [{
+        content: '',
+        changes: [
+          { type: 'del', del: true, ln: 1, content: '-//go:build integration' },
+          { type: 'normal', normal: true, ln1: 2, ln2: 1, content: '' },
+          { type: 'add', add: true, ln: 2, content: '+//go:build integration' },
+        ],
+        oldStart: 1, oldLines: 2, newStart: 1, newLines: 2,
+      }],
+      deleted: false,
+      new: false,
+    };
+    expect(rh007.run({ ...baseCtx, files: [file] })).toEqual([]);
+  });
+});

@@ -1,0 +1,58 @@
+[
+  {
+    "verifierId": "RH007",
+    "severity": "warn",
+    "file": "pom.xml",
+    "line": 14,
+    "message": "Test path ignore pattern added to Maven pom.xml excluding CalculatorTest.java.",
+    "suggestion": "Remove the <exclude>/<excludedGroups> surefire entry added in this change."
+  },
+  {
+    "verifierId": "RH007",
+    "severity": "warn",
+    "file": "build.gradle.kts",
+    "line": 17,
+    "message": "Test path ignore pattern added to Gradle build script excluding CalculatorTest.",
+    "suggestion": "Remove the excludeTestsMatching entry added in this change."
+  },
+  {
+    "verifierId": "RH007",
+    "severity": "error",
+    "file": "Cargo.toml",
+    "line": 12,
+    "message": "Cargo.toml test target disabled via 'test = false' under [[test]], excluding it from `cargo test`.",
+    "suggestion": "Remove the 'test = false' entry added in this change."
+  },
+  {
+    "verifierId": "RH007",
+    "severity": "error",
+    "file": ".rspec",
+    "line": 3,
+    "message": "Test path ignore pattern added to RSpec config (.rspec) excluding spec/calculator_spec.rb.",
+    "suggestion": "Remove the --exclude-pattern entry added in this change."
+  },
+  {
+    "verifierId": "RH007",
+    "severity": "error",
+    "file": "phpunit.xml",
+    "line": 6,
+    "message": "Test path ignore pattern added to PHPUnit config excluding tests/CalculatorTest.php.",
+    "suggestion": "Remove the <exclude> entry added in this change."
+  },
+  {
+    "verifierId": "RH007",
+    "severity": "warn",
+    "file": "tests.runsettings",
+    "line": 6,
+    "message": "Test path ignore pattern added to .runsettings excluding Category!=Integration.",
+    "suggestion": "Remove the <TestCaseFilter>/<Filter> entry added in this change."
+  },
+  {
+    "verifierId": "RH007",
+    "severity": "error",
+    "file": "calculator_test.go",
+    "line": 1,
+    "message": "Build tag '//go:build integration' added to test file calculator_test.go, silently excluding it from `go test` unless the tag is passed.",
+    "suggestion": "Remove the build tag or document why this test file is gated behind it."
+  }
+]

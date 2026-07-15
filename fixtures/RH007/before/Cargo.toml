@@ -1,0 +1,11 @@
+[package]
+name = "calculator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ignore = "0.4"
+
+[[test]]
+name = "calculator_test"
+path = "tests/calculator_test.rs"

@@ -19,7 +19,8 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     name: 'AssertionWeakened',
     shortDescription: 'Assertion weakened or precision reduced',
     fullDescription:
-      'Detects a specific-value assertion softened into a vague check (e.g. toBe(x) to toBeDefined()), or numeric comparison precision/tolerance widened, reducing the test\'s ability to catch regressions.',
+      'Detects a specific-value assertion softened into a vague check (e.g. toBe(x) to toBeDefined()), or numeric comparison precision/tolerance widened, reducing the test\'s ability to catch regressions. ' +
+      'Also covers Go (testify), Java/Kotlin (JUnit/kotlin.test/AssertJ/Kotest), Rust (assert_eq!/assert!), Ruby (RSpec/Minitest), PHP (PHPUnit), and C# (xUnit/NUnit/MSTest). Go coverage is testify-only; stdlib comparison-weakening is not pattern-matched.',
     defaultLevel: 'error',
     helpUri: 'https://github.com/catfish-1234/proctor#rh002',
   },
@@ -27,7 +28,8 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     name: 'TestSkippedOrDisabled',
     shortDescription: 'Test disabled via skip/only decorator',
     fullDescription:
-      'Detects a test disabled via .skip/.only, xit/xdescribe, or pytest/unittest skip decorators, removing it from the executed test suite without deleting the source.',
+      'Detects a test disabled via .skip/.only, xit/xdescribe, or pytest/unittest skip decorators, removing it from the executed test suite without deleting the source. ' +
+      'Also covers Go (t.Skip/b.Skip), Java/Kotlin (@Disabled/@Ignore), Rust (#[ignore]), Ruby (xit/xdescribe, skip/pending), PHP (markTestSkipped/markTestIncomplete), and C# (Fact(Skip=...)/[Ignore]). Kotest\'s `enabled = false` skip form is not covered.',
     defaultLevel: 'error',
     helpUri: 'https://github.com/catfish-1234/proctor#rh003',
   },
@@ -66,7 +68,8 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     fullDescription:
       'Detects a test path ignore pattern added to test-runner or CI configuration, excluding tests from execution without touching the test files themselves. ' +
       'Also warns when proctor.config.json enforcement settings (enabled, ignorePatterns, severity, testPathGlobs, snapshotGlobs) are modified in a change. The running check still ' +
-      'enforces the committed configuration, but the edit changes what future runs enforce.',
+      'enforces the committed configuration, but the edit changes what future runs enforce. ' +
+      'Also covers Java (Maven pom.xml, Gradle build.gradle(.kts)), Rust (Cargo.toml), Ruby (.rspec), PHP (phpunit.xml), C# (.runsettings), and Kotlin (Gradle build.gradle.kts). Go has no dedicated exclusion config file, so it is detected instead as a build tag (//go:build or // +build) newly added to an existing _test.go file.',
     defaultLevel: 'error',
     helpUri: 'https://github.com/catfish-1234/proctor#rh007',
   },
@@ -103,7 +106,8 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     fullDescription:
       'Detects @ts-ignore/@ts-expect-error, `# type: ignore`, `# noqa`, `eslint-disable`, or `# pylint: disable` comments added to silence errors instead of fixing them. ' +
       'Fires when 2 or more per-line suppressions are added in the same change (a single per-line suppression is often a legitimate, justified exception), OR when even a single ' +
-      'file-wide directive is added (a whole-file TypeScript nocheck, a blanket ESLint disable with no rule list, or a file-level flake8 noqa), since those silence every rule for the whole file.',
+      'file-wide directive is added (a whole-file TypeScript nocheck, a blanket ESLint disable with no rule list, or a file-level flake8 noqa), since those silence every rule for the whole file. ' +
+      'Also covers Go (//nolint), Java (@SuppressWarnings), Kotlin (@Suppress / file-wide @file:Suppress), Rust (#[allow(...)] / file-wide #![allow(...)]), Ruby (# rubocop:disable/enable), PHP (phpcs:ignore / file-wide phpcs:ignoreFile), and C# (#pragma warning disable). Go\'s file-wide //nolint, Ruby\'s unclosed rubocop:disable, and C#\'s unrestored #pragma warning disable are not detected, they require forward-scanning past the diff line.',
     defaultLevel: 'warning',
     helpUri: 'https://github.com/catfish-1234/proctor#rh011',
   },

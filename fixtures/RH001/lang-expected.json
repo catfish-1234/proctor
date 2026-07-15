@@ -1,0 +1,58 @@
+[
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "calculator_test.go",
+    "line": 1,
+    "message": "Test file 'calculator_test.go' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "CalculatorTest.java",
+    "line": 1,
+    "message": "Test file 'CalculatorTest.java' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "calculator_test.rs",
+    "line": 1,
+    "message": "Test file 'calculator_test.rs' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "calculator_spec.rb",
+    "line": 1,
+    "message": "Test file 'calculator_spec.rb' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "CalculatorTest.php",
+    "line": 1,
+    "message": "Test file 'CalculatorTest.php' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "CalculatorTests.cs",
+    "line": 1,
+    "message": "Test file 'CalculatorTests.cs' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "CalculatorTest.kt",
+    "line": 1,
+    "message": "Test file 'CalculatorTest.kt' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  }
+]

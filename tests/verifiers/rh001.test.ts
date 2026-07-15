@@ -1,10 +1,15 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { basename } from 'node:path';
 import { readFileSync } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import parseDiff from 'parse-diff';
 import { rh001 } from '../../src/verifiers/rh001.js';
+import { buildContext } from '../../src/context/index.js';
 import type { Context } from '../../src/types.js';
 import type { ParsedFile } from '../../src/diff.js';
 
@@ -194,5 +199,65 @@ describe('rh001 — path 2 add/del reconciliation (renames, reformats, .skip wra
       new: false,
     }];
     expect(rh001.run({ ...baseCtx, files, isTestFile: () => true })).toEqual([]);
+  });
+});
+
+describe('rh001 — new-language whole-file deletion (LANG-06)', () => {
+  // One genuine, language-idiomatic test file per new language planted under
+  // fixtures/RH001/before/. No after/ counterpart — these represent a whole test file being
+  // deleted (Path 1), matching the RH001 scoping decision in 08-01-PLAN.md (no new detection
+  // code; relies entirely on isTestFile recognizing the extended DEFAULT_GLOBS from Task 1).
+  // relPath is relative to fixtures/RH001/before/. Rust lives under a tests/ subdirectory,
+  // mirroring Cargo's real integration-test convention (crate_root/tests/*.rs) — this is also
+  // the only path shape the extended DEFAULT_GLOBS glob (**/tests/**/*.rs) recognizes, since a
+  // bare top-level *_test.rs has no reliable glob per RESEARCH's documented Rust gap.
+  const NEW_LANG_FIXTURES = [
+    { filename: 'calculator_test.go', relPath: 'calculator_test.go' },
+    { filename: 'CalculatorTest.java', relPath: 'CalculatorTest.java' },
+    { filename: 'calculator_test.rs', relPath: 'tests/calculator_test.rs' },
+    { filename: 'calculator_spec.rb', relPath: 'calculator_spec.rb' },
+    { filename: 'CalculatorTest.php', relPath: 'CalculatorTest.php' },
+    { filename: 'CalculatorTests.cs', relPath: 'CalculatorTests.cs' },
+    { filename: 'CalculatorTest.kt', relPath: 'CalculatorTest.kt' },
+  ];
+
+  let tmpDir: string;
+  let realIsTestFile: Context['isTestFile'];
+
+  beforeEach(async () => {
+    tmpDir = await mkdtemp(join(tmpdir(), 'proctor-rh001-lang-'));
+    // Use the real extended DEFAULT_GLOBS (via buildContext, no config file present) so this
+    // test proves Path 1 fires off the actual Task 1 glob extension, not a hand-rolled stand-in.
+    const realCtx = await buildContext(tmpDir, []);
+    realIsTestFile = realCtx.isTestFile;
+  });
+
+  afterEach(async () => {
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('recognizes each new-language fixture as a test file via the extended DEFAULT_GLOBS', () => {
+    for (const { relPath } of NEW_LANG_FIXTURES) {
+      expect(realIsTestFile(`fixtures/RH001/before/${relPath}`)).toBe(true);
+    }
+  });
+
+  it('deleting any one new-language test file alone yields exactly one RH001 error at line 1', () => {
+    const expected = JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH001', 'lang-expected.json'), 'utf8'));
+
+    for (const { filename, relPath } of NEW_LANG_FIXTURES) {
+      const filePath = `fixtures/RH001/before/${relPath}`;
+      const files: ParsedFile[] = [{
+        from: filePath,
+        to: undefined,
+        chunks: [],
+        deleted: true,
+        new: false,
+      }];
+      const findings = rh001.run({ ...baseCtx, files, isTestFile: realIsTestFile });
+      const normalised = findings.map(f => ({ ...f, file: basename(f.file) }));
+      const expectedEntry = expected.find((e: { file: string }) => e.file === filename);
+      expect(normalised).toEqual([expectedEntry]);
+    }
   });
 });

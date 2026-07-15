@@ -9,6 +9,15 @@ Single source of truth for all verifier fixtures (the planted true-positive and 
 **Severity:** error
 **Expected output:** Finding with message `"Test function 'adds two numbers' was deleted in this change."`
 
+### RH001 — New-Language Whole-File Deletion (LANG-06)
+
+**Cheat planted:** one genuine, language-idiomatic test file deleted entirely, with no coordinated implementation deletion, for each of the 7 Phase 8 languages.
+**Files (all `before/`, no `after/` — whole-file deletion, no rename/edit):**
+`calculator_test.go` (Go, stdlib `testing`), `CalculatorTest.java` (Java, JUnit5), `tests/calculator_test.rs` (Rust, `#[test]` integration test under a `tests/` dir per Cargo convention), `calculator_spec.rb` (Ruby, RSpec), `CalculatorTest.php` (PHP, PHPUnit), `CalculatorTests.cs` (C#, xUnit), `CalculatorTest.kt` (Kotlin, JUnit5).
+**Severity:** error
+**Expected output:** per-language findings in `lang-expected.json`, each `"Test file '<basename>' was deleted."` at line 1
+**Scope note:** covers RH001 Path 1 only (whole-file deletion). Path 2 (individual test-function deletion) is deliberately not extended to these languages this phase — see 08-01-PLAN.md `<planner_decisions>`.
+
 ## RH002 — Weakened Assertion
 
 **Cheat planted:** `toBe(3)` weakened to `toBeDefined()` in `calculator.test.ts`

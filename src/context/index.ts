@@ -20,6 +20,29 @@ const DEFAULT_GLOBS = [
   '__tests__/**/*',
   '**/test_*.py',
   '**/*_test.py',
+  // Go: the compiler itself only picks up _test.go files as test files — no bare **/*.go glob,
+  // that would match ordinary non-test source (see RESEARCH Pitfall 2).
+  '**/*_test.go',
+  // Java: Maven Surefire's documented default include patterns.
+  '**/*Test.java',
+  '**/Test*.java',
+  '**/*Tests.java',
+  '**/*TestCase.java',
+  // Rust: integration tests under tests/ (inline #[cfg(test)] unit tests share a file with impl
+  // code and have no reliable glob — see RESEARCH "structural gap").
+  '**/tests/**/*.rs',
+  // Ruby: RSpec and Minitest/Test::Unit conventions.
+  '**/*_spec.rb',
+  '**/*_test.rb',
+  // PHP: PHPUnit's near-universal filename convention.
+  '**/*Test.php',
+  // C#: filename convention only — actual .NET test discovery is attribute-based, which proctor
+  // cannot see without AST (see RESEARCH Pitfall 4).
+  '**/*Tests.cs',
+  '**/*Test.cs',
+  // Kotlin: mirrors Java/Gradle/Maven convention since Kotlin shares JUnit5/Gradle tooling.
+  '**/*Test.kt',
+  '**/src/test/**/*.kt',
 ];
 
 const DEFAULT_ENABLED = [
@@ -163,12 +186,19 @@ export async function buildContext(cwd: string, files: ParsedFile[], opts?: { co
   const isTestFile = (path: string): boolean =>
     micromatch.isMatch(path.replace(/\\/g, '/'), testPathGlobs);
 
-  const getLanguage = (filePath: string): 'ts' | 'js' | 'python' | 'unknown' => {
+  const getLanguage = (filePath: string): 'ts' | 'js' | 'python' | 'go' | 'java' | 'rust' | 'ruby' | 'php' | 'csharp' | 'kotlin' | 'unknown' => {
     const ext = filePath.split('.').pop()?.toLowerCase();
     // proctor-ignore: RH004 reason: extension-to-language mapping table, not a fixture hardcode
     if (ext === 'ts' || ext === 'tsx' || ext === 'mts' || ext === 'cts') return 'ts';
     if (ext === 'js' || ext === 'jsx' || ext === 'mjs' || ext === 'cjs') return 'js';
     if (ext === 'py') return 'python';
+    if (ext === 'go') return 'go';
+    if (ext === 'java') return 'java';
+    if (ext === 'rs') return 'rust';
+    if (ext === 'rb') return 'ruby';
+    if (ext === 'php') return 'php';
+    if (ext === 'cs') return 'csharp';
+    if (ext === 'kt' || ext === 'kts') return 'kotlin';
     return 'unknown';
   };
 

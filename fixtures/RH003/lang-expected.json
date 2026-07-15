@@ -1,0 +1,58 @@
+[
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "calculator_test.go",
+    "line": 6,
+    "message": "Test was disabled with t.Skip.",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  },
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "CalculatorTest.java",
+    "line": 8,
+    "message": "Test was disabled with @Disabled.",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  },
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "calculator.rs",
+    "line": 9,
+    "message": "Test was disabled with #[ignore].",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  },
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "calculator_spec.rb",
+    "line": 4,
+    "message": "Test was disabled with an x-prefixed RSpec form (xit/xdescribe/xcontext/xexample).",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  },
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "CalculatorTest.php",
+    "line": 9,
+    "message": "Test was disabled with $this->markTestSkipped().",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  },
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "CalculatorTests.cs",
+    "line": 5,
+    "message": "Test was disabled with [Fact(Skip = ...)].",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  },
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "CalculatorTest.kt",
+    "line": 7,
+    "message": "Test was disabled with @Disabled.",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  }
+]

@@ -167,3 +167,42 @@ describe('rh003 — skip/disable patterns', () => {
     expect(rh003.run({ ...baseCtx, files: [makeAddFile('src/model.py', '+fit(a, b)', 5)], isTestFile: () => false })).toEqual([]);
   });
 });
+
+describe('rh003 — new-language skip/disable detection (LANG-02, LANG-06)', () => {
+  const langExpected = JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH003', 'lang-expected.json'), 'utf8'));
+  const langNegativeExpected = JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH003', 'lang-negative-expected.json'), 'utf8'));
+
+  // isTestFile is not consulted by the new-language branches (each gates itself internally via
+  // isGoTestFile/isRubyTestFile/isKotlinTestFile or runs ungated) — false here on purpose, to
+  // prove the new-language detection does not silently depend on the JS/TS test-file gate.
+  const langCtx: Context = { ...baseCtx, isTestFile: () => false };
+
+  it.each([
+    ['Go', 'calculator_test.go', 0],
+    ['Java', 'CalculatorTest.java', 1],
+    ['Rust', 'calculator.rs', 2],
+    ['Ruby', 'calculator_spec.rb', 3],
+    ['PHP', 'CalculatorTest.php', 4],
+    ['C#', 'CalculatorTests.cs', 5],
+    ['Kotlin', 'CalculatorTest.kt', 6],
+  ])('detects the planted skip/disable cheat for %s', (_lang, filename, expectedIndex) => {
+    const files = fixtureDiff('RH003', filename);
+    const findings = rh003.run({ ...langCtx, files });
+    const normalised = findings.map(f => ({ ...f, file: path.basename(f.file) }));
+    expect(normalised).toMatchObject([langExpected[expectedIndex]]);
+  });
+
+  // proctor-ignore: RH003 reason: planted negative fixture proving the Ruby DSL-shape anchor
+  // holds even inside a correctly-gated _spec.rb file — not a real disabled test.
+  it('does not flag a bare Ruby `skip` used as an ordinary variable name inside a _spec.rb file', () => {
+    const files = fixtureDiff('RH003/negative', 'calculator_spec.rb');
+    const findings = rh003.run({ ...langCtx, files });
+    expect(findings).toEqual(langNegativeExpected);
+  });
+
+  it('does not flag a legitimate conditional t.Skip() in a non-_test.go helper file', () => {
+    const files = fixtureDiff('RH003/negative', 'testhelpers.go');
+    const findings = rh003.run({ ...langCtx, files });
+    expect(findings).toEqual(langNegativeExpected);
+  });
+});

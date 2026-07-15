@@ -99,8 +99,9 @@ function extractLabel(content: string): string {
   if (assertThatChain) return assertThatChain[1] ?? '';
   const assertCall = content.match(/(assert\w*\([^)]*\))/);
   if (assertCall) return assertCall[1] ?? '';
-  // Rust macros: assert_eq!(...) / assert!(...)
-  const rustMacro = content.match(/(assert(?:_eq)?!\s*\([^)]*\))/);
+  // Rust macros: assert_eq!(...) / assert!(...) — balanced-parens capture (mirrors extractSubject)
+  // since the argument itself often contains a nested call, e.g. assert!(result.is_some()).
+  const rustMacro = content.match(/(assert(?:_eq)?!\s*\((?:[^()]|\([^()]*\))*\))/);
   if (rustMacro) return rustMacro[1] ?? '';
   // Dotted call shapes: Go testify (assert.Equal(...)), C# (Assert.Equal(...))
   const dottedCall = content.match(/\b([A-Za-z_]\w*\.[A-Za-z_]\w*\([^)]*\))/);

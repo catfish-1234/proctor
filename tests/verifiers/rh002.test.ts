@@ -359,3 +359,29 @@ describe('RH002 Python tolerance-widening', () => {
     expect(findings).toEqual([]);
   });
 });
+
+describe('rh002 — new-language weakening fixtures (LANG-06)', () => {
+  const langExpected: Array<Record<string, unknown>> = JSON.parse(
+    readFileSync(path.join(FIXTURES_DIR, 'RH002', 'lang-expected.json'), 'utf8'),
+  );
+
+  const cases: Array<[string, string]> = [
+    ['calculator_test.go', 'Go (testify)'],
+    ['CalculatorTest.java', 'Java (JUnit)'],
+    ['calculator_test.rs', 'Rust'],
+    ['calculator_spec.rb', 'Ruby (RSpec)'],
+    ['CalculatorTest.php', 'PHP (PHPUnit)'],
+    ['CalculatorTests.cs', 'C# (xUnit)'],
+    ['CalculatorTest.kt', 'Kotlin (kotlin.test)'],
+  ];
+
+  it.each(cases)('%s (%s): weakening fixture matches lang-expected.json', (filename) => {
+    const expected = langExpected.find(e => e.file === filename);
+    expect(expected, `no lang-expected.json entry for ${filename}`).toBeDefined();
+
+    const files = fixtureDiff('RH002', filename);
+    const findings = rh002.run({ ...baseCtx, files });
+    const normalised = findings.map(f => ({ ...f, file: path.basename(f.file) }));
+    expect(normalised).toMatchObject([expected]);
+  });
+});

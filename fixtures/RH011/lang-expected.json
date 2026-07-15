@@ -1,0 +1,114 @@
+[
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "calculator_test.go",
+    "line": 6,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "calculator_test.go",
+    "line": 14,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "CalculatorTest.java",
+    "line": 7,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "CalculatorTest.java",
+    "line": 14,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "calculator.rs",
+    "line": 1,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "calculator.rs",
+    "line": 6,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "calculator_spec.rb",
+    "line": 4,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "calculator_spec.rb",
+    "line": 9,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "Calculator.php",
+    "line": 7,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "Calculator.php",
+    "line": 13,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "Calculator.cs",
+    "line": 5,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "Calculator.cs",
+    "line": 11,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "Calculator.kt",
+    "line": 2,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "Calculator.kt",
+    "line": 7,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  }
+]

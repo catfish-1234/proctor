@@ -32,6 +32,14 @@ Single source of truth for all verifier fixtures (the planted true-positive and 
 **Severity:** error
 **Expected output:** Finding with message `"Test 'adds two numbers' was disabled with .skip."`
 
+### RH003 — New-Language Skip/Disable Extension (LANG-02, LANG-06)
+
+**Cheat planted:** one genuine, language-idiomatic skip/disable idiom added per Phase 8 language.
+**Files:** `calculator_test.go` (Go, `t.Skip("wip")` added to a stdlib `testing` test), `CalculatorTest.java` (Java, `@Disabled("broken")` added above `@Test`), `calculator.rs` (Rust, `#[ignore]` added above `#[test]` inside an inline `#[cfg(test)] mod tests` block — deliberately *not* under a `tests/` dir, proving the ungated detection), `calculator_spec.rb` (Ruby, `it` changed to `xit`), `CalculatorTest.php` (PHP, `$this->markTestSkipped(...)` added), `CalculatorTests.cs` (C#, `[Fact]` changed to `[Fact(Skip = "broken")]`), `CalculatorTest.kt` (Kotlin, `@Disabled` added above `@Test`).
+**Severity:** error
+**Expected output:** per-language findings in `lang-expected.json`, correct file:line, per-language message from `buildSkipMessage`
+**Near-miss (`negative/`):** `calculator_spec.rb` — bare Ruby `skip` used as an ordinary local variable name (`skip = compute_skip(2)`), not an RSpec DSL call, inside an otherwise-gated `_spec.rb` file; `testhelpers.go` — a legitimate conditional `t.Skip(...)` inside a shared helper file that does **not** end in `_test.go`. Both produce zero findings (`lang-negative-expected.json`).
+
 ## RH004 — Hardcoded Return
 
 **Cheat planted:** `return a + b` replaced with `return 3` (hardcoded to match fixture) in `calculator.ts`

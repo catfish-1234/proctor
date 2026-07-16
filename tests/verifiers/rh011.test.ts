@@ -172,6 +172,151 @@ describe('rh011 — per-language suppression-spam line-scoped detection (LANG-05
   });
 });
 
+// proctor-ignore: RH011 reason: planted fixtures exercising the detector, not real suppressions
+describe('rh011 — GROUP A suppression-spam line-scoped + file-wide detection (LANG-12, LANG-13)', () => {
+  it('C/C++/Objective-C: two // NOLINT lines added in one file trip the spam threshold', () => {
+    const findings = rh011.run({
+      ...baseCtx,
+      files: fileWithLines(['+  // NOLINT', '+  result = Add(2, 3);', '+  // NOLINT', '+  result2 = Subtract(5, 2);']),
+    });
+    expect(findings.length).toBe(2);
+  });
+
+  it('C/C++/Objective-C: // NOLINTNEXTLINE and // NOLINTBEGIN both count as line-scoped', () => {
+    const findings = rh011.run({
+      ...baseCtx,
+      files: fileWithLines(['+  // NOLINTNEXTLINE(readability)', '+  int x = 1;', '+  // NOLINTBEGIN(readability)', '+  int y = 2;']),
+    });
+    expect(findings.length).toBe(2);
+  });
+
+  it('C/C++/Objective-C: a single // NOLINT line does not fire (below threshold)', () => {
+    const findings = rh011.run({ ...baseCtx, files: fileWithLines(['+  // NOLINT', '+  int x = 1;']) });
+    expect(findings).toEqual([]);
+  });
+
+  it('C/C++/Objective-C: two #pragma clang diagnostic ignored lines trip the spam threshold', () => {
+    const findings = rh011.run({
+      ...baseCtx,
+      files: fileWithLines([
+        '+#pragma clang diagnostic ignored "-Wunused-variable"',
+        '+int x = 1;',
+        '+#pragma clang diagnostic ignored "-Wunused-variable"',
+        '+int y = 2;',
+      ]),
+    });
+    expect(findings.length).toBe(2);
+  });
+
+  it('C: two // cppcheck-suppress lines trip the spam threshold', () => {
+    const findings = rh011.run({
+      ...baseCtx,
+      files: fileWithLines(['+  // cppcheck-suppress unusedVariable', '+  int x = 1;', '+  // cppcheck-suppress unusedVariable', '+  int y = 2;']),
+    });
+    expect(findings.length).toBe(2);
+  });
+
+  it('Swift: two // swiftlint:disable lines trip the spam threshold', () => {
+    const findings = rh011.run({
+      ...baseCtx,
+      files: fileWithLines([
+        '+  // swiftlint:disable force_cast',
+        '+  let x = a as! Int',
+        '+  // swiftlint:disable:next force_cast',
+        '+  let y = b as! Int',
+      ]),
+    });
+    expect(findings.length).toBe(2);
+  });
+
+  it('Swift: a single // swiftlint:disable all fires unconditionally as file-wide, not double-counted as line-scoped', () => {
+    const findings = rh011.run({ ...baseCtx, files: fileWithLines(['+// swiftlint:disable all']) });
+    expect(findings.length).toBe(1);
+    expect(findings[0].message).toContain('File-wide');
+  });
+
+  it('Swift: a line-scoped // swiftlint:disable:next does NOT double-count as file-wide', () => {
+    const findings = rh011.run({ ...baseCtx, files: fileWithLines(['+  // swiftlint:disable:next force_cast', '+  let x = a as! Int']) });
+    // Only 1 occurrence, below SPAM_THRESHOLD (2) — must be [] (proves it did not get classified
+    // as the unconditional file-wide finding, which would return length 1 with a "File-wide" message).
+    expect(findings).toEqual([]);
+  });
+
+  it('Dart: two // ignore: lines trip the spam threshold', () => {
+    const findings = rh011.run({
+      ...baseCtx,
+      files: fileWithLines(['+  // ignore: unused_local_variable', '+  var x = 1;', '+  // ignore: unused_local_variable', '+  var y = 2;']),
+    });
+    expect(findings.length).toBe(2);
+  });
+
+  it('Dart: a single // ignore_for_file: fires unconditionally as file-wide, not double-counted as line-scoped', () => {
+    const findings = rh011.run({ ...baseCtx, files: fileWithLines(['+// ignore_for_file: unused_local_variable']) });
+    expect(findings.length).toBe(1);
+    expect(findings[0].message).toContain('File-wide');
+  });
+
+  it('Scala: two @SuppressWarnings(...) lines reuse the existing Java pattern with zero new code', () => {
+    const findings = rh011.run({
+      ...baseCtx,
+      files: fileWithLines(['+  @SuppressWarnings(Array("unchecked"))', '+  def a(): Unit = {}', '+  @SuppressWarnings(Array("unchecked"))', '+  def b(): Unit = {}']),
+    });
+    expect(findings.length).toBe(2);
+  });
+
+  it('Scala: two @nowarn lines trip the spam threshold', () => {
+    const findings = rh011.run({
+      ...baseCtx,
+      files: fileWithLines(['+  @nowarn("cat=deprecation")', '+  def a(): Unit = {}', '+  @nowarn("cat=deprecation")', '+  def b(): Unit = {}']),
+    });
+    expect(findings.length).toBe(2);
+  });
+
+  it('Scala: two // scalafix:ok lines trip the spam threshold', () => {
+    const findings = rh011.run({
+      ...baseCtx,
+      files: fileWithLines(['+  val a = 1 // scalafix:ok', '+  val b = 2 // scalafix:ok']),
+    });
+    expect(findings.length).toBe(2);
+  });
+
+  it('Groovy: two @SuppressWarnings(...) lines added to a .groovy file reuse the existing Java pattern with zero new code (reuse proof)', () => {
+    const files: ParsedFile[] = [{
+      from: 'src/test/groovy/CalculatorSpec.groovy',
+      to: 'src/test/groovy/CalculatorSpec.groovy',
+      chunks: [{
+        content: '',
+        changes: [
+          { type: 'add', add: true, ln: 1, content: '+  @SuppressWarnings("unchecked")' },
+          { type: 'add', add: true, ln: 2, content: '+  def a() {}' },
+          { type: 'add', add: true, ln: 3, content: '+  @SuppressWarnings("unchecked")' },
+          { type: 'add', add: true, ln: 4, content: '+  def b() {}' },
+        ],
+        oldStart: 1, oldLines: 0, newStart: 1, newLines: 4,
+      }],
+      deleted: false,
+      new: false,
+    }];
+    const findings = rh011.run({ ...baseCtx, files });
+    expect(findings.length).toBe(2);
+    expect(findings.every(f => f.file.endsWith('.groovy'))).toBe(true);
+  });
+
+  it('VB.NET: two #Disable Warning lines trip the spam threshold (genuinely new token, distinct from C# pragma)', () => {
+    const findings = rh011.run({
+      ...baseCtx,
+      files: fileWithLines(['+#Disable Warning CA1234', '+Return a + b', '+#Disable Warning CA1234', '+Return a - b']),
+    });
+    expect(findings.length).toBe(2);
+  });
+
+  it('VB.NET: #Disable Warning does NOT trigger the C# #pragma warning disable pattern spuriously, and vice versa', () => {
+    // Confirms the two patterns are genuinely distinct tokens, not accidental substring overlap.
+    expect(/#pragma\s+warning\s+disable\b/.test('#Disable Warning CA1234')).toBe(false);
+    expect(/#Disable\s+Warning\b/.test('#pragma warning disable CS1234')).toBe(false);
+  });
+});
+
 describe('rh011 — new-language suppression-spam fixtures (LANG-06)', () => {
   const expected: Array<{ file: string; line: number }> = JSON.parse(
     readFileSync(path.join(FIXTURES_DIR, 'RH011', 'lang-expected.json'), 'utf8'),
@@ -200,5 +345,56 @@ describe('rh011 — new-language suppression-spam fixtures (LANG-06)', () => {
     expect(expectedEntries.length).toBe(2);
     expect(normalised).toEqual(expect.arrayContaining(expectedEntries));
     expect(normalised.length).toBe(2);
+  });
+});
+
+describe('rh011 — GROUP A new-language suppression-spam fixtures (LANG-12, LANG-13)', () => {
+  // Fixtures live under fixtures/RH011/lang2/{before,after}/ — a distinct subdirectory from
+  // Phase 8's fixtures/RH011/lang/ (LANG-06/07) so this diff doesn't collide with either the
+  // flat fixtures/RH011/before-vs-after true-positive assertion in fixtures-p3.test.ts, or with
+  // Phase 8's lang/ fixtures, per 08.1-RESEARCH.md's Wave 0 Gaps note and the 08-05 collision
+  // precedent.
+  const expected: Array<{ file: string; line: number; message: string }> = JSON.parse(
+    readFileSync(path.join(FIXTURES_DIR, 'RH011', 'lang2-expected.json'), 'utf8'),
+  );
+
+  const LINE_SCOPED_FIXTURES = [
+    'Calculator.cpp',
+    'Calculator.c',
+    'Calculator.m',
+    'Calculator.swift',
+    'Calculator.dart',
+    'Calculator.scala',
+    'CalculatorSpec.groovy',
+    'Calculator.vb',
+  ];
+
+  it.each(LINE_SCOPED_FIXTURES)('%s: fixture diff yields exactly the two expected line-scoped RH011 findings', (filename) => {
+    const files = fixtureDiff('RH011/lang2', filename);
+    const findings = rh011.run({ ...baseCtx, files });
+    const normalised = findings.map(f => ({ ...f, file: path.basename(f.file) }));
+    const expectedEntries = expected.filter(e => e.file === filename);
+    expect(expectedEntries.length).toBe(2);
+    expect(normalised).toEqual(expect.arrayContaining(expectedEntries));
+    expect(normalised.length).toBe(2);
+  });
+
+  const FILEWIDE_FIXTURES = ['CalculatorFilewide.swift', 'CalculatorFilewide.dart'];
+
+  it.each(FILEWIDE_FIXTURES)('%s: fixture diff yields exactly the one expected unconditional file-wide RH011 finding', (filename) => {
+    const files = fixtureDiff('RH011/lang2', filename);
+    const findings = rh011.run({ ...baseCtx, files });
+    const normalised = findings.map(f => ({ ...f, file: path.basename(f.file) }));
+    const expectedEntries = expected.filter(e => e.file === filename);
+    expect(expectedEntries.length).toBe(1);
+    expect(normalised).toEqual(expectedEntries);
+    expect(normalised[0].message).toContain('File-wide');
+  });
+
+  it('CalculatorSpec.groovy: the .groovy reuse fixture yields exactly its two @SuppressWarnings findings with no new code (reuse proof)', () => {
+    const files = fixtureDiff('RH011/lang2', 'CalculatorSpec.groovy');
+    const findings = rh011.run({ ...baseCtx, files });
+    expect(findings.length).toBe(2);
+    expect(findings.every(f => f.file.endsWith('.groovy'))).toBe(true);
   });
 });

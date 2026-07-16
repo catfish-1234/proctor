@@ -1,0 +1,66 @@
+[
+  {
+    "verifierId": "RH002",
+    "severity": "error",
+    "file": "calculator_test.cpp",
+    "line": 6,
+    "message": "Assertion weakened from REQUIRE(result == 3) to REQUIRE(result).",
+    "suggestion": "Restore the REQUIRE/CHECK comparison against the expected value."
+  },
+  {
+    "verifierId": "RH002",
+    "severity": "error",
+    "file": "calculator_test.c",
+    "line": 6,
+    "message": "Assertion weakened from TEST_ASSERT_EQUAL_INT(3, result) to TEST_ASSERT_TRUE(result).",
+    "suggestion": "Restore the specific value assertion to preserve test coverage strength."
+  },
+  {
+    "verifierId": "RH002",
+    "severity": "error",
+    "file": "CalculatorTests.swift",
+    "line": 7,
+    "message": "Assertion weakened from #expect(result == 3) to #expect(result != nil).",
+    "suggestion": "Restore the #expect comparison against the expected value."
+  },
+  {
+    "verifierId": "RH002",
+    "severity": "error",
+    "file": "CalculatorTests.m",
+    "line": 11,
+    "message": "Assertion weakened from XCTAssertEqual(result, 3) to XCTAssertTrue(result).",
+    "suggestion": "Restore the specific value assertion to preserve test coverage strength."
+  },
+  {
+    "verifierId": "RH002",
+    "severity": "error",
+    "file": "calculator_test.dart",
+    "line": 7,
+    "message": "Assertion weakened from expect(result, equals(3)) to expect(result, isNotNull).",
+    "suggestion": "Restore the specific-value matcher against the expected value."
+  },
+  {
+    "verifierId": "RH002",
+    "severity": "error",
+    "file": "CalculatorSpec.scala",
+    "line": 6,
+    "message": "Assertion weakened from assert(result == \"3\") to assert(result != null).",
+    "suggestion": "Restore the assert comparison against the expected value."
+  },
+  {
+    "verifierId": "RH002",
+    "severity": "error",
+    "file": "CalculatorTests.vb",
+    "line": 9,
+    "message": "Assertion weakened from Assert.AreEqual(3, result) to Assert.IsNotNull(result).",
+    "suggestion": "Restore the specific value assertion to preserve test coverage strength."
+  },
+  {
+    "verifierId": "RH002",
+    "severity": "error",
+    "file": "CalculatorSpec.groovy",
+    "line": 9,
+    "message": "Assertion weakened from assertEquals(3, result) to assertNotNull(result).",
+    "suggestion": "Restore the specific value assertion to preserve test coverage strength."
+  }
+]

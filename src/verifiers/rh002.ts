@@ -37,6 +37,16 @@ const STRONG_PATTERNS = [
   // GROUP A — Swift + Objective-C shared XCTest (one extension-agnostic pair, fires on .swift
   // and .m/.mm alike)
   /\bXCTAssertEqual(?:Objects)?\s*\(/,
+  // GROUP B (LANG-11) — Perl Test::More
+  /\bis(?:_deeply)?\s*\(/,
+  // GROUP B — R testthat
+  /\bexpect_(?:equal|identical)\s*\(/,
+  // GROUP B — Lua busted
+  /\bassert\.(?:are\.equal|equals)\s*\(/,
+  // GROUP B — Shell/Bash bats-assert (flat pair only; native `[ ]` same-subject form is a
+  // documented gap, see RESEARCH — bare `[ ]` test syntax is pervasive in ordinary shell control
+  // flow and carries high false-positive risk)
+  /\bassert_equal\b/,
 ];
 
 // Unconditionally-weak matchers: these assert almost nothing regardless of context, so replacing
@@ -77,6 +87,15 @@ const WEAK_PATTERNS = [
   /\bck_assert_ptr_nonnull\s*\(/,
   // GROUP A — Swift + Objective-C shared XCTest (one extension-agnostic pair)
   /\bXCTAssert(?:NotNil|True)\s*\(/,
+  // GROUP B (LANG-11) — Perl Test::More
+  /\bok\s*\(/,
+  // GROUP B — R testthat
+  /\bexpect_(?:true|type)\s*\(/,
+  // GROUP B — Lua busted
+  /\bassert\.(?:is_truthy|is_not_nil)\s*\(/,
+  // GROUP B — Shell/Bash bats-assert
+  /\bassert_success\b/,
+  /\bassert_not_equal\b/,
 ];
 
 // Contextually-weak matchers. Ordering comparisons (toBeGreaterThan(0)) and a whole-argument
@@ -122,6 +141,17 @@ const ALMOST_EQUAL = /assertAlmostEqual\(/;
 const GROUP_A_MACRO_CALL_RE =
   /\b((?:EXPECT|ASSERT)_(?:EQ|TRUE|NE)\s*\((?:[^()]|\([^()]*\))*\)|BOOST_(?:CHECK|REQUIRE|WARN)(?:_EQUAL)?\s*\((?:[^()]|\([^()]*\))*\)|TEST_ASSERT\w*\s*\((?:[^()]|\([^()]*\))*\)|ck_assert\w*\s*\((?:[^()]|\([^()]*\))*\)|XCTAssert\w*\s*\((?:[^()]|\([^()]*\))*\))/;
 
+// GROUP B (LANG-11) macro/matcher-call label shape, balanced-parens capture (mirrors
+// GROUP_A_MACRO_CALL_RE): Perl Test::More (is/is_deeply/ok), R testthat (expect_equal/
+// expect_identical/expect_true/expect_type), Lua busted (assert.are.equal/assert.equals/
+// assert.is_truthy/assert.is_not_nil).
+const GROUP_B_MACRO_CALL_RE =
+  /\b(is(?:_deeply)?\s*\((?:[^()]|\([^()]*\))*\)|ok\s*\((?:[^()]|\([^()]*\))*\)|expect_(?:equal|identical|true|type)\s*\((?:[^()]|\([^()]*\))*\)|assert\.(?:are\.equal|equals|is_truthy|is_not_nil)\s*\((?:[^()]|\([^()]*\))*\))/;
+
+// GROUP B — Shell/Bash bats-assert: no parens, space-separated CLI-style arguments
+// (assert_equal "$a" "$b" / assert_success / assert_not_equal ...).
+const BATS_ASSERT_CALL_RE = /\bassert_(?:equal|success|not_equal)\b[^\n]*/;
+
 /** Extract a short label like 'toBe(3)' or 'toBeDefined()' from a diff line. */
 function extractLabel(content: string): string {
   // Try to match a method call like .toXxx(...) or assertEqual(...)
@@ -139,6 +169,25 @@ function extractLabel(content: string): string {
   // the full macro name is preserved in the label.
   const groupAMacroCall = content.match(GROUP_A_MACRO_CALL_RE);
   if (groupAMacroCall) return groupAMacroCall[1] ?? '';
+  // GROUP B (LANG-11) macro/matcher calls: Perl Test::More, R testthat, Lua busted. Tried BEFORE
+  // the generic assertCall pattern below for the same truncation-avoidance reason as GROUP A.
+  const groupBMacroCall = content.match(GROUP_B_MACRO_CALL_RE);
+  if (groupBMacroCall) return groupBMacroCall[1] ?? '';
+  // Shell/Bash bats-assert: assert_equal/assert_success/assert_not_equal (no parens).
+  const batsAssertCall = content.match(BATS_ASSERT_CALL_RE);
+  if (batsAssertCall) return batsAssertCall[0].trim();
+  // Haskell: LHS `shouldBe`/`shouldSatisfy`/`shouldNotBe` RHS backtick-infix operator forms.
+  const haskellBacktickCall = content.match(/([\w.'()]+\s*`(?:shouldBe|shouldSatisfy|shouldNotBe)`\s*[\w.'()]+)/);
+  if (haskellBacktickCall) return haskellBacktickCall[1]!.trim();
+  // Julia: @test SUBJECT == EXPECTED / @test !isnothing(SUBJECT) / @test SUBJECT !== nothing.
+  const juliaTestCall = content.match(/(@test\s+.+)$/);
+  if (juliaTestCall) return juliaTestCall[1]!.trim();
+  // Clojure: (is (= SUBJECT EXPECTED)) / (is (some? SUBJECT)) / bare (is SUBJECT) — procedural
+  // paren-depth extraction (NOT a balanced-parens regex), since nesting can exceed the one level
+  // GROUP_A_MACRO_CALL_RE/GROUP_B_MACRO_CALL_RE handle (e.g. `(is (= (add 2 3) 5))`). This is
+  // exactly the truncation risk the plan calls out for Clojure's S-expression label extraction.
+  const clojureIsLabel = extractClojureIsLabel(content);
+  if (clojureIsLabel) return clojureIsLabel;
   // C++ Catch2: REQUIRE(...)/CHECK(...) natural-expression macros.
   const catch2Call = content.match(/\b((?:REQUIRE|CHECK)\s*\((?:[^()]|\([^()]*\))*\))/);
   if (catch2Call) return catch2Call[1] ?? '';
@@ -430,6 +479,187 @@ function scalaWeakSubject(line: string): string | null {
   return trimmed ? trimmed.replace(/\s+/g, '') : null;
 }
 
+// ---------------------------------------------------------------------------
+// GROUP B (LANG-11) same-subject / natural-expression extractors: Haskell, Elixir, Clojure,
+// Julia. All PROCEDURAL (indexOf/charAt-loop) or bounded — no unbounded nested-quantifier regex,
+// per RESEARCH Security Domain V5, which specifically flags Clojure's S-expression shape.
+// ---------------------------------------------------------------------------
+
+// --- Elixir: `assert LHS == RHS` weakened to bare `assert LHS` (RHS dropped) — byte-identical
+// shape to Python's pyAssertComparisonLhs/pyBareAssertExpr, gated on .ex/.exs instead of .py.
+function elixirAssertComparisonLhs(line: string): string | null {
+  const s = line.replace(/^[-+]\s*/, '');
+  if (!/^assert\b/.test(s)) return null;
+  const op = s.match(PY_COMPARISON_OP_RE);
+  if (!op || op.index === undefined) return null;
+  const lhs = s.slice('assert'.length, op.index).trim().replace(/\s+/g, '');
+  return lhs || null;
+}
+
+function elixirBareAssertExpr(line: string): string | null {
+  const m = line.replace(/^\+\s*/, '').match(/^assert\s+(.+)$/);
+  if (!m) return null;
+  const expr = m[1]!.trim();
+  if (PY_COMPARISON_OP_RE.test(expr)) return null; // still a comparison, not weakened
+  return expr.replace(/\s+/g, '') || null;
+}
+
+// --- Haskell (Hspec): `` LHS `shouldBe` RHS `` weakened to `` LHS `shouldSatisfy` isJust `` or
+// `` LHS `shouldNotBe` Nothing `` (same subject). Gated on .hs. Procedural split on the
+// backtick-infix token (indexOf-based), not a regex, mirroring pyAssertComparisonLhs's
+// procedural-not-regex approach for ReDoS safety.
+function haskellShouldBeLhs(line: string): string | null {
+  const s = line.replace(/^[-+]\s*/, '');
+  const idx = s.indexOf('`shouldBe`');
+  if (idx === -1) return null;
+  const lhs = s.slice(0, idx).trim();
+  return lhs ? lhs.replace(/\s+/g, '') : null;
+}
+
+function haskellWeakLhs(line: string): string | null {
+  const s = line.replace(/^\+\s*/, '');
+  const satisfyIdx = s.indexOf('`shouldSatisfy`');
+  if (satisfyIdx !== -1) {
+    const lhs = s.slice(0, satisfyIdx).trim();
+    return lhs ? lhs.replace(/\s+/g, '') : null;
+  }
+  const notBeIdx = s.indexOf('`shouldNotBe`');
+  if (notBeIdx !== -1) {
+    const lhs = s.slice(0, notBeIdx).trim();
+    return lhs ? lhs.replace(/\s+/g, '') : null;
+  }
+  return null;
+}
+
+// --- Julia (Test stdlib): `@test SUBJECT == EXPECTED` weakened to `@test !isnothing(SUBJECT)` or
+// `@test SUBJECT !== nothing` (same subject). Gated on .jl. Procedural split using the shared
+// PY_COMPARISON_OP_RE (not a bespoke lazy regex) to locate the comparison operator.
+const JULIA_TEST_RE = /@test\s+/;
+
+function juliaComparisonSubject(line: string): string | null {
+  const s = line.replace(/^[-+]\s*/, '');
+  const m = s.match(JULIA_TEST_RE);
+  if (!m || m.index === undefined) return null;
+  const rest = s.slice(m.index + m[0].length);
+  const op = rest.match(PY_COMPARISON_OP_RE);
+  if (!op || op.index === undefined) return null;
+  const subject = rest.slice(0, op.index).trim();
+  return subject ? subject.replace(/\s+/g, '') : null;
+}
+
+function juliaWeakSubject(line: string): string | null {
+  const s = line.replace(/^\+\s*/, '');
+  const m = s.match(JULIA_TEST_RE);
+  if (!m || m.index === undefined) return null;
+  const rest = s.slice(m.index + m[0].length).trim();
+  const isNothingMatch = rest.match(/^!isnothing\((.+)\)$/);
+  if (isNothingMatch) return isNothingMatch[1]!.trim().replace(/\s+/g, '');
+  const notNothingMatch = rest.match(/^(.+?)\s*!==\s*nothing$/);
+  if (notNothingMatch) return notNothingMatch[1]!.trim().replace(/\s+/g, '');
+  return null;
+}
+
+// --- Clojure (clojure.test): `(is (= SUBJECT EXPECTED))` weakened to `(is (some? SUBJECT))` or
+// bare `(is SUBJECT)`. Gated on .clj/.cljc. This is the genuinely-new S-expression shape (prefix
+// notation, whitespace-delimited, not comma-delimited) — extraction is a PROCEDURAL paren-depth
+// counter (charAt/index-loop), NOT a balanced-parens regex, per threat T-08.1-08a.
+//
+// clojure.test idiom order for `(= ...)` isn't strictly standardized (some codebases write
+// `(is (= actual expected))`, others `(is (= expected actual))` mirroring JUnit's
+// assertEquals(expected, actual)) — so both arguments of the equality are captured, and the
+// weakened side is considered a match if it preserves EITHER one, rather than assuming a fixed
+// argument position.
+const CLOJURE_EXTENSIONS = ['.clj', '.cljc'];
+
+function isClojureFile(filePath: string): boolean {
+  return CLOJURE_EXTENSIONS.some(ext => filePath.endsWith(ext));
+}
+
+function skipWs(s: string, i: number): number {
+  while (i < s.length && /\s/.test(s[i]!)) i++;
+  return i;
+}
+
+/**
+ * Read one Clojure S-expression token starting at index `i`: either a parenthesized form (walked
+ * via paren-depth tracking to its matching close, handling arbitrary nesting) or a bare
+ * whitespace/paren-delimited token. Returns the token text and the index just past it, or null.
+ * Linear-time, ReDoS-safe by construction — no regex backtracking is possible.
+ */
+function readSExprToken(s: string, i: number): { token: string; next: number } | null {
+  i = skipWs(s, i);
+  if (i >= s.length) return null;
+  const start = i;
+  if (s[i] === '(') {
+    let depth = 0;
+    for (; i < s.length; i++) {
+      if (s[i] === '(') depth++;
+      else if (s[i] === ')') {
+        depth--;
+        if (depth === 0) {
+          i++;
+          break;
+        }
+      }
+    }
+  } else {
+    for (; i < s.length; i++) {
+      if (/\s/.test(s[i]!) || s[i] === '(' || s[i] === ')') break;
+    }
+  }
+  const token = s.slice(start, i);
+  return token ? { token, next: i } : null;
+}
+
+function clojureEqualsArgs(line: string): { first: string; second: string } | null {
+  const s = line.replace(/^[-+]\s*/, '');
+  const eqIdx = s.indexOf('(=');
+  if (eqIdx === -1) return null;
+  const firstTok = readSExprToken(s, eqIdx + 2);
+  if (!firstTok) return null;
+  const secondTok = readSExprToken(s, firstTok.next);
+  if (!secondTok) return null;
+  return {
+    first: firstTok.token.replace(/\s+/g, ''),
+    second: secondTok.token.replace(/\s+/g, ''),
+  };
+}
+
+function clojureWeakSubject(line: string): string | null {
+  const s = line.replace(/^\+\s*/, '');
+  const isIdx = s.indexOf('(is');
+  if (isIdx === -1) return null;
+  const i = skipWs(s, isIdx + 3);
+  // `(some? SUBJECT)` — a parenthesized form itself (opening paren + "some?"), not a bare token.
+  if (s.startsWith('(some?', i)) {
+    const result = readSExprToken(s, i + '(some?'.length);
+    return result ? result.token.replace(/\s+/g, '') : null;
+  }
+  if (s[i] === '=') return null; // still the strong (= ...) form, not weakened
+  const result = readSExprToken(s, i);
+  return result ? result.token.replace(/\s+/g, '') : null;
+}
+
+/**
+ * Full `(is ...)` label text (for messages), procedurally paren-depth-matched to handle arbitrary
+ * nesting (e.g. `(is (= (add 2 3) 5))`) without truncation. Whitespace is collapsed to single
+ * spaces for readability, but parens are never regex-matched.
+ */
+function extractClojureIsLabel(content: string): string | null {
+  const s = content.replace(/^[-+]\s*/, '');
+  const isIdx = s.indexOf('(is');
+  if (isIdx === -1) return null;
+  let depth = 0;
+  for (let i = isIdx; i < s.length; i++) {
+    if (s[i] === '(') depth++;
+    else if (s[i] === ')') {
+      depth--;
+      if (depth === 0) return s.slice(isIdx, i + 1).replace(/\s+/g, ' ').trim();
+    }
+  }
+  return null;
+}
+
 function run(context: Context): Finding[] {
   const files = context.files;
   const findings: Finding[] = [];
@@ -704,6 +934,83 @@ function run(context: Context): Finding[] {
             verifierId: 'RH002', severity: 'error', file: filePath, line: (wa as { ln: number }).ln,
             message: `Assertion weakened from ${fromLabel} to ${toLabel}.`,
             suggestion: 'Restore the assert comparison against the expected value.',
+          });
+        }
+      }
+
+      // GROUP B (LANG-11) same-subject / natural-expression extractors.
+
+      // Elixir: assert LHS == RHS -> bare assert LHS (RHS dropped), same subject. Mirrors the
+      // Python block above exactly (byte-identical shape), gated on .ex/.exs instead of .py.
+      if (filePath.endsWith('.ex') || filePath.endsWith('.exs')) {
+        for (const del of dels) {
+          const lhs = elixirAssertComparisonLhs(del.content);
+          if (!lhs) continue;
+          const wa = adds.find(a => !reported.has((a as { ln: number }).ln) && elixirBareAssertExpr(a.content) === lhs);
+          if (!wa) continue;
+          reported.add((wa as { ln: number }).ln);
+          findings.push({
+            verifierId: 'RH002', severity: 'error', file: filePath, line: (wa as { ln: number }).ln,
+            message: 'Assertion weakened from an equality check to a bare truthiness assert (the expected value was dropped).',
+            suggestion: 'Restore the `== expected` comparison so the test checks the actual value.',
+          });
+        }
+      }
+
+      // Haskell: LHS `shouldBe` RHS -> LHS `shouldSatisfy` isJust / LHS `shouldNotBe` Nothing, same subject.
+      if (filePath.endsWith('.hs')) {
+        for (const del of dels) {
+          const lhs = haskellShouldBeLhs(del.content);
+          if (!lhs) continue;
+          const wa = adds.find(a => !reported.has((a as { ln: number }).ln) && haskellWeakLhs(a.content) === lhs);
+          if (!wa) continue;
+          reported.add((wa as { ln: number }).ln);
+          const fromLabel = extractLabel(del.content);
+          const toLabel = extractLabel(wa.content);
+          findings.push({
+            verifierId: 'RH002', severity: 'error', file: filePath, line: (wa as { ln: number }).ln,
+            message: `Assertion weakened from ${fromLabel} to ${toLabel}.`,
+            suggestion: 'Restore the `shouldBe` comparison against the expected value.',
+          });
+        }
+      }
+
+      // Julia: @test SUBJECT == EXPECTED -> @test !isnothing(SUBJECT) / @test SUBJECT !== nothing, same subject.
+      if (filePath.endsWith('.jl')) {
+        for (const del of dels) {
+          const subj = juliaComparisonSubject(del.content);
+          if (!subj) continue;
+          const wa = adds.find(a => !reported.has((a as { ln: number }).ln) && juliaWeakSubject(a.content) === subj);
+          if (!wa) continue;
+          reported.add((wa as { ln: number }).ln);
+          const fromLabel = extractLabel(del.content);
+          const toLabel = extractLabel(wa.content);
+          findings.push({
+            verifierId: 'RH002', severity: 'error', file: filePath, line: (wa as { ln: number }).ln,
+            message: `Assertion weakened from ${fromLabel} to ${toLabel}.`,
+            suggestion: 'Restore the @test comparison against the expected value.',
+          });
+        }
+      }
+
+      // Clojure: (is (= SUBJECT EXPECTED)) -> (is (some? SUBJECT)) or bare (is SUBJECT), same subject.
+      if (isClojureFile(filePath)) {
+        for (const del of dels) {
+          const args = clojureEqualsArgs(del.content);
+          if (!args) continue;
+          const wa = adds.find(a => {
+            if (reported.has((a as { ln: number }).ln)) return false;
+            const weakSubj = clojureWeakSubject(a.content);
+            return weakSubj !== null && (weakSubj === args.first || weakSubj === args.second);
+          });
+          if (!wa) continue;
+          reported.add((wa as { ln: number }).ln);
+          const fromLabel = extractLabel(del.content);
+          const toLabel = extractLabel(wa.content);
+          findings.push({
+            verifierId: 'RH002', severity: 'error', file: filePath, line: (wa as { ln: number }).ln,
+            message: `Assertion weakened from ${fromLabel} to ${toLabel}.`,
+            suggestion: 'Restore the (is (= ...)) comparison against the expected value.',
           });
         }
       }

@@ -5,6 +5,14 @@ export interface AgentAdapter {
   relativePath: string;
   /** true if this agent also gets a bench AgentRunner wired up */
   scriptable: boolean;
+  /**
+   * Optional per-format transform applied to the canonical SKILL.md content before writing.
+   * MUST be a pure function of the canonical string — never hardcode ruleset prose here.
+   * Transforms may only wrap/prefix static format scaffolding (e.g. YAML frontmatter) around
+   * the canonical content; they must never mutate, omit, or duplicate the ruleset body itself.
+   * If absent, the adapter gets a byte-for-byte verbatim copy (current default behavior).
+   */
+  transform?: (canonical: string) => string;
 }
 
 // Single source of truth: agent id, deployment path, and whether the bench harness can drive it.

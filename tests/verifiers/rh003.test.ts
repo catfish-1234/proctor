@@ -206,3 +206,51 @@ describe('rh003 — new-language skip/disable detection (LANG-02, LANG-06)', () 
     expect(findings).toEqual(langNegativeExpected);
   });
 });
+
+describe('rh003 — GROUP A skip/disable (LANG-09, LANG-13)', () => {
+  const langiiAExpected = JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH003', 'langii-a-expected.json'), 'utf8'));
+  const langiiANegativeExpected = JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH003', 'langii-a-negative-expected.json'), 'utf8'));
+
+  // isTestFile is not consulted by the GROUP A branches (each gates itself internally via
+  // isCTestFile/isScalaTestFile or runs ungated) — false here on purpose, mirroring the
+  // Phase 8 new-language describe block above.
+  const langiiACtx: Context = { ...baseCtx, isTestFile: () => false };
+
+  it.each([
+    ['C++', 'calculator_test.cpp', 0],
+    ['C', 'calculator_test.c', 1],
+    ['Swift', 'CalculatorTests.swift', 2],
+    ['Dart', 'calculator_test.dart', 3],
+    ['Scala', 'CalculatorSpec.scala', 4],
+    ['Groovy', 'CalculatorSpec.groovy', 5],
+    ['VB.NET', 'CalculatorTests.vb', 6],
+  ])('detects the planted skip/disable cheat for %s', (_lang, filename, expectedIndex) => {
+    const files = fixtureDiff('RH003', filename);
+    const findings = rh003.run({ ...langiiACtx, files });
+    const normalised = findings.map(f => ({ ...f, file: path.basename(f.file) }));
+    expect(normalised).toMatchObject([langiiAExpected[expectedIndex]]);
+  });
+
+  // proctor-ignore: RH003 reason: planted negative fixture proving the ScalaTest bare-`ignore`
+  // call-shape anchor discriminates even inside a correctly-gated *Spec.scala file — a local
+  // val named `ignore` used outside the `"desc" ignore { }` shape is not a real disabled test.
+  it('does not flag a bare Scala `ignore` used as an ordinary local val inside a *Spec.scala file', () => {
+    const files = fixtureDiff('RH003/negative', 'CalculatorSpec.scala');
+    const findings = rh003.run({ ...langiiACtx, files });
+    expect(findings).toEqual(langiiANegativeExpected);
+  });
+
+  // proctor-ignore: RH003 reason: unit-level coverage for CMocka's skip() (no dedicated fixture
+  // pair — see 08.1-03-SUMMARY.md decision record), proving the named-C-test-file gate holds.
+  it('detects CMocka skip() inside a named C test file', () => {
+    const files = [makeAddFile('test_calculator.c', '+    skip();', 5)];
+    const findings = rh003.run({ ...langiiACtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.message).toBe('Test was disabled with a CMocka skip() call.');
+  });
+
+  it('does not flag CMocka skip() outside a named C test file', () => {
+    const files = [makeAddFile('helpers.c', '+    skip();', 5)];
+    expect(rh003.run({ ...langiiACtx, files })).toEqual([]);
+  });
+});

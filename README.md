@@ -185,7 +185,7 @@ pattern to hardcode) or would open up a new way to sneak a cheat past a wider ne
 - **A reason you haven't written down yet.** Proctor reads diffs, not intent. It can't know why a
   snapshot changed or why a test's timeout grew unless that reason is somewhere it can actually
   read. This isn't a bug: if you have a good reason, say so with the
-  [inline marker](#inline-suppression), and it's respected immediately, no separate commit needed.
+  [inline marker](#inline-suppression) in a prior commit, before the change it justifies.
 
 ## CLI reference
 
@@ -306,8 +306,7 @@ is reported on stderr and flagged by `RH007`, but not honored until it lands.
 
 If a finding is a false alarm, or you have a good reason for what looks like a cheat, mark it with
 a comment right in the code. This works for any check, including `RH006` (a snapshot change with a
-stated reason) and `RH010` (a genuinely slow test that needs a longer timeout). You can add the
-comment in the same commit as the change it's justifying, no separate commit required:
+stated reason) and `RH010` (a genuinely slow test that needs a longer timeout):
 
 ```ts
 // proctor-ignore: RH003 reason: intentionally skipped, tracked in JIRA-1234
@@ -321,9 +320,19 @@ def test_migration_runs():
     ...
 ```
 
+**The marker must predate the diff.** A `proctor-ignore` comment only counts as justification if
+it already existed in the base version, as an unchanged line before this diff, not one added in
+the same commit as the change it excuses. This is deliberate: without it, the same agent making a
+cheat could just as easily fabricate a plausible-sounding excuse for it in the same breath, since
+nothing would distinguish "a pre-declared, genuine exception" from "a self-issued excuse invented
+after the fact." Requiring the marker to predate the diff means a genuine exception has to be
+committed before the change it justifies, in a separate, prior commit, closing that self-approval
+loophole without requiring a human to review anything in real time.
+
 A plain comment with no `proctor-ignore:` marker never counts as justification on its own, since
 that would be trivial to fake. The marker is a deliberate, structured thing to type, similar in
-spirit to a `--no-verify` flag: it's there when you need it, but you won't type it by accident.
+spirit to a `--no-verify` flag: it's there when you need it, but you won't type it by accident, and
+now it also can't be typed and immediately cashed in the same breath.
 
 ## CI and GitHub Actions
 

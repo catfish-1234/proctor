@@ -347,3 +347,54 @@ describe('rh011 — new-language suppression-spam fixtures (LANG-06)', () => {
     expect(normalised.length).toBe(2);
   });
 });
+
+describe('rh011 — GROUP A new-language suppression-spam fixtures (LANG-12, LANG-13)', () => {
+  // Fixtures live under fixtures/RH011/lang2/{before,after}/ — a distinct subdirectory from
+  // Phase 8's fixtures/RH011/lang/ (LANG-06/07) so this diff doesn't collide with either the
+  // flat fixtures/RH011/before-vs-after true-positive assertion in fixtures-p3.test.ts, or with
+  // Phase 8's lang/ fixtures, per 08.1-RESEARCH.md's Wave 0 Gaps note and the 08-05 collision
+  // precedent.
+  const expected: Array<{ file: string; line: number; message: string }> = JSON.parse(
+    readFileSync(path.join(FIXTURES_DIR, 'RH011', 'lang2-expected.json'), 'utf8'),
+  );
+
+  const LINE_SCOPED_FIXTURES = [
+    'Calculator.cpp',
+    'Calculator.c',
+    'Calculator.m',
+    'Calculator.swift',
+    'Calculator.dart',
+    'Calculator.scala',
+    'CalculatorSpec.groovy',
+    'Calculator.vb',
+  ];
+
+  it.each(LINE_SCOPED_FIXTURES)('%s: fixture diff yields exactly the two expected line-scoped RH011 findings', (filename) => {
+    const files = fixtureDiff('RH011/lang2', filename);
+    const findings = rh011.run({ ...baseCtx, files });
+    const normalised = findings.map(f => ({ ...f, file: path.basename(f.file) }));
+    const expectedEntries = expected.filter(e => e.file === filename);
+    expect(expectedEntries.length).toBe(2);
+    expect(normalised).toEqual(expect.arrayContaining(expectedEntries));
+    expect(normalised.length).toBe(2);
+  });
+
+  const FILEWIDE_FIXTURES = ['CalculatorFilewide.swift', 'CalculatorFilewide.dart'];
+
+  it.each(FILEWIDE_FIXTURES)('%s: fixture diff yields exactly the one expected unconditional file-wide RH011 finding', (filename) => {
+    const files = fixtureDiff('RH011/lang2', filename);
+    const findings = rh011.run({ ...baseCtx, files });
+    const normalised = findings.map(f => ({ ...f, file: path.basename(f.file) }));
+    const expectedEntries = expected.filter(e => e.file === filename);
+    expect(expectedEntries.length).toBe(1);
+    expect(normalised).toEqual(expectedEntries);
+    expect(normalised[0].message).toContain('File-wide');
+  });
+
+  it('CalculatorSpec.groovy: the .groovy reuse fixture yields exactly its two @SuppressWarnings findings with no new code (reuse proof)', () => {
+    const files = fixtureDiff('RH011/lang2', 'CalculatorSpec.groovy');
+    const findings = rh011.run({ ...baseCtx, files });
+    expect(findings.length).toBe(2);
+    expect(findings.every(f => f.file.endsWith('.groovy'))).toBe(true);
+  });
+});

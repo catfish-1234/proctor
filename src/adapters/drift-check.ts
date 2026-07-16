@@ -59,6 +59,15 @@ export async function checkAdapterDrift(
       // hold user-owned content that install-skill deliberately declined to overwrite — that's
       // not proctor drift, it's install-skill's collision guard working as intended. Only
       // non-guarded adapters are flagged when their deployed content diverges from expected.
+      //
+      // KNOWN LIMITATION: this can't distinguish that legitimate case from a guardExisting path
+      // that install-skill DID successfully write (destination was absent or already matched at
+      // install time) and that has since been tampered with — both look identical from content
+      // alone (deployed != expected). Closing this gap for real would need install-skill to
+      // persist which guardExisting paths it actually wrote vs. skipped (a provenance record),
+      // which doesn't exist today. Until that lands, a guardExisting adapter's drift is silently
+      // unverifiable either way — err on not flagging, since a false "drifted" on the common,
+      // correct collision case is worse than a missed true positive on the rare tampered case.
       if (!adapter.guardExisting) {
         drifted.push(path);
       }

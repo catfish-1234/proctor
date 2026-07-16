@@ -1,0 +1,66 @@
+[
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "calculator_test.cpp",
+    "line": 1,
+    "message": "Test file 'calculator_test.cpp' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "calculator_test.c",
+    "line": 1,
+    "message": "Test file 'calculator_test.c' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "CalculatorTests.swift",
+    "line": 1,
+    "message": "Test file 'CalculatorTests.swift' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "CalculatorTests.m",
+    "line": 1,
+    "message": "Test file 'CalculatorTests.m' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "calculator_test.dart",
+    "line": 1,
+    "message": "Test file 'calculator_test.dart' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "CalculatorSpec.scala",
+    "line": 1,
+    "message": "Test file 'CalculatorSpec.scala' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "CalculatorSpec.groovy",
+    "line": 1,
+    "message": "Test file 'CalculatorSpec.groovy' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "CalculatorTests.vb",
+    "line": 1,
+    "message": "Test file 'CalculatorTests.vb' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  }
+]

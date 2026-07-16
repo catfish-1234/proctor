@@ -22,7 +22,12 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'Detects a specific-value assertion softened into a vague check (e.g. toBe(x) to toBeDefined()), an exact value replaced by an ordering comparison on the same subject, ' +
       'or numeric comparison precision/tolerance widened. Also covers the Python forms: a `assert x == y` reduced to a bare `assert x` (the expected value dropped), and an assertEqual ' +
       'swapped for a vaguer matcher (assertIsNotNone/assertGreater/...) on the same value. Also covers Go (testify), Java/Kotlin (JUnit/kotlin.test/AssertJ/Kotest), Rust (assert_eq!/assert!), ' +
-      'Ruby (RSpec/Minitest), PHP (PHPUnit), and C# (xUnit/NUnit/MSTest). Go coverage is testify-only; stdlib comparison-weakening is not pattern-matched.',
+      'Ruby (RSpec/Minitest), PHP (PHPUnit), and C# (xUnit/NUnit/MSTest). Go coverage is testify-only; stdlib comparison-weakening is not pattern-matched. ' +
+      'Also covers C++ (Google Test, Boost.Test, Catch2), C (Unity, CMocka, Check), Swift/Objective-C (a shared XCTest pattern, plus Swift Testing), Dart (expect()), ' +
+      'Scala (ScalaTest assert(), munit via the existing Java/Kotlin bare pattern), VB.NET and Groovy (reused, zero new code, via the existing C#/Java patterns), ' +
+      'Perl (Test::More), R (testthat), Haskell (Hspec shouldBe), Elixir (ExUnit, ported from the Python pattern), Lua (busted), Clojure ((is (= x y)) S-expressions), ' +
+      'Shell/Bash (bats-assert), and Julia (the Test stdlib). Groovy\'s Spock power-assert (`expect:`/`then:` bare `==`) is not covered, no reliable single-line syntactic anchor exists. ' +
+      'Shell/Bash\'s native `[ ]` test form is not covered either, only the bats-assert helper library is, the native form is too pervasive in ordinary shell control flow to anchor safely.',
     defaultLevel: 'error',
     helpUri: 'https://github.com/catfish-1234/proctor#rh002',
   },
@@ -33,7 +38,13 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'Detects a test removed from the run without deleting its source. JS/TS: .skip/.only, xit/xdescribe, fit/fdescribe/xtest, .todo, a bracket-notation skip, or a commented-out test. ' +
       'Python: @pytest.mark.skip/skipif/xfail, a module-level pytestmark, __test__ = False, @unittest.skip, a commented-out test, and imperative runtime skips (pytest.skip/self.skipTest/SkipTest ' +
       'inside a named test module). Also covers Go (t.Skip/b.Skip), Java/Kotlin (@Disabled/@Ignore), Rust (#[ignore]), Ruby (xit/xdescribe, skip/pending), PHP (markTestSkipped/markTestIncomplete), ' +
-      'and C# (Fact(Skip=...)/[Ignore]). Kotest\'s `enabled = false` skip form is not covered.',
+      'and C# (Fact(Skip=...)/[Ignore]). Kotest\'s `enabled = false` skip form is not covered. ' +
+      'Also covers C++ (GTEST_SKIP, DISABLED_ prefix, Catch2 SKIP()/hide tag, Boost.Test disabled()), C (Unity TEST_IGNORE, CMocka skip()), Swift (XCTSkip family, Swift Testing .disabled), ' +
+      'Dart (@Skip, skip: parameter), Scala (@Ignore, munit .ignore/@IgnoreSuite, ScalaTest bare ignore), Groovy (@Ignore reused, plus Spock @IgnoreRest/@PendingFeature), ' +
+      'VB.NET (<Ignore>/<Fact(Skip:=...)>), Perl (SKIP:/TODO: blocks), R (skip()/skip_if()/skip_on_cran()), Haskell (xit/xdescribe family, pendingWith/pending), ' +
+      'Elixir (@tag :skip/@moduletag :skip), Lua (busted pending()), Clojure (kaocha ^:kaocha/skip), Shell/Bash (bats bare skip), and Julia (@test_skip, skip= parameter). ' +
+      'Objective-C has no RH003 coverage at all, Apple\'s own documentation confirms XCTSkip/XCTSkipIf/XCTSkipUnless are Swift-only APIs. C\'s Check framework has no skip mechanism, ' +
+      'only CMocka\'s is covered. Clojure\'s Leiningen :test-selectors and Shell/Bash\'s shunit2 startSkipping/endSkipping are not covered, both are stateful, non-local mechanisms a diff-line regex cannot reliably resolve.',
     defaultLevel: 'error',
     helpUri: 'https://github.com/catfish-1234/proctor#rh003',
   },
@@ -73,7 +84,12 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'Detects a test path ignore pattern added to test-runner or CI configuration, excluding tests from execution without touching the test files themselves. ' +
       'Also warns when proctor.config.json enforcement settings (enabled, ignorePatterns, severity, testPathGlobs, snapshotGlobs) are modified in a change. The running check still ' +
       'enforces the committed configuration, but the edit changes what future runs enforce. ' +
-      'Also covers Java (Maven pom.xml, Gradle build.gradle(.kts)), Rust (Cargo.toml), Ruby (.rspec), PHP (phpunit.xml), C# (.runsettings), and Kotlin (Gradle build.gradle.kts). Go has no dedicated exclusion config file, so it is detected instead as a build tag (//go:build or // +build) newly added to an existing _test.go file.',
+      'Also covers Java (Maven pom.xml, Gradle build.gradle(.kts)), Rust (Cargo.toml), Ruby (.rspec), PHP (phpunit.xml), C# (.runsettings), and Kotlin (Gradle build.gradle.kts). Go has no dedicated exclusion config file, so it is detected instead as a build tag (//go:build or // +build) newly added to an existing _test.go file. ' +
+      'Also covers C++/C (CMake CMakeLists.txt set_tests_properties DISABLED), Swift/Objective-C (*.xctestplan skippedTests), Dart (dart_test.yaml exclude_tags/skip:), Scala (build.sbt Tests.Exclude/Tests.Argument), ' +
+      'VB.NET and Groovy (reused, zero new code, via the existing C#/Kotlin patterns), R (.Rbuildignore, warn only, excludes from the package build rather than the test run specifically), ' +
+      'Haskell (*.cabal buildable: False, gated to a test-suite stanza), Elixir (test_helper.exs ExUnit.start(exclude:...)), and Lua (.busted exclude-tags). ' +
+      'Clojure\'s project.clj :test-selectors is warn only, the selector value is an arbitrary function form so only the key-touched signal is reliable. Perl, Shell/Bash, and Julia have no RH007 coverage at all, ' +
+      'none has a dedicated exclusion config file or a safe structural analogue.',
     defaultLevel: 'error',
     helpUri: 'https://github.com/catfish-1234/proctor#rh007',
   },
@@ -111,7 +127,12 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'Detects @ts-ignore/@ts-expect-error, `# type: ignore`, `# noqa`, `eslint-disable`, or `# pylint: disable` comments added to silence errors instead of fixing them. ' +
       'Fires when 2 or more per-line suppressions are added in the same change (a single per-line suppression is often a legitimate, justified exception), OR when even a single ' +
       'file-wide directive is added (a whole-file TypeScript nocheck, a blanket ESLint disable with no rule list, or a file-level flake8 noqa), since those silence every rule for the whole file. ' +
-      'Also covers Go (//nolint), Java (@SuppressWarnings), Kotlin (@Suppress / file-wide @file:Suppress), Rust (#[allow(...)] / file-wide #![allow(...)]), Ruby (# rubocop:disable/enable), PHP (phpcs:ignore / file-wide phpcs:ignoreFile), and C# (#pragma warning disable). Go\'s file-wide //nolint, Ruby\'s unclosed rubocop:disable, and C#\'s unrestored #pragma warning disable are not detected, they require forward-scanning past the diff line.',
+      'Also covers Go (//nolint), Java (@SuppressWarnings), Kotlin (@Suppress / file-wide @file:Suppress), Rust (#[allow(...)] / file-wide #![allow(...)]), Ruby (# rubocop:disable/enable), PHP (phpcs:ignore / file-wide phpcs:ignoreFile), and C# (#pragma warning disable). Go\'s file-wide //nolint, Ruby\'s unclosed rubocop:disable, and C#\'s unrestored #pragma warning disable are not detected, they require forward-scanning past the diff line. ' +
+      'Also covers C++/C/Objective-C (a shared clang-tidy NOLINT family, clang pragma, cppcheck-suppress), Swift (swiftlint:disable, plus file-wide swiftlint:disable all), Dart (ignore:, plus file-wide ignore_for_file:), ' +
+      'Scala (@nowarn, scalafix:ok, plus @SuppressWarnings reused from Java), Groovy (@SuppressWarnings reused, zero new code), VB.NET (#Disable Warning, a genuinely new token distinct from C#\'s pragma), ' +
+      'Perl (## no critic), R (# nolint), Haskell (declaration-scoped {-# ANN ... HLint: ignore #-}, plus a file-wide module directive), Elixir (credo:disable-for-next-line/previous-line/lines:N, plus file-wide credo:disable-for-this-file), ' +
+      'Lua (luacheck: ignore), Clojure (#_{:clj-kondo/ignore [...]}), and Shell/Bash (shellcheck disable=SC####). VB.NET, Perl, R, Lua, Clojure, and Shell/Bash coverage is line-scoped only, each language\'s file-wide or unclosed-suppression form ' +
+      'requires forward-scanning past the diff line, which proctor\'s line-level model doesn\'t do. Julia has no RH011 coverage at all, no dominant inline-suppression convention was found.',
     defaultLevel: 'warning',
     helpUri: 'https://github.com/catfish-1234/proctor#rh011',
   },

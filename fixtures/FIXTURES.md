@@ -196,6 +196,173 @@ counting these fixtures' suppressions alongside the pre-existing `parser.ts` fix
 **Negative fixtures:** none for the new languages (a single suppression, below the
 `SPAM_THRESHOLD = 2`, is already covered generically by the existing RH011 negative fixture).
 
+## Language Expansion II (LANG-13)
+
+New-language fixtures added across Plans 08.1-02 through 08.1-10, one planted cheat per RH-ID per
+language for the 16 languages added in this phase (C++, C, Swift, Objective-C, Dart, Scala, Perl,
+R, Haskell, Elixir, Lua, Groovy, Clojure, Shell/Bash, Julia, VB.NET), proving the RH001/002/003/
+007/011 extensions against genuine, idiomatic source in each language rather than toy strings.
+
+### RH001 (Plan 08.1-02)
+
+**Location:** `fixtures/RH001/before/` (flat, alongside the Phase 8 fixtures) + `fixtures/RH001/langii-expected.json`
+
+Whole-file-deletion cheat only (RH001 Path 1), same scope decision as Phase 8's LANG-06 index.
+
+| Language | File | Framework | Cheat |
+|----------|------|-----------|-------|
+| C++ | `calculator_test.cpp` | Google Test | whole file deleted |
+| C | `calculator_test.c` | Unity | whole file deleted |
+| Swift | `CalculatorTests.swift` | XCTest | whole file deleted |
+| Objective-C | `CalculatorTests.m` | XCTest | whole file deleted |
+| Dart | `test/calculator_test.dart` | `package:test` | whole file deleted |
+| Scala | `CalculatorSpec.scala` | ScalaTest | whole file deleted |
+| Groovy | `CalculatorSpec.groovy` | Spock | whole file deleted |
+| VB.NET | `CalculatorTests.vb` | NUnit | whole file deleted |
+| Perl | `t/calculator.t` | Test::More | whole file deleted |
+| R | `tests/testthat/test-calculator.R` | testthat | whole file deleted |
+| Haskell | `test/CalculatorSpec.hs` | Hspec | whole file deleted |
+| Elixir | `test/calculator_test.exs` | ExUnit | whole file deleted |
+| Lua | `calculator_spec.lua` | busted | whole file deleted |
+| Clojure | `test/calculator_test.clj` | clojure.test | whole file deleted |
+| Shell/Bash | `calculator_test.bats` | bats-core | whole file deleted |
+| Julia | `test/runtests.jl` | Test stdlib | whole file deleted |
+
+**Negative fixtures:** none, same rationale as Phase 8's RH001 index (no ambiguous near-miss case
+worth planting for a whole-file deletion).
+
+### RH002 (Plans 08.1-07, 08.1-08)
+
+**Location:** `fixtures/RH002/before/` and `after/` (flat) + `fixtures/RH002/langii-a-expected.json` (GROUP A) and `langii-b-expected.json` (GROUP B)
+
+| Language | File | Framework | Cheat |
+|----------|------|-----------|-------|
+| C++ | `calculator_test.cpp` | Catch2 (same-subject) | `REQUIRE(result == 3)` weakened to `REQUIRE(result)` |
+| C | `calculator_test.c` | Unity (flat) | `TEST_ASSERT_EQUAL_INT(3, result)` weakened to `TEST_ASSERT_TRUE(result)` |
+| Swift | `CalculatorTests.swift` | Swift Testing (same-subject) | `#expect(result == 3)` weakened to `#expect(result != nil)` |
+| Objective-C | `CalculatorTests.m` | XCTest (flat, shared pattern with Swift) | `XCTAssertEqual` weakened to `XCTAssertTrue` |
+| Dart | `test/calculator_test.dart` | `package:test` (same-subject) | `expect(result, equals(3))` weakened to `expect(result, isNotNull)` |
+| Scala | `CalculatorSpec.scala` | ScalaTest (same-subject) | `assert(result == "3")` weakened to `assert(result != null)` |
+| Groovy | `CalculatorSpec.groovy` | reused from Java bare pattern | `assertEquals`/`assertNotNull` (zero new code) |
+| VB.NET | `CalculatorTests.vb` | reused from C# pattern | `Assert.AreEqual`/`Assert.IsNotNull` (zero new code) |
+| Perl | `t/calculator.t` | Test::More (flat) | `is(...)` weakened to `ok(...)` |
+| R | `test-calculator.R` | testthat (flat) | `expect_equal(...)` weakened to `expect_true(...)` |
+| Haskell | `CalculatorSpec.hs` | Hspec (same-subject, backtick-infix) | `` `shouldBe` `` weakened to `shouldSatisfy isJust` |
+| Elixir | `calculator_test.exs` | ExUnit (same-subject, ported from Python) | `assert x == y` weakened to bare `assert x` |
+| Lua | `calculator_spec.lua` | busted (flat) | `assert.are.equal(...)` weakened to `assert.is_truthy(...)` |
+| Clojure | `calculator_test.clj` | clojure.test (same-subject, S-expression) | `(is (= (add 2 3) 5))` weakened to `(is (some? (add 2 3)))` |
+| Shell/Bash | `calculator_test.bats` | bats-assert (flat) | `assert_equal` weakened to `assert_success`/`assert_not_equal` |
+| Julia | `calculator_test.jl` | Test stdlib (same-subject) | `@test x == y` weakened to `@test x !== nothing` |
+
+**Negative fixtures:** `fixtures/RH002/before/calculator_negative.exs` and `after/calculator_negative.exs`
+(a standalone bare `assert result` with no prior comparison deletion, proving same-subject pairing
+rather than bare-pattern matching), recorded in `langii-b-negative-expected.json`.
+
+**Documented gaps:** Groovy's Spock power-assert (bare `==` inside `expect:`/`then:` blocks) has
+no dedicated fixture, no reliable single-line syntactic anchor exists. Shell/Bash's native
+`[ "$a" = "$b" ]` same-subject form has no dedicated fixture either, proven instead by a unit-level
+negative test (too pervasive in ordinary shell control flow to anchor safely).
+
+### RH003 (Plans 08.1-03, 08.1-04)
+
+**Location:** `fixtures/RH003/before/` and `after/` (flat) + `fixtures/RH003/langii-a-expected.json` (GROUP A) and `langii-b-expected.json` (GROUP B)
+
+| Language | File | Framework | Cheat |
+|----------|------|-----------|-------|
+| C++ | `calculator_test.cpp` | Google Test | `GTEST_SKIP()` added |
+| C | `calculator_test.c` | Unity | `TEST_IGNORE()` added |
+| Swift | `CalculatorTests.swift` | XCTest | `XCTSkip` added |
+| Dart | `calculator_test.dart` | `package:test` | `skip: true` param added |
+| Scala | `CalculatorSpec.scala` | ScalaTest FlatSpec | bare `ignore` added |
+| Groovy | `CalculatorSpec.groovy` | reused `@Ignore` (Java/Kotlin) | `@Ignore` added |
+| VB.NET | `CalculatorTests.vb` | NUnit | `<Ignore>` added |
+| Perl | `t/calculator.t` | Test::More | `SKIP:` block label added |
+| R | `tests/testthat/test-calculator.R` | testthat | `skip()` added |
+| Haskell | `CalculatorSpec.hs` | Hspec | `xit` added |
+| Elixir | `calculator_test.exs` | ExUnit | `@tag :skip` added |
+| Lua | `calculator_spec.lua` | busted | `pending(...)` added |
+| Clojure | `calculator_test.clj` | clojure.test/kaocha | `^:kaocha/skip` metadata added |
+| Shell/Bash | `calculator.bats` | bats-core | bare `skip` statement added |
+| Julia | `runtests.jl` | Test stdlib | `@test_skip` added |
+
+**Negative fixtures:** `fixtures/RH003/negative/{before,after}/CalculatorSpec.scala` (bare Scala
+`ignore` used as a local `val`, not the FlatSpec DSL shape, inside a correctly-gated `*Spec.scala`
+file), plus GROUP B's `skip_helpers.R`, `TaskQueue.hs`, `task_queue.lua`, and `deploy.sh` (each
+proving a bare-word gate discriminates a legitimate identically-named identifier/function outside
+the gated test-file convention). All assert zero findings.
+
+**Documented gaps:** Objective-C has no RH003 coverage at all (Apple's own XCTest documentation
+confirms `XCTSkip`/`XCTSkipIf`/`XCTSkipUnless` are Swift-only APIs). C's Check framework has no
+skip mechanism, only CMocka's `skip()` is covered (proven via 2 unit tests, not a dedicated
+fixture, since the plan's fixture list already committed to Unity's `TEST_IGNORE`). Clojure's
+Leiningen `:test-selectors` and Shell/Bash's shunit2 `startSkipping`/`endSkipping` are not covered,
+both are stateful/non-local mechanisms a diff-line regex cannot reliably resolve.
+
+### RH007 (Plans 08.1-05, 08.1-06)
+
+**Location:** `fixtures/RH007/before/` and `after/` (flat) + `fixtures/RH007/langii-a-expected.json` (GROUP A) and `langii-b-expected.json` (GROUP B)
+
+| Language | File | Mechanism | Cheat |
+|----------|------|-----------|-------|
+| C++/C | `CMakeLists.txt` | CTest | `set_tests_properties(... DISABLED TRUE)` added |
+| Swift/Objective-C | `Calculator.xctestplan` | Apple test plan | `skippedTests` entry added |
+| Dart | `dart_test.yaml` | dart-lang/test config | `exclude_tags: slow` added |
+| Scala | `build.sbt` | sbt | `Tests.Exclude(...)` added |
+| VB.NET | `VisualBasicTests.runsettings` | reused from C# pattern | `TestCaseFilter` added (zero new code) |
+| Groovy | `build.gradle` | reused from Kotlin/Gradle pattern | `filter { excludeTestsMatching(...) }` added (zero new code) |
+| R | `.Rbuildignore` | R package build-ignore | test-like exclusion regex line added |
+| Haskell | `calculator.cabal` | Cabal | `buildable: False` added (gated to a `test-suite` stanza) |
+| Elixir | `test_helper.exs` | ExUnit bootstrap | `ExUnit.start(exclude: [:integration])` added |
+| Lua | `.busted` | busted config | `["exclude-tags"] = {"integration"}` added |
+| Clojure | `project.clj` | Leiningen | `:test-selectors {:default (complement :integration)}` added |
+
+**Negative fixtures:** `fixtures/RH007/negative/{before,after}/calculator-library.cabal` (a
+library-only Cabal stanza, proving the `test-suite`-stanza gate holds, zero findings).
+
+**Documented gaps:** Perl, Shell/Bash, and Julia have no RH007 coverage at all, none has a
+dedicated exclusion config file or a safe structural analogue (Julia's `Pkg.test()`/`runtests.jl`
+script-inclusion model is architecturally closer to RH001 than RH007 and was deferred to a future
+phase). Clojure's `project.clj` `:test-selectors` is warn-only, the selector value is an arbitrary
+function form so only the key-touched signal is reliable, not narrowing-vs-widening.
+
+### RH011 (Plans 08.1-09, 08.1-10)
+
+**Location:** `fixtures/RH011/lang2/before/` and `fixtures/RH011/lang2/after/` (nested under
+`lang2/`, a sibling of Phase 8's `lang/`, keeping `tests/fixtures-p3.test.ts`'s whole-directory
+RH011 diff assertion from counting these fixtures) + `fixtures/RH011/lang2-expected.json` (GROUP A)
+and `lang2b-expected.json` (GROUP B)
+
+| Language | File | Cheat |
+|----------|------|-------|
+| C++ | `Calculator.cpp` | `NOLINT` comment added (shared clang-tidy pattern) |
+| C | `Calculator.c` | `cppcheck-suppress` comment added |
+| Objective-C | `Calculator.m` | `#pragma clang diagnostic ignored` added |
+| Swift | `Calculator.swift` / `CalculatorFilewide.swift` | `swiftlint:disable` line + file-wide `swiftlint:disable all` |
+| Dart | `Calculator.dart` / `CalculatorFilewide.dart` | `ignore:` line + file-wide `ignore_for_file:` |
+| Scala | `Calculator.scala` | `@nowarn` added |
+| Groovy | `CalculatorSpec.groovy` | reused `@SuppressWarnings` (zero new code) |
+| VB.NET | `Calculator.vb` | `#Disable Warning` added (genuinely new token, distinct from C#'s pragma) |
+| Perl | `Calculator.pl` | `## no critic` added |
+| R | `Calculator.R` | `# nolint` added |
+| Haskell | `Calculator.hs` / `CalculatorFilewide.hs` | declaration-scoped `{-# ANN ... HLint: ignore #-}` + file-wide module directive |
+| Elixir | `Calculator.ex` / `CalculatorFilewide.ex` | `# credo:disable-for-next-line` + file-wide `# credo:disable-for-this-file` |
+| Lua | `Calculator.lua` | `-- luacheck: ignore` added |
+| Clojure | `Calculator.clj` | `#_{:clj-kondo/ignore [...]}` added |
+| Shell/Bash | `Calculator.sh` | `# shellcheck disable=SC####` added |
+
+**Negative fixtures:** none dedicated (a single suppression, below `SPAM_THRESHOLD = 2`, is already
+covered generically by the existing RH011 negative fixture); Julia's whole-category gap is instead
+proven by a unit test asserting a lint-comment-*shaped* (not real Julia syntax) diff produces zero
+findings, ruling out an accidental cross-language pattern collision.
+
+**Documented gaps:** Julia has no RH011 coverage at all (a whole-category gap), no dominant
+inline-suppression convention was found across the ecosystem. VB.NET, Perl, R, Lua, Clojure, and
+Shell/Bash coverage is line-scoped only, each language's file-wide or unclosed-suppression form
+(VB.NET's unclosed `#Disable Warning`, Perl's unclosed `## no critic`, R's `.lintr`-based
+whole-file exclusion, Lua's fragile own-line-at-file-top form, Clojure's
+`.clj-kondo/config.edn`-based whole-file exclusion, and Shell/Bash's structural absence of any
+inline file-wide directive) would require forward-scanning past the diff line.
+
 ## Pre-classifier Fixtures
 
 Located in `fixtures/preclass/`. Each is a raw git diff string used to test the pre-classifier's rejection logic.

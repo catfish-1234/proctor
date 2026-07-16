@@ -221,6 +221,99 @@ describe('RH002 — new-language flat matcher pairs (LANG-04)', () => {
   });
 });
 
+describe('RH002 — GROUP A flat matcher pairs + shared XCTest + reuse (LANG-11)', () => {
+  it('C++ Google Test: EXPECT_EQ -> EXPECT_TRUE is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.cpp',
+      '-    EXPECT_EQ(3, result);',
+      '+    EXPECT_TRUE(result);',
+    ) });
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.verifierId).toBe('RH002');
+  });
+
+  it('C++ Google Test: EXPECT_NE(x, nullptr) is a recognized weak add', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.cpp',
+      '-    ASSERT_EQ(ptr, expected);',
+      '+    EXPECT_NE(ptr, nullptr);',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('C++ Boost.Test: BOOST_CHECK_EQUAL -> BOOST_CHECK is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.cpp',
+      '-    BOOST_CHECK_EQUAL(result, 3);',
+      '+    BOOST_CHECK(result);',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('C Unity: TEST_ASSERT_EQUAL_INT -> TEST_ASSERT_TRUE is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.c',
+      '-    TEST_ASSERT_EQUAL_INT(3, result);',
+      '+    TEST_ASSERT_TRUE(result);',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('C CMocka: assert_int_equal -> assert_non_null is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.c',
+      '-    assert_int_equal(result, 3);',
+      '+    assert_non_null(&result);',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('C Check: ck_assert_int_eq -> ck_assert is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.c',
+      '-    ck_assert_int_eq(result, 3);',
+      '+    ck_assert(result);',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('XCTest (Swift): XCTAssertEqual -> XCTAssertNotNil is caught (shared pair, .swift)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorTests.swift',
+      '-        XCTAssertEqual(result, 3)',
+      '+        XCTAssertNotNil(result)',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('XCTest (Objective-C): XCTAssertEqual -> XCTAssertTrue is caught (shared pair, .m)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorTests.m',
+      '-    XCTAssertEqual(result, 3);',
+      '+    XCTAssertTrue(result);',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('reuse (zero new code): VB.NET .vb Assert.AreEqual -> Assert.IsNotNull is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorTests.vb',
+      '-        Assert.AreEqual(3, result)',
+      '+        Assert.IsNotNull(result)',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('reuse (zero new code): Groovy .groovy assertEquals -> assertNotNull is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorSpec.groovy',
+      '-        assertEquals(3, result)',
+      '+        assertNotNull(result)',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+});
+
 describe('RH002 — same-subject / macro weakening for Rust, Ruby, AssertJ (LANG-04)', () => {
   it('Rust: assert_eq!(result, 3) -> assert!(result.is_some()) is caught (same subject)', () => {
     const findings = rh002.run({ ...baseCtx, files: pairAt(
@@ -310,6 +403,111 @@ describe('RH002 — same-subject / macro weakening for Rust, Ruby, AssertJ (LANG
   });
 });
 
+describe('RH002 — GROUP A same-subject extractors: Catch2, Swift Testing, Dart, Scala (LANG-11)', () => {
+  it('Catch2: REQUIRE(result == 3) -> REQUIRE(result) is caught (same subject)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.cpp',
+      '-    REQUIRE(result == 3);',
+      '+    REQUIRE(result);',
+    ) });
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.verifierId).toBe('RH002');
+  });
+
+  it('Catch2: CHECK(result == 3) -> CHECK(other) on a DIFFERENT subject does not pair', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.cpp',
+      '-    CHECK(result == 3);',
+      '+    CHECK(other);',
+    ) });
+    expect(findings).toEqual([]);
+  });
+
+  it('Catch2 same-subject fires even when not under a tests/ directory (not gated on isTestFile)', () => {
+    const files: ParsedFile[] = [{
+      from: 'src/calculator.cpp', to: 'src/calculator.cpp',
+      chunks: [{ content: '', changes: [
+        { type: 'del', del: true, ln: 5, content: '-    REQUIRE(result == 3);' },
+        { type: 'add', add: true, ln: 6, content: '+    REQUIRE(result);' },
+      ], oldStart: 5, oldLines: 1, newStart: 6, newLines: 1 }],
+      deleted: false, new: false,
+    }];
+    expect(rh002.run({ ...baseCtx, files })).toHaveLength(1);
+  });
+
+  it('Swift Testing: #expect(result == 3) -> #expect(result != nil) is caught (same subject)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorTests.swift',
+      '-        #expect(result == 3)',
+      '+        #expect(result != nil)',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('Swift Testing: #expect(other != nil) on a DIFFERENT subject does not pair', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorTests.swift',
+      '-        #expect(result == 3)',
+      '+        #expect(other != nil)',
+    ) });
+    expect(findings).toEqual([]);
+  });
+
+  it('Dart: expect(result, equals(3)) -> expect(result, isNotNull) is caught (same subject)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.dart',
+      '-      expect(result, equals(3));',
+      '+      expect(result, isNotNull);',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('Dart: a literal strong value weakened to isNotEmpty is caught (same subject)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.dart',
+      '-      expect(name, "Alice");',
+      '+      expect(name, isNotEmpty);',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('Dart: expect(other, isNotNull) on a DIFFERENT subject does not pair', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.dart',
+      '-      expect(result, equals(3));',
+      '+      expect(other, isNotNull);',
+    ) });
+    expect(findings).toEqual([]);
+  });
+
+  it('Scala: assert(result == "3") -> assert(result != null) is caught (same subject)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorSpec.scala',
+      '-      assert(result == "3")',
+      '+      assert(result != null)',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('Scala: assert(result == 3) -> bare assert(result) is caught (subject dropped)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorSpec.scala',
+      '-      assert(result == 3)',
+      '+      assert(result)',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('Scala: assert(other != null) on a DIFFERENT subject does not pair', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorSpec.scala',
+      '-      assert(result == "3")',
+      '+      assert(other != null)',
+    ) });
+    expect(findings).toEqual([]);
+  });
+});
+
 describe('RH002 Python tolerance-widening', () => {
   function makePythonFile(delContent: string, addContent: string, addLn = 10): ParsedFile[] {
     return [{
@@ -378,6 +576,33 @@ describe('rh002 — new-language weakening fixtures (LANG-06)', () => {
   it.each(cases)('%s (%s): weakening fixture matches lang-expected.json', (filename) => {
     const expected = langExpected.find(e => e.file === filename);
     expect(expected, `no lang-expected.json entry for ${filename}`).toBeDefined();
+
+    const files = fixtureDiff('RH002', filename);
+    const findings = rh002.run({ ...baseCtx, files });
+    const normalised = findings.map(f => ({ ...f, file: path.basename(f.file) }));
+    expect(normalised).toMatchObject([expected]);
+  });
+});
+
+describe('rh002 — GROUP A weakening (LANG-11, LANG-13)', () => {
+  const langiiAExpected: Array<Record<string, unknown>> = JSON.parse(
+    readFileSync(path.join(FIXTURES_DIR, 'RH002', 'langii-a-expected.json'), 'utf8'),
+  );
+
+  const groupACases: Array<[string, string]> = [
+    ['calculator_test.cpp', 'C++ (Catch2 same-subject)'],
+    ['calculator_test.c', 'C (Unity flat)'],
+    ['CalculatorTests.swift', 'Swift (Swift Testing same-subject)'],
+    ['CalculatorTests.m', 'Objective-C (XCTest flat, shared with Swift)'],
+    ['calculator_test.dart', 'Dart (expect() same-subject)'],
+    ['CalculatorSpec.scala', 'Scala (assert() same-subject)'],
+    ['CalculatorTests.vb', 'VB.NET (Assert.AreEqual reuse, zero new code)'],
+    ['CalculatorSpec.groovy', 'Groovy (assertEquals reuse, zero new code)'],
+  ];
+
+  it.each(groupACases)('%s (%s): weakening fixture matches langii-a-expected.json', (filename) => {
+    const expected = langiiAExpected.find(e => e.file === filename);
+    expect(expected, `no langii-a-expected.json entry for ${filename}`).toBeDefined();
 
     const files = fixtureDiff('RH002', filename);
     const findings = rh002.run({ ...baseCtx, files });

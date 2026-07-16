@@ -119,10 +119,12 @@ proctor check --explain RH001
 ## Supported languages and agents
 
 **Languages:** JavaScript and TypeScript (Jest and Vitest conventions) and Python (pytest and
-unittest conventions) have full coverage across all 11 checks. Go, Java, Rust, Ruby, PHP, C#, and
-Kotlin are covered by the five diff-level signature checks (RH001, RH002, RH003, RH007, RH011)
-that operate on pattern matching rather than AST parsing. The table below is the per-language,
-per-check support matrix.
+unittest conventions) have full coverage across all 11 checks. Go, Java, Rust, Ruby, PHP, C#,
+Kotlin, C++, C, Swift, Objective-C, Dart, Scala, Perl, R, Haskell, Elixir, Lua, Groovy, Clojure,
+Shell/Bash, Julia, and VB.NET (25+ languages total) are covered by the five diff-level signature
+checks (RH001, RH002, RH003, RH007, RH011) that operate on pattern matching rather than AST
+parsing. The two tables below are the per-language, per-check support matrix: the original 9
+languages, then the 16 added in the Language Expansion II round.
 
 | RH-ID | JS/TS | Python | Go | Java | Rust | Ruby | PHP | C# | Kotlin |
 |-------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
@@ -136,11 +138,51 @@ per-check support matrix.
 | RH008 (tautological test) | ✅ (AST) | n/a | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | RH011 (suppression spam) | ✅ | ✅ | ✅ (line-scoped only) | ✅ (line/declaration-scoped only, no file-wide equivalent in Java) | ✅ (line-scoped + file-wide via `#![allow]`) | ✅ (line-scoped only; unclosed-disable file-wide gap documented) | ✅ (line-scoped + file-wide via `phpcs:ignoreFile`) | ✅ (line-scoped only; unrestored-pragma file-wide gap documented) | ✅ (line-scoped + file-wide via `@file:Suppress`) |
 
-RH004, RH005, RH006, and RH008 stay **JS/TS/Python-only** by design. They require either full AST
-parsing (`@typescript-eslint/typescript-estree`, which is JS/TS-only) or the `--ai` judge fallback
-for ambiguous cases. Reimplementing gutted-function/hardcoded-return/tautological-assertion
-detection as pure regex heuristics per language would carry a much higher false-positive risk than
-the diff-line signature checks above, so this is a stated architectural boundary, not an oversight.
+### Language Expansion II (16 more languages)
+
+| RH-ID | C++ | C | Objective-C | Swift | Dart | Scala | Groovy | VB.NET | Perl | R | Haskell | Elixir | Lua | Clojure | Shell/Bash | Julia |
+|-------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| RH001 (test deletion) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| RH002 (assertion weakened) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (gap noted) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (gap noted) | ✅ |
+| RH003 (skip/disable) | ✅ | ✅ (gap noted) | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (gap noted) | ✅ (gap noted) | ✅ |
+| RH004 (hardcoded fixture) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| RH005 (gutted function) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| RH006 (snapshot rewrite) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| RH007 (config exclusion) | ✅ (CMake) | ✅ (CMake) | ✅ (xctestplan) | ✅ (xctestplan) | ✅ | ✅ | ✅ (reuse) | ✅ (reuse) | ❌ | ⚠️ | ✅ | ✅ | ✅ | ⚠️ | ❌ | ❌ |
+| RH008 (tautological test) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| RH011 (suppression spam) | ✅ (shared clang-tidy) | ✅ (shared clang-tidy) | ✅ (shared clang-tidy) | ✅ | ✅ | ✅ | ✅ (reuse) | ✅ (line-scoped only) | ✅ (line-scoped only) | ✅ (line-scoped only) | ✅ | ✅ | ✅ (line-scoped only) | ✅ (line-scoped only) | ✅ (line-scoped only) | ❌ |
+
+Documented gaps (Language Expansion II): Objective-C has no RH003 coverage at all, Apple's own
+XCTest documentation confirms `XCTSkip`/`XCTSkipIf`/`XCTSkipUnless` are Swift-only APIs with no
+Objective-C interface variant. C's Check framework has no skip mechanism for RH003, only CMocka's
+`skip()` is covered (gated to a named C test file); C's RH011 suppression coverage (clang-tidy
+`NOLINT`, `cppcheck-suppress`) is shared with C++ and Objective-C, since the signal is
+language-agnostic. Groovy's Spock `expect:`/`then:` power-assert blocks are not covered by RH002,
+a bare `LHS == RHS` inside those blocks has no reliable single-line syntactic anchor to
+distinguish it from ordinary conditional logic elsewhere in a `.groovy` file. Shell/Bash's native
+`[ "$a" = "$b" ]` test form is not covered by RH002, only the bats-assert helper library's
+`assert_equal` is, the native form is too pervasive in ordinary shell control flow to anchor
+safely. Clojure's Leiningen `:test-selectors` has no RH003 detector at all and is warn-only for
+RH007 (the selector value is an arbitrary function form, so proctor can only detect the key was
+touched, not whether the change narrows or widens coverage); Clojure's kaocha `^:kaocha/skip`
+metadata is fully covered for RH003, and its `clj-kondo` reader-discard suppression form is
+covered for RH011. R's `.Rbuildignore` is warn-only for RH007, it excludes a path from the
+package's *build*, not specifically the test run. Perl, Shell/Bash, and Julia have no RH007
+coverage at all, none has a dedicated test-exclusion config file or a safe structural analogue.
+Julia has no RH011 coverage at all (a whole-category gap), no dominant inline-suppression
+convention was found across the ecosystem. VB.NET, Perl, R, Lua, Clojure, and Shell/Bash's RH011
+coverage is line-scoped only, each language's file-wide or unclosed-suppression form (VB.NET's
+unclosed `#Disable Warning`, Perl's unclosed `## no critic`, R's `.lintr`-based whole-file
+exclusion, Lua's fragile own-line-at-file-top form, Clojure's `.clj-kondo/config.edn`-based
+whole-file exclusion, and Shell/Bash's structural absence of any inline file-wide directive) would
+require forward-scanning past the diff line, which proctor's line-level model doesn't do.
+
+RH004, RH005, RH006, and RH008 stay **JS/TS/Python-only** by design, across all 25+ supported
+languages. They require either full AST parsing (`@typescript-eslint/typescript-estree`, which is
+JS/TS-only) or the `--ai` judge fallback for ambiguous cases. Reimplementing
+gutted-function/hardcoded-return/tautological-assertion detection as pure regex heuristics per
+language would carry a much higher false-positive risk than the diff-line signature checks above,
+so this is a stated architectural boundary, not an oversight.
 
 Documented gaps: Go's RH002 coverage is testify-only, stdlib comparison-weakening isn't
 pattern-matched. Kotlin's Kotest `enabled = false` skip form isn't covered, it's too generic a
@@ -154,6 +196,14 @@ C#, Java, and Kotlin test-file detection is filename-convention-based (`*Tests.c
 Maven Surefire patterns, `*Test.kt`), not attribute-based, so a test file with an unconventional
 name won't be recognized. This is the same accepted limitation the project already has for
 JS/TS/Python.
+
+All 16 Language Expansion II languages are the same: test-file recognition is
+filename/directory-convention-based (`*_test.cpp`/`test_*.c`, `*Tests.swift`, `test/*.dart`,
+`*Spec.scala`, `t/*.t`, `tests/testthat/test-*.R`, `*Spec.hs`, `test/*_test.exs`, `*_spec.lua`,
+`*Spec.groovy`, `test/*_test.clj`, `*.bats`, `test/runtests.jl`, `*Tests.vb`), never
+attribute-based. `.h` deliberately resolves to C, not C++, C headers vastly outnumber C++ headers
+using the bare `.h` extension, a documented judgment call (RESEARCH Pitfall 4) rather than a
+missed case; `.mm` resolves to Objective-C since XCTest macro usage there is identical to `.m`.
 
 **Agents:** running `npx @kavishdua/proctor install-skill` deploys the honest-completion skill to
 every agent below from one source file (see

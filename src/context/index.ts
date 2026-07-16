@@ -43,6 +43,66 @@ const DEFAULT_GLOBS = [
   // Kotlin: mirrors Java/Gradle/Maven convention since Kotlin shares JUnit5/Gradle tooling.
   '**/*Test.kt',
   '**/src/test/**/*.kt',
+  // C++: Google Test's official style guide recommends _test.cc — convention-only, not
+  // compiler-enforced (unlike Go), so an unconventionally-named test file is invisible here.
+  '**/*_test.{cpp,cc,cxx}',
+  '**/test_*.{cpp,cc,cxx}',
+  // C: same convention-not-enforcement caveat as C++; Unity/Ceedling-generated projects
+  // commonly use test_*.c.
+  '**/*_test.c',
+  '**/test_*.c',
+  // Swift: Swift Package Manager's standard layout is Tests/<Target>Tests/*.swift, and Xcode's
+  // default XCTestCase-subclass naming is *Tests.swift.
+  '**/*Tests.swift',
+  '**/Tests/**/*.swift',
+  // Objective-C: filename convention mirrors Swift's (not independently confirmed as a hard
+  // Xcode convention, but symmetric with Swift's).
+  '**/*Tests.m',
+  '**/*Tests.mm',
+  // Dart: `dart test`'s documented default discovery glob is test/**/*_test.dart.
+  '**/test/**/*_test.dart',
+  // Scala: mirrors the Java/Maven/Gradle src/test/ convention already above; Spec/Suite
+  // suffixes are the dominant ScalaTest/munit naming idiom.
+  '**/src/test/scala/**/*.scala',
+  '**/*Spec.scala',
+  '**/*Suite.scala',
+  // Perl: .t is prove's own default discovery glob (t/*.t) — effectively tool-enforced.
+  '**/*.t',
+  '**/t/**/*.pl',
+  // R: testthat's documented package-test-directory convention.
+  '**/tests/testthat/**/*.R',
+  '**/tests/testthat/test-*.R',
+  // Haskell: hspec-discover's documented convention is **/*Spec.hs under a test/ directory; a
+  // bare non-Spec-suffixed file under test/ is also common for hand-wired Main.hs runners.
+  '**/test/**/*Spec.hs',
+  '**/test/**/*.hs',
+  // Elixir: mix test's documented default test path pattern.
+  '**/test/**/*_test.exs',
+  // Lua: busted's dominant, near-universal _spec.lua / spec/ directory convention.
+  '**/*_spec.lua',
+  '**/spec/**/*.lua',
+  // Groovy: mirrors the existing Java/Kotlin src/test/ Gradle convention exactly; Spec suffix
+  // is Spock's dominant idiom.
+  '**/src/test/groovy/**/*.groovy',
+  '**/*Spec.groovy',
+  // Clojure: Leiningen/tools.build's documented test/ directory convention, with _test suffix
+  // mirroring the namespace-under-test.
+  '**/test/**/*.clj',
+  '**/*_test.clj',
+  // Shell/Bash: .bats is tool-enforced (bats only executes .bats files) — the cleanest signal
+  // in this group; _test.sh/test_*.sh are shunit2 naming convention only, not enforced.
+  '**/*.bats',
+  '**/*_test.sh',
+  '**/test_*.sh',
+  // Julia: test/runtests.jl is Pkg.test()'s documented, hardcoded entry-point convention
+  // (tool-enforced); the broader test/**/*.jl glob is convention-only since individual test
+  // files are typically include()-d from runtests.jl rather than independently discovered.
+  '**/test/runtests.jl',
+  '**/test/**/*.jl',
+  // VB.NET: mirrors C#'s existing filename-convention-only caveat — actual .NET test discovery
+  // is attribute-based, not filename-based, for VB.NET exactly as it is for C#.
+  '**/*Tests.vb',
+  '**/*Test.vb',
 ];
 
 const DEFAULT_ENABLED = [
@@ -186,7 +246,7 @@ export async function buildContext(cwd: string, files: ParsedFile[], opts?: { co
   const isTestFile = (path: string): boolean =>
     micromatch.isMatch(path.replace(/\\/g, '/'), testPathGlobs);
 
-  const getLanguage = (filePath: string): 'ts' | 'js' | 'python' | 'go' | 'java' | 'rust' | 'ruby' | 'php' | 'csharp' | 'kotlin' | 'unknown' => {
+  const getLanguage = (filePath: string): 'ts' | 'js' | 'python' | 'go' | 'java' | 'rust' | 'ruby' | 'php' | 'csharp' | 'kotlin' | 'cpp' | 'c' | 'swift' | 'objc' | 'dart' | 'scala' | 'perl' | 'r' | 'haskell' | 'elixir' | 'lua' | 'groovy' | 'clojure' | 'shell' | 'julia' | 'vbnet' | 'unknown' => {
     const ext = filePath.split('.').pop()?.toLowerCase();
     // proctor-ignore: RH004 reason: extension-to-language mapping table, not a fixture hardcode
     if (ext === 'ts' || ext === 'tsx' || ext === 'mts' || ext === 'cts') return 'ts';
@@ -199,6 +259,27 @@ export async function buildContext(cwd: string, files: ParsedFile[], opts?: { co
     if (ext === 'php') return 'php';
     if (ext === 'cs') return 'csharp';
     if (ext === 'kt' || ext === 'kts') return 'kotlin';
+    if (ext === 'cpp' || ext === 'cc' || ext === 'cxx' || ext === 'hpp' || ext === 'hxx') return 'cpp';
+    // .h is genuinely ambiguous between C and C++ (a C++ project's own headers conventionally use
+    // .hpp/.hxx, reserving bare .h for C-compatible headers) — defaulting .h to 'c' is a deliberate
+    // judgment call, not a guaranteed-correct classification (see RESEARCH A1/Pitfall 4).
+    if (ext === 'c' || ext === 'h') return 'c';
+    if (ext === 'swift') return 'swift';
+    // .mm is Objective-C++ (mixed ObjC/C++); classified as 'objc' since XCTest macro usage is
+    // identical in both.
+    if (ext === 'm' || ext === 'mm') return 'objc';
+    if (ext === 'dart') return 'dart';
+    if (ext === 'scala') return 'scala';
+    if (ext === 'pl' || ext === 'pm' || ext === 't') return 'perl';
+    if (ext === 'r') return 'r';
+    if (ext === 'hs') return 'haskell';
+    if (ext === 'ex' || ext === 'exs') return 'elixir';
+    if (ext === 'lua') return 'lua';
+    if (ext === 'groovy') return 'groovy';
+    if (ext === 'clj' || ext === 'cljc') return 'clojure';
+    if (ext === 'sh' || ext === 'bash' || ext === 'bats') return 'shell';
+    if (ext === 'jl') return 'julia';
+    if (ext === 'vb') return 'vbnet';
     return 'unknown';
   };
 

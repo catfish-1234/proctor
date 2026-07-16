@@ -8,10 +8,14 @@ import type { Context, Finding, Severity, Verifier } from '../types.js';
 // (LANG-03) the 6 new-language config-exclusion files: Maven pom.xml, Gradle build.gradle(.kts),
 // Rust Cargo.toml, Ruby .rspec, PHPUnit phpunit.xml(.dist), and C# .runsettings, plus (LANG-10
 // GROUP A) 4 more: C++/C CMakeLists.txt, Swift/Objective-C *.xctestplan, Dart dart_test.yaml, and
-// Scala build.sbt. Each new entry is anchored to a basename/extension shape so it can't
-// false-match a similarly-named source file. VB.NET (.runsettings) and Groovy (build.gradle(.kts))
-// deliberately need no new entries here — they reuse the existing C#/Java(Kotlin) patterns as-is.
-const CONFIG_FILE_RE = /(?:jest|vitest|vite)\.config\.(?:[mc]?[jt]s|json)$|(?:^|\/)jest\.config\.json$|tsconfig(?:\.[^/]*)?\.json$|(?:pytest\.ini|setup\.cfg|pyproject\.toml|conftest\.py)$|(?:^|\/)pom\.xml$|(?:^|\/)build\.gradle(?:\.kts)?$|(?:^|\/)Cargo\.toml$|(?:^|\/)\.rspec$|(?:^|\/)phpunit\.xml(?:\.dist)?$|\.runsettings$|(?:^|\/)CMakeLists\.txt$|\.xctestplan$|(?:^|\/)dart_test\.yaml$|(?:^|\/)build\.sbt$/;
+// Scala build.sbt, plus (LANG-10 GROUP B) 5 more: R .Rbuildignore, Haskell *.cabal, Elixir
+// test_helper.exs, Lua .busted, and Clojure project.clj. Each new entry is anchored to a
+// basename/extension shape so it can't false-match a similarly-named source file. VB.NET
+// (.runsettings) and Groovy (build.gradle(.kts)) deliberately need no new entries here — they
+// reuse the existing C#/Java(Kotlin) patterns as-is. Perl, Shell/Bash, and Julia deliberately have
+// NO entry here — RESEARCH found no config-file exclusion mechanism (or safe structural analogue)
+// for any of the three; they're documented gaps, not forced detectors (see 08.1-06-SUMMARY.md).
+const CONFIG_FILE_RE = /(?:jest|vitest|vite)\.config\.(?:[mc]?[jt]s|json)$|(?:^|\/)jest\.config\.json$|tsconfig(?:\.[^/]*)?\.json$|(?:pytest\.ini|setup\.cfg|pyproject\.toml|conftest\.py)$|(?:^|\/)pom\.xml$|(?:^|\/)build\.gradle(?:\.kts)?$|(?:^|\/)Cargo\.toml$|(?:^|\/)\.rspec$|(?:^|\/)phpunit\.xml(?:\.dist)?$|\.runsettings$|(?:^|\/)CMakeLists\.txt$|\.xctestplan$|(?:^|\/)dart_test\.yaml$|(?:^|\/)build\.sbt$|(?:^|\/)\.Rbuildignore$|\.cabal$|(?:^|\/)test_helper\.exs$|(?:^|\/)\.busted$|(?:^|\/)project\.clj$/;
 
 // package.json can carry a Jest config inline ("jest": { "testPathIgnorePatterns": [...] }). It is
 // not a dedicated config file, so it's handled separately and only for testPathIgnorePatterns —
@@ -71,6 +75,11 @@ function configLabel(filePath: string): string {
   if (/\.xctestplan$/.test(base)) return 'xctestplan';
   if (base === 'dart_test.yaml') return 'dart_test.yaml';
   if (base === 'build.sbt') return 'build.sbt';
+  if (base === '.Rbuildignore') return '.Rbuildignore';
+  if (/\.cabal$/.test(base)) return '.cabal';
+  if (base === 'test_helper.exs') return 'test_helper.exs';
+  if (base === '.busted') return '.busted';
+  if (base === 'project.clj') return 'project.clj';
   return base;
 }
 
@@ -92,7 +101,12 @@ type ConfigLang =
   | 'cmake'
   | 'xctestplan'
   | 'dart'
-  | 'sbt';
+  | 'sbt'
+  | 'rbuild'
+  | 'cabal'
+  | 'exunit'
+  | 'busted'
+  | 'leiningen';
 
 function configLang(filePath: string): ConfigLang | null {
   const base = path.basename(filePath);
@@ -108,6 +122,11 @@ function configLang(filePath: string): ConfigLang | null {
   if (/\.xctestplan$/.test(base)) return 'xctestplan';
   if (base === 'dart_test.yaml') return 'dart';
   if (base === 'build.sbt') return 'sbt';
+  if (base === '.Rbuildignore') return 'rbuild';
+  if (/\.cabal$/.test(base)) return 'cabal';
+  if (base === 'test_helper.exs') return 'exunit';
+  if (base === '.busted') return 'busted';
+  if (base === 'project.clj') return 'leiningen';
   return null;
 }
 
@@ -190,6 +209,32 @@ const EXCLUSION_PATTERNS: ExclusionPattern[] = [
   // legitimate CI shard rather than an outright exclusion (warn).
   { re: /Tests\.Exclude\b/, key: 'sbtTestsExclude', severity: 'error', langs: ['sbt'], suggestionLabel: 'the Tests.Exclude' },
   { re: /Tests\.Argument\([^)]*"-l"/, key: 'sbtTestsArgumentTag', severity: 'warn', langs: ['sbt'], suggestionLabel: 'the Tests.Argument(..., "-l", ...)' },
+
+  // --- LANG-10 GROUP B: 5 more config-file exclusion mechanisms (R, Haskell, Elixir, Lua, Clojure) ---
+  // R: .Rbuildignore excludes files/paths from the package build via a plain-text list of regex
+  // lines, not specifically from a test run — a blunter, more indirect signal than Jest's
+  // testPathIgnorePatterns (a line here could legitimately exclude non-test files too). Any
+  // added, non-comment, non-blank line is a candidate; requiresTestLikeValue below gates on the
+  // line's own content looking test-like (tests/, test-, testthat), mirroring the JS/tsconfig
+  // `exclude` carve-out. `(?!#)` skips comment lines, which are common and never test-exclusion
+  // signal in this file format.
+  { re: /^[+-]?\s*(?!#)\S/, key: 'rbuildignoreLine', severity: 'warn', langs: ['rbuild'], requiresTestLikeValue: true, suggestionLabel: 'the newly-added .Rbuildignore line' },
+  // Haskell: buildable: False is a dedicated, unambiguous Cabal field, but it's also legitimate on
+  // `library`/`executable` stanzas — carved out below (chunkMentionsTestSuite) to only fire when
+  // the same diff chunk shows a `test-suite` stanza header, mirroring Cargo's `[[test]]`-header
+  // gate.
+  { re: /\bbuildable\s*:\s*False\b/, key: 'cabalBuildableFalse', severity: 'error', langs: ['cabal'], suggestionLabel: 'the buildable: False' },
+  // Elixir: ExUnit.start(exclude: [...]) / ExUnit.configure(exclude: [...]) in test_helper.exs is
+  // an unambiguous, dedicated ExUnit API for excluding tagged tests from every future run.
+  { re: /ExUnit\.(?:start|configure)\([^)]*\bexclude\s*:/, key: 'exunitExclude', severity: 'error', langs: ['exunit'], suggestionLabel: 'the ExUnit.start/configure(exclude: ...)' },
+  // Lua: busted's ["exclude-tags"] config key (or the CLI-mirroring exclude_tags form) is a
+  // dedicated, unambiguous exclusion mechanism.
+  { re: /\[\s*["']exclude-tags["']\s*\]\s*=|\bexclude_tags\s*=/, key: 'bustedExcludeTags', severity: 'error', langs: ['busted'], suggestionLabel: 'the exclude-tags' },
+  // Clojure: :test-selectors in project.clj wraps an arbitrary Clojure function form — a regex
+  // can detect the key was touched but not reliably classify "narrows" (a cheat) vs. "widens"
+  // (legitimate) the set of tests that run. Resolved to `warn` per RESEARCH Open Question 3:
+  // key-touched-not-value-analyzed, not overclaimed as `error` precision.
+  { re: /:test-selectors\b/, key: 'leiningenTestSelectors', severity: 'warn', langs: ['leiningen'], suggestionLabel: 'the :test-selectors' },
 ];
 
 function matchExclusion(content: string, lang: ConfigLang | null): { pattern: ExclusionPattern; afterMatch: string } | null {
@@ -308,6 +353,14 @@ function run(context: Context): Finding[] {
       // trust on its own — only treat it as a skipped-test entry when the same chunk also shows
       // the "skippedTests" array key.
       const chunkMentionsSkippedTests = chunk.changes.some(c => /skippedTests/.test(c.content));
+      // Haskell's `buildable: False` is also legitimate on `library`/`executable` stanzas — only
+      // treat it as a test-exclusion cheat when the same chunk shows a `test-suite` stanza header
+      // (case-insensitive per Cabal's stanza-type keyword rules). Also capture the stanza's name
+      // (if present in the same chunk) for the finding's excludedVal.
+      const chunkMentionsTestSuite = chunk.changes.some(c => /\btest-suite\b/i.test(c.content));
+      const testSuiteNameMatch = chunk.changes
+        .map(c => c.content.match(/\btest-suite\s+([A-Za-z0-9_-]+)/i))
+        .find((m): m is RegExpMatchArray => m !== null);
 
       for (const change of chunk.changes) {
         if (change.type !== 'add') continue;
@@ -319,6 +372,7 @@ function run(context: Context): Finding[] {
 
         if (pattern.key === 'cargoTestFalse' && !chunkMentionsTestTarget) continue;
         if (pattern.key === 'xctestplanSkippedTest' && !chunkMentionsSkippedTests) continue;
+        if (pattern.key === 'cabalBuildableFalse' && !chunkMentionsTestSuite) continue;
 
         const quotedMatch = afterMatch.match(/['"`]([^'"`\r\n]+)['"`]/);
         // XML tag-content fallback (`<exclude>CalculatorTest.java</exclude>`) — value sits
@@ -335,6 +389,24 @@ function run(context: Context): Finding[] {
         } else if (pattern.key === 'xctestplanSkippedTest') {
           const nameMatch = change.content.match(/"([^"]+)"/);
           if (nameMatch) excludedVal = nameMatch[1]!;
+        } else if (pattern.key === 'rbuildignoreLine') {
+          // The whole added line IS the exclusion value (a plain-text regex pattern), not a value
+          // sitting after a keyword — extract it directly rather than via the generic
+          // quoted/XML afterMatch extraction, which finds nothing for this bare-line format.
+          excludedVal = stripDiffPrefix(change.content);
+        } else if (pattern.key === 'cabalBuildableFalse' && testSuiteNameMatch) {
+          excludedVal = testSuiteNameMatch[1]!;
+        } else if (pattern.key === 'exunitExclude') {
+          // The excluded value is an Elixir atom (`:integration`) inside a list, not a quoted
+          // string — extract the atom name directly after the matched `exclude:` key.
+          const atomMatch = afterMatch.match(/:([A-Za-z_][A-Za-z0-9_]*)/);
+          if (atomMatch) excludedVal = atomMatch[1]!;
+        } else if (pattern.key === 'leiningenTestSelectors') {
+          // The selector value is an arbitrary Clojure function form (e.g. `(complement
+          // :integration)`) — take the last `:keyword` atom in the matched value as the excluded
+          // tag name, a reasonable approximation without evaluating the form.
+          const atoms = [...afterMatch.matchAll(/:([\w-]+)/g)].map(m => m[1]!);
+          if (atoms.length > 0) excludedVal = atoms[atoms.length - 1]!;
         }
 
         if (pattern.requiresTestLikeValue && (chunkMentionsCoverage || !/test|spec/i.test(excludedVal))) continue;

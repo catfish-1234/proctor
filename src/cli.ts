@@ -14,6 +14,7 @@ import { jsonReport } from './reporters/json.js';
 import { sarifReport } from './reporters/sarif.js';
 import { AGENT_ADAPTERS } from './adapters/registry.js';
 import { checkAdapterDrift } from './adapters/drift-check.js';
+import { recordWritten } from './adapters/manifest.js';
 import { loadTaskPool } from './bench/tasks.js';
 import { runBench } from './bench/index.js';
 import { installPreCommitHook } from './hooks/pre-commit.js';
@@ -238,6 +239,12 @@ program
 
       await mkdir(dirname(dest), { recursive: true });
       await writeFile(dest, content, 'utf8');
+      // Record that proctor genuinely wrote this guardExisting path, so drift-check can later
+      // tell "was proctor's, now tampered" (real drift) apart from "never proctor's" (correctly
+      // ignored) — see src/adapters/manifest.ts.
+      if (adapter.guardExisting) {
+        await recordWritten(cwd, adapter.id);
+      }
       process.stdout.write('Installed: ' + dest + '\n');
     }
   });

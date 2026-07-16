@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { AGENT_ADAPTERS, type AgentAdapter } from './registry.js';
+import { readManifest } from './manifest.js';
 
 export interface DriftCheckResult {
   drifted: string[];
@@ -27,6 +28,14 @@ function sha256(content: string): string {
  * zero drift instead of permanently false-positiving against a single
  * raw-canonical hash computed once outside the loop.
  *
+ * `guardExisting` adapters (e.g. Qodo's un-namespaced best_practices.md) get one extra check:
+ * a content mismatch only counts as drift if the install-provenance manifest (manifest.ts)
+ * records that proctor actually wrote this adapter's path at some point. If install-skill
+ * never wrote it (the path held pre-existing, unrelated content that the collision guard
+ * correctly declined to overwrite), a mismatch is expected and not drift. If proctor DID write
+ * it and the content has since diverged, that's real drift and is now reported like any other
+ * adapter — closing the blind spot a raw guardExisting exclusion used to have.
+ *
  * `adapters` defaults to the real `AGENT_ADAPTERS` registry; the parameter
  * exists so tests can inject a transform-bearing adapter without mutating
  * the shared registry.
@@ -38,6 +47,7 @@ export async function checkAdapterDrift(
 ): Promise<DriftCheckResult> {
   const drifted: string[] = [];
   const checked: string[] = [];
+  const manifest = await readManifest(cwd);
 
   for (const adapter of adapters) {
     const path = join(cwd, adapter.relativePath);
@@ -55,20 +65,10 @@ export async function checkAdapterDrift(
     checked.push(path);
     const expected = adapter.transform ? adapter.transform(canonical) : canonical;
     if (sha256(content) !== sha256(expected)) {
-      // guardExisting adapters (e.g. Qodo's un-namespaced best_practices.md) may legitimately
-      // hold user-owned content that install-skill deliberately declined to overwrite — that's
-      // not proctor drift, it's install-skill's collision guard working as intended. Only
-      // non-guarded adapters are flagged when their deployed content diverges from expected.
-      //
-      // KNOWN LIMITATION: this can't distinguish that legitimate case from a guardExisting path
-      // that install-skill DID successfully write (destination was absent or already matched at
-      // install time) and that has since been tampered with — both look identical from content
-      // alone (deployed != expected). Closing this gap for real would need install-skill to
-      // persist which guardExisting paths it actually wrote vs. skipped (a provenance record),
-      // which doesn't exist today. Until that lands, a guardExisting adapter's drift is silently
-      // unverifiable either way — err on not flagging, since a false "drifted" on the common,
-      // correct collision case is worse than a missed true positive on the rare tampered case.
-      if (!adapter.guardExisting) {
+      // Only flag a guardExisting adapter when the manifest proves proctor actually wrote this
+      // path — otherwise a mismatch is the collision guard working as intended, not drift.
+      const guardedButNeverWritten = adapter.guardExisting && !manifest.written[adapter.id];
+      if (!guardedButNeverWritten) {
         drifted.push(path);
       }
     }

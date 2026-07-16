@@ -23,7 +23,7 @@ afterEach(async () => {
 describe('buildContext', () => {
   it('returns default globs when no config file exists', async () => {
     const ctx = await buildContext(tmpDir, []);
-    expect(ctx.testPathGlobs).toHaveLength(20);
+    expect(ctx.testPathGlobs).toHaveLength(52);
     // The default globs must classify the common test-file shapes, including React/Vue .tsx/.jsx.
     expect(ctx.isTestFile('src/foo.test.ts')).toBe(true);
     expect(ctx.isTestFile('src/Button.test.tsx')).toBe(true);
@@ -68,6 +68,82 @@ describe('buildContext', () => {
     expect(ctx.getLanguage('a.txt')).toBe('unknown');
   });
 
+  it('isTestFile recognizes the 16 new-language test-file conventions (LANG-08)', async () => {
+    const ctx = await buildContext(tmpDir, []);
+    expect(ctx.isTestFile('math/foo_test.cpp')).toBe(true);
+    expect(ctx.isTestFile('math/test_foo.cc')).toBe(true);
+    expect(ctx.isTestFile('lib/foo_test.c')).toBe(true);
+    expect(ctx.isTestFile('MyTests.swift')).toBe(true);
+    expect(ctx.isTestFile('Tests/CalculatorTests/CalculatorTests.swift')).toBe(true);
+    expect(ctx.isTestFile('FooTests.m')).toBe(true);
+    expect(ctx.isTestFile('FooTests.mm')).toBe(true);
+    expect(ctx.isTestFile('test/calculator_test.dart')).toBe(true);
+    expect(ctx.isTestFile('src/test/scala/CalculatorSpec.scala')).toBe(true);
+    expect(ctx.isTestFile('CalculatorSuite.scala')).toBe(true);
+    expect(ctx.isTestFile('t/basic.t')).toBe(true);
+    expect(ctx.isTestFile('t/lib/basic.pl')).toBe(true);
+    expect(ctx.isTestFile('tests/testthat/test-calculator.R')).toBe(true);
+    expect(ctx.isTestFile('test/CalculatorSpec.hs')).toBe(true);
+    expect(ctx.isTestFile('test/calculator_test.exs')).toBe(true);
+    expect(ctx.isTestFile('spec/foo_spec.lua')).toBe(true);
+    expect(ctx.isTestFile('src/test/groovy/CalculatorSpec.groovy')).toBe(true);
+    expect(ctx.isTestFile('test/calculator_test.clj')).toBe(true);
+    expect(ctx.isTestFile('test/basic.bats')).toBe(true);
+    expect(ctx.isTestFile('test/calculator_test.sh')).toBe(true);
+    expect(ctx.isTestFile('test/runtests.jl')).toBe(true);
+    expect(ctx.isTestFile('FooTests.vb')).toBe(true);
+    // Ordinary non-test source in the new languages must not be misclassified as a test file.
+    expect(ctx.isTestFile('src/main.cpp')).toBe(false);
+    expect(ctx.isTestFile('lib/util.lua')).toBe(false);
+    expect(ctx.isTestFile('src/Calculator.swift')).toBe(false);
+    expect(ctx.isTestFile('lib/calculator.ex')).toBe(false);
+  });
+
+  it('getLanguage classifies all 16 new languages by extension (LANG-08)', async () => {
+    const ctx = await buildContext(tmpDir, []);
+    expect(ctx.getLanguage('foo.cpp')).toBe('cpp');
+    expect(ctx.getLanguage('foo.cc')).toBe('cpp');
+    expect(ctx.getLanguage('foo.cxx')).toBe('cpp');
+    expect(ctx.getLanguage('foo.hpp')).toBe('cpp');
+    expect(ctx.getLanguage('foo.hxx')).toBe('cpp');
+    expect(ctx.getLanguage('Foo.c')).toBe('c');
+    expect(ctx.getLanguage('Foo.h')).toBe('c'); // deliberate C/C++ ambiguity judgment call
+    expect(ctx.getLanguage('Foo.swift')).toBe('swift');
+    expect(ctx.getLanguage('Foo.m')).toBe('objc');
+    expect(ctx.getLanguage('Foo.mm')).toBe('objc');
+    expect(ctx.getLanguage('foo.dart')).toBe('dart');
+    expect(ctx.getLanguage('Foo.scala')).toBe('scala');
+    expect(ctx.getLanguage('Foo.pl')).toBe('perl');
+    expect(ctx.getLanguage('Foo.pm')).toBe('perl');
+    expect(ctx.getLanguage('foo.t')).toBe('perl');
+    expect(ctx.getLanguage('foo.R')).toBe('r');
+    expect(ctx.getLanguage('foo.r')).toBe('r');
+    expect(ctx.getLanguage('Foo.hs')).toBe('haskell');
+    expect(ctx.getLanguage('foo.ex')).toBe('elixir');
+    expect(ctx.getLanguage('foo.exs')).toBe('elixir');
+    expect(ctx.getLanguage('foo.lua')).toBe('lua');
+    expect(ctx.getLanguage('Foo.groovy')).toBe('groovy');
+    expect(ctx.getLanguage('foo.clj')).toBe('clojure');
+    expect(ctx.getLanguage('foo.cljc')).toBe('clojure');
+    expect(ctx.getLanguage('foo.sh')).toBe('shell');
+    expect(ctx.getLanguage('foo.bash')).toBe('shell');
+    expect(ctx.getLanguage('foo.bats')).toBe('shell');
+    expect(ctx.getLanguage('foo.jl')).toBe('julia');
+    expect(ctx.getLanguage('Foo.vb')).toBe('vbnet');
+    // Non-regression: the existing 10 languages (plus unknown) must still classify correctly.
+    expect(ctx.getLanguage('a.ts')).toBe('ts');
+    expect(ctx.getLanguage('a.js')).toBe('js');
+    expect(ctx.getLanguage('a.py')).toBe('python');
+    expect(ctx.getLanguage('a.go')).toBe('go');
+    expect(ctx.getLanguage('A.java')).toBe('java');
+    expect(ctx.getLanguage('a.rs')).toBe('rust');
+    expect(ctx.getLanguage('a.rb')).toBe('ruby');
+    expect(ctx.getLanguage('a.php')).toBe('php');
+    expect(ctx.getLanguage('a.cs')).toBe('csharp');
+    expect(ctx.getLanguage('a.kt')).toBe('kotlin');
+    expect(ctx.getLanguage('a.txt')).toBe('unknown');
+  });
+
   it('embeds the discovered diff files onto context.files', async () => {
     const files = [{ from: 'a.ts', to: 'a.ts' }] as unknown as Awaited<ReturnType<typeof buildContext>>['files'];
     const ctx = await buildContext(tmpDir, files);
@@ -106,7 +182,7 @@ describe('buildContext', () => {
   it('falls back to defaults when config JSON is malformed', async () => {
     await writeFile(join(tmpDir, 'proctor.config.json'), '{ invalid json }');
     const ctx = await buildContext(tmpDir, []);
-    expect(ctx.testPathGlobs).toHaveLength(20);
+    expect(ctx.testPathGlobs).toHaveLength(52);
   });
 
   it('testFiles resolved from globs relative to cwd', async () => {
@@ -198,7 +274,7 @@ describe('buildContext', () => {
   it('ignores testPathGlobs that are not an array of strings', async () => {
     await writeFile(join(tmpDir, 'proctor.config.json'), JSON.stringify({ testPathGlobs: [1, 2, 3] }));
     const ctx = await buildContext(tmpDir, []);
-    expect(ctx.testPathGlobs).toHaveLength(20); // fell back to DEFAULT_GLOBS
+    expect(ctx.testPathGlobs).toHaveLength(52); // fell back to DEFAULT_GLOBS
   });
 
   it('drops an unknown enabled rule ID (typo) and keeps the known ones', async () => {

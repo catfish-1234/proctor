@@ -151,6 +151,70 @@ const GROOVY_PENDINGFEATURE = /@PendingFeature\b/;
 const VBNET_IGNORE = /<[^>]*\bIgnore(?:\s*\([^)]*\))?[^>]*>/;
 const VBNET_FACT_SKIP = /<[^>]*\bFact\s*\([^)]*\bSkip\s*:=/;
 
+// --- Perl (Test::More / Test::Simple) ---
+// SKIP:/TODO: block labels newly added — a bare label immediately followed by an opening brace
+// is a distinctive-enough shape (Perl block labels are rare outside loop control), and Perl's
+// own .t extension is already a strong test-file signal (prove's own default discovery glob),
+// so no additional isPerlTestFile gate is needed per RESEARCH.
+const PERL_SKIP_BLOCK = /^\+\s*SKIP\s*:\s*\{/;
+const PERL_TODO_BLOCK = /^\+\s*TODO\s*:\s*\{/;
+
+// --- R (testthat) ---
+// skip()/skip_if()/skip_if_not()/skip_on_cran()/skip_if_not_installed()/skip_if_offline()/
+// skip_on_ci()/skip_on_os() are all covered by one call-shape-anchored regex (skip, optionally
+// followed by an underscore-word suffix, followed by an opening paren). Bare `skip`/`skip_if`
+// are common enough words/prefixes to collide with unrelated R code outside test files, so this
+// is additionally GATED to a named testthat test file (isRTestFile below), mirroring RESEARCH
+// Pitfall 6's bare-word-token precedent (Ruby's skip/pending, C's CMocka skip()).
+const R_SKIP = /\bskip(?:_\w+)?\s*\(/;
+
+// --- Haskell (Hspec) ---
+// x-prefixed forms (xit/xdescribe/xcontext/xspecify) are Hspec-specific, ungated — mirrors the
+// JS/Ruby/Kotlin x-prefix precedent exactly.
+const HASKELL_X_FORMS = /\bx(?:it|describe|context|specify)\b/;
+// pendingWith "reason" / bare `pending` as a spec-item body — common enough English words to
+// risk collision outside test files, so GATED to a named Hspec test file (isHaskellTestFile
+// below), mirroring RESEARCH Pitfall 6.
+const HASKELL_PENDING = /\bpendingWith\b|\bpending\b/;
+
+// --- Elixir (ExUnit) ---
+// @tag :skip (per-test) and @moduletag :skip (file-wide — disables every test in the module) are
+// both unambiguous Elixir module-attribute-call shapes, ungated-safe.
+const ELIXIR_TAG_SKIP = /@tag\s+:skip\b/;
+const ELIXIR_MODULETAG_SKIP = /@moduletag\s+:skip\b/;
+
+// --- Lua (busted) ---
+// pending("description", function() ... end) used in place of it(...). Bare `pending(` alone is
+// a common enough word/function name (e.g. a promise-library "pending" state) to risk collision
+// outside spec files, so GATED to a named busted spec file (isLuaTestFile below).
+const LUA_PENDING = /\bpending\s*\(/;
+
+// --- Clojure (kaocha) ---
+// ^:kaocha/skip metadata newly added to a deftest form — a distinctive, unambiguous metadata
+// keyword, the de facto standard modern Clojure test runner's skip mechanism. Ungated. Leiningen's
+// arbitrary custom-metadata + project.clj :test-selectors mechanism is deliberately NOT
+// implemented (the keyword itself is project-specific/non-standardized, too unreliable to anchor)
+// — documented gap per RESEARCH.
+const CLOJURE_KAOCHA_SKIP = /\^:kaocha\/skip\b/;
+
+// --- Shell/Bash (bats-core) ---
+// `skip` or `skip "reason"` as a bare statement inside a @test "..." { ... } block. Bare `skip`
+// is an extremely common English word/identifier, so this is GATED strictly to the .bats
+// extension (isBatsFile below) — bats' `skip` shell function is only meaningful inside a .bats
+// file's @test block. shunit2's startSkipping/endSkipping is stateful/non-local (a single
+// startSkipping call can silently skip every subsequent assertion with no requirement that a
+// matching endSkipping appears in the same diff hunk, or even the same file) — a diff-line regex
+// cannot reliably determine "is this skip still in effect," so it is NOT implemented; documented
+// gap per RESEARCH.
+const SHELL_BATS_SKIP = /^\+\s*skip\b(?:\s+["'][^"']*["'])?\s*$/;
+
+// --- Julia (Test stdlib) ---
+// @test_skip is an unambiguous macro name, ungated. skip= is anchored to the @test macro-call
+// shape (@test ... skip = ...) since `skip=` alone is a generic keyword-argument name that could
+// appear in unrelated function calls.
+const JULIA_TEST_SKIP = /\@test_skip\b/;
+const JULIA_TEST_SKIP_PARAM = /@test\b[^\n]*\bskip\s*=/;
+
 function buildSkipMessage(content: string): string {
   const m = content.match(/\b(?:it|test|describe)(?:\.\w+)*\.(skip|only|todo)\s*[.(]?\s*['"`](.*?)['"`]/);
   if (m && m[2]) return `Test '${m[2]}' was disabled with .${m[1]}.`;
@@ -202,6 +266,18 @@ function buildSkipMessage(content: string): string {
   if (GROOVY_PENDINGFEATURE.test(content)) return 'Test was marked pending with Spock @PendingFeature.';
   if (VBNET_IGNORE.test(content)) return 'Test was disabled with a VB.NET <Ignore> attribute.';
   if (VBNET_FACT_SKIP.test(content)) return 'Test was disabled with a VB.NET <Fact(Skip:=...)> attribute.';
+  if (PERL_SKIP_BLOCK.test(content)) return 'Test was disabled with a Perl SKIP: block.';
+  if (PERL_TODO_BLOCK.test(content)) return 'Test was marked with a Perl TODO: block (a failure now passes the suite).';
+  if (R_SKIP.test(content)) return 'Test was disabled with a testthat skip() call.';
+  if (HASKELL_X_FORMS.test(content)) return 'Test was disabled with an x-prefixed Hspec form (xit/xdescribe/xcontext/xspecify).';
+  if (HASKELL_PENDING.test(content)) return 'Test was marked pending with Hspec pendingWith/pending.';
+  if (ELIXIR_MODULETAG_SKIP.test(content)) return 'Every test in this module was disabled with @moduletag :skip.';
+  if (ELIXIR_TAG_SKIP.test(content)) return 'Test was disabled with @tag :skip.';
+  if (LUA_PENDING.test(content)) return 'Test was marked pending with busted pending().';
+  if (CLOJURE_KAOCHA_SKIP.test(content)) return 'Test was disabled with kaocha ^:kaocha/skip metadata.';
+  if (SHELL_BATS_SKIP.test(content)) return 'Test was disabled with a bats skip statement.';
+  if (JULIA_TEST_SKIP.test(content)) return 'Test was disabled with @test_skip.';
+  if (JULIA_TEST_SKIP_PARAM.test(content)) return 'Test was disabled with a skip= keyword argument on @test.';
   return 'Test was disabled.';
 }
 
@@ -246,6 +322,21 @@ const SCALA_TESTFILE_PATTERNS = [SCALA_FLATSPEC_IGNORE];
 const GROOVY_PATTERNS = [JAVA_KOTLIN_IGNORE, GROOVY_IGNOREREST, GROOVY_PENDINGFEATURE];
 const VBNET_PATTERNS = [VBNET_IGNORE, VBNET_FACT_SKIP];
 
+// GROUP B gating tiers (Phase 8.1's scripting/functional/dynamic-language family).
+const PERL_PATTERNS = [PERL_SKIP_BLOCK, PERL_TODO_BLOCK];
+// R's skip()/skip_if() family is gated to a named testthat test file (see R_SKIP comment above).
+const R_TESTFILE_PATTERNS = [R_SKIP];
+const HASKELL_UNGATED_PATTERNS = [HASKELL_X_FORMS];
+// Haskell's pendingWith/pending is gated to a named Hspec test file (see HASKELL_PENDING comment).
+const HASKELL_TESTFILE_PATTERNS = [HASKELL_PENDING];
+const ELIXIR_PATTERNS = [ELIXIR_TAG_SKIP, ELIXIR_MODULETAG_SKIP];
+// Lua's busted pending(...) is gated to a named _spec.lua file (see LUA_PENDING comment above).
+const LUA_TESTFILE_PATTERNS = [LUA_PENDING];
+const CLOJURE_PATTERNS = [CLOJURE_KAOCHA_SKIP];
+// bats' bare skip statement is gated strictly to the .bats extension (see SHELL_BATS_SKIP comment).
+const SHELL_BATS_PATTERNS = [SHELL_BATS_SKIP];
+const JULIA_PATTERNS = [JULIA_TEST_SKIP, JULIA_TEST_SKIP_PARAM];
+
 const NEW_LANG_EXTS = new Set([
   'go', 'java', 'rs', 'rb', 'php', 'cs', 'kt', 'kts',
   // GROUP A: cpp/cc/cxx/hpp/hxx (C++), c/h (C), swift, dart, scala, groovy, vb. Objective-C
@@ -253,6 +344,12 @@ const NEW_LANG_EXTS = new Set([
   // case in isSkipPattern below), so it stays on the default ctx.isTestFile gate like any other
   // unrecognized extension, with an explicit false short-circuit as a backstop.
   'cpp', 'cc', 'cxx', 'hpp', 'hxx', 'c', 'h', 'swift', 'dart', 'scala', 'groovy', 'vb',
+  // GROUP B: pl/pm/t (Perl), r (R), hs (Haskell), ex/exs (Elixir), lua (Lua), clj/cljc (Clojure),
+  // sh/bash/bats (Shell), jl (Julia). Perl/R/Haskell/Elixir/Lua/Clojure/Shell/Julia's RH007
+  // config-exclusion and RH011 suppression-comment coverage is out of this plan's scope (see
+  // 08.1-RESEARCH.md's RH007/RH011 sections) — only RH003 (this plan) and language-detection
+  // (08.1-01) are affected by this set.
+  'pl', 'pm', 't', 'r', 'hs', 'ex', 'exs', 'lua', 'clj', 'cljc', 'sh', 'bash', 'bats', 'jl',
 ]);
 
 // A named pytest/unittest test module (test_x.py / x_test.py), excluding conftest.py and other
@@ -300,6 +397,36 @@ function isScalaTestFile(filePath: string): boolean {
   return /Spec\.scala$/.test(base) || /Suite\.scala$/.test(base) || normalized.includes('/src/test/scala/');
 }
 
+// testthat convention: tests/testthat/test-*.R. Gates R_SKIP so an unrelated user-defined
+// `skip(...)` function outside a test directory never fires (mirrors isCTestFile's precedent).
+function isRTestFile(filePath: string): boolean {
+  const normalized = filePath.replace(/\\/g, '/');
+  const base = normalized.split('/').pop() ?? normalized;
+  return /(^|\/)tests\/testthat\//.test(normalized) && /^test-.*\.[Rr]$/.test(base);
+}
+
+// hspec-discover convention: *Spec.hs filename, or any file under a test/ directory. Gates
+// HASKELL_PENDING so an unrelated `pending` identifier outside test code never fires.
+function isHaskellTestFile(filePath: string): boolean {
+  const normalized = filePath.replace(/\\/g, '/');
+  const base = normalized.split('/').pop() ?? normalized;
+  return /Spec\.hs$/.test(base) || /(^|\/)test\//.test(normalized);
+}
+
+// busted's dominant _spec.lua naming convention. Gates LUA_PENDING so an unrelated `pending(...)`
+// function call (e.g. a promise-library state) outside a spec file never fires.
+function isLuaTestFile(filePath: string): boolean {
+  const base = filePath.replace(/\\/g, '/').split('/').pop() ?? filePath;
+  return /_spec\.lua$/.test(base);
+}
+
+// bats-core only executes .bats files (tool-enforced) — the cleanest test-file signal in this
+// batch after Perl's .t. Gates SHELL_BATS_SKIP so a bare `skip` word in an ordinary .sh/.bash
+// script never fires.
+function isBatsFile(filePath: string): boolean {
+  return filePath.toLowerCase().endsWith('.bats');
+}
+
 function isSkipPattern(content: string, flags: {
   ext: string | undefined;
   pyTestModule: boolean;
@@ -308,8 +435,15 @@ function isSkipPattern(content: string, flags: {
   kotlinTestFile: boolean;
   cTestFile: boolean;
   scalaTestFile: boolean;
+  rTestFile: boolean;
+  haskellTestFile: boolean;
+  luaTestFile: boolean;
+  batsFile: boolean;
 }): boolean {
-  const { ext, pyTestModule, goTestFile, rubyTestFile, kotlinTestFile, cTestFile, scalaTestFile } = flags;
+  const {
+    ext, pyTestModule, goTestFile, rubyTestFile, kotlinTestFile, cTestFile, scalaTestFile,
+    rTestFile, haskellTestFile, luaTestFile, batsFile,
+  } = flags;
   switch (ext) {
     case 'py':
       if (PY_DECORATOR_PATTERNS.some(re => re.test(content))) return true;
@@ -361,6 +495,33 @@ function isSkipPattern(content: string, flags: {
       return GROOVY_PATTERNS.some(re => re.test(content));
     case 'vb':
       return VBNET_PATTERNS.some(re => re.test(content));
+    case 'pl':
+    case 'pm':
+    case 't':
+      return PERL_PATTERNS.some(re => re.test(content));
+    case 'r':
+      return rTestFile && R_TESTFILE_PATTERNS.some(re => re.test(content));
+    case 'hs':
+      if (HASKELL_UNGATED_PATTERNS.some(re => re.test(content))) return true;
+      return haskellTestFile && HASKELL_TESTFILE_PATTERNS.some(re => re.test(content));
+    case 'ex':
+    case 'exs':
+      return ELIXIR_PATTERNS.some(re => re.test(content));
+    case 'lua':
+      return luaTestFile && LUA_TESTFILE_PATTERNS.some(re => re.test(content));
+    case 'clj':
+    case 'cljc':
+      return CLOJURE_PATTERNS.some(re => re.test(content));
+    case 'sh':
+    case 'bash':
+      // shunit2's startSkipping/endSkipping is a documented gap (stateful, non-local — see
+      // SHELL_BATS_SKIP comment above); no bare-word pattern is safe to apply outside a named
+      // .bats file, so plain .sh/.bash files never fire.
+      return false;
+    case 'bats':
+      return batsFile && SHELL_BATS_PATTERNS.some(re => re.test(content));
+    case 'jl':
+      return JULIA_PATTERNS.some(re => re.test(content));
     default:
       return JS_PATTERNS.some(re => re.test(content));
   }
@@ -382,6 +543,10 @@ function run(context: Context): Finding[] {
     const kotlinTestFile = (ext === 'kt' || ext === 'kts') && isKotlinTestFile(filePath);
     const cTestFile = (ext === 'c' || ext === 'h') && isCTestFile(filePath);
     const scalaTestFile = ext === 'scala' && isScalaTestFile(filePath);
+    const rTestFile = ext === 'r' && isRTestFile(filePath);
+    const haskellTestFile = ext === 'hs' && isHaskellTestFile(filePath);
+    const luaTestFile = ext === 'lua' && isLuaTestFile(filePath);
+    const batsFile = ext === 'bats' && isBatsFile(filePath);
     // For JS/TS files, only inspect test files — prevents false positives from library
     // code that uses .skip() or .only() as unrelated method names (e.g. RxJS observable.skip(5)).
     // Python and the new languages pass through: each handles its own gating internally
@@ -390,7 +555,10 @@ function run(context: Context): Finding[] {
     for (const chunk of file.chunks) {
       for (const change of chunk.changes) {
         if (change.type !== 'add') continue;
-        if (!isSkipPattern(change.content, { ext, pyTestModule, goTestFile, rubyTestFile, kotlinTestFile, cTestFile, scalaTestFile })) continue;
+        if (!isSkipPattern(change.content, {
+          ext, pyTestModule, goTestFile, rubyTestFile, kotlinTestFile, cTestFile, scalaTestFile,
+          rTestFile, haskellTestFile, luaTestFile, batsFile,
+        })) continue;
         findings.push({
           verifierId: 'RH003',
           severity: 'error',

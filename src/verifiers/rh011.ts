@@ -66,6 +66,37 @@ const SUPPRESSION_PATTERNS = [
   // warning disable` above (do NOT reuse the C# regex). `#Enable Warning` is only used to detect
   // the unclosed-disable gap, not itself a suppression.
   /#Disable\s+Warning\b/,
+  // Perl: `## no critic` (bare = all policies) / `## no critic (PolicyName)` (scoped form also
+  // matches this same regex). The unclosed `## no critic` with no matching `## use critic` runs
+  // to EOF — line-scoped-only, documented as a gap (mirrors Ruby/C#'s forward-scan limitation).
+  /##\s*no\s+critic\b/,
+  // R: `# nolint`, `# nolint: linter_name.`, `# nolint start` (region-open) all share this
+  // prefix. Whole-file exclusion is via a separate `.lintr` config file, not an inline directive —
+  // documented gap, do NOT try to detect `.lintr` edits as RH011.
+  /#\s*nolint\b/,
+  // Haskell: `{-# ANN ("HLint: ignore RuleName") #-}` or `{-# ANN foo ("HLint: ignore") #-}` —
+  // declaration-scoped. Deliberately also matches the module-wide `{-# ANN module "HLint: ignore"
+  // #-}` file-wide form's literal text (see FILEWIDE_HLINT_RE below); run()'s else-if dispatch
+  // checks file-wide first so the module-wide form is never double-counted here.
+  /\{-#\s*ANN\b[^#]*HLint:\s*ignore/,
+  // Elixir: `# credo:disable-for-next-line`, `# credo:disable-for-previous-line`,
+  // `# credo:disable-for-lines:N` — line/region-scoped. Distinct alternation from the file-wide
+  // `# credo:disable-for-this-file` directive below (FILEWIDE_CREDO_FILE_RE), no shared match.
+  /#\s*credo:disable-for-(?:next-line|previous-line|lines:\d+)\b/,
+  // Lua: `-- luacheck: ignore` used on the same line as code (line-scoped). The own-line-at-
+  // file-top form is a fragile "everything till end of current closure" signal — too unreliable
+  // to distinguish "top of file" from "top of an arbitrary nested function" via diff-line regex
+  // alone, so it's documented as a gap rather than implemented as file-wide.
+  /--\s*luacheck:\s*ignore\b/,
+  // Clojure: `#_{:clj-kondo/ignore [:linter-key]}` — a reader-discard form immediately preceding
+  // the target form (form/line-scoped). Whole-file exclusion is via a separate
+  // `.clj-kondo/config.edn` file, not an inline comment — documented gap.
+  /#_\{:clj-kondo\/ignore\b/,
+  // Shell/Bash: `# shellcheck disable=SC####` (comma-separated list supported). No inline
+  // file-wide directive exists for shellcheck — a confirmed structural absence (not just an
+  // unimplemented feature), documented as a gap; whole-file exclusion requires a separate
+  // `.shellcheckrc` file.
+  /#\s*shellcheck\s+disable=SC\d+\b/,
 ];
 
 // File-wide directives: `/* eslint-disable */` with no rule list disables every rule for the
@@ -100,6 +131,18 @@ const FILEWIDE_SWIFTLINT_ALL_RE = /\/\/\s*swiftlint:disable\s+all\b/;
 // form (no shared literal prefix: `ignore_for_file:` never matches `ignore\s*:` since `_for_file`
 // sits between `ignore` and the colon).
 const FILEWIDE_DART_IGNOREFILE_RE = /\/\/\s*ignore_for_file\s*:/;
+// Haskell's genuine, documented module-wide HLint directive — either `{-# ANN module "HLint:
+// ignore" #-}` or the bare `{-# HLINT ignore #-}` pragma. The first alternative's literal text
+// also matches the declaration-scoped ANN pattern in SUPPRESSION_PATTERNS above; run()'s else-if
+// dispatch checks file-wide first, so a genuine module-wide directive is never double-counted as
+// declaration-scoped. No trailing `\b` after the closing quote in the first alternative — a `\b`
+// immediately after `"` followed by whitespace is not a real word boundary and would silently
+// fail to match (both sides non-word characters).
+const FILEWIDE_HLINT_RE = /\{-#\s*(?:ANN\s+module\s+"HLint:\s*ignore"|HLINT\s+ignore\b)/;
+// Elixir's genuine, documented file-wide directive — disables credo for the entire file. Distinct
+// alternation from the line-scoped `credo:disable-for-(next-line|previous-line|lines:N)` forms in
+// SUPPRESSION_PATTERNS above (no shared match).
+const FILEWIDE_CREDO_FILE_RE = /#\s*credo:disable-for-this-file\b/;
 
 // The following file-wide mechanisms are real but deliberately NOT implemented this phase —
 // see 08-RESEARCH.md / 08.1-RESEARCH.md RH011 sections + Assumptions Log A6/A9/A11:
@@ -115,6 +158,22 @@ const FILEWIDE_DART_IGNOREFILE_RE = /\/\/\s*ignore_for_file\s*:/;
 // - VB.NET's unclosed `#Disable Warning` with no matching `#Enable Warning` running to EOF is the
 //   same forward-scan limitation, mirrors C#'s existing documented gap
 // - cppcheck has no dedicated file-wide suppression form
+// - Perl's unclosed `## no critic` with no matching `## use critic` running to EOF is the same
+//   forward-scan limitation as Ruby/C#'s documented gaps
+// - R's whole-file exclusion is via a separate `.lintr` config file (exclusions field), not an
+//   inline directive — not detected as RH011
+// - Lua's own-line-at-file-top `-- luacheck: ignore` ("everything till end of current closure") is
+//   too fragile to reliably distinguish from an arbitrary nested-function top via diff-line regex
+//   alone — only the unambiguous same-line-as-code form is implemented
+// - Clojure's whole-file exclusion is via a separate `.clj-kondo/config.edn` file, not an inline
+//   comment — not detected as RH011
+// - Shell/Bash has no inline file-wide directive at all — a confirmed structural absence (not an
+//   unimplemented feature); whole-file exclusion requires a separate `.shellcheckrc` file
+// - Julia: RH011 is a WHOLE-CATEGORY documented gap — no dominant Julia linter with a
+//   standardized inline suppress-comment convention was found (08.1-RESEARCH.md Assumptions Log
+//   A9). No line-scoped or file-wide detector is implemented for Julia at all. This is a negative
+//   claim about tooling-ecosystem maturity, flagged for human sanity-check rather than a guessed
+//   detector forced into existence.
 
 // A single suppression is often legitimate (third-party types with no stubs, a documented
 // exception). "Spam" means multiple added in the same change, and that's the actual signal.
@@ -130,7 +189,9 @@ function isFilewideSuppression(content: string): boolean {
     FILEWIDE_KOTLIN_SUPPRESS_RE.test(content) ||
     FILEWIDE_PHPCS_IGNOREFILE_RE.test(content) ||
     FILEWIDE_SWIFTLINT_ALL_RE.test(content) ||
-    FILEWIDE_DART_IGNOREFILE_RE.test(content)
+    FILEWIDE_DART_IGNOREFILE_RE.test(content) ||
+    FILEWIDE_HLINT_RE.test(content) ||
+    FILEWIDE_CREDO_FILE_RE.test(content)
   );
 }
 

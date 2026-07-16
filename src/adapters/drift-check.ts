@@ -55,7 +55,13 @@ export async function checkAdapterDrift(
     checked.push(path);
     const expected = adapter.transform ? adapter.transform(canonical) : canonical;
     if (sha256(content) !== sha256(expected)) {
-      drifted.push(path);
+      // guardExisting adapters (e.g. Qodo's un-namespaced best_practices.md) may legitimately
+      // hold user-owned content that install-skill deliberately declined to overwrite — that's
+      // not proctor drift, it's install-skill's collision guard working as intended. Only
+      // non-guarded adapters are flagged when their deployed content diverges from expected.
+      if (!adapter.guardExisting) {
+        drifted.push(path);
+      }
     }
   }
 

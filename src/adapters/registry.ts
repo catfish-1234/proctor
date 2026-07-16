@@ -13,6 +13,13 @@ export interface AgentAdapter {
    * If absent, the adapter gets a byte-for-byte verbatim copy (current default behavior).
    */
   transform?: (canonical: string) => string;
+  /**
+   * When true, install-skill will NOT overwrite a pre-existing file at this path whose content
+   * differs from what proctor would write — it warns and skips. Used for un-namespaced generic
+   * filenames (e.g. Qodo's repo-root best_practices.md) that could collide with an unrelated
+   * user file.
+   */
+  guardExisting?: boolean;
 }
 
 // Transform proof case 1 (AGENT-04): Cursor's `.mdc` convention supports `description`,
@@ -76,4 +83,8 @@ export const AGENT_ADAPTERS: AgentAdapter[] = [
   { id: 'tabnine', displayName: 'Tabnine', relativePath: '.tabnine/guidelines/proctor.md', scriptable: true },
   { id: 'trae', displayName: 'Trae', relativePath: '.trae/rules/proctor.md', scriptable: false },
   { id: 'github-copilot-global', displayName: 'GitHub Copilot (global)', relativePath: '.github/copilot-instructions.md', scriptable: false },
+  // Qodo's canonical path is a generic, un-namespaced repo-root filename that could collide
+  // with an unrelated user file — guardExisting makes install-skill warn and skip instead of
+  // silently overwriting it. See the AgentAdapter.guardExisting doc comment above.
+  { id: 'qodo', displayName: 'Qodo', relativePath: 'best_practices.md', scriptable: true, guardExisting: true },
 ];

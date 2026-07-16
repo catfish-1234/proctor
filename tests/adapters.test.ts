@@ -66,8 +66,8 @@ describe('registry wiring', () => {
 });
 
 describe('AGENT_ADAPTERS roster shape (AGENT-01/AGENT-02)', () => {
-  it('has at least 17 entries — the original 10 plus the 7 verbatim additions (qodo lands in Task 2, tightened to 18 there)', () => {
-    expect(AGENT_ADAPTERS.length).toBeGreaterThanOrEqual(17);
+  it('has exactly 18 entries — the original 10 plus the 8 researched additions', () => {
+    expect(AGENT_ADAPTERS.length).toBe(18);
   });
 
   it('every entry has a non-empty string id, displayName, relativePath, and a boolean scriptable', () => {
@@ -126,5 +126,13 @@ describe('AGENT_ADAPTERS roster shape (AGENT-01/AGENT-02)', () => {
     expect(global?.relativePath).toBe('.github/copilot-instructions.md');
     expect(scoped?.relativePath).toBe('.github/instructions/proctor.instructions.md');
     expect(global?.relativePath).not.toBe(scoped?.relativePath);
+  });
+
+  it('the qodo entry has the researched path, scriptable true, and guardExisting true', () => {
+    const qodo = AGENT_ADAPTERS.find((a) => a.id === 'qodo');
+    expect(qodo).toBeDefined();
+    expect(qodo?.relativePath).toBe('best_practices.md');
+    expect(qodo?.scriptable).toBe(true);
+    expect(qodo?.guardExisting).toBe(true);
   });
 });

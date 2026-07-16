@@ -23,8 +23,10 @@
   RH006 commit-message suppression scoped to genuinely committed (`--base`) diffs only; Python's
   own `test_*.py`/`*_test.py` convention added to default test-file globs; RH011 file-wide
   suppression directives now always flagged regardless of the per-line spam count; the
-  `proctor-ignore: <ID> reason: ...` inline marker now works when added in the same commit as the
-  change it justifies, for any verifier (not just a pre-existing line).
+  `proctor-ignore: <ID> reason: ...` inline marker works for any verifier, but only when it
+  predates the diff (a pre-existing, unchanged line) — not when added in the same commit as the
+  change it justifies, which closes a self-approval loophole (an agent excusing its own cheat in
+  the same breath it makes it). See `src/engine.ts` `applySuppression`.
 - **A real packaging bug found and fixed during launch verification:** `src/bench/scorer.ts`
   resolved `vitest` (a devDependency) at module import time, which crashed *every* CLI command —
   not just `bench` — on a clean `npx`/`npm install`. Now resolved lazily, only when `bench`

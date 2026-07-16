@@ -53,21 +53,36 @@ describe('runChecks', () => {
     expect(result.every(f => f.verifierId === 'RH001')).toBe(true);
   });
 
-  it('suppresses finding when reason: is present in proctor-ignore comment on line above', async () => {
-    // RH003 finding at line 5 → look for suppress comment at line 4
+  it('does NOT suppress when the proctor-ignore comment is added in the same diff, on the line above (same-commit self-approval)', async () => {
+    // RH003 finding at line 5; a marker ADDED alongside it (not pre-existing) must not suppress —
+    // otherwise the same agent making the cheat could self-issue its own excuse in one commit.
     const suppressFile = makeFile('src/calc.test.ts', [
       {
         content: '',
         changes: [
-          // Suppress comment at line 4
           { type: 'add', content: '+ # proctor-ignore: RH003 reason: intentional', ln: 4 } as unknown as ParsedFile['chunks'][number]['changes'][number],
-          // The actual skip at line 5 (triggers RH003 finding at ln=5)
           { type: 'add', content: '+ it.skip("test", () => {})', ln: 5 } as unknown as ParsedFile['chunks'][number]['changes'][number],
         ],
       } as unknown as ParsedFile['chunks'][number],
     ]);
     const result = await runChecks(makeCtx({ files: [suppressFile], enabled: ['RH003'] }));
-    // The RH003 finding at line 5 should be suppressed
+    expect(result.filter(f => f.verifierId === 'RH003' && f.line === 5).length).toBeGreaterThan(0);
+  });
+
+  it('suppresses when the proctor-ignore marker PREDATES the diff (unchanged context line)', async () => {
+    // The marker already existed in the base version — it's a 'normal' (unchanged) line in this
+    // diff, not one introduced alongside the flagged change. This is the only path that suppresses:
+    // a genuine exception has to be committed BEFORE the change it excuses.
+    const suppressFile = makeFile('src/calc.test.ts', [
+      {
+        content: '',
+        changes: [
+          { type: 'normal', content: ' # proctor-ignore: RH003 reason: intentional, tracked in JIRA-1234', ln2: 4 } as unknown as ParsedFile['chunks'][number]['changes'][number],
+          { type: 'add', content: '+ it.skip("test", () => {})', ln: 5 } as unknown as ParsedFile['chunks'][number]['changes'][number],
+        ],
+      } as unknown as ParsedFile['chunks'][number],
+    ]);
+    const result = await runChecks(makeCtx({ files: [suppressFile], enabled: ['RH003'] }));
     const rh003Findings = result.filter(f => f.verifierId === 'RH003' && f.line === 5);
     expect(rh003Findings).toHaveLength(0);
   });
@@ -88,13 +103,15 @@ describe('runChecks', () => {
   });
 
   it('does not suppress via a marker in a file whose path merely ends with the finding file name', async () => {
-    // foo.test.ts has the skip (finding); myfoo.test.ts has a valid marker at the same lines.
-    // A bare endsWith match would let myfoo.test.ts's marker suppress foo.test.ts's finding.
+    // foo.test.ts has the skip (finding); myfoo.test.ts has a valid, pre-existing (normal/context)
+    // marker at the same lines — eligible to suppress on its own terms. A bare endsWith match
+    // would let myfoo.test.ts's marker suppress foo.test.ts's finding; the file-path guard must
+    // prevent that regardless of the marker otherwise being a valid pre-existing exception.
     const colliderFile = makeFile('myfoo.test.ts', [
       {
         content: '',
         changes: [
-          { type: 'add', content: '+ # proctor-ignore: RH003 reason: intentional', ln: 4 } as unknown as ParsedFile['chunks'][number]['changes'][number],
+          { type: 'normal', content: ' # proctor-ignore: RH003 reason: intentional', ln2: 4 } as unknown as ParsedFile['chunks'][number]['changes'][number],
           { type: 'add', content: '+ const unrelated = 1;', ln: 5 } as unknown as ParsedFile['chunks'][number]['changes'][number],
         ],
       } as unknown as ParsedFile['chunks'][number],
@@ -113,12 +130,14 @@ describe('runChecks', () => {
   });
 
   it('does NOT suppress when reason: is absent from proctor-ignore comment', async () => {
+    // Marker is pre-existing (normal) — eligible to suppress on temporal grounds alone — so this
+    // isolates the reason-required guard specifically.
     const suppressFile = makeFile('src/calc.test.ts', [
       {
         content: '',
         changes: [
           // Comment at line 4 without reason:
-          { type: 'add', content: '+ # proctor-ignore: RH003', ln: 4 } as unknown as ParsedFile['chunks'][number]['changes'][number],
+          { type: 'normal', content: ' # proctor-ignore: RH003', ln2: 4 } as unknown as ParsedFile['chunks'][number]['changes'][number],
           { type: 'add', content: '+ it.skip("test", () => {})', ln: 5 } as unknown as ParsedFile['chunks'][number]['changes'][number],
         ],
       } as unknown as ParsedFile['chunks'][number],
@@ -128,7 +147,9 @@ describe('runChecks', () => {
     expect(rh003Findings.length).toBeGreaterThan(0);
   });
 
-  it('suppresses when the proctor-ignore marker is an inline trailing comment on the SAME line as the flagged change', async () => {
+  it('does NOT suppress when the proctor-ignore marker is an inline trailing comment on the SAME added line as the flagged change', async () => {
+    // The strongest same-commit case: marker and cheat on one line, added together. Must not
+    // suppress — this is exactly the one-shot self-approval the temporal-separation rule closes.
     const suppressFile = makeFile('src/calc.test.ts', [
       {
         content: '',
@@ -142,13 +163,13 @@ describe('runChecks', () => {
       } as unknown as ParsedFile['chunks'][number],
     ]);
     const result = await runChecks(makeCtx({ files: [suppressFile], enabled: ['RH003'] }));
-    const rh003Findings = result.filter(f => f.verifierId === 'RH003' && f.line === 5);
-    expect(rh003Findings).toHaveLength(0);
+    expect(result.filter(f => f.verifierId === 'RH003' && f.line === 5).length).toBeGreaterThan(0);
   });
 
-  it('suppresses when the proctor-ignore marker is added in the same commit, elsewhere in the same chunk', async () => {
+  it('does NOT suppress when the proctor-ignore marker is added in the same commit, elsewhere in the same chunk', async () => {
     // Marker is neither on the flagged line nor immediately above it -- a few lines away in the
-    // same hunk, e.g. a developer adding one reason comment near the top of a multi-line change.
+    // same hunk -- but it's still an 'add' in this same diff, so it's still same-commit
+    // self-approval and must not suppress.
     const suppressFile = makeFile('src/calc.test.ts', [
       {
         content: '',
@@ -160,16 +181,17 @@ describe('runChecks', () => {
       } as unknown as ParsedFile['chunks'][number],
     ]);
     const result = await runChecks(makeCtx({ files: [suppressFile], enabled: ['RH003'] }));
-    const rh003Findings = result.filter(f => f.verifierId === 'RH003' && f.line === 5);
-    expect(rh003Findings).toHaveLength(0);
+    expect(result.filter(f => f.verifierId === 'RH003' && f.line === 5).length).toBeGreaterThan(0);
   });
 
   it('does NOT suppress a finding in a DIFFERENT chunk from where the marker was added', async () => {
+    // Marker is pre-existing (normal) — eligible to suppress on temporal grounds alone — so this
+    // isolates the chunk-scoping guard specifically.
     const suppressFile = makeFile('src/calc.test.ts', [
       {
         content: '',
         changes: [
-          { type: 'add', content: '+ # proctor-ignore: RH003 reason: intentional', ln: 2 } as unknown as ParsedFile['chunks'][number]['changes'][number],
+          { type: 'normal', content: ' # proctor-ignore: RH003 reason: intentional', ln2: 2 } as unknown as ParsedFile['chunks'][number]['changes'][number],
         ],
       } as unknown as ParsedFile['chunks'][number],
       {
@@ -185,12 +207,14 @@ describe('runChecks', () => {
   });
 
   it('does NOT suppress when proctor-ignore comment names wrong rule', async () => {
+    // Marker is pre-existing (normal) — eligible to suppress on temporal grounds alone — so this
+    // isolates the rule-ID matching guard specifically.
     const suppressFile = makeFile('src/calc.test.ts', [
       {
         content: '',
         changes: [
           // Comment at line 4 names RH001, not RH003
-          { type: 'add', content: '+ # proctor-ignore: RH001 reason: intentional', ln: 4 } as unknown as ParsedFile['chunks'][number]['changes'][number],
+          { type: 'normal', content: ' # proctor-ignore: RH001 reason: intentional', ln2: 4 } as unknown as ParsedFile['chunks'][number]['changes'][number],
           { type: 'add', content: '+ it.skip("test", () => {})', ln: 5 } as unknown as ParsedFile['chunks'][number]['changes'][number],
         ],
       } as unknown as ParsedFile['chunks'][number],

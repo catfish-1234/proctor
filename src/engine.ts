@@ -66,14 +66,22 @@ function effectiveLineOf(change: DiffChange): number {
 
 /**
  * `proctor-ignore: <ID> reason: ...` suppression. Scoped to the diff chunk containing the
- * flagged line, not just the single line right above it. A narrower check would only ever match
- * a marker that already existed as a stable, unchanged line before this diff. A marker added in
- * the same commit as the change it justifies (the realistic case: state your reason right where
- * you make the change) could land on the flagged line itself as a trailing comment, on the line
- * above it, or a few lines away in the same hunk. All of those now suppress, since they're all
- * part of the same logical edit a developer would reasonably consider one change. Still
- * chunk-scoped, not file-scoped, on purpose: a marker in an unrelated hunk of the same file
- * shouldn't silence a finding it wasn't written for.
+ * flagged line, not just the single line right above it.
+ *
+ * Only a marker on an unchanged ('normal') context line counts — one that already existed in the
+ * base version, before this diff. A marker introduced in the SAME diff as the change it excuses
+ * (whether an 'add' line above the flagged code, a few lines away in the same hunk, or an inline
+ * trailing comment on the flagged line itself) does NOT suppress. This closes a self-approval
+ * loophole: nothing previously distinguished "a human pre-declared this exception" from "the same
+ * agent that just made the cheat also typed a plausible-sounding excuse for it in the same
+ * breath." Requiring the marker to predate the diff means a genuine exception has to be committed
+ * BEFORE the change it justifies — in a prior, separate turn/commit — which a same-commit
+ * self-approval can't fabricate after the fact. This is a deliberate behavior change (see
+ * README's "Inline suppression" section); it was previously permissive by design and is now
+ * strict by design.
+ *
+ * Still chunk-scoped, not file-scoped: a marker in an unrelated hunk of the same file shouldn't
+ * silence a finding it wasn't written for.
  */
 function applySuppression(findings: Finding[], files: ParsedFile[]): Finding[] {
   // One path may be repo-relative and the other cwd-relative, so allow a suffix match — but
@@ -95,10 +103,11 @@ function applySuppression(findings: Finding[], files: ParsedFile[]): Finding[] {
     if (!relevantChunk) return true;
 
     for (const change of relevantChunk.changes) {
-      // A removed marker must not suppress: a `del` line carrying `proctor-ignore` means the
-      // justification was deleted (or a pre-planted marker is being used to mask a file deletion).
-      // Only added/context lines count.
-      if (change.type === 'del') continue;
+      // Only a pre-existing, unchanged context line counts. 'add' means the marker was
+      // introduced in this same diff (self-approval — does not suppress). 'del' means the
+      // justification was removed (or a pre-planted marker is being used to mask a file
+      // deletion) — also does not suppress.
+      if (change.type !== 'normal') continue;
       const content = change.content.replace(/^[ +\-]/, '');
       const m = /proctor-ignore:\s*(\S+)\s+reason:\s*(.+)/.exec(content);
       if (m && m[1] === finding.verifierId && m[2]?.trim()) return false; // suppress

@@ -64,3 +64,67 @@ describe('registry wiring', () => {
     expect(copilot?.transform).toBe(copilotApplyToTransform);
   });
 });
+
+describe('AGENT_ADAPTERS roster shape (AGENT-01/AGENT-02)', () => {
+  it('has at least 17 entries — the original 10 plus the 7 verbatim additions (qodo lands in Task 2, tightened to 18 there)', () => {
+    expect(AGENT_ADAPTERS.length).toBeGreaterThanOrEqual(17);
+  });
+
+  it('every entry has a non-empty string id, displayName, relativePath, and a boolean scriptable', () => {
+    for (const adapter of AGENT_ADAPTERS) {
+      expect(typeof adapter.id).toBe('string');
+      expect(adapter.id.length).toBeGreaterThan(0);
+      expect(typeof adapter.displayName).toBe('string');
+      expect(adapter.displayName.length).toBeGreaterThan(0);
+      expect(typeof adapter.relativePath).toBe('string');
+      expect(adapter.relativePath.length).toBeGreaterThan(0);
+      expect(typeof adapter.scriptable).toBe('boolean');
+    }
+  });
+
+  it('every relativePath is unique across the roster', () => {
+    const paths = AGENT_ADAPTERS.map((a) => a.relativePath);
+    expect(new Set(paths).size).toBe(paths.length);
+  });
+
+  it('every id is unique across the roster', () => {
+    const ids = AGENT_ADAPTERS.map((a) => a.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('includes the 7 new verbatim researched adapters with their verified paths and scriptability', () => {
+    const expected: Array<{ id: string; relativePath: string; scriptable: boolean }> = [
+      { id: 'zed', relativePath: '.rules', scriptable: false },
+      { id: 'agents-md', relativePath: 'AGENTS.md', scriptable: false },
+      { id: 'openhands', relativePath: '.openhands/microagents/repo.md', scriptable: true },
+      { id: 'kiro', relativePath: '.kiro/steering/proctor.md', scriptable: true },
+      { id: 'tabnine', relativePath: '.tabnine/guidelines/proctor.md', scriptable: true },
+      { id: 'trae', relativePath: '.trae/rules/proctor.md', scriptable: false },
+      { id: 'github-copilot-global', relativePath: '.github/copilot-instructions.md', scriptable: false },
+    ];
+    for (const exp of expected) {
+      const adapter = AGENT_ADAPTERS.find((a) => a.id === exp.id);
+      expect(adapter, `expected adapter id ${exp.id} to exist`).toBeDefined();
+      expect(adapter?.relativePath).toBe(exp.relativePath);
+      expect(adapter?.scriptable).toBe(exp.scriptable);
+    }
+  });
+
+  it('does not modify the existing locked codex or amazon-q entries', () => {
+    const codex = AGENT_ADAPTERS.find((a) => a.id === 'codex');
+    expect(codex?.relativePath).toBe('.agents/skills/proctor/SKILL.md');
+    expect(codex?.scriptable).toBe(true);
+
+    const amazonQ = AGENT_ADAPTERS.find((a) => a.id === 'amazon-q');
+    expect(amazonQ?.relativePath).toBe('.amazonq/rules/proctor.md');
+    expect(amazonQ?.scriptable).toBe(false);
+  });
+
+  it('github-copilot-global is distinct from the existing github-copilot (path-scoped) entry', () => {
+    const global = AGENT_ADAPTERS.find((a) => a.id === 'github-copilot-global');
+    const scoped = AGENT_ADAPTERS.find((a) => a.id === 'github-copilot');
+    expect(global?.relativePath).toBe('.github/copilot-instructions.md');
+    expect(scoped?.relativePath).toBe('.github/instructions/proctor.instructions.md');
+    expect(global?.relativePath).not.toBe(scoped?.relativePath);
+  });
+});

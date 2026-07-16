@@ -746,3 +746,39 @@ describe('rh002 — GROUP A weakening (LANG-11, LANG-13)', () => {
     expect(normalised).toMatchObject([expected]);
   });
 });
+
+describe('rh002 — GROUP B weakening (LANG-11, LANG-13)', () => {
+  const langiiBExpected: Array<Record<string, unknown>> = JSON.parse(
+    readFileSync(path.join(FIXTURES_DIR, 'RH002', 'langii-b-expected.json'), 'utf8'),
+  );
+
+  const groupBCases: Array<[string, string]> = [
+    ['calculator.t', 'Perl (Test::More is -> ok flat)'],
+    ['test-calculator.R', 'R (testthat expect_equal -> expect_true flat)'],
+    ['CalculatorSpec.hs', 'Haskell (Hspec shouldBe same-subject)'],
+    ['calculator_test.exs', 'Elixir (ExUnit assert x == y -> bare assert x same-subject)'],
+    ['calculator_spec.lua', 'Lua (busted assert.are.equal -> assert.is_truthy flat)'],
+    ['calculator_test.clj', 'Clojure (S-expression (is (= x y)) -> (is (some? x)) same-subject)'],
+    ['calculator_test.bats', 'Shell/Bash (bats-assert assert_equal -> assert_success flat)'],
+    ['calculator_test.jl', 'Julia (@test x == y -> @test !isnothing(x) same-subject)'],
+  ];
+
+  it.each(groupBCases)('%s (%s): weakening fixture matches langii-b-expected.json', (filename) => {
+    const expected = langiiBExpected.find(e => e.file === filename);
+    expect(expected, `no langii-b-expected.json entry for ${filename}`).toBeDefined();
+
+    const files = fixtureDiff('RH002', filename);
+    const findings = rh002.run({ ...baseCtx, files });
+    const normalised = findings.map(f => ({ ...f, file: path.basename(f.file) }));
+    expect(normalised).toMatchObject([expected]);
+  });
+
+  it('Elixir negative fixture: a standalone bare `assert x` with no prior comparison deletion yields zero findings', () => {
+    const langiiBNegativeExpected = JSON.parse(
+      readFileSync(path.join(FIXTURES_DIR, 'RH002', 'langii-b-negative-expected.json'), 'utf8'),
+    );
+    const files = fixtureDiff('RH002', 'calculator_negative.exs');
+    const findings = rh002.run({ ...baseCtx, files });
+    expect(findings).toEqual(langiiBNegativeExpected);
+  });
+});

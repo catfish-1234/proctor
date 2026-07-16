@@ -169,6 +169,15 @@ function extractLabel(content: string): string {
   // the full macro name is preserved in the label.
   const groupAMacroCall = content.match(GROUP_A_MACRO_CALL_RE);
   if (groupAMacroCall) return groupAMacroCall[1] ?? '';
+  // Clojure: (is (= SUBJECT EXPECTED)) / (is (some? SUBJECT)) / bare (is SUBJECT) — procedural
+  // paren-depth extraction (NOT a balanced-parens regex), since nesting can exceed the one level
+  // GROUP_A_MACRO_CALL_RE/GROUP_B_MACRO_CALL_RE handle (e.g. `(is (= (add 2 3) 5))`). Tried
+  // BEFORE GROUP_B_MACRO_CALL_RE: Perl's `\bis\s*\(` alternative would otherwise also match
+  // Clojure's "is (" (the "is" token followed by whitespace then the `(=...)` group's opening
+  // paren), silently truncating away the outer `(is ...)` wrapper — exactly the truncation risk
+  // the plan calls out for Clojure's S-expression label extraction.
+  const clojureIsLabel = extractClojureIsLabel(content);
+  if (clojureIsLabel) return clojureIsLabel;
   // GROUP B (LANG-11) macro/matcher calls: Perl Test::More, R testthat, Lua busted. Tried BEFORE
   // the generic assertCall pattern below for the same truncation-avoidance reason as GROUP A.
   const groupBMacroCall = content.match(GROUP_B_MACRO_CALL_RE);
@@ -176,18 +185,14 @@ function extractLabel(content: string): string {
   // Shell/Bash bats-assert: assert_equal/assert_success/assert_not_equal (no parens).
   const batsAssertCall = content.match(BATS_ASSERT_CALL_RE);
   if (batsAssertCall) return batsAssertCall[0].trim();
-  // Haskell: LHS `shouldBe`/`shouldSatisfy`/`shouldNotBe` RHS backtick-infix operator forms.
-  const haskellBacktickCall = content.match(/([\w.'()]+\s*`(?:shouldBe|shouldSatisfy|shouldNotBe)`\s*[\w.'()]+)/);
+  // Haskell: LHS `shouldBe`/`shouldSatisfy`/`shouldNotBe` RHS backtick-infix operator forms. The
+  // trailing operand is captured to end-of-line (`.+`), not a single-token class, since RHS
+  // operands like `Just 2` are themselves multi-token expressions.
+  const haskellBacktickCall = content.match(/([\w.'()]+\s*`(?:shouldBe|shouldSatisfy|shouldNotBe)`\s*.+)/);
   if (haskellBacktickCall) return haskellBacktickCall[1]!.trim();
   // Julia: @test SUBJECT == EXPECTED / @test !isnothing(SUBJECT) / @test SUBJECT !== nothing.
   const juliaTestCall = content.match(/(@test\s+.+)$/);
   if (juliaTestCall) return juliaTestCall[1]!.trim();
-  // Clojure: (is (= SUBJECT EXPECTED)) / (is (some? SUBJECT)) / bare (is SUBJECT) — procedural
-  // paren-depth extraction (NOT a balanced-parens regex), since nesting can exceed the one level
-  // GROUP_A_MACRO_CALL_RE/GROUP_B_MACRO_CALL_RE handle (e.g. `(is (= (add 2 3) 5))`). This is
-  // exactly the truncation risk the plan calls out for Clojure's S-expression label extraction.
-  const clojureIsLabel = extractClojureIsLabel(content);
-  if (clojureIsLabel) return clojureIsLabel;
   // C++ Catch2: REQUIRE(...)/CHECK(...) natural-expression macros.
   const catch2Call = content.match(/\b((?:REQUIRE|CHECK)\s*\((?:[^()]|\([^()]*\))*\))/);
   if (catch2Call) return catch2Call[1] ?? '';

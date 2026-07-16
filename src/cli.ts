@@ -221,8 +221,22 @@ program
     const canonical = await readFile(canonicalSkillPath(), 'utf8');
     for (const adapter of AGENT_ADAPTERS) {
       const dest = join(cwd, adapter.relativePath);
-      await mkdir(dirname(dest), { recursive: true });
       const content = adapter.transform ? adapter.transform(canonical) : canonical;
+
+      if (adapter.guardExisting) {
+        let existing: string | undefined;
+        try {
+          existing = await readFile(dest, 'utf8');
+        } catch (err: unknown) {
+          if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+        }
+        if (existing !== undefined && existing.replace(/\r\n/g, '\n') !== content.replace(/\r\n/g, '\n')) {
+          process.stderr.write('Skipped (existing file present, not overwriting): ' + dest + '\n');
+          continue;
+        }
+      }
+
+      await mkdir(dirname(dest), { recursive: true });
       await writeFile(dest, content, 'utf8');
       process.stdout.write('Installed: ' + dest + '\n');
     }

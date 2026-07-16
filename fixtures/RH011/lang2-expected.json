@@ -1,0 +1,146 @@
+[
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "Calculator.cpp",
+    "line": 2,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "Calculator.cpp",
+    "line": 7,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "Calculator.c",
+    "line": 2,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "Calculator.c",
+    "line": 7,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "Calculator.m",
+    "line": 2,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "Calculator.m",
+    "line": 7,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "Calculator.swift",
+    "line": 2,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "Calculator.swift",
+    "line": 7,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "CalculatorFilewide.swift",
+    "line": 1,
+    "message": "File-wide suppression directive added — this silences every rule for the rest of the file, a larger blast radius than a targeted per-line suppression.",
+    "suggestion": "Scope the suppression to the specific rule(s) and line(s) that need it instead of disabling checks for the whole file."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "Calculator.dart",
+    "line": 2,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "Calculator.dart",
+    "line": 7,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "CalculatorFilewide.dart",
+    "line": 1,
+    "message": "File-wide suppression directive added — this silences every rule for the rest of the file, a larger blast radius than a targeted per-line suppression.",
+    "suggestion": "Scope the suppression to the specific rule(s) and line(s) that need it instead of disabling checks for the whole file."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "Calculator.scala",
+    "line": 2,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "Calculator.scala",
+    "line": 7,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "CalculatorSpec.groovy",
+    "line": 2,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "CalculatorSpec.groovy",
+    "line": 8,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "Calculator.vb",
+    "line": 3,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  },
+  {
+    "verifierId": "RH011",
+    "severity": "warn",
+    "file": "Calculator.vb",
+    "line": 8,
+    "message": "Type/lint suppression comment added — 2 added in this change, silencing errors instead of fixing them.",
+    "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
+  }
+]

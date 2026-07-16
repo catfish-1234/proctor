@@ -24,6 +24,19 @@ const STRONG_PATTERNS = [
   /\bAssert\.AreEqual\(/,
   // Kotlin (Kotest infix matcher) — `x shouldBe y`, excluding `shouldBe null` (that's the weak form)
   /\bshouldBe\s+(?!null\b)/,
+  // GROUP A (LANG-11) — C++ Google Test
+  /\b(?:EXPECT|ASSERT)_EQ\s*\(/,
+  // GROUP A — C++ Boost.Test (MEDIUM confidence, training-knowledge — RESEARCH A6)
+  /\bBOOST_(?:CHECK|REQUIRE)_EQUAL\s*\(/,
+  // GROUP A — C Unity
+  /\bTEST_ASSERT_EQUAL(?:_INT|_STRING)?\s*\(/,
+  // GROUP A — C CMocka (MEDIUM confidence — RESEARCH A7)
+  /\bassert_(?:int|string|memory)_equal\s*\(/,
+  // GROUP A — C Check (MEDIUM confidence — RESEARCH A7)
+  /\bck_assert_(?:int|str)_eq\s*\(/,
+  // GROUP A — Swift + Objective-C shared XCTest (one extension-agnostic pair, fires on .swift
+  // and .m/.mm alike)
+  /\bXCTAssertEqual(?:Objects)?\s*\(/,
 ];
 
 // Unconditionally-weak matchers: these assert almost nothing regardless of context, so replacing
@@ -49,6 +62,21 @@ const WEAK_PATTERNS = [
   /\bAssert\.IsNotNull\(/,
   // Kotlin (Kotest infix matcher)
   /\bshouldNotBe\s+null\b/,
+  // GROUP A (LANG-11) — C++ Google Test
+  /\b(?:EXPECT|ASSERT)_TRUE\s*\(/,
+  /\bEXPECT_NE\s*\([^,]*,\s*nullptr\)/,
+  // GROUP A — C++ Boost.Test (MEDIUM confidence — RESEARCH A6)
+  /\bBOOST_(?:CHECK|WARN)\s*\(/,
+  // GROUP A — C Unity
+  /\bTEST_ASSERT(?:_TRUE|_NOT_NULL)?\s*\(/,
+  // GROUP A — C CMocka (MEDIUM confidence — RESEARCH A7)
+  /\bassert_non_null\s*\(/,
+  /\bassert_true\s*\(/,
+  // GROUP A — C Check (MEDIUM confidence — RESEARCH A7)
+  /\bck_assert\s*\(/,
+  /\bck_assert_ptr_nonnull\s*\(/,
+  // GROUP A — Swift + Objective-C shared XCTest (one extension-agnostic pair)
+  /\bXCTAssert(?:NotNil|True)\s*\(/,
 ];
 
 // Contextually-weak matchers. Ordering comparisons (toBeGreaterThan(0)) and a whole-argument
@@ -87,6 +115,13 @@ function extractSubject(content: string): string | null {
 // Python assertAlmostEqual pattern — matches tolerance-widening when places= value is reduced
 const ALMOST_EQUAL = /assertAlmostEqual\(/;
 
+// GROUP A (LANG-11) macro/matcher-call label shape, balanced-parens capture (mirrors
+// extractSubject/rustMacro): Google Test (EXPECT_EQ/ASSERT_TRUE/EXPECT_NE), Boost.Test
+// (BOOST_CHECK_EQUAL), Unity (TEST_ASSERT_EQUAL), Check (ck_assert_int_eq), XCTest
+// (XCTAssertEqual, shared by Swift/Objective-C).
+const GROUP_A_MACRO_CALL_RE =
+  /\b((?:EXPECT|ASSERT)_(?:EQ|TRUE|NE)\s*\((?:[^()]|\([^()]*\))*\)|BOOST_(?:CHECK|REQUIRE|WARN)(?:_EQUAL)?\s*\((?:[^()]|\([^()]*\))*\)|TEST_ASSERT\w*\s*\((?:[^()]|\([^()]*\))*\)|ck_assert\w*\s*\((?:[^()]|\([^()]*\))*\)|XCTAssert\w*\s*\((?:[^()]|\([^()]*\))*\))/;
+
 /** Extract a short label like 'toBe(3)' or 'toBeDefined()' from a diff line. */
 function extractLabel(content: string): string {
   // Try to match a method call like .toXxx(...) or assertEqual(...)
@@ -97,6 +132,19 @@ function extractLabel(content: string): string {
   // `)` and lose the distinguishing trailing matcher (`assertThat(x)` for both strong and weak).
   const assertThatChain = content.match(/(assertThat\([^)]*\)\.\w+\([^)]*\))/);
   if (assertThatChain) return assertThatChain[1] ?? '';
+  // GROUP A (LANG-11) macro/matcher calls: Google Test, Boost.Test, Unity, Check (ck_assert*
+  // doesn't start with lowercase "assert" as its own word, so the generic assertCall pattern
+  // below would silently drop its "ck_" prefix), XCTest (shared Swift/Objective-C). Balanced-
+  // parens capture mirrors the rustMacro/extractSubject shape below. Tried BEFORE assertCall so
+  // the full macro name is preserved in the label.
+  const groupAMacroCall = content.match(GROUP_A_MACRO_CALL_RE);
+  if (groupAMacroCall) return groupAMacroCall[1] ?? '';
+  // C++ Catch2: REQUIRE(...)/CHECK(...) natural-expression macros.
+  const catch2Call = content.match(/\b((?:REQUIRE|CHECK)\s*\((?:[^()]|\([^()]*\))*\))/);
+  if (catch2Call) return catch2Call[1] ?? '';
+  // Swift Testing: #expect(...) macro.
+  const swiftTestingCall = content.match(/(#expect\s*\((?:[^()]|\([^()]*\))*\))/);
+  if (swiftTestingCall) return swiftTestingCall[1] ?? '';
   const assertCall = content.match(/(assert\w*\([^)]*\))/);
   if (assertCall) return assertCall[1] ?? '';
   // Rust macros: assert_eq!(...) / assert!(...) — balanced-parens capture (mirrors extractSubject)
@@ -109,6 +157,10 @@ function extractLabel(content: string): string {
   // RSpec: expect(x).to eq(3) / expect(x).to be_truthy / expect(x).not_to be_nil
   const rspecCall = content.match(/(expect\([^)]*\)\.(?:not_to|to_not|to)\s+\w+(?:\([^)]*\))?)/);
   if (rspecCall) return rspecCall[1] ?? '';
+  // Dart: expect(subject, matcher) — tried AFTER rspecCall so RSpec's `.to`-chained form (a
+  // different, JS/Ruby-style `expect()`) is never truncated by this more generic pattern.
+  const dartExpectCall = content.match(/(expect\s*\((?:[^()]|\([^()]*\))*\))/);
+  if (dartExpectCall) return dartExpectCall[1] ?? '';
   const assertEq = content.match(/assert\s+(.+?)\s*==\s*(.+)/);
   if (assertEq) return `assert ${(assertEq[1] ?? '').trim()} == ${(assertEq[2] ?? '').trim()}`;
   // Fallback: trim leading +/- and whitespace, cap at 30 chars

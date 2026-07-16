@@ -1,0 +1,58 @@
+[
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "calculator_test.cpp",
+    "line": 5,
+    "message": "Test was disabled with GTEST_SKIP().",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  },
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "calculator_test.c",
+    "line": 8,
+    "message": "Test was disabled with Unity TEST_IGNORE.",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  },
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "CalculatorTests.swift",
+    "line": 6,
+    "message": "Test was disabled with XCTSkip/XCTSkipIf/XCTSkipUnless.",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  },
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "calculator_test.dart",
+    "line": 5,
+    "message": "Test was disabled with a skip: parameter.",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  },
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "CalculatorSpec.scala",
+    "line": 4,
+    "message": "Test was disabled with ScalaTest's bare ignore form.",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  },
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "CalculatorSpec.groovy",
+    "line": 5,
+    "message": "Test was disabled with an @Ignore annotation.",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  },
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "CalculatorTests.vb",
+    "line": 6,
+    "message": "Test was disabled with a VB.NET <Ignore> attribute.",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  }
+]

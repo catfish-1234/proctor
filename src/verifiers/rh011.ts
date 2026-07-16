@@ -34,6 +34,38 @@ const SUPPRESSION_PATTERNS = [
   // C#: `#pragma warning disable CS1234`. The "no matching restore" file-wide case requires
   // forward-scanning the file and is a documented gap — every disable is treated as line-scoped.
   /#pragma\s+warning\s+disable\b/,
+  // C/C++/Objective-C: clang-tidy `// NOLINT`, `// NOLINTNEXTLINE`, `// NOLINTBEGIN(...)` (shared
+  // across all three Clang-based languages, extension-agnostic — fires on .c/.cpp/.cc/.cxx/.m/
+  // .mm/.h). NOLINTBEGIN is treated as line-scoped-equivalent since it's a bounded region that
+  // requires a matching NOLINTEND, not an open-ended file-wide directive (08.1-RESEARCH.md RH011).
+  /\/\/\s*NOLINT(?:NEXTLINE|BEGIN)?\b/,
+  // C/C++/Objective-C: Clang compiler-level diagnostic suppression (distinct from clang-tidy,
+  // also valid in plain C via GCC's `#pragma GCC diagnostic ignored`, not separately matched
+  // here). `#pragma clang diagnostic push`/`pop` bracket a region; an unclosed push running to
+  // EOF is a documented gap (same forward-scan limitation as C#'s unrestored pragma above).
+  /#pragma\s+clang\s+diagnostic\s+ignored\b/,
+  // C: cppcheck-specific suppression comment. MEDIUM confidence — training-knowledge syntax, not
+  // independently re-verified this session (08.1-RESEARCH.md Assumptions Log A11).
+  /\/\/\s*cppcheck-suppress\b/,
+  // Swift: `// swiftlint:disable[:next|:this|:previous] rule_name` (line/region-scoped). The
+  // file-wide `// swiftlint:disable all` form below is checked first in run()'s dispatch, so it
+  // doesn't double-count here even though this pattern's literal prefix also matches it.
+  /\/\/\s*swiftlint:disable(?::(?:next|this|previous))?\b/,
+  // Dart: `// ignore: rule_name` (line-scoped, comma-separated rule list supported).
+  /\/\/\s*ignore\s*:/,
+  // Scala: the existing @SuppressWarnings( pattern above already fires on .scala files with zero
+  // new code (extension-agnostic, mirrors Java exactly). Adding the genuinely-new scalafix/@nowarn
+  // line-scoped forms.
+  /\/\/\s*scalafix:ok\b/,
+  /@nowarn\b/,
+  // Groovy: the existing @SuppressWarnings( pattern above ALSO already fires on .groovy files
+  // with zero new code — RH011 is extension-agnostic and Groovy interoperates directly with the
+  // Java @SuppressWarnings annotation (same reuse class as Scala's declaration-scoped form above;
+  // see 08.1-RESEARCH.md RH011 table, Groovy row marked 🔁). No Groovy-specific regex needed.
+  // VB.NET: `#Disable Warning CA1234` — a genuinely-new token, DISTINCT from C#'s `#pragma
+  // warning disable` above (do NOT reuse the C# regex). `#Enable Warning` is only used to detect
+  // the unclosed-disable gap, not itself a suppression.
+  /#Disable\s+Warning\b/,
 ];
 
 // File-wide directives: `/* eslint-disable */` with no rule list disables every rule for the
@@ -58,15 +90,31 @@ const FILEWIDE_RUST_ALLOW_RE = /#!\[\s*allow\s*\(/;
 const FILEWIDE_KOTLIN_SUPPRESS_RE = /@file:Suppress\s*\(/;
 // PHP's explicit, documented file-wide directive — stops the whole file being checked by phpcs.
 const FILEWIDE_PHPCS_IGNOREFILE_RE = /\/\/\s*phpcs:ignoreFile\b/;
+// Swift's explicit, documented file-wide directive — disables every SwiftLint rule for the rest
+// of the file. Distinct from the line/region-scoped `swiftlint:disable` forms in
+// SUPPRESSION_PATTERNS; run()'s else-if dispatch checks file-wide patterns first, so a `disable
+// all` line is never also counted as line-scoped even though the line-scoped pattern's literal
+// prefix also matches it.
+const FILEWIDE_SWIFTLINT_ALL_RE = /\/\/\s*swiftlint:disable\s+all\b/;
+// Dart's explicit, documented file-wide directive — distinct from the line-scoped `// ignore:`
+// form (no shared literal prefix: `ignore_for_file:` never matches `ignore\s*:` since `_for_file`
+// sits between `ignore` and the colon).
+const FILEWIDE_DART_IGNOREFILE_RE = /\/\/\s*ignore_for_file\s*:/;
 
 // The following file-wide mechanisms are real but deliberately NOT implemented this phase —
-// see 08-RESEARCH.md RH011 section + Assumptions Log A6:
+// see 08-RESEARCH.md / 08.1-RESEARCH.md RH011 sections + Assumptions Log A6/A9/A11:
 // - Go `//nolint` placed above the `package` clause (non-standard/discouraged, not uniformly
 //   honored by every linter)
 // - Ruby `# rubocop:disable` with no matching `# rubocop:enable` before EOF (requires
 //   forward-scanning the file, not a single diff line)
 // - C# `#pragma warning disable` with no matching `restore` (same forward-scan limitation)
 // - Java has no standard file-wide annotation target at all
+// - C/C++/Objective-C clang-tidy `NOLINTBEGIN`/`NOLINTEND` is a bounded region pair, not an
+//   open-ended file-wide directive; `#pragma clang diagnostic push` with no matching `pop` running
+//   to EOF is the same forward-scan limitation as C#'s unrestored pragma above
+// - VB.NET's unclosed `#Disable Warning` with no matching `#Enable Warning` running to EOF is the
+//   same forward-scan limitation, mirrors C#'s existing documented gap
+// - cppcheck has no dedicated file-wide suppression form
 
 // A single suppression is often legitimate (third-party types with no stubs, a documented
 // exception). "Spam" means multiple added in the same change, and that's the actual signal.
@@ -80,7 +128,9 @@ function isFilewideSuppression(content: string): boolean {
     FILEWIDE_MYPY_RE.test(content) ||
     FILEWIDE_RUST_ALLOW_RE.test(content) ||
     FILEWIDE_KOTLIN_SUPPRESS_RE.test(content) ||
-    FILEWIDE_PHPCS_IGNOREFILE_RE.test(content)
+    FILEWIDE_PHPCS_IGNOREFILE_RE.test(content) ||
+    FILEWIDE_SWIFTLINT_ALL_RE.test(content) ||
+    FILEWIDE_DART_IGNOREFILE_RE.test(content)
   );
 }
 

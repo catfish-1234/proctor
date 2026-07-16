@@ -1,0 +1,3 @@
+tags:
+  slow: Slow tests that hit the network
+timeout: 30s

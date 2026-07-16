@@ -6,9 +6,12 @@ import type { Context, Finding, Severity, Verifier } from '../types.js';
 // Covers jest/vitest config in .{m,c}{j,t}s AND jest.config.json (a supported Jest format), plus
 // vite.config.* (where Vitest config commonly lives), tsconfig, and the Python config files, plus
 // (LANG-03) the 6 new-language config-exclusion files: Maven pom.xml, Gradle build.gradle(.kts),
-// Rust Cargo.toml, Ruby .rspec, PHPUnit phpunit.xml(.dist), and C# .runsettings. Each new entry is
-// anchored to a basename/extension shape so it can't false-match a similarly-named source file.
-const CONFIG_FILE_RE = /(?:jest|vitest|vite)\.config\.(?:[mc]?[jt]s|json)$|(?:^|\/)jest\.config\.json$|tsconfig(?:\.[^/]*)?\.json$|(?:pytest\.ini|setup\.cfg|pyproject\.toml|conftest\.py)$|(?:^|\/)pom\.xml$|(?:^|\/)build\.gradle(?:\.kts)?$|(?:^|\/)Cargo\.toml$|(?:^|\/)\.rspec$|(?:^|\/)phpunit\.xml(?:\.dist)?$|\.runsettings$/;
+// Rust Cargo.toml, Ruby .rspec, PHPUnit phpunit.xml(.dist), and C# .runsettings, plus (LANG-10
+// GROUP A) 4 more: C++/C CMakeLists.txt, Swift/Objective-C *.xctestplan, Dart dart_test.yaml, and
+// Scala build.sbt. Each new entry is anchored to a basename/extension shape so it can't
+// false-match a similarly-named source file. VB.NET (.runsettings) and Groovy (build.gradle(.kts))
+// deliberately need no new entries here — they reuse the existing C#/Java(Kotlin) patterns as-is.
+const CONFIG_FILE_RE = /(?:jest|vitest|vite)\.config\.(?:[mc]?[jt]s|json)$|(?:^|\/)jest\.config\.json$|tsconfig(?:\.[^/]*)?\.json$|(?:pytest\.ini|setup\.cfg|pyproject\.toml|conftest\.py)$|(?:^|\/)pom\.xml$|(?:^|\/)build\.gradle(?:\.kts)?$|(?:^|\/)Cargo\.toml$|(?:^|\/)\.rspec$|(?:^|\/)phpunit\.xml(?:\.dist)?$|\.runsettings$|(?:^|\/)CMakeLists\.txt$|\.xctestplan$|(?:^|\/)dart_test\.yaml$|(?:^|\/)build\.sbt$/;
 
 // package.json can carry a Jest config inline ("jest": { "testPathIgnorePatterns": [...] }). It is
 // not a dedicated config file, so it's handled separately and only for testPathIgnorePatterns —
@@ -64,6 +67,10 @@ function configLabel(filePath: string): string {
   if (base === '.rspec') return 'RSpec config (.rspec)';
   if (/^phpunit\.xml(?:\.dist)?$/.test(base)) return 'PHPUnit config';
   if (/\.runsettings$/.test(base)) return '.runsettings';
+  if (base === 'CMakeLists.txt') return 'CMakeLists.txt';
+  if (/\.xctestplan$/.test(base)) return 'xctestplan';
+  if (base === 'dart_test.yaml') return 'dart_test.yaml';
+  if (base === 'build.sbt') return 'build.sbt';
   return base;
 }
 
@@ -73,7 +80,19 @@ function configLabel(filePath: string): string {
 // also prevents a coincidental keyword collision — e.g. the popular Rust `ignore` crate dependency
 // line `ignore = "0.4"` in Cargo.toml — from tripping a pytest-scoped pattern now that Cargo.toml
 // is a recognized config file.
-type ConfigLang = 'js' | 'pytest' | 'maven' | 'gradle' | 'cargo' | 'rspec' | 'phpunit' | 'runsettings';
+type ConfigLang =
+  | 'js'
+  | 'pytest'
+  | 'maven'
+  | 'gradle'
+  | 'cargo'
+  | 'rspec'
+  | 'phpunit'
+  | 'runsettings'
+  | 'cmake'
+  | 'xctestplan'
+  | 'dart'
+  | 'sbt';
 
 function configLang(filePath: string): ConfigLang | null {
   const base = path.basename(filePath);
@@ -85,6 +104,10 @@ function configLang(filePath: string): ConfigLang | null {
   if (base === '.rspec') return 'rspec';
   if (/^phpunit\.xml(?:\.dist)?$/.test(base)) return 'phpunit';
   if (/\.runsettings$/.test(base)) return 'runsettings';
+  if (base === 'CMakeLists.txt') return 'cmake';
+  if (/\.xctestplan$/.test(base)) return 'xctestplan';
+  if (base === 'dart_test.yaml') return 'dart';
+  if (base === 'build.sbt') return 'sbt';
   return null;
 }
 
@@ -143,6 +166,30 @@ const EXCLUSION_PATTERNS: ExclusionPattern[] = [
   // Filter expressions can legitimately narrow to a CI shard rather than exclude tests outright,
   // so this stays warn (same ambiguity tier as Maven/Gradle).
   { re: /<TestCaseFilter>|<Filter>/, key: 'runsettingsFilter', severity: 'warn', langs: ['runsettings'], suggestionLabel: 'the <TestCaseFilter>/<Filter>' },
+
+  // --- LANG-10 GROUP A: 4 more config-file exclusion mechanisms (CMake, xctestplan, Dart, Scala) ---
+  // CMake/CTest: set_tests_properties(<name> PROPERTIES ... DISABLED TRUE) is a dedicated,
+  // unambiguous test-disabling property. Shared by C and C++ since the signal lives in
+  // CMakeLists.txt itself, language-agnostic (both commonly build via the same CMake+CTest setup).
+  { re: /set_tests_properties\([^)]*PROPERTIES[^)]*\bDISABLED\s+TRUE\b/, key: 'cmakeDisabledTest', severity: 'error', langs: ['cmake'], suggestionLabel: 'the set_tests_properties(... DISABLED TRUE)' },
+  // xctestplan (JSON): a newly-added string entry inside the "skippedTests" array excludes that
+  // test from the plan's run. The bare-quoted-string shape alone is too generic to trust in
+  // isolation, so it's gated below (chunkMentionsSkippedTests) to only fire when the same diff
+  // chunk also shows the "skippedTests" key — mirrors the Cargo [[test]]-header carve-out.
+  // NOTE: `^[+-]?` (not bare `^`) — parse-diff's change.content keeps the raw +/- diff-line
+  // prefix character, so a bare `^\s*` anchor would never match an added line (see 08.1-05
+  // Deviations for the regression test that caught this).
+  { re: /^[+-]?\s*"[^"]+"\s*,?\s*$/, key: 'xctestplanSkippedTest', severity: 'error', langs: ['xctestplan'], suggestionLabel: 'the skippedTests' },
+  // Dart: exclude_tags is a dedicated selector-exclusion field (error); the per-tag
+  // `tags: <tag>: skip: true/"reason"` form is more indirect since it depends on which tests
+  // actually use that tag (warn) — same ambiguity tier as Maven/Gradle's tag-based excludes.
+  { re: /exclude_tags\s*:/, key: 'dartExcludeTags', severity: 'error', langs: ['dart'], suggestionLabel: 'the exclude_tags' },
+  { re: /^[+-]?\s*skip\s*:\s*(?:true|['"][^'"\r\n]*['"])/, key: 'dartTagSkip', severity: 'warn', langs: ['dart'], suggestionLabel: 'the skip' },
+  // Scala/sbt: Tests.Exclude is a dedicated, unambiguous class-name-exclusion API (error);
+  // Tests.Argument(..., "-l", "TagName") tag-based exclusion is more indirect — could be a
+  // legitimate CI shard rather than an outright exclusion (warn).
+  { re: /Tests\.Exclude\b/, key: 'sbtTestsExclude', severity: 'error', langs: ['sbt'], suggestionLabel: 'the Tests.Exclude' },
+  { re: /Tests\.Argument\([^)]*"-l"/, key: 'sbtTestsArgumentTag', severity: 'warn', langs: ['sbt'], suggestionLabel: 'the Tests.Argument(..., "-l", ...)' },
 ];
 
 function matchExclusion(content: string, lang: ConfigLang | null): { pattern: ExclusionPattern; afterMatch: string } | null {
@@ -257,6 +304,10 @@ function run(context: Context): Finding[] {
       // targets — only treat it as a test-exclusion cheat when the same chunk shows a `[[test]]`
       // target header.
       const chunkMentionsTestTarget = chunk.changes.some(c => /\[\[test\]\]/.test(c.content));
+      // xctestplan's bare-quoted-string shape (`"CalculatorTests/testFoo()"`) is too generic to
+      // trust on its own — only treat it as a skipped-test entry when the same chunk also shows
+      // the "skippedTests" array key.
+      const chunkMentionsSkippedTests = chunk.changes.some(c => /skippedTests/.test(c.content));
 
       for (const change of chunk.changes) {
         if (change.type !== 'add') continue;
@@ -267,12 +318,24 @@ function run(context: Context): Finding[] {
         const { pattern, afterMatch } = matched;
 
         if (pattern.key === 'cargoTestFalse' && !chunkMentionsTestTarget) continue;
+        if (pattern.key === 'xctestplanSkippedTest' && !chunkMentionsSkippedTests) continue;
 
         const quotedMatch = afterMatch.match(/['"`]([^'"`\r\n]+)['"`]/);
         // XML tag-content fallback (`<exclude>CalculatorTest.java</exclude>`) — value sits
         // between the opening tag we matched and the next `<`.
         const xmlMatch = afterMatch.match(/^([^<>\r\n]+)</);
-        const excludedVal = quotedMatch ? quotedMatch[1]! : xmlMatch ? xmlMatch[1]!.trim() : 'test files';
+        let excludedVal = quotedMatch ? quotedMatch[1]! : xmlMatch ? xmlMatch[1]!.trim() : 'test files';
+
+        // CMake's set_tests_properties(...) and xctestplan's bare-quoted-string entry both carry
+        // their value inside the matched text itself (not after it), so the generic afterMatch
+        // extraction above finds nothing for them — pull the value from the full line instead.
+        if (pattern.key === 'cmakeDisabledTest') {
+          const nameMatch = change.content.match(/set_tests_properties\(\s*([A-Za-z0-9_]+)/);
+          if (nameMatch) excludedVal = nameMatch[1]!;
+        } else if (pattern.key === 'xctestplanSkippedTest') {
+          const nameMatch = change.content.match(/"([^"]+)"/);
+          if (nameMatch) excludedVal = nameMatch[1]!;
+        }
 
         if (pattern.requiresTestLikeValue && (chunkMentionsCoverage || !/test|spec/i.test(excludedVal))) continue;
 

@@ -27,6 +27,15 @@ describe('cursorMdcTransform', () => {
   it('is pure: identical input yields identical output across calls', () => {
     expect(cursorMdcTransform(CANONICAL)).toBe(cursorMdcTransform(CANONICAL));
   });
+
+  it('quotes the globs value so it is valid YAML, not a bare alias indicator', () => {
+    // A regex/structural check alone ("globs:" is present) would have let `globs: **` ship: an
+    // unquoted plain scalar starting with `*` is a YAML alias reference, not a literal string, and
+    // fails to parse. Assert the actual emitted line, not just that a `globs:` key exists.
+    const out = cursorMdcTransform(CANONICAL);
+    const globsLine = out.split('\n').find(line => line.startsWith('globs:'));
+    expect(globsLine).toBe("globs: '**'");
+  });
 });
 
 describe('copilotApplyToTransform', () => {

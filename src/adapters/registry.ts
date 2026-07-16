@@ -29,7 +29,7 @@ export interface AgentAdapter {
 export function cursorMdcTransform(canonical: string): string {
   return `---
 description: proctor honest-completion ruleset — catches tests deleted, skipped, weakened, or gamed to fake a passing build
-globs: **
+globs: '**'
 alwaysApply: true
 ---
 

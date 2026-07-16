@@ -208,7 +208,14 @@ To add support for another agent:
    `cursorMdcTransform` and `copilotApplyToTransform` for the pattern.
 3. If the deployment path is a generic, un-namespaced filename that could already exist in a
    consumer's repo for an unrelated reason, set `guardExisting: true` so `install-skill` warns
-   and skips instead of clobbering it.
+   and skips instead of clobbering it. Known tradeoff: `drift-check` cannot tell "this file was
+   never proctor's" apart from "proctor wrote this and it's since been tampered with" for a
+   `guardExisting` path, since both look identical (deployed content differs from expected) with
+   no install-history record to disambiguate. It errs toward never flagging a `guardExisting`
+   adapter, so drift on that specific path is unverifiable either way until proctor tracks
+   install provenance. Prefer a namespaced path (e.g. `.vendor/proctor-rules.md`) over
+   `guardExisting` whenever the target agent's convention allows it, since a namespaced path
+   avoids this gap entirely.
 4. Run `npx @kavishdua/proctor install-skill` then `npx @kavishdua/proctor drift-check` in a
    scratch repo and confirm it exits `0` (zero drift).
 5. Setting `scriptable: true` only documents that the agent has a headless/non-interactive

@@ -221,6 +221,99 @@ describe('RH002 — new-language flat matcher pairs (LANG-04)', () => {
   });
 });
 
+describe('RH002 — GROUP A flat matcher pairs + shared XCTest + reuse (LANG-11)', () => {
+  it('C++ Google Test: EXPECT_EQ -> EXPECT_TRUE is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.cpp',
+      '-    EXPECT_EQ(3, result);',
+      '+    EXPECT_TRUE(result);',
+    ) });
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.verifierId).toBe('RH002');
+  });
+
+  it('C++ Google Test: EXPECT_NE(x, nullptr) is a recognized weak add', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.cpp',
+      '-    ASSERT_EQ(ptr, expected);',
+      '+    EXPECT_NE(ptr, nullptr);',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('C++ Boost.Test: BOOST_CHECK_EQUAL -> BOOST_CHECK is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.cpp',
+      '-    BOOST_CHECK_EQUAL(result, 3);',
+      '+    BOOST_CHECK(result);',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('C Unity: TEST_ASSERT_EQUAL_INT -> TEST_ASSERT_TRUE is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.c',
+      '-    TEST_ASSERT_EQUAL_INT(3, result);',
+      '+    TEST_ASSERT_TRUE(result);',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('C CMocka: assert_int_equal -> assert_non_null is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.c',
+      '-    assert_int_equal(result, 3);',
+      '+    assert_non_null(&result);',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('C Check: ck_assert_int_eq -> ck_assert is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.c',
+      '-    ck_assert_int_eq(result, 3);',
+      '+    ck_assert(result);',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('XCTest (Swift): XCTAssertEqual -> XCTAssertNotNil is caught (shared pair, .swift)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorTests.swift',
+      '-        XCTAssertEqual(result, 3)',
+      '+        XCTAssertNotNil(result)',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('XCTest (Objective-C): XCTAssertEqual -> XCTAssertTrue is caught (shared pair, .m)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorTests.m',
+      '-    XCTAssertEqual(result, 3);',
+      '+    XCTAssertTrue(result);',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('reuse (zero new code): VB.NET .vb Assert.AreEqual -> Assert.IsNotNull is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorTests.vb',
+      '-        Assert.AreEqual(3, result)',
+      '+        Assert.IsNotNull(result)',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('reuse (zero new code): Groovy .groovy assertEquals -> assertNotNull is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorSpec.groovy',
+      '-        assertEquals(3, result)',
+      '+        assertNotNull(result)',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+});
+
 describe('RH002 — same-subject / macro weakening for Rust, Ruby, AssertJ (LANG-04)', () => {
   it('Rust: assert_eq!(result, 3) -> assert!(result.is_some()) is caught (same subject)', () => {
     const findings = rh002.run({ ...baseCtx, files: pairAt(

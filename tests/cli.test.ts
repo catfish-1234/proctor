@@ -211,6 +211,85 @@ describe('CLI smoke tests', () => {
     expect(result.status).toBe(0);
   });
 
+  it('install-skill writes the 7 new verbatim adapter paths byte-identical to canonical, and drift-check exits 0', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      const result = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(0);
+      const canonical = readFileSync(resolve(process.cwd(), 'src/skill/SKILL.md'), 'utf8');
+
+      const newPaths = [
+        '.rules',
+        'AGENTS.md',
+        join('.openhands', 'microagents', 'repo.md'),
+        join('.kiro', 'steering', 'proctor.md'),
+        join('.tabnine', 'guidelines', 'proctor.md'),
+        join('.trae', 'rules', 'proctor.md'),
+        join('.github', 'copilot-instructions.md'),
+      ];
+      for (const relPath of newPaths) {
+        const deployed = readFileSync(join(tmpDir, relPath), 'utf8');
+        expect(deployed).toBe(canonical);
+      }
+
+      const drift = spawnSync('node', [CLI, 'drift-check'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(drift.status).toBe(0);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('install-skill does NOT overwrite a pre-existing divergent best_practices.md (Qodo collision guard), warns to stderr, and drift-check does not flag it', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      writeFileSync(join(tmpDir, 'best_practices.md'), 'unrelated user content', 'utf8');
+      const result = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain('best_practices.md');
+      expect(result.stderr.toLowerCase()).toMatch(/skip|not overwriting/);
+
+      const content = readFileSync(join(tmpDir, 'best_practices.md'), 'utf8');
+      expect(content).toBe('unrelated user content');
+
+      const drift = spawnSync('node', [CLI, 'drift-check'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(drift.status).toBe(0);
+      expect(drift.stderr).not.toContain('best_practices.md');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('install-skill writes best_practices.md normally with canonical content when absent', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      const result = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(0);
+      const canonical = readFileSync(resolve(process.cwd(), 'src/skill/SKILL.md'), 'utf8');
+      const deployed = readFileSync(join(tmpDir, 'best_practices.md'), 'utf8');
+      expect(deployed).toBe(canonical);
+      expect(result.stderr).not.toContain('best_practices.md');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('install-skill is idempotent when best_practices.md already equals canonical content', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      const first = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(first.status).toBe(0);
+      const canonical = readFileSync(resolve(process.cwd(), 'src/skill/SKILL.md'), 'utf8');
+      expect(readFileSync(join(tmpDir, 'best_practices.md'), 'utf8')).toBe(canonical);
+
+      const second = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(second.status).toBe(0);
+      expect(second.stderr).not.toContain('best_practices.md');
+      expect(readFileSync(join(tmpDir, 'best_practices.md'), 'utf8')).toBe(canonical);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it('install-claude-hook --global writes into the (sandboxed) home directory', () => {
     // HOME/USERPROFILE are overridden so os.homedir() resolves into a temp sandbox —
     // this test must NEVER read or write the developer's real ~/.claude/settings.json.

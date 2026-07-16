@@ -1,0 +1,66 @@
+[
+  {
+    "verifierId": "RH002",
+    "severity": "error",
+    "file": "calculator.t",
+    "line": 6,
+    "message": "Assertion weakened from is(add(2, 3), 5, 'adds two numbers') to ok(add(2, 3), 'adds two numbers').",
+    "suggestion": "Restore the specific value assertion to preserve test coverage strength."
+  },
+  {
+    "verifierId": "RH002",
+    "severity": "error",
+    "file": "test-calculator.R",
+    "line": 2,
+    "message": "Assertion weakened from expect_equal(add(2, 3), 5) to expect_true(add(2, 3) > 0).",
+    "suggestion": "Restore the specific value assertion to preserve test coverage strength."
+  },
+  {
+    "verifierId": "RH002",
+    "severity": "error",
+    "file": "CalculatorSpec.hs",
+    "line": 12,
+    "message": "Assertion weakened from result `shouldBe` Just 2 to result `shouldSatisfy` isJust.",
+    "suggestion": "Restore the `shouldBe` comparison against the expected value."
+  },
+  {
+    "verifierId": "RH002",
+    "severity": "error",
+    "file": "calculator_test.exs",
+    "line": 6,
+    "message": "Assertion weakened from an equality check to a bare truthiness assert (the expected value was dropped).",
+    "suggestion": "Restore the `== expected` comparison so the test checks the actual value."
+  },
+  {
+    "verifierId": "RH002",
+    "severity": "error",
+    "file": "calculator_spec.lua",
+    "line": 3,
+    "message": "Assertion weakened from assert.are.equal(5, add(2, 3)) to assert.is_truthy(add(2, 3)).",
+    "suggestion": "Restore the specific value assertion to preserve test coverage strength."
+  },
+  {
+    "verifierId": "RH002",
+    "severity": "error",
+    "file": "calculator_test.clj",
+    "line": 7,
+    "message": "Assertion weakened from (is (= (add 2 3) 5)) to (is (some? (add 2 3))).",
+    "suggestion": "Restore the (is (= ...)) comparison against the expected value."
+  },
+  {
+    "verifierId": "RH002",
+    "severity": "error",
+    "file": "calculator_test.bats",
+    "line": 8,
+    "message": "Assertion weakened from assert_equal \"$output\" \"5\" to assert_success.",
+    "suggestion": "Restore the specific value assertion to preserve test coverage strength."
+  },
+  {
+    "verifierId": "RH002",
+    "severity": "error",
+    "file": "calculator_test.jl",
+    "line": 5,
+    "message": "Assertion weakened from @test add(2, 3) == 5 to @test !isnothing(add(2, 3)).",
+    "suggestion": "Restore the @test comparison against the expected value."
+  }
+]

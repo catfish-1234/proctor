@@ -508,6 +508,142 @@ describe('RH002 — GROUP A same-subject extractors: Catch2, Swift Testing, Dart
   });
 });
 
+describe('RH002 — GROUP B (LANG-11) flat pairs + same-subject extractors', () => {
+  it('Perl (Test::More): is(...) -> ok(...) is caught (flat pair)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator.t',
+      '-is(add(2, 3), 5, \'adds two numbers\');',
+      '+ok(add(2, 3), \'adds two numbers\');',
+    ) });
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.verifierId).toBe('RH002');
+  });
+
+  it('R (testthat): expect_equal(...) -> expect_true(...) is caught (flat pair)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'test-calculator.R',
+      '-  expect_equal(add(2, 3), 5)',
+      '+  expect_true(add(2, 3) > 0)',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('Lua (busted): assert.are.equal(...) -> assert.is_truthy(...) is caught (flat pair)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_spec.lua',
+      '-    assert.are.equal(5, add(2, 3))',
+      '+    assert.is_truthy(add(2, 3))',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('Shell/Bash (bats-assert): assert_equal -> assert_success is caught (flat pair)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.bats',
+      '-  assert_equal "$output" "5"',
+      '+  assert_success',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('Shell/Bash: the native `[ ]` same-subject form is NOT detected (documented gap)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.bats',
+      '-  [ "$output" = "5" ]',
+      '+  [ -n "$output" ]',
+    ) });
+    expect(findings).toEqual([]);
+  });
+
+  it('Haskell (Hspec): `shouldBe` -> `shouldSatisfy` isJust is caught (same subject)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorSpec.hs',
+      '-      result `shouldBe` Just 2',
+      '+      result `shouldSatisfy` isJust',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('Haskell: `other `shouldSatisfy` isJust` on a DIFFERENT subject does not pair', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'CalculatorSpec.hs',
+      '-      result `shouldBe` Just 2',
+      '+      other `shouldSatisfy` isJust',
+    ) });
+    expect(findings).toEqual([]);
+  });
+
+  it('Elixir (ExUnit): assert x == y -> bare assert x is caught (same subject)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.exs',
+      '-    assert add(2, 3) == 5',
+      '+    assert add(2, 3)',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('Elixir: a standalone bare `assert x` with NO prior comparison deletion does NOT fire', () => {
+    const files: ParsedFile[] = [{
+      from: 'calculator_negative_test.exs', to: 'calculator_negative_test.exs',
+      chunks: [{
+        content: '',
+        changes: [
+          { type: 'add', add: true, ln: 6, content: '    assert result' },
+        ],
+        oldStart: 5, oldLines: 0, newStart: 6, newLines: 1,
+      }],
+      deleted: false, new: false,
+    }];
+    const findings = rh002.run({ ...baseCtx, files });
+    expect(findings).toEqual([]);
+  });
+
+  it('Clojure (clojure.test): (is (= x y)) -> (is (some? x)) is caught (S-expression same subject)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.clj',
+      '-    (is (= (add 2 3) 5))',
+      '+    (is (some? (add 2 3)))',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('Clojure: bare (is (add 2 3)) (subject dropped entirely) is caught', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.clj',
+      '-    (is (= (add 2 3) 5))',
+      '+    (is (add 2 3))',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('Clojure: (is (some? (other 1 2))) on a DIFFERENT subject does not pair', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.clj',
+      '-    (is (= (add 2 3) 5))',
+      '+    (is (some? (other 1 2)))',
+    ) });
+    expect(findings).toEqual([]);
+  });
+
+  it('Julia (Test stdlib): @test x == y -> @test !isnothing(x) is caught (same subject)', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.jl',
+      '-    @test add(2, 3) == 5',
+      '+    @test !isnothing(add(2, 3))',
+    ) });
+    expect(findings.length).toBe(1);
+  });
+
+  it('Julia: @test other !== nothing on a DIFFERENT subject does not pair', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator_test.jl',
+      '-    @test add(2, 3) == 5',
+      '+    @test other !== nothing',
+    ) });
+    expect(findings).toEqual([]);
+  });
+});
+
 describe('RH002 Python tolerance-widening', () => {
   function makePythonFile(delContent: string, addContent: string, addLn = 10): ParsedFile[] {
     return [{
@@ -608,5 +744,41 @@ describe('rh002 — GROUP A weakening (LANG-11, LANG-13)', () => {
     const findings = rh002.run({ ...baseCtx, files });
     const normalised = findings.map(f => ({ ...f, file: path.basename(f.file) }));
     expect(normalised).toMatchObject([expected]);
+  });
+});
+
+describe('rh002 — GROUP B weakening (LANG-11, LANG-13)', () => {
+  const langiiBExpected: Array<Record<string, unknown>> = JSON.parse(
+    readFileSync(path.join(FIXTURES_DIR, 'RH002', 'langii-b-expected.json'), 'utf8'),
+  );
+
+  const groupBCases: Array<[string, string]> = [
+    ['calculator.t', 'Perl (Test::More is -> ok flat)'],
+    ['test-calculator.R', 'R (testthat expect_equal -> expect_true flat)'],
+    ['CalculatorSpec.hs', 'Haskell (Hspec shouldBe same-subject)'],
+    ['calculator_test.exs', 'Elixir (ExUnit assert x == y -> bare assert x same-subject)'],
+    ['calculator_spec.lua', 'Lua (busted assert.are.equal -> assert.is_truthy flat)'],
+    ['calculator_test.clj', 'Clojure (S-expression (is (= x y)) -> (is (some? x)) same-subject)'],
+    ['calculator_test.bats', 'Shell/Bash (bats-assert assert_equal -> assert_success flat)'],
+    ['calculator_test.jl', 'Julia (@test x == y -> @test !isnothing(x) same-subject)'],
+  ];
+
+  it.each(groupBCases)('%s (%s): weakening fixture matches langii-b-expected.json', (filename) => {
+    const expected = langiiBExpected.find(e => e.file === filename);
+    expect(expected, `no langii-b-expected.json entry for ${filename}`).toBeDefined();
+
+    const files = fixtureDiff('RH002', filename);
+    const findings = rh002.run({ ...baseCtx, files });
+    const normalised = findings.map(f => ({ ...f, file: path.basename(f.file) }));
+    expect(normalised).toMatchObject([expected]);
+  });
+
+  it('Elixir negative fixture: a standalone bare `assert x` with no prior comparison deletion yields zero findings', () => {
+    const langiiBNegativeExpected = JSON.parse(
+      readFileSync(path.join(FIXTURES_DIR, 'RH002', 'langii-b-negative-expected.json'), 'utf8'),
+    );
+    const files = fixtureDiff('RH002', 'calculator_negative.exs');
+    const findings = rh002.run({ ...baseCtx, files });
+    expect(findings).toEqual(langiiBNegativeExpected);
   });
 });

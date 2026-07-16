@@ -1,0 +1,5 @@
+describe("calculator", function()
+  it("adds two numbers", function()
+    assert.is_truthy(add(2, 3))
+  end)
+end)

@@ -271,6 +271,165 @@ function extractAssertThatSubject(content: string): string | null {
 const ASSERTJ_STRONG_MATCHER_RE = /\.(?:isEqualTo|isSameAs)\(/;
 const ASSERTJ_WEAK_MATCHER_RE = /\.(?:isNotNull|isPresent)\(\)/;
 
+// ---------------------------------------------------------------------------
+// GROUP A (LANG-11) same-subject / natural-expression extractors: Catch2 (C++), Swift Testing,
+// Dart, Scala. All four use PROCEDURAL (indexOf/charAt-loop) balanced-paren scanning rather than
+// an unbounded nested-quantifier regex, per RESEARCH Security Domain V5 — linear-time by
+// construction, no backtracking risk. `extractBalancedParenContent` is the shared primitive.
+// ---------------------------------------------------------------------------
+
+/**
+ * Procedurally find the content inside the first balanced-paren group that opens at `openIdx`
+ * (which must index a '(' character), scanning left-to-right and tracking depth. Linear-time,
+ * ReDoS-safe by construction — no regex backtracking is possible. Returns null if unbalanced.
+ */
+function extractBalancedParenContent(s: string, openIdx: number): string | null {
+  let depth = 0;
+  for (let i = openIdx; i < s.length; i++) {
+    if (s[i] === '(') depth++;
+    else if (s[i] === ')') {
+      depth--;
+      if (depth === 0) return s.slice(openIdx + 1, i);
+    }
+  }
+  return null;
+}
+
+// --- C++ Catch2: REQUIRE(LHS == RHS) / CHECK(LHS == RHS) weakened to bare REQUIRE(LHS) /
+// CHECK(LHS) (RHS dropped). Gated on C++ extensions, NOT isTestFile — C++ test-file naming is
+// convention-only, not compiler-enforced (RESEARCH LANG-08).
+const CATCH2_MACRO_RE = /\b(?:REQUIRE|CHECK)\s*\(/;
+const CPP_EXTENSIONS = ['.cpp', '.cc', '.cxx', '.hpp', '.hxx'];
+
+function isCppFile(filePath: string): boolean {
+  return CPP_EXTENSIONS.some(ext => filePath.endsWith(ext));
+}
+
+function catch2ComparisonLhs(line: string): string | null {
+  const s = line.replace(/^[-+]\s*/, '');
+  const m = s.match(CATCH2_MACRO_RE);
+  if (!m || m.index === undefined) return null;
+  const inner = extractBalancedParenContent(s, m.index + m[0].length - 1);
+  if (inner === null) return null;
+  const opIdx = inner.indexOf('==');
+  if (opIdx === -1) return null;
+  const lhs = inner.slice(0, opIdx).trim();
+  return lhs ? lhs.replace(/\s+/g, '') : null;
+}
+
+function catch2BareSubject(line: string): string | null {
+  const s = line.replace(/^\+\s*/, '');
+  const m = s.match(CATCH2_MACRO_RE);
+  if (!m || m.index === undefined) return null;
+  const inner = extractBalancedParenContent(s, m.index + m[0].length - 1);
+  if (inner === null) return null;
+  const trimmed = inner.trim();
+  if (PY_COMPARISON_OP_RE.test(trimmed)) return null; // still a comparison, not weakened
+  return trimmed ? trimmed.replace(/\s+/g, '') : null;
+}
+
+// --- Swift Testing (Swift 6+): #expect(LHS == RHS) weakened to #expect(LHS != nil), same
+// subject. Gated on .swift.
+const SWIFT_TESTING_EXPECT_RE = /#expect\s*\(/;
+
+function swiftTestingComparisonLhs(line: string): string | null {
+  const s = line.replace(/^[-+]\s*/, '');
+  const m = s.match(SWIFT_TESTING_EXPECT_RE);
+  if (!m || m.index === undefined) return null;
+  const inner = extractBalancedParenContent(s, m.index + m[0].length - 1);
+  if (inner === null) return null;
+  const opIdx = inner.indexOf('==');
+  if (opIdx === -1) return null;
+  const lhs = inner.slice(0, opIdx).trim();
+  return lhs ? lhs.replace(/\s+/g, '') : null;
+}
+
+function swiftTestingWeakSubject(line: string): string | null {
+  const s = line.replace(/^\+\s*/, '');
+  const m = s.match(SWIFT_TESTING_EXPECT_RE);
+  if (!m || m.index === undefined) return null;
+  const inner = extractBalancedParenContent(s, m.index + m[0].length - 1);
+  if (inner === null) return null;
+  const nilMatch = inner.match(/^(.*?)!=\s*nil\s*$/);
+  if (!nilMatch) return null;
+  const lhs = nilMatch[1]!.trim();
+  return lhs ? lhs.replace(/\s+/g, '') : null;
+}
+
+// --- Dart: expect(SUBJECT, matcher) where a specific-value matcher (equals(x), a literal) is
+// weakened to a vague matcher (isNotNull/isNotEmpty/isA<...>()) on the same SUBJECT. Gated on
+// .dart. The subject/matcher split is a procedural top-level-comma scan (respecting nested
+// parens/brackets/braces), not a regex, since Dart matcher expressions can nest arbitrarily
+// (e.g. `equals(Foo(1))`).
+const DART_EXPECT_RE = /\bexpect\s*\(/;
+
+function dartExpectArgs(line: string): { subject: string; matcher: string } | null {
+  const s = line.replace(/^[-+]\s*/, '');
+  const m = s.match(DART_EXPECT_RE);
+  if (!m || m.index === undefined) return null;
+  const inner = extractBalancedParenContent(s, m.index + m[0].length - 1);
+  if (inner === null) return null;
+  let depth = 0;
+  for (let i = 0; i < inner.length; i++) {
+    const ch = inner[i];
+    if (ch === '(' || ch === '[' || ch === '{') depth++;
+    else if (ch === ')' || ch === ']' || ch === '}') depth--;
+    else if (ch === ',' && depth === 0) {
+      const subject = inner.slice(0, i).trim().replace(/\s+/g, '');
+      const matcher = inner.slice(i + 1).trim();
+      return subject && matcher ? { subject, matcher } : null;
+    }
+  }
+  return null;
+}
+
+function isDartStrongMatcher(matcher: string): boolean {
+  const m = matcher.trim();
+  if (/^equals\(/.test(m)) return true;
+  if (/^-?\d+(?:\.\d+)?$/.test(m)) return true;
+  if (/^(['"]).*\1$/.test(m)) return true;
+  if (/^(?:true|false)$/.test(m)) return true;
+  return false;
+}
+
+function isDartWeakMatcher(matcher: string): boolean {
+  const m = matcher.trim().replace(/\s+/g, '');
+  return /^(?:isNotNull|isNotEmpty)$/.test(m) || /^isA<[^>]*>\(\)$/.test(m);
+}
+
+// --- Scala: assert(LHS == RHS) weakened to bare assert(LHS) or assert(LHS != null), same
+// subject. Gated on .scala. Scala's assert(...) is a stdlib Predef function/macro taking a bare
+// boolean expression — structurally identical to Python's `assert` keyword.
+const SCALA_ASSERT_RE = /\bassert\s*\(/;
+
+function scalaComparisonLhs(line: string): string | null {
+  const s = line.replace(/^[-+]\s*/, '');
+  const m = s.match(SCALA_ASSERT_RE);
+  if (!m || m.index === undefined) return null;
+  const inner = extractBalancedParenContent(s, m.index + m[0].length - 1);
+  if (inner === null) return null;
+  const opIdx = inner.indexOf('==');
+  if (opIdx === -1) return null;
+  const lhs = inner.slice(0, opIdx).trim();
+  return lhs ? lhs.replace(/\s+/g, '') : null;
+}
+
+function scalaWeakSubject(line: string): string | null {
+  const s = line.replace(/^\+\s*/, '');
+  const m = s.match(SCALA_ASSERT_RE);
+  if (!m || m.index === undefined) return null;
+  const inner = extractBalancedParenContent(s, m.index + m[0].length - 1);
+  if (inner === null) return null;
+  const trimmed = inner.trim();
+  const nullCheck = trimmed.match(/^(.*?)!=\s*null\s*$/);
+  if (nullCheck) {
+    const lhs = nullCheck[1]!.trim();
+    return lhs ? lhs.replace(/\s+/g, '') : null;
+  }
+  if (PY_COMPARISON_OP_RE.test(trimmed)) return null; // still a comparison, not weakened
+  return trimmed ? trimmed.replace(/\s+/g, '') : null;
+}
+
 function run(context: Context): Finding[] {
   const files = context.files;
   const findings: Finding[] = [];
@@ -467,6 +626,84 @@ function run(context: Context): Finding[] {
             verifierId: 'RH002', severity: 'error', file: filePath, line: (wa as { ln: number }).ln,
             message: `Assertion weakened from ${fromLabel} to ${toLabel}.`,
             suggestion: 'Restore the specific AssertJ matcher against the expected value.',
+          });
+        }
+      }
+
+      // GROUP A (LANG-11) same-subject / natural-expression extractors.
+
+      // C++ Catch2: REQUIRE/CHECK(LHS == RHS) -> bare REQUIRE/CHECK(LHS), same subject.
+      if (isCppFile(filePath)) {
+        for (const del of dels) {
+          const lhs = catch2ComparisonLhs(del.content);
+          if (!lhs) continue;
+          const wa = adds.find(a => !reported.has((a as { ln: number }).ln) && catch2BareSubject(a.content) === lhs);
+          if (!wa) continue;
+          reported.add((wa as { ln: number }).ln);
+          const fromLabel = extractLabel(del.content);
+          const toLabel = extractLabel(wa.content);
+          findings.push({
+            verifierId: 'RH002', severity: 'error', file: filePath, line: (wa as { ln: number }).ln,
+            message: `Assertion weakened from ${fromLabel} to ${toLabel}.`,
+            suggestion: 'Restore the REQUIRE/CHECK comparison against the expected value.',
+          });
+        }
+      }
+
+      // Swift Testing: #expect(LHS == RHS) -> #expect(LHS != nil), same subject.
+      if (filePath.endsWith('.swift')) {
+        for (const del of dels) {
+          const lhs = swiftTestingComparisonLhs(del.content);
+          if (!lhs) continue;
+          const wa = adds.find(a => !reported.has((a as { ln: number }).ln) && swiftTestingWeakSubject(a.content) === lhs);
+          if (!wa) continue;
+          reported.add((wa as { ln: number }).ln);
+          const fromLabel = extractLabel(del.content);
+          const toLabel = extractLabel(wa.content);
+          findings.push({
+            verifierId: 'RH002', severity: 'error', file: filePath, line: (wa as { ln: number }).ln,
+            message: `Assertion weakened from ${fromLabel} to ${toLabel}.`,
+            suggestion: 'Restore the #expect comparison against the expected value.',
+          });
+        }
+      }
+
+      // Dart: expect(SUBJECT, strongMatcher) -> expect(SUBJECT, weakMatcher), same subject.
+      if (filePath.endsWith('.dart')) {
+        for (const del of dels) {
+          const delArgs = dartExpectArgs(del.content);
+          if (!delArgs || !isDartStrongMatcher(delArgs.matcher)) continue;
+          const wa = adds.find(a => {
+            if (reported.has((a as { ln: number }).ln)) return false;
+            const addArgs = dartExpectArgs(a.content);
+            return !!addArgs && addArgs.subject === delArgs.subject && isDartWeakMatcher(addArgs.matcher);
+          });
+          if (!wa) continue;
+          reported.add((wa as { ln: number }).ln);
+          const fromLabel = extractLabel(del.content);
+          const toLabel = extractLabel(wa.content);
+          findings.push({
+            verifierId: 'RH002', severity: 'error', file: filePath, line: (wa as { ln: number }).ln,
+            message: `Assertion weakened from ${fromLabel} to ${toLabel}.`,
+            suggestion: 'Restore the specific-value matcher against the expected value.',
+          });
+        }
+      }
+
+      // Scala: assert(LHS == RHS) -> bare assert(LHS) / assert(LHS != null), same subject.
+      if (filePath.endsWith('.scala')) {
+        for (const del of dels) {
+          const lhs = scalaComparisonLhs(del.content);
+          if (!lhs) continue;
+          const wa = adds.find(a => !reported.has((a as { ln: number }).ln) && scalaWeakSubject(a.content) === lhs);
+          if (!wa) continue;
+          reported.add((wa as { ln: number }).ln);
+          const fromLabel = extractLabel(del.content);
+          const toLabel = extractLabel(wa.content);
+          findings.push({
+            verifierId: 'RH002', severity: 'error', file: filePath, line: (wa as { ln: number }).ln,
+            message: `Assertion weakened from ${fromLabel} to ${toLabel}.`,
+            suggestion: 'Restore the assert comparison against the expected value.',
           });
         }
       }

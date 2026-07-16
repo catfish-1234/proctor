@@ -253,6 +253,27 @@ describe('rh003 — GROUP A skip/disable (LANG-09, LANG-13)', () => {
     const files = [makeAddFile('helpers.c', '+    skip();', 5)];
     expect(rh003.run({ ...langiiACtx, files })).toEqual([]);
   });
+
+  // Regression test for the Windows-doubled-backslash path bug flagged (but left unfixed, out
+  // of file scope) by plan 08.1-04's SUMMARY.md: a git diff header on Windows quotes an absolute
+  // path using C-style escaping, doubling every literal backslash, so a nested path like
+  // `...\src\test\Foo.kt` survives into Finding.file as `...\\src\\test\\Foo.kt` (each separator
+  // is TWO raw backslash characters). A naive `.replace(/\\/g, '/')` alone turns that into
+  // `src//test//`, which silently fails the single-slash-anchored `.includes('/src/test/')`
+  // check in isKotlinTestFile/isScalaTestFile — this proves the slash-run-collapse fix holds.
+  it('recognizes a Kotlin src/test/ directory file even with Windows-doubled backslash separators (Kotest x-form, gated)', () => {
+    const doubledBackslashPath = 'C:\\\\repo\\\\src\\\\test\\\\Foo.kt';
+    const files = [makeAddFile(doubledBackslashPath, '+xit("does a thing") {}', 5)];
+    const findings = rh003.run({ ...langiiACtx, files });
+    expect(findings.length).toBe(1);
+  });
+
+  it('recognizes a Scala src/test/scala/ directory file even with Windows-doubled backslash separators (ScalaTest FlatSpec ignore, gated)', () => {
+    const doubledBackslashPath = 'C:\\\\repo\\\\src\\\\test\\\\scala\\\\Foo.scala';
+    const files = [makeAddFile(doubledBackslashPath, '+  "does a thing" ignore {', 5)];
+    const findings = rh003.run({ ...langiiACtx, files });
+    expect(findings.length).toBe(1);
+  });
 });
 
 describe('rh003 — GROUP B skip/disable (LANG-09, LANG-13)', () => {

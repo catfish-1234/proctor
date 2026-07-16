@@ -396,9 +396,12 @@ function isRubyTestFile(filePath: string): boolean {
 }
 
 // Mirrors the Kotlin DEFAULT_GLOBS convention (Java/Gradle/Maven-shared): *Test.kt filename, or
-// any file under a src/test/ directory.
+// any file under a src/test/ directory. Slash-runs are collapsed after the backslash swap — see
+// isRTestFile's comment for why: a Windows-quoted diff path doubles every backslash, and a naive
+// `.replace(/\\/g, '/')` alone turns that into a double-slash `src//test//` that silently fails
+// this single-slash-anchored `.includes` check.
 function isKotlinTestFile(filePath: string): boolean {
-  const normalized = filePath.replace(/\\/g, '/');
+  const normalized = filePath.replace(/\\/g, '/').replace(/\/{2,}/g, '/');
   const base = normalized.split('/').pop() ?? normalized;
   return /Test\.kt$/.test(base) || normalized.includes('/src/test/');
 }
@@ -413,8 +416,10 @@ function isCTestFile(filePath: string): boolean {
 
 // Mirrors the Scala DEFAULT_GLOBS convention: *Spec.scala/*Suite.scala filename, or any file
 // under a src/test/scala/ directory. Gates ScalaTest's bare-word FlatSpec `ignore` form.
+// Slash-runs collapsed after the backslash swap, same Windows-doubled-backslash fix as
+// isKotlinTestFile/isRTestFile above.
 function isScalaTestFile(filePath: string): boolean {
-  const normalized = filePath.replace(/\\/g, '/');
+  const normalized = filePath.replace(/\\/g, '/').replace(/\/{2,}/g, '/');
   const base = normalized.split('/').pop() ?? normalized;
   return /Spec\.scala$/.test(base) || /Suite\.scala$/.test(base) || normalized.includes('/src/test/scala/');
 }

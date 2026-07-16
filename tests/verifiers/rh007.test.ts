@@ -269,3 +269,75 @@ describe('rh007 — GROUP A Windows-path regression (LANG-10, RESEARCH Pitfall 5
     expect(findings[0]!.severity).toBe('error');
   });
 });
+
+describe('rh007 — GROUP A config exclusion (LANG-10, LANG-13)', () => {
+  const langiiAExpected: Array<{ verifierId: string; severity: string; file: string; line: number; message: string; suggestion: string }> =
+    JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH007', 'langii-a-expected.json'), 'utf8'));
+
+  const cases: Array<[filename: string, label: string]> = [
+    ['CMakeLists.txt', 'CMake set_tests_properties(... DISABLED TRUE)'],
+    ['Calculator.xctestplan', 'xctestplan skippedTests entry'],
+    ['dart_test.yaml', 'dart_test.yaml exclude_tags'],
+    ['build.sbt', 'build.sbt Tests.Exclude'],
+    ['build.gradle', 'Groovy reuse — Gradle excludeTestsMatching (zero new code)'],
+    ['VisualBasicTests.runsettings', 'VB.NET reuse — .runsettings TestCaseFilter (zero new code)'],
+  ];
+
+  for (const [filename, label] of cases) {
+    it(`detects ${label} (${filename})`, () => {
+      const expected = langiiAExpected.find(e => e.file === filename);
+      expect(expected, `no langii-a-expected.json entry for ${filename}`).toBeTruthy();
+
+      const files = fixtureDiff('RH007', filename);
+      const findings = rh007.run({ ...baseCtx, files });
+      const normalised = findings.map(f => ({ ...f, file: path.basename(f.file) }));
+      expect(normalised).toMatchObject([expected]);
+    });
+  }
+
+  // Explicit reuse-proof: the VB.NET and Groovy fixtures above fire through the EXACT SAME
+  // patterns Phase 8 shipped for C# (.runsettings) and Java/Kotlin (build.gradle) — no branch in
+  // rh007.ts is scoped to 'vbnet' or 'groovy' as a language. Confirms the RESEARCH-predicted
+  // zero-new-code reuse claim with a live fixture, not just an assertion in prose.
+  it('VB.NET .runsettings reuse fires via the existing C# runsettingsFilter pattern (zero new code)', () => {
+    const files = fixtureDiff('RH007', 'VisualBasicTests.runsettings');
+    const findings = rh007.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.severity).toBe('warn');
+    expect(findings[0]!.suggestion).toContain('<TestCaseFilter>/<Filter>');
+  });
+
+  it('Groovy build.gradle reuse fires via the existing Gradle excludeTestsMatching pattern (zero new code)', () => {
+    const files = fixtureDiff('RH007', 'build.gradle');
+    const findings = rh007.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.severity).toBe('warn');
+    expect(findings[0]!.suggestion).toContain('excludeTestsMatching');
+  });
+
+  // Warn-severity forms for the two ambiguous/tag-based GROUP A patterns (direct unit assertions,
+  // mirroring Phase 8's precedent of not requiring a full fixture pair for every severity tier).
+  it('flags the dart_test.yaml per-tag `skip: true` form as warn (more indirect than exclude_tags)', () => {
+    const files = [makeAddFile('dart_test.yaml', '+    skip: true', 3)];
+    const findings = rh007.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.severity).toBe('warn');
+  });
+
+  it('flags a build.sbt Tests.Argument(..., "-l", tag) tag-based exclusion as warn', () => {
+    const files = [makeAddFile('build.sbt', '+Test / testOptions += Tests.Argument(TestFrameworks.ScalaTest, "-l", "SlowTests")', 8)];
+    const findings = rh007.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.severity).toBe('warn');
+  });
+
+  // Explicit Windows-backslash-path assertion within this GROUP A block per the plan's Task 2
+  // acceptance criteria (in addition to the dedicated Windows-path describe block above).
+  it('detects the CMakeLists.txt fixture pattern via an explicit Windows backslash path', () => {
+    const files = [makeAddFile('C:\\repo\\native\\CMakeLists.txt', '+set_tests_properties(CalculatorTest PROPERTIES DISABLED TRUE)', 7)];
+    const findings = rh007.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.severity).toBe('error');
+    expect(findings[0]!.line).toBe(7);
+  });
+});

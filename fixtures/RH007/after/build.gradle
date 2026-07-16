@@ -1,0 +1,19 @@
+plugins {
+    id 'groovy'
+    id 'org.spockframework.base' version '2.3-groovy-4.0'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation 'org.spockframework:spock-core:2.3-groovy-4.0'
+}
+
+test {
+    useJUnitPlatform()
+    filter {
+        excludeTestsMatching "CalculatorSpec"
+    }
+}

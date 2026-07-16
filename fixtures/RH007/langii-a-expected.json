@@ -1,0 +1,50 @@
+[
+  {
+    "verifierId": "RH007",
+    "severity": "error",
+    "file": "CMakeLists.txt",
+    "line": 7,
+    "message": "Test path ignore pattern added to CMakeLists.txt excluding CalculatorTest.",
+    "suggestion": "Remove the set_tests_properties(... DISABLED TRUE) entry added in this change."
+  },
+  {
+    "verifierId": "RH007",
+    "severity": "error",
+    "file": "Calculator.xctestplan",
+    "line": 17,
+    "message": "Test path ignore pattern added to xctestplan excluding CalculatorTests/testDivideByZero().",
+    "suggestion": "Remove the skippedTests entry added in this change."
+  },
+  {
+    "verifierId": "RH007",
+    "severity": "error",
+    "file": "dart_test.yaml",
+    "line": 4,
+    "message": "Test path ignore pattern added to dart_test.yaml excluding test files.",
+    "suggestion": "Remove the exclude_tags entry added in this change."
+  },
+  {
+    "verifierId": "RH007",
+    "severity": "error",
+    "file": "build.sbt",
+    "line": 8,
+    "message": "Test path ignore pattern added to build.sbt excluding com.foo.CalculatorTest.",
+    "suggestion": "Remove the Tests.Exclude entry added in this change."
+  },
+  {
+    "verifierId": "RH007",
+    "severity": "warn",
+    "file": "build.gradle",
+    "line": 17,
+    "message": "Test path ignore pattern added to Gradle build script excluding CalculatorSpec.",
+    "suggestion": "Remove the excludeTestsMatching entry added in this change."
+  },
+  {
+    "verifierId": "RH007",
+    "severity": "warn",
+    "file": "VisualBasicTests.runsettings",
+    "line": 7,
+    "message": "Test path ignore pattern added to .runsettings excluding TestCategory!=Integration.",
+    "suggestion": "Remove the <TestCaseFilter>/<Filter> entry added in this change."
+  }
+]

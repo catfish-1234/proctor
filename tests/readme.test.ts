@@ -157,6 +157,47 @@ describe('README.md content', () => {
     expect(readmeContent).toContain('RH006');
     expect(readmeContent).toContain('RH008');
   });
+
+  it('documents the expanded 16-language support matrix (Language Expansion II, LANG-14)', () => {
+    const newerLanguages = [
+      'C++',
+      'C',
+      'Swift',
+      'Objective-C',
+      'Dart',
+      'Scala',
+      'Perl',
+      'R',
+      'Haskell',
+      'Elixir',
+      'Lua',
+      'Groovy',
+      'Clojure',
+      'Shell/Bash',
+      'Julia',
+      'VB.NET',
+    ];
+    for (const lang of newerLanguages) {
+      expect(readmeContent).toContain(lang);
+    }
+    // The second matrix block header, keyed the same way as the original.
+    expect(readmeContent).toMatch(/Language Expansion II/i);
+    expect(readmeContent).toMatch(/\|\s*RH-ID\s*\|\s*C\+\+\s*\|/);
+  });
+
+  it('still marks RH004/RH005/RH006/RH008 as JS/TS/Python-only across the expanded 25+-language boundary', () => {
+    expect(readmeContent).toMatch(/25\+/);
+    expect(readmeContent).toMatch(/JS\/TS\/Python-only.*25\+|25\+.*JS\/TS\/Python-only/s);
+  });
+
+  it('documents at least one Language Expansion II gap explicitly (matrix cannot silently drop a gap)', () => {
+    // RH011 Julia whole-category gap
+    expect(readmeContent).toMatch(/Julia has no RH011 coverage/);
+    // RH007 Perl/Shell/Julia gaps
+    expect(readmeContent).toMatch(/Perl, Shell\/Bash, and Julia have no RH007\s+coverage/);
+    // RH003 Objective-C documented gap
+    expect(readmeContent).toMatch(/Objective-C has no RH003 coverage/);
+  });
 });
 
 describe('README agent roster (AGENT-05)', () => {

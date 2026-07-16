@@ -186,7 +186,7 @@ export async function buildContext(cwd: string, files: ParsedFile[], opts?: { co
   const isTestFile = (path: string): boolean =>
     micromatch.isMatch(path.replace(/\\/g, '/'), testPathGlobs);
 
-  const getLanguage = (filePath: string): 'ts' | 'js' | 'python' | 'go' | 'java' | 'rust' | 'ruby' | 'php' | 'csharp' | 'kotlin' | 'unknown' => {
+  const getLanguage = (filePath: string): 'ts' | 'js' | 'python' | 'go' | 'java' | 'rust' | 'ruby' | 'php' | 'csharp' | 'kotlin' | 'cpp' | 'c' | 'swift' | 'objc' | 'dart' | 'scala' | 'perl' | 'r' | 'haskell' | 'elixir' | 'lua' | 'groovy' | 'clojure' | 'shell' | 'julia' | 'vbnet' | 'unknown' => {
     const ext = filePath.split('.').pop()?.toLowerCase();
     // proctor-ignore: RH004 reason: extension-to-language mapping table, not a fixture hardcode
     if (ext === 'ts' || ext === 'tsx' || ext === 'mts' || ext === 'cts') return 'ts';
@@ -199,6 +199,27 @@ export async function buildContext(cwd: string, files: ParsedFile[], opts?: { co
     if (ext === 'php') return 'php';
     if (ext === 'cs') return 'csharp';
     if (ext === 'kt' || ext === 'kts') return 'kotlin';
+    if (ext === 'cpp' || ext === 'cc' || ext === 'cxx' || ext === 'hpp' || ext === 'hxx') return 'cpp';
+    // .h is genuinely ambiguous between C and C++ (a C++ project's own headers conventionally use
+    // .hpp/.hxx, reserving bare .h for C-compatible headers) — defaulting .h to 'c' is a deliberate
+    // judgment call, not a guaranteed-correct classification (see RESEARCH A1/Pitfall 4).
+    if (ext === 'c' || ext === 'h') return 'c';
+    if (ext === 'swift') return 'swift';
+    // .mm is Objective-C++ (mixed ObjC/C++); classified as 'objc' since XCTest macro usage is
+    // identical in both.
+    if (ext === 'm' || ext === 'mm') return 'objc';
+    if (ext === 'dart') return 'dart';
+    if (ext === 'scala') return 'scala';
+    if (ext === 'pl' || ext === 'pm' || ext === 't') return 'perl';
+    if (ext === 'r') return 'r';
+    if (ext === 'hs') return 'haskell';
+    if (ext === 'ex' || ext === 'exs') return 'elixir';
+    if (ext === 'lua') return 'lua';
+    if (ext === 'groovy') return 'groovy';
+    if (ext === 'clj' || ext === 'cljc') return 'clojure';
+    if (ext === 'sh' || ext === 'bash' || ext === 'bats') return 'shell';
+    if (ext === 'jl') return 'julia';
+    if (ext === 'vb') return 'vbnet';
     return 'unknown';
   };
 

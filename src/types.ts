@@ -30,7 +30,7 @@ export interface Context {
   testFiles: string[];             // resolved from globs
   enabled: string[];                // enabled verifier IDs
   isTestFile: (path: string) => boolean;
-  getLanguage: (filePath: string) => 'ts' | 'js' | 'python' | 'go' | 'java' | 'rust' | 'ruby' | 'php' | 'csharp' | 'kotlin' | 'unknown';
+  getLanguage: (filePath: string) => 'ts' | 'js' | 'python' | 'go' | 'java' | 'rust' | 'ruby' | 'php' | 'csharp' | 'kotlin' | 'cpp' | 'c' | 'swift' | 'objc' | 'dart' | 'scala' | 'perl' | 'r' | 'haskell' | 'elixir' | 'lua' | 'groovy' | 'clojure' | 'shell' | 'julia' | 'vbnet' | 'unknown';
   severity?: Record<string, Severity>;
   ignorePatterns?: string[];
   commitMessage?: string;           // git subject line from git log -1 --format=%s; undefined on empty repo

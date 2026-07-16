@@ -156,11 +156,65 @@ name won't be recognized. This is the same accepted limitation the project alrea
 JS/TS/Python.
 
 **Agents:** running `npx @kavishdua/proctor install-skill` deploys the honest-completion skill to
-Claude Code, Codex CLI, Cursor, Windsurf, Gemini CLI, Aider, Continue.dev, Cline, Amazon Q
-Developer, and GitHub Copilot, all from one source file (see
+every agent below from one source file (see
 [`src/adapters/registry.ts`](src/adapters/registry.ts)). The Claude Code Stop hook only works with
 Claude Code specifically. The git pre-commit hook works no matter which agent (or human) is making
 the commit.
+
+| Agent | Deployment path | Scriptable |
+|-------|-----------------|:---:|
+| Claude Code | `.claude/skills/proctor/SKILL.md` | ✅ |
+| Codex CLI | `.agents/skills/proctor/SKILL.md` | ✅ |
+| Cursor¹ | `.cursor/rules/proctor.mdc` | ✅ |
+| Windsurf | `.windsurf/rules/rules.md` | ❌ |
+| Gemini CLI | `GEMINI.md` | ✅ |
+| Aider | `CONVENTIONS.md` | ✅ |
+| Continue.dev | `.continue/rules/proctor.md` | ✅ |
+| Cline | `.clinerules/proctor.md` | ✅ |
+| Amazon Q Developer | `.amazonq/rules/proctor.md` | ❌ |
+| GitHub Copilot¹ | `.github/instructions/proctor.instructions.md` | ❌ |
+| Zed | `.rules` | ❌ |
+| AGENTS.md (universal) | `AGENTS.md` | ❌ |
+| OpenHands | `.openhands/microagents/repo.md` | ✅ |
+| Kiro | `.kiro/steering/proctor.md` | ✅ |
+| Tabnine | `.tabnine/guidelines/proctor.md` | ✅ |
+| Trae | `.trae/rules/proctor.md` | ❌ |
+| GitHub Copilot (global) | `.github/copilot-instructions.md` | ❌ |
+| Qodo² | `best_practices.md` | ✅ |
+
+¹ Cursor and GitHub Copilot get a per-format `transform` applied before writing: Cursor's
+`.mdc` gains `description`/`globs`/`alwaysApply` YAML frontmatter so the rule auto-attaches,
+and Copilot's instructions file gains `applyTo: '**'` frontmatter so it actually activates.
+Both transforms only prepend static frontmatter; the canonical ruleset body passes through
+byte-for-byte.
+
+² Qodo's path (`best_practices.md`) is a generic, un-namespaced repo-root filename that could
+collide with an unrelated file you already have. `install-skill` reads the destination first and
+skips with a warning if it finds pre-existing content that doesn't match, instead of overwriting
+it (`guardExisting`, see [`src/adapters/registry.ts`](src/adapters/registry.ts)).
+
+**Scriptable** marks agents that document a headless/non-interactive invocation mode; it does not
+by itself mean a `proctor bench` `AgentRunner` exists, see `src/bench/runners/registry.ts`.
+
+### Adding an adapter
+
+To add support for another agent:
+
+1. Add one entry to `AGENT_ADAPTERS` in [`src/adapters/registry.ts`](src/adapters/registry.ts)
+   with `id`, `displayName`, `relativePath`, and `scriptable`.
+2. If the agent's file format diverges from plain markdown (needs frontmatter, a wrapper, etc.),
+   write a pure `transform: (canonical: string) => string` function that wraps the canonical
+   content; never duplicate or rewrite the ruleset prose inside a transform. See
+   `cursorMdcTransform` and `copilotApplyToTransform` for the pattern.
+3. If the deployment path is a generic, un-namespaced filename that could already exist in a
+   consumer's repo for an unrelated reason, set `guardExisting: true` so `install-skill` warns
+   and skips instead of clobbering it.
+4. Run `npx @kavishdua/proctor install-skill` then `npx @kavishdua/proctor drift-check` in a
+   scratch repo and confirm it exits `0` (zero drift).
+5. Setting `scriptable: true` only documents that the agent has a headless/non-interactive
+   invocation mode; it does not by itself wire up a `proctor bench` runner. To make the new
+   adapter benchmarkable, add a separate entry to `AGENT_RUNNERS` in
+   `src/bench/runners/registry.ts`.
 
 ## Known limitations
 

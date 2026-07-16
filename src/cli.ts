@@ -222,7 +222,8 @@ program
     for (const adapter of AGENT_ADAPTERS) {
       const dest = join(cwd, adapter.relativePath);
       await mkdir(dirname(dest), { recursive: true });
-      await writeFile(dest, canonical, 'utf8');
+      const content = adapter.transform ? adapter.transform(canonical) : canonical;
+      await writeFile(dest, content, 'utf8');
       process.stdout.write('Installed: ' + dest + '\n');
     }
   });

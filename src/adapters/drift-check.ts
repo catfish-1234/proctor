@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { AGENT_ADAPTERS } from './registry.js';
+import { AGENT_ADAPTERS, type AgentAdapter } from './registry.js';
 
 export interface DriftCheckResult {
   drifted: string[];
@@ -20,13 +20,26 @@ function sha256(content: string): string {
  * content by sha256 hash. Adapters that were never installed (ENOENT) are
  * skipped — an absent file is not "drifted", it's simply not deployed yet.
  * Other read errors are surfaced to stderr but do not stop the scan.
+ *
+ * Each adapter's expected content is computed PER ADAPTER inside the loop —
+ * `adapter.transform(canonical)` when present, else raw `canonical` — so a
+ * legitimately-transformed adapter (e.g. Cursor's `.mdc` frontmatter) reports
+ * zero drift instead of permanently false-positiving against a single
+ * raw-canonical hash computed once outside the loop.
+ *
+ * `adapters` defaults to the real `AGENT_ADAPTERS` registry; the parameter
+ * exists so tests can inject a transform-bearing adapter without mutating
+ * the shared registry.
  */
-export async function checkAdapterDrift(cwd: string, canonical: string): Promise<DriftCheckResult> {
-  const canonicalHash = sha256(canonical);
+export async function checkAdapterDrift(
+  cwd: string,
+  canonical: string,
+  adapters: AgentAdapter[] = AGENT_ADAPTERS
+): Promise<DriftCheckResult> {
   const drifted: string[] = [];
   const checked: string[] = [];
 
-  for (const adapter of AGENT_ADAPTERS) {
+  for (const adapter of adapters) {
     const path = join(cwd, adapter.relativePath);
     let content: string;
     try {
@@ -40,7 +53,8 @@ export async function checkAdapterDrift(cwd: string, canonical: string): Promise
       continue;
     }
     checked.push(path);
-    if (sha256(content) !== canonicalHash) {
+    const expected = adapter.transform ? adapter.transform(canonical) : canonical;
+    if (sha256(content) !== sha256(expected)) {
       drifted.push(path);
     }
   }

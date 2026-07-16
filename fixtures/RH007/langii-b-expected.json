@@ -1,0 +1,42 @@
+[
+  {
+    "verifierId": "RH007",
+    "severity": "warn",
+    "file": ".Rbuildignore",
+    "line": 4,
+    "message": "Test path ignore pattern added to .Rbuildignore excluding ^tests/testthat\\.R$.",
+    "suggestion": "Remove the newly-added .Rbuildignore line entry added in this change."
+  },
+  {
+    "verifierId": "RH007",
+    "severity": "error",
+    "file": "calculator.cabal",
+    "line": 12,
+    "message": "Test path ignore pattern added to .cabal excluding calculator-test.",
+    "suggestion": "Remove the buildable: False entry added in this change."
+  },
+  {
+    "verifierId": "RH007",
+    "severity": "error",
+    "file": "test_helper.exs",
+    "line": 1,
+    "message": "Test path ignore pattern added to test_helper.exs excluding integration.",
+    "suggestion": "Remove the ExUnit.start/configure(exclude: ...) entry added in this change."
+  },
+  {
+    "verifierId": "RH007",
+    "severity": "error",
+    "file": ".busted",
+    "line": 4,
+    "message": "Test path ignore pattern added to .busted excluding integration.",
+    "suggestion": "Remove the exclude-tags entry added in this change."
+  },
+  {
+    "verifierId": "RH007",
+    "severity": "warn",
+    "file": "project.clj",
+    "line": 4,
+    "message": "Test path ignore pattern added to project.clj excluding integration.",
+    "suggestion": "Remove the :test-selectors entry added in this change."
+  }
+]

@@ -261,3 +261,68 @@ describe('rh001 — new-language whole-file deletion (LANG-06)', () => {
     }
   });
 });
+
+describe('rh001 — new-language whole-file deletion (LANG-13)', () => {
+  // 16 more genuine, language-idiomatic test files planted under fixtures/RH001/before/ for
+  // Phase 8.1's language expansion (08.1-02-PLAN.md). Same Path 1 whole-file-deletion shape as
+  // the LANG-06 block above — no new detection code, coverage comes entirely from plan 08.1-01's
+  // DEFAULT_GLOBS extension. relPath is relative to fixtures/RH001/before/. Dart, Haskell,
+  // Elixir, Clojure, and Julia live under test/ (their tool's documented discovery convention);
+  // Perl lives under t/ (prove's default t/*.t glob); R lives under tests/testthat/
+  // (testthat's package-test-directory convention).
+  const NEW_LANG_FIXTURES_II = [
+    { filename: 'calculator_test.cpp', relPath: 'calculator_test.cpp' },
+    { filename: 'calculator_test.c', relPath: 'calculator_test.c' },
+    { filename: 'CalculatorTests.swift', relPath: 'CalculatorTests.swift' },
+    { filename: 'CalculatorTests.m', relPath: 'CalculatorTests.m' },
+    { filename: 'calculator_test.dart', relPath: 'test/calculator_test.dart' },
+    { filename: 'CalculatorSpec.scala', relPath: 'CalculatorSpec.scala' },
+    { filename: 'CalculatorSpec.groovy', relPath: 'CalculatorSpec.groovy' },
+    { filename: 'CalculatorTests.vb', relPath: 'CalculatorTests.vb' },
+    { filename: 'calculator.t', relPath: 't/calculator.t' },
+    { filename: 'test-calculator.R', relPath: 'tests/testthat/test-calculator.R' },
+    { filename: 'CalculatorSpec.hs', relPath: 'test/CalculatorSpec.hs' },
+    { filename: 'calculator_test.exs', relPath: 'test/calculator_test.exs' },
+    { filename: 'calculator_spec.lua', relPath: 'calculator_spec.lua' },
+    { filename: 'calculator_test.clj', relPath: 'test/calculator_test.clj' },
+    { filename: 'calculator_test.bats', relPath: 'calculator_test.bats' },
+    { filename: 'runtests.jl', relPath: 'test/runtests.jl' },
+  ];
+
+  let tmpDirII: string;
+  let realIsTestFileII: Context['isTestFile'];
+
+  beforeEach(async () => {
+    tmpDirII = await mkdtemp(join(tmpdir(), 'proctor-rh001-langii-'));
+    // Use the real extended DEFAULT_GLOBS (via buildContext, no config file present) so this
+    // test proves Path 1 fires off the actual 08.1-01 glob extension, not a hand-rolled stand-in.
+    const realCtx = await buildContext(tmpDirII, []);
+    realIsTestFileII = realCtx.isTestFile;
+  });
+
+  afterEach(async () => {
+    await rm(tmpDirII, { recursive: true, force: true });
+  });
+
+  it('recognizes each of the 16 new-language fixtures as a test file via the extended DEFAULT_GLOBS', () => {
+    for (const { relPath } of NEW_LANG_FIXTURES_II) {
+      expect(realIsTestFileII(`fixtures/RH001/before/${relPath}`)).toBe(true);
+    }
+  });
+
+  it.each(NEW_LANG_FIXTURES_II)('deleting $filename alone yields exactly one RH001 error at line 1', ({ filename, relPath }) => {
+    const expected = JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH001', 'langii-expected.json'), 'utf8'));
+    const filePath = `fixtures/RH001/before/${relPath}`;
+    const files: ParsedFile[] = [{
+      from: filePath,
+      to: undefined,
+      chunks: [],
+      deleted: true,
+      new: false,
+    }];
+    const findings = rh001.run({ ...baseCtx, files, isTestFile: realIsTestFileII });
+    const normalised = findings.map(f => ({ ...f, file: basename(f.file) }));
+    const expectedEntry = expected.find((e: { file: string }) => e.file === filename);
+    expect(normalised).toEqual([expectedEntry]);
+  });
+});

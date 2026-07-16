@@ -215,7 +215,29 @@ const SHELL_BATS_SKIP = /^\+\s*skip\b(?:\s+["'][^"']*["'])?\s*$/;
 const JULIA_TEST_SKIP = /\@test_skip\b/;
 const JULIA_TEST_SKIP_PARAM = /@test\b[^\n]*\bskip\s*=/;
 
-function buildSkipMessage(content: string): string {
+function buildSkipMessage(content: string, ext?: string): string {
+  // Ext-first dispatch for languages whose bare-word GROUP B patterns can coincidentally match
+  // an unrelated EARLIER language's regex in the generic if-chain below — e.g. Haskell's
+  // `xit "desc" $` shape also satisfies Ruby's RUBY_X_FORMS (`\bxit\b\s*["'(]`); Lua's
+  // `pending("desc", ...)` also satisfies Haskell's bare HASKELL_PENDING (`\bpending\b`); bats'
+  // `skip "reason"` bare statement also satisfies Ruby's RUBY_SKIP_STATEMENT shape. Detection
+  // itself is correct in all three cases (isSkipPattern dispatches on `ext`, so the right
+  // language's pattern set is consulted) — only the MESSAGE could be misattributed to the wrong
+  // language without this ext-first check, since the generic if-chain has no `ext` awareness.
+  switch (ext) {
+    case 'hs':
+      if (HASKELL_X_FORMS.test(content)) return 'Test was disabled with an x-prefixed Hspec form (xit/xdescribe/xcontext/xspecify).';
+      if (HASKELL_PENDING.test(content)) return 'Test was marked pending with Hspec pendingWith/pending.';
+      break;
+    case 'lua':
+      if (LUA_PENDING.test(content)) return 'Test was marked pending with busted pending().';
+      break;
+    case 'bats':
+      if (SHELL_BATS_SKIP.test(content)) return 'Test was disabled with a bats skip statement.';
+      break;
+    default:
+      break;
+  }
   const m = content.match(/\b(?:it|test|describe)(?:\.\w+)*\.(skip|only|todo)\s*[.(]?\s*['"`](.*?)['"`]/);
   if (m && m[2]) return `Test '${m[2]}' was disabled with .${m[1]}.`;
   if (SKIP_ONLY.test(content)) return 'Test was disabled with a .skip/.only modifier.';
@@ -399,16 +421,27 @@ function isScalaTestFile(filePath: string): boolean {
 
 // testthat convention: tests/testthat/test-*.R. Gates R_SKIP so an unrelated user-defined
 // `skip(...)` function outside a test directory never fires (mirrors isCTestFile's precedent).
+// Note: `normalized` collapses runs of 2+ slashes to one after the backslash swap. This guards
+// against a real Windows-only diff artifact discovered while wiring this plan's fixtures: git
+// quotes absolute Windows paths in a diff header using C-style escaping, doubling every literal
+// backslash (`\` becomes `\\` in the header text); `parse-diff` does not un-escape this, so a
+// nested path like `...\tests\testthat\test-calculator.R` survives into `Finding.file` as
+// `...\\tests\\testthat\\test-calculator.R` (each separator is TWO raw backslash characters, not
+// one). A naive `.replace(/\\/g, '/')` turns that into a double-slash `tests//testthat//`, which
+// silently fails a single-slash-anchored directory regex like `/tests\/testthat\//` — this bit
+// isRTestFile during this plan's own fixture verification (RESEARCH's Windows-path-separator
+// pitfall, generalized beyond the RH007 case it originally documented).
 function isRTestFile(filePath: string): boolean {
-  const normalized = filePath.replace(/\\/g, '/');
+  const normalized = filePath.replace(/\\/g, '/').replace(/\/{2,}/g, '/');
   const base = normalized.split('/').pop() ?? normalized;
   return /(^|\/)tests\/testthat\//.test(normalized) && /^test-.*\.[Rr]$/.test(base);
 }
 
 // hspec-discover convention: *Spec.hs filename, or any file under a test/ directory. Gates
-// HASKELL_PENDING so an unrelated `pending` identifier outside test code never fires.
+// HASKELL_PENDING so an unrelated `pending` identifier outside test code never fires. See
+// isRTestFile's comment above for why slash-runs are collapsed after the backslash swap.
 function isHaskellTestFile(filePath: string): boolean {
-  const normalized = filePath.replace(/\\/g, '/');
+  const normalized = filePath.replace(/\\/g, '/').replace(/\/{2,}/g, '/');
   const base = normalized.split('/').pop() ?? normalized;
   return /Spec\.hs$/.test(base) || /(^|\/)test\//.test(normalized);
 }
@@ -564,7 +597,7 @@ function run(context: Context): Finding[] {
           severity: 'error',
           file: filePath,
           line: change.ln,
-          message: buildSkipMessage(change.content),
+          message: buildSkipMessage(change.content, ext),
           suggestion: buildSuggestion(change.content),
         });
       }

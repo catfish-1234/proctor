@@ -220,3 +220,52 @@ describe('rh007 — new-language config exclusion + Go build-tag branch (LANG-03
     expect(rh007.run({ ...baseCtx, files: [file] })).toEqual([]);
   });
 });
+
+describe('rh007 — GROUP A Windows-path regression (LANG-10, RESEARCH Pitfall 5)', () => {
+  // Each new (?:^|\/)-anchored / extension-anchored config-file pattern from GROUP A must still
+  // match when the diff's file path uses Windows backslash separators (parse-diff's file.to/from
+  // carries whatever separator the OS/git produced). Mirrors 08-03's regression test for the same
+  // class of bug on the Phase 8 config files.
+  it('detects a CMakeLists.txt DISABLED TRUE addition via a Windows backslash path', () => {
+    const files = [makeAddFile('sub\\CMakeLists.txt', '+set_tests_properties(CalculatorTest PROPERTIES DISABLED TRUE)', 10)];
+    const findings = rh007.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.severity).toBe('error');
+  });
+
+  it('detects an xctestplan skippedTests entry via a Windows backslash path', () => {
+    const file: ParsedFile = {
+      from: 'sub\\Calculator.xctestplan',
+      to: 'sub\\Calculator.xctestplan',
+      chunks: [{
+        content: '',
+        changes: [
+          { type: 'add', add: true, ln: 16, content: '+      "skippedTests" : [' },
+          { type: 'add', add: true, ln: 17, content: '+        "CalculatorTests/testDivideByZero()"' },
+          { type: 'add', add: true, ln: 18, content: '+      ],' },
+        ],
+        oldStart: 16, oldLines: 0, newStart: 16, newLines: 3,
+      }],
+      deleted: false,
+      new: false,
+    };
+    const findings = rh007.run({ ...baseCtx, files: [file] });
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.severity).toBe('error');
+    expect(findings[0]!.line).toBe(17);
+  });
+
+  it('detects a dart_test.yaml exclude_tags addition via a Windows backslash path', () => {
+    const files = [makeAddFile('sub\\dart_test.yaml', '+exclude_tags: slow', 4)];
+    const findings = rh007.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.severity).toBe('error');
+  });
+
+  it('detects a build.sbt Tests.Exclude addition via a Windows backslash path', () => {
+    const files = [makeAddFile('sub\\build.sbt', '+Test / testOptions += Tests.Exclude(Seq("com.foo.CalculatorTest"))', 8)];
+    const findings = rh007.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.severity).toBe('error');
+  });
+});

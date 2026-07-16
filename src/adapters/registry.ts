@@ -13,6 +13,13 @@ export interface AgentAdapter {
    * If absent, the adapter gets a byte-for-byte verbatim copy (current default behavior).
    */
   transform?: (canonical: string) => string;
+  /**
+   * When true, install-skill will NOT overwrite a pre-existing file at this path whose content
+   * differs from what proctor would write — it warns and skips. Used for un-namespaced generic
+   * filenames (e.g. Qodo's repo-root best_practices.md) that could collide with an unrelated
+   * user file.
+   */
+  guardExisting?: boolean;
 }
 
 // Transform proof case 1 (AGENT-04): Cursor's `.mdc` convention supports `description`,
@@ -62,4 +69,22 @@ export const AGENT_ADAPTERS: AgentAdapter[] = [
   // GitHub Copilot gets `applyTo: '**'` frontmatter via copilotApplyToTransform so the scoped
   // instructions file actually activates — see AGENT-04, Pitfall 1.
   { id: 'github-copilot', displayName: 'GitHub Copilot', relativePath: '.github/instructions/proctor.instructions.md', scriptable: false, transform: copilotApplyToTransform },
+  { id: 'zed', displayName: 'Zed', relativePath: '.rules', scriptable: false },
+  // Universal cross-vendor AGENTS.md standard (Linux Foundation-stewarded). Also covers Codex
+  // CLI's actual documented convention (developers.openai.com/codex/guides/agents-md) for free —
+  // the existing `codex` entry below intentionally keeps its original `.agents/skills/` path
+  // unchanged (Open Question 1 decision: do not silently change a locked Phase 6 entry).
+  { id: 'agents-md', displayName: 'AGENTS.md (universal)', relativePath: 'AGENTS.md', scriptable: false },
+  { id: 'openhands', displayName: 'OpenHands', relativePath: '.openhands/microagents/repo.md', scriptable: true },
+  // Kiro (AWS agentic IDE / Kiro CLI) intentionally coexists with the `amazon-q` entry above —
+  // they are two separately-installed products today (Open Question 2 decision); revisit
+  // consolidation once/if the Amazon Q -> Kiro merge completes.
+  { id: 'kiro', displayName: 'Kiro', relativePath: '.kiro/steering/proctor.md', scriptable: true },
+  { id: 'tabnine', displayName: 'Tabnine', relativePath: '.tabnine/guidelines/proctor.md', scriptable: true },
+  { id: 'trae', displayName: 'Trae', relativePath: '.trae/rules/proctor.md', scriptable: false },
+  { id: 'github-copilot-global', displayName: 'GitHub Copilot (global)', relativePath: '.github/copilot-instructions.md', scriptable: false },
+  // Qodo's canonical path is a generic, un-namespaced repo-root filename that could collide
+  // with an unrelated user file — guardExisting makes install-skill warn and skip instead of
+  // silently overwriting it. See the AgentAdapter.guardExisting doc comment above.
+  { id: 'qodo', displayName: 'Qodo', relativePath: 'best_practices.md', scriptable: true, guardExisting: true },
 ];

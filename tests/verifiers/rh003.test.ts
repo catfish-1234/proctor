@@ -254,3 +254,58 @@ describe('rh003 — GROUP A skip/disable (LANG-09, LANG-13)', () => {
     expect(rh003.run({ ...langiiACtx, files })).toEqual([]);
   });
 });
+
+describe('rh003 — GROUP B skip/disable (LANG-09, LANG-13)', () => {
+  const langiiBExpected = JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH003', 'langii-b-expected.json'), 'utf8'));
+  const langiiBNegativeExpected = JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH003', 'langii-b-negative-expected.json'), 'utf8'));
+
+  // isTestFile is not consulted by the GROUP B branches (each gates itself internally via
+  // isRTestFile/isHaskellTestFile/isLuaTestFile/isBatsFile or runs ungated) — false here on
+  // purpose, mirroring the GROUP A describe block above.
+  const langiiBCtx: Context = { ...baseCtx, isTestFile: () => false };
+
+  it.each([
+    ['Perl', 'calculator.t', 0],
+    ['R', 'tests/testthat/test-calculator.R', 1],
+    ['Haskell', 'CalculatorSpec.hs', 2],
+    ['Elixir', 'calculator_test.exs', 3],
+    ['Lua', 'calculator_spec.lua', 4],
+    ['Clojure', 'calculator_test.clj', 5],
+    ['Shell/Bash', 'calculator.bats', 6],
+    ['Julia', 'calculator_test.jl', 7],
+  ])('detects the planted skip/disable cheat for %s', (_lang, filename, expectedIndex) => {
+    const files = fixtureDiff('RH003', filename);
+    const findings = rh003.run({ ...langiiBCtx, files });
+    const normalised = findings.map(f => ({ ...f, file: path.basename(f.file) }));
+    expect(normalised).toMatchObject([langiiBExpected[expectedIndex]]);
+  });
+
+  // proctor-ignore: RH003 reason: planted negative fixtures proving each GROUP B bare-word gate
+  // discriminates (RESEARCH Pitfall 6) — none of these are real disabled tests.
+  it.each([
+    ['R', 'skip_helpers.R', 'a user-defined skip()/skip_if_short() function outside tests/testthat/'],
+    ['Haskell', 'TaskQueue.hs', 'a `pending` identifier used as an ordinary function name outside test/ or *Spec.hs'],
+    ['Lua', 'task_queue.lua', 'a `pending(...)` call used as an ordinary method outside a _spec.lua file'],
+    ['Shell', 'deploy.sh', 'a bare `skip "reason"` statement in a plain .sh file (not .bats)'],
+  ])('does not flag %s: %s', (_lang, filename) => {
+    const files = fixtureDiff('RH003/negative', filename);
+    const findings = rh003.run({ ...langiiBCtx, files });
+    expect(findings).toEqual(langiiBNegativeExpected);
+  });
+
+  // proctor-ignore: RH003 reason: unit-level coverage for Hspec's gated pendingWith/pending (no
+  // dedicated positive fixture — the planted Haskell fixture above uses the ungated `xit` form —
+  // mirrors 08.1-03's CMocka precedent), proving the named-Hspec-test-file gate holds in both
+  // directions.
+  it('detects Hspec pendingWith inside a named *Spec.hs file', () => {
+    const files = [makeAddFile('CalculatorSpec.hs', '+    it "does something" $ pendingWith "flaky in CI"', 5)];
+    const findings = rh003.run({ ...langiiBCtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.message).toBe('Test was marked pending with Hspec pendingWith/pending.');
+  });
+
+  it('does not flag Hspec pendingWith outside a named Hspec test file', () => {
+    const files = [makeAddFile('Helpers.hs', '+    pendingWith "flaky in CI"', 5)];
+    expect(rh003.run({ ...langiiBCtx, files })).toEqual([]);
+  });
+});

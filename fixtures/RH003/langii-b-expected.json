@@ -1,0 +1,66 @@
+[
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "calculator.t",
+    "line": 5,
+    "message": "Test was disabled with a Perl SKIP: block.",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  },
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "test-calculator.R",
+    "line": 2,
+    "message": "Test was disabled with a testthat skip() call.",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  },
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "CalculatorSpec.hs",
+    "line": 8,
+    "message": "Test was disabled with an x-prefixed Hspec form (xit/xdescribe/xcontext/xspecify).",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  },
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "calculator_test.exs",
+    "line": 4,
+    "message": "Test was disabled with @tag :skip.",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  },
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "calculator_spec.lua",
+    "line": 2,
+    "message": "Test was marked pending with busted pending().",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  },
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "calculator_test.clj",
+    "line": 5,
+    "message": "Test was disabled with kaocha ^:kaocha/skip metadata.",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  },
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "calculator.bats",
+    "line": 4,
+    "message": "Test was disabled with a bats skip statement.",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  },
+  {
+    "verifierId": "RH003",
+    "severity": "error",
+    "file": "calculator_test.jl",
+    "line": 5,
+    "message": "Test was disabled with @test_skip.",
+    "suggestion": "Re-enable the disabled test and fix the underlying failure."
+  }
+]

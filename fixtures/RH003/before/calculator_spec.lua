@@ -1,0 +1,5 @@
+describe("Calculator", function()
+  it("adds two numbers", function()
+    assert.are.equal(3, Calculator.add(1, 2))
+  end)
+end)

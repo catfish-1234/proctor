@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
+import { AGENT_ADAPTERS } from '../src/adapters/registry.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const README_PATH = join(__dirname, '../README.md');
@@ -155,6 +156,27 @@ describe('README.md content', () => {
     expect(readmeContent).toContain('RH005');
     expect(readmeContent).toContain('RH006');
     expect(readmeContent).toContain('RH008');
+  });
+});
+
+describe('README agent roster (AGENT-05)', () => {
+  it('lists every AGENT_ADAPTERS displayName, so the roster table cannot silently drift from the registry', () => {
+    for (const adapter of AGENT_ADAPTERS) {
+      expect(readmeContent).toContain(adapter.displayName);
+    }
+  });
+
+  it('documents the contributor process for adding a further adapter', () => {
+    expect(readmeContent).toMatch(/Adding an adapter/i);
+    expect(readmeContent).toContain('AGENT_ADAPTERS');
+    expect(readmeContent).toMatch(/guardExisting/);
+    expect(readmeContent).toMatch(/drift-check/);
+  });
+
+  it('no longer contains the stale 10-agent prose sentence', () => {
+    expect(readmeContent).not.toMatch(
+      /deploys the honest-completion skill to\s*\nClaude Code, Codex CLI, Cursor, Windsurf, Gemini CLI, Aider, Continue\.dev, Cline, Amazon Q/
+    );
   });
 });
 

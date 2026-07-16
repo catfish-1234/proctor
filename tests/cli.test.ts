@@ -290,6 +290,28 @@ describe('CLI smoke tests', () => {
     }
   });
 
+  it('drift-check DOES flag best_practices.md once proctor has genuinely written it and it is later tampered with (CR-01 fix)', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      // Absent at install time -> install-skill writes it for real and records provenance.
+      const install = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(install.status).toBe(0);
+      expect(existsSync(join(tmpDir, '.proctor-adapter-manifest.json'))).toBe(true);
+
+      const cleanDrift = spawnSync('node', [CLI, 'drift-check'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(cleanDrift.status).toBe(0);
+
+      // Tamper with proctor's own previously-written content.
+      writeFileSync(join(tmpDir, 'best_practices.md'), 'tampered after install', 'utf8');
+
+      const tamperedDrift = spawnSync('node', [CLI, 'drift-check'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(tamperedDrift.status).toBe(1);
+      expect(tamperedDrift.stderr).toContain('best_practices.md');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it('install-claude-hook --global writes into the (sandboxed) home directory', () => {
     // HOME/USERPROFILE are overridden so os.homedir() resolves into a temp sandbox —
     // this test must NEVER read or write the developer's real ~/.claude/settings.json.

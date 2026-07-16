@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { describe, it, expect } from 'vitest';
 import { checkAdapterDrift } from '../src/adapters/drift-check.js';
 import { AGENT_ADAPTERS, type AgentAdapter } from '../src/adapters/registry.js';
+import { recordWritten } from '../src/adapters/manifest.js';
 
 const CLI = resolve(process.cwd(), 'dist/cli.js');
 
@@ -105,6 +106,48 @@ describe('checkAdapterDrift (unit)', () => {
       writeFileSync(adapterPath, canonical + 'extra byte', 'utf8');
       const drifted = await checkAdapterDrift(tmpDir, canonical, [adapter]);
       expect(drifted.drifted).toContain(adapterPath);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('guardExisting adapter with divergent content and NO manifest record is not flagged (never proctors, collision guard case)', async () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      const canonical = 'canonical content\n';
+      const guarded: AgentAdapter = {
+        id: 'fake-guarded', displayName: 'Fake Guarded', relativePath: 'guarded.md', scriptable: false, guardExisting: true,
+      };
+      const adapterPath = join(tmpDir, guarded.relativePath);
+      writeFileSync(adapterPath, 'unrelated pre-existing content', 'utf8');
+
+      const { drifted, checked } = await checkAdapterDrift(tmpDir, canonical, [guarded]);
+      expect(drifted).toEqual([]);
+      expect(checked).toContain(adapterPath);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('guardExisting adapter WITH a manifest record IS flagged when its content diverges (proctor wrote it, now tampered, the CR-01 fix)', async () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      const canonical = 'canonical content\n';
+      const guarded: AgentAdapter = {
+        id: 'fake-guarded', displayName: 'Fake Guarded', relativePath: 'guarded.md', scriptable: false, guardExisting: true,
+      };
+      const adapterPath = join(tmpDir, guarded.relativePath);
+      writeFileSync(adapterPath, canonical, 'utf8');
+      await recordWritten(tmpDir, guarded.id);
+
+      // Not yet tampered: matches canonical, no drift.
+      const clean = await checkAdapterDrift(tmpDir, canonical, [guarded]);
+      expect(clean.drifted).toEqual([]);
+
+      // Tampered after a recorded write: now real drift, must be flagged.
+      writeFileSync(adapterPath, 'tampered content', 'utf8');
+      const tampered = await checkAdapterDrift(tmpDir, canonical, [guarded]);
+      expect(tampered.drifted).toContain(adapterPath);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }

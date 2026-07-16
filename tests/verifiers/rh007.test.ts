@@ -341,3 +341,54 @@ describe('rh007 — GROUP A config exclusion (LANG-10, LANG-13)', () => {
     expect(findings[0]!.line).toBe(7);
   });
 });
+
+describe('rh007 — GROUP B config exclusion (LANG-10, LANG-13)', () => {
+  const langiiBExpected: Array<{ verifierId: string; severity: string; file: string; line: number; message: string; suggestion: string }> =
+    JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH007', 'langii-b-expected.json'), 'utf8'));
+
+  const cases: Array<[filename: string, label: string]> = [
+    ['.Rbuildignore', 'R .Rbuildignore test-like exclusion line (warn)'],
+    ['calculator.cabal', 'Haskell .cabal buildable: False inside test-suite stanza (error)'],
+    ['test_helper.exs', 'Elixir test_helper.exs ExUnit.start(exclude: ...) (error)'],
+    ['.busted', 'Lua .busted ["exclude-tags"] (error)'],
+    ['project.clj', 'Clojure project.clj :test-selectors (warn — Open Question 3 resolution)'],
+  ];
+
+  for (const [filename, label] of cases) {
+    it(`detects ${label} (${filename})`, () => {
+      const expected = langiiBExpected.find(e => e.file === filename);
+      expect(expected, `no langii-b-expected.json entry for ${filename}`).toBeTruthy();
+
+      const files = fixtureDiff('RH007', filename);
+      const findings = rh007.run({ ...baseCtx, files });
+      const normalised = findings.map(f => ({ ...f, file: path.basename(f.file) }));
+      expect(normalised).toMatchObject([expected]);
+    });
+  }
+
+  // Negative fixture: buildable: False on a library stanza (no test-suite header anywhere in the
+  // file) must yield zero findings — proves the chunkMentionsTestSuite gate actually restricts
+  // firing to test-suite stanzas rather than any buildable: False edit in a .cabal file.
+  it('does NOT flag calculator.cabal buildable: False on a library stanza (negative fixture)', () => {
+    const files = fixtureDiff('RH007/negative', 'calculator-library.cabal');
+    const findings = rh007.run({ ...baseCtx, files });
+    expect(findings).toEqual([]);
+  });
+
+  // Windows-backslash-path regression for one new GROUP B config file, per the plan's Task 2
+  // acceptance criteria (mirrors the dedicated GROUP A Windows-path describe block above).
+  it('detects an Elixir test_helper.exs ExUnit exclude via a Windows backslash path', () => {
+    const files = [makeAddFile('sub\\test_helper.exs', '+ExUnit.start(exclude: [:integration])', 2)];
+    const findings = rh007.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.severity).toBe('error');
+    expect(findings[0]!.line).toBe(2);
+  });
+
+  // Direct unit assertion: a non-test-like .Rbuildignore line addition (e.g. excluding a vignette
+  // or CI config file) must not fire, per the requiresTestLikeValue gate.
+  it('does NOT flag a non-test-like .Rbuildignore line addition', () => {
+    const files = [makeAddFile('.Rbuildignore', '+^\\.github$', 4)];
+    expect(rh007.run({ ...baseCtx, files })).toEqual([]);
+  });
+});

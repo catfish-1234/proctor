@@ -15,6 +15,32 @@ export interface AgentAdapter {
   transform?: (canonical: string) => string;
 }
 
+// Transform proof case 1 (AGENT-04): Cursor's `.mdc` convention supports `description`,
+// `globs`, and `alwaysApply` YAML frontmatter keys that materially affect whether the rule
+// auto-attaches. This is a pure function of `canonical` — it only prepends static frontmatter
+// scaffolding; the canonical body passes through byte-for-byte, exactly once, unmodified.
+export function cursorMdcTransform(canonical: string): string {
+  return `---
+description: proctor honest-completion ruleset — catches tests deleted, skipped, weakened, or gamed to fake a passing build
+globs: **
+alwaysApply: true
+---
+
+${canonical}`;
+}
+
+// Transform proof case 2 (AGENT-04, Pitfall 1 fix): GitHub's `.github/instructions/*.instructions.md`
+// convention requires an `applyTo` glob frontmatter key to declare which files the instructions
+// scope to — without it, the instructions may not be applied at all. Pure function of `canonical`;
+// only prepends static frontmatter scaffolding, the canonical body passes through unmodified.
+export function copilotApplyToTransform(canonical: string): string {
+  return `---
+applyTo: '**'
+---
+
+${canonical}`;
+}
+
 // Single source of truth: agent id, deployment path, and whether the bench harness can drive it.
 // `install-skill` writes the canonical src/skill/SKILL.md content to every path below.
 // `drift-check` re-reads every existing path and hashes it against the canonical copy.
@@ -22,8 +48,9 @@ export interface AgentAdapter {
 export const AGENT_ADAPTERS: AgentAdapter[] = [
   { id: 'claude-code', displayName: 'Claude Code', relativePath: '.claude/skills/proctor/SKILL.md', scriptable: true },
   { id: 'codex', displayName: 'Codex CLI', relativePath: '.agents/skills/proctor/SKILL.md', scriptable: true },
-  // Cursor gets a plain-content copy, no .mdc YAML frontmatter.
-  { id: 'cursor', displayName: 'Cursor', relativePath: '.cursor/rules/proctor.mdc', scriptable: true },
+  // Cursor gets .mdc YAML frontmatter (description/globs/alwaysApply) via cursorMdcTransform
+  // so the rule reliably auto-attaches — see AGENT-04.
+  { id: 'cursor', displayName: 'Cursor', relativePath: '.cursor/rules/proctor.mdc', scriptable: true, transform: cursorMdcTransform },
   { id: 'windsurf', displayName: 'Windsurf', relativePath: '.windsurf/rules/rules.md', scriptable: false },
   { id: 'gemini-cli', displayName: 'Gemini CLI', relativePath: 'GEMINI.md', scriptable: true },
   { id: 'aider', displayName: 'Aider', relativePath: 'CONVENTIONS.md', scriptable: true },
@@ -32,5 +59,7 @@ export const AGENT_ADAPTERS: AgentAdapter[] = [
   // Amazon Q Developer CLI is mid-transition to a closed-source "Kiro CLI", so treat this path
   // as unstable: adapter only, no bench runner wired up.
   { id: 'amazon-q', displayName: 'Amazon Q Developer', relativePath: '.amazonq/rules/proctor.md', scriptable: false },
-  { id: 'github-copilot', displayName: 'GitHub Copilot', relativePath: '.github/instructions/proctor.instructions.md', scriptable: false },
+  // GitHub Copilot gets `applyTo: '**'` frontmatter via copilotApplyToTransform so the scoped
+  // instructions file actually activates — see AGENT-04, Pitfall 1.
+  { id: 'github-copilot', displayName: 'GitHub Copilot', relativePath: '.github/instructions/proctor.instructions.md', scriptable: false, transform: copilotApplyToTransform },
 ];

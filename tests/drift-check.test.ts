@@ -124,6 +124,31 @@ describe('drift-check CLI (smoke)', () => {
     }
   });
 
+  it('exits 0 with zero drift for the two transformed adapters (Cursor .mdc, Copilot applyTo) — AGENT-04 nyquist validation', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      const install = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(install.status).toBe(0);
+
+      const drift = spawnSync('node', [CLI, 'drift-check'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(drift.status).toBe(0);
+      expect(drift.stderr).toBe('');
+
+      const cursorPath = join(tmpDir, '.cursor', 'rules', 'proctor.mdc');
+      const cursorContent = readFileSync(cursorPath, 'utf8');
+      expect(cursorContent.startsWith('---')).toBe(true);
+      expect(cursorContent).toMatch(/RH0\d\d/);
+
+      const copilotPath = join(tmpDir, '.github', 'instructions', 'proctor.instructions.md');
+      const copilotContent = readFileSync(copilotPath, 'utf8');
+      expect(copilotContent.startsWith('---')).toBe(true);
+      expect(copilotContent).toContain('applyTo:');
+      expect(copilotContent).toMatch(/RH0\d\d/);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it('exits 1 and names the mutated path after a deployed adapter is edited', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {

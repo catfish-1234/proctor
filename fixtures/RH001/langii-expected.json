@@ -62,5 +62,69 @@
     "line": 1,
     "message": "Test file 'CalculatorTests.vb' was deleted.",
     "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "calculator.t",
+    "line": 1,
+    "message": "Test file 'calculator.t' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "test-calculator.R",
+    "line": 1,
+    "message": "Test file 'test-calculator.R' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "CalculatorSpec.hs",
+    "line": 1,
+    "message": "Test file 'CalculatorSpec.hs' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "calculator_test.exs",
+    "line": 1,
+    "message": "Test file 'calculator_test.exs' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "calculator_spec.lua",
+    "line": 1,
+    "message": "Test file 'calculator_spec.lua' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "calculator_test.clj",
+    "line": 1,
+    "message": "Test file 'calculator_test.clj' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "calculator_test.bats",
+    "line": 1,
+    "message": "Test file 'calculator_test.bats' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
+  },
+  {
+    "verifierId": "RH001",
+    "severity": "error",
+    "file": "runtests.jl",
+    "line": 1,
+    "message": "Test file 'runtests.jl' was deleted.",
+    "suggestion": "Restore the deleted test file or document why it was intentionally removed."
   }
 ]

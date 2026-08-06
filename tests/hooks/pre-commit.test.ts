@@ -8,7 +8,7 @@ describe('preCommitHookContent', () => {
     expect(content).toContain('proctor check --staged');
   });
 
-  it('is deterministic — identical output on repeated calls', () => {
+  it('is deterministic, identical output on repeated calls', () => {
     expect(preCommitHookContent()).toBe(preCommitHookContent());
   });
 });

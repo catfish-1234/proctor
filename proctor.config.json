@@ -1,0 +1,19 @@
+{
+  "approvedTestChanges": [
+    {
+      "rule": "RH001",
+      "file": "tests/brand.test.ts",
+      "reason": "brand copy (LAUNCH_LINE, CHARACTER, LOGO, statuslineBadge) was removed from src/brand.ts because nothing rendered it; the tests went with the code"
+    },
+    {
+      "rule": "RH001",
+      "file": "tests/engine.test.ts",
+      "reason": "the AST pre-pass was removed from the engine because no verifier ever read context.ast; the tests covered a layer that no longer exists"
+    },
+    {
+      "rule": "RH001",
+      "file": "tests/readme.test.ts",
+      "reason": "the em dash check moved to tests/prose.test.ts, which now scans every tracked file instead of just README and RESEARCH"
+    }
+  ]
+}

@@ -4,7 +4,27 @@ export interface RuleMeta {
   fullDescription: string;
   defaultLevel: 'error' | 'warning' | 'note';
   helpUri: string;
+  /**
+   * What an honest fix for this rule actually looks like, for `check --explain <ID> --fix`.
+   *
+   * Blocking an agent only tells it that something was wrong. This tells it what to do instead,
+   * which is the difference between a guard that stops bad work and one that redirects it. Each
+   * entry deliberately opens with the real fix and closes with the escape hatch, because the
+   * ordering is the message: fix the code first, and only reach for an approval when the test
+   * change is genuinely intended.
+   */
+  fix: string;
 }
+
+/**
+ * Closing guidance shared by every rule. Kept in one place so the escape hatch is described
+ * identically everywhere and can't drift into sounding like the easy option.
+ */
+export const APPROVAL_GUIDANCE =
+  'If the change really was intentional, do not approve it yourself. Say why you believe it is ' +
+  'legitimate and let a human run `proctor approve <RH-ID> <file> --reason "..."` and commit it. ' +
+  'Approvals are read from the committed config, so one added in the same change it excuses has ' +
+  'no effect, and an approval never hides the finding, it only stops it blocking.';
 
 export const RULE_METADATA: Record<string, RuleMeta> = {
   RH001: {
@@ -13,6 +33,11 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     fullDescription:
       'Detects a test file or individual test function deleted, disabled, or renamed in a way that drops its test extension, hiding a failing test rather than fixing the underlying code.',
     defaultLevel: 'error',
+    fix:
+      'Put the test back exactly as it was, then make the code satisfy it. If the test is failing, the ' +
+      'failure is the point: it is describing behavior the implementation does not have yet. Moving or ' +
+      'renaming a test file is fine on its own, proctor only objects when the tests disappear rather than ' +
+      'land somewhere else, so if this was a move, move the assertions along with the names.',
     helpUri: 'https://github.com/catfish-1234/proctor#rh001',
   },
   RH002: {
@@ -29,6 +54,12 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'Shell/Bash (bats-assert), and Julia (the Test stdlib). Groovy\'s Spock power-assert (`expect:`/`then:` bare `==`) is not covered, no reliable single-line syntactic anchor exists. ' +
       'Shell/Bash\'s native `[ ]` test form is not covered either, only the bats-assert helper library is, the native form is too pervasive in ordinary shell control flow to anchor safely.',
     defaultLevel: 'error',
+    fix:
+      'Restore the original assertion and make the code produce the value it expects. A specific assertion ' +
+      'that fails is worth more than a vague one that passes: `toBeDefined()` in place of `toBe(6)` means ' +
+      'the test no longer knows what correct looks like. If the expected value itself is genuinely wrong, ' +
+      'change it to the new specific value rather than to a weaker matcher, so the test still pins the ' +
+      'behavior down.',
     helpUri: 'https://github.com/catfish-1234/proctor#rh002',
   },
   RH003: {
@@ -46,6 +77,11 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'Objective-C has no RH003 coverage at all, Apple\'s own documentation confirms XCTSkip/XCTSkipIf/XCTSkipUnless are Swift-only APIs. C\'s Check framework has no skip mechanism, ' +
       'only CMocka\'s is covered. Clojure\'s Leiningen :test-selectors and Shell/Bash\'s shunit2 startSkipping/endSkipping are not covered, both are stateful, non-local mechanisms a diff-line regex cannot reliably resolve.',
     defaultLevel: 'error',
+    fix:
+      'Remove the skip and fix what made the test fail. A skipped test is a test that is not running, which ' +
+      'reads as green while covering nothing. If it fails intermittently, fix the flakiness at its source ' +
+      'rather than skipping past it. If it depends on something unavailable in this environment, gate it on ' +
+      'that condition explicitly so it still runs where it can.',
     helpUri: 'https://github.com/catfish-1234/proctor#rh003',
   },
   RH004: {
@@ -53,9 +89,14 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     shortDescription: 'Implementation hardcodes test fixture value',
     fullDescription:
       'Detects implementation code that hardcodes or special-cases a value matching a test fixture literal, faking correct behavior for the specific inputs the test suite exercises. ' +
-      'Deterministic core: fires only on two strong signals — (1) a return statement that previously computed a real expression now returns a bare literal, or (2) a single-line branch ' +
+      'Deterministic core: fires only on two strong signals, (1) a return statement that previously computed a real expression now returns a bare literal, or (2) a single-line branch ' +
       'that special-cases a literal input to return a literal output. Weaker literal-matching candidates (no clear prior computation to compare against) are only flagged with --ai.',
     defaultLevel: 'error',
+    fix:
+      'Implement the general case instead of the specific one. Returning the literal the fixture expects, ' +
+      'or branching on the exact input the test passes, makes that one test green while the function stays ' +
+      'wrong for every other input. Write the logic the test is describing, and the fixture value falls out ' +
+      'of it on its own.',
     helpUri: 'https://github.com/catfish-1234/proctor#rh004',
   },
   RH005: {
@@ -66,6 +107,11 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'it claims to test. Deterministic core: the gutted-return signal only fires when the diff shows a real prior computation being replaced (not a brand-new stub function); ambiguous ' +
       'gutting with no clear prior computation is only flagged with --ai.',
     defaultLevel: 'error',
+    fix:
+      'Put the real implementation back. A body replaced with a bare return, a constant, or an ' +
+      'always-satisfying mock makes the assertion pass without the behavior existing. If the real logic is ' +
+      'not written yet, leave the test failing and say so: a failing test is an accurate report, and a ' +
+      'stubbed one is a false report.',
     helpUri: 'https://github.com/catfish-1234/proctor#rh005',
   },
   RH006: {
@@ -75,6 +121,11 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'Detects a snapshot or golden file rewritten alongside a code change with no stated reason in the commit message, potentially baking in a regression as the new expected output. ' +
       'Suppressed entirely when the commit message states a reason (snapshot/golden/regenerate/intentional/by design) or when the change is a pure deletion of stale snapshot entries.',
     defaultLevel: 'warning',
+    fix:
+      'Look at what actually changed in the snapshot before accepting it. If the new output is correct, ' +
+      'regenerate it and state the reason in the commit message, which is enough to satisfy this check. If ' +
+      'it is not correct, the diff just caught a regression, so fix the code and the old snapshot passes ' +
+      'again.',
     helpUri: 'https://github.com/catfish-1234/proctor#rh006',
   },
   RH007: {
@@ -91,6 +142,11 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'Clojure\'s project.clj :test-selectors is warn only, the selector value is an arbitrary function form so only the key-touched signal is reliable. Perl, Shell/Bash, and Julia have no RH007 coverage at all, ' +
       'none has a dedicated exclusion config file or a safe structural analogue.',
     defaultLevel: 'error',
+    fix:
+      'Revert the config change and fix the tests it was going to exclude. Narrowing test discovery, adding ' +
+      'an ignore pattern, or excluding a path makes the suite smaller rather than the code better, and the ' +
+      'tests that stop running are usually the ones that were failing. If a config change is genuinely ' +
+      'needed for another reason, make it in a change that does not also depend on those tests not running.',
     helpUri: 'https://github.com/catfish-1234/proctor#rh007',
   },
   RH008: {
@@ -98,17 +154,26 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     shortDescription: 'Assertion always passes regardless of behavior',
     fullDescription:
       'Detects an assertion that always passes without testing real behavior: a literal `assert True`, a value asserted against itself (`assert x == x`, `expect(f(x)).toBe(f(x))`), ' +
-      'or an assertion made on an empty `expect()` with no value under test. Fully deterministic — every pattern is an exact syntactic tautology with no legitimate use, so no --ai is needed.',
+      'or an assertion made on an empty `expect()` with no value under test. Fully deterministic, every pattern is an exact syntactic tautology with no legitimate use, so no --ai is needed.',
     defaultLevel: 'warning',
+    fix:
+      'Assert the real expected value. An assertion that compares a value to itself, or asserts a literal ' +
+      'constant, cannot fail, so the test passes whatever the code does. That is the same as having no test ' +
+      'at all. Work out what the function should return for the input, and assert that.',
     helpUri: 'https://github.com/catfish-1234/proctor#rh008',
   },
   RH009: {
     name: 'CoverageGaming',
     shortDescription: 'Trivial test added while real assertions removed',
     fullDescription:
-      'Detects a trivial test (no specific-value assertion) added to a file in the same change that removed a real, specific-value assertion — a pattern that keeps a test file green ' +
+      'Detects a trivial test (no specific-value assertion) added to a file in the same change that removed a real, specific-value assertion, a pattern that keeps a test file green ' +
       'and coverage numbers up while quietly dropping what the tests actually verified. Requires both conditions in the same file to stay conservative.',
     defaultLevel: 'warning',
+    fix:
+      'Restore the assertions that were removed. Adding a test that only checks the code runs, while ' +
+      'deleting the ones that checked what it produced, raises the test count and lowers the coverage that ' +
+      'matters. If the new test is worth keeping, keep it as well as the old assertions, not instead of ' +
+      'them.',
     helpUri: 'https://github.com/catfish-1234/proctor#rh009',
   },
   RH010: {
@@ -118,6 +183,12 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'Detects three independent failure-masking patterns: (1) jest.retryTimes/@pytest.mark.flaky reruns added to paper over a flaky or failing test, (2) an unusually large ' +
       'jest.setTimeout/@pytest.mark.timeout added to hide a hanging operation, or (3) a network response mocked to return literally the same value the test then asserts against.',
     defaultLevel: 'warning',
+    fix:
+      'Fix the underlying failure rather than giving it more room. Retries and long timeouts make an ' +
+      'unreliable test report as green while staying unreliable, and a network mock returning exactly the ' +
+      'value the test asserts means the test is checking the mock rather than the code. Find why it fails ' +
+      'or hangs. If it is genuinely slow, say so in a comment next to the raised timeout so the number has ' +
+      'a reason attached.',
     helpUri: 'https://github.com/catfish-1234/proctor#rh010',
   },
   RH011: {
@@ -134,6 +205,11 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'Lua (luacheck: ignore), Clojure (#_{:clj-kondo/ignore [...]}), and Shell/Bash (shellcheck disable=SC####). VB.NET, Perl, R, Lua, Clojure, and Shell/Bash coverage is line-scoped only, each language\'s file-wide or unclosed-suppression form ' +
       'requires forward-scanning past the diff line, which proctor\'s line-level model doesn\'t do. Julia has no RH011 coverage at all, no dominant inline-suppression convention was found.',
     defaultLevel: 'warning',
+    fix:
+      'Fix the type or lint error the suppression is hiding. A single justified suppression is normal. ' +
+      'Several added at once, or one file-wide directive, is a way to make the checker quiet rather than ' +
+      'the code correct. If one of them really is unavoidable, keep that one, scope it to the specific rule ' +
+      'and line, and write down why.',
     helpUri: 'https://github.com/catfish-1234/proctor#rh011',
   },
 };

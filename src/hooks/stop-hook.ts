@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { recordCaught } from '../session.js';
 
 export interface StopHookInput {
   cwd?: string;
@@ -10,7 +11,7 @@ export interface ParsedStopHookInput {
   skip: boolean;
 }
 
-/** Pure: parses the Claude Code Stop hook's stdin JSON. No I/O — unit-testable in isolation. */
+/** Pure: parses the Claude Code Stop hook's stdin JSON. No I/O, unit-testable in isolation. */
 export function parseStopHookInput(raw: string, fallbackCwd: string): ParsedStopHookInput {
   try {
     const input = JSON.parse(raw) as StopHookInput;
@@ -35,7 +36,7 @@ export interface StopHookResult {
  */
 export function runStopHookCheck(cwd: string, cliPath: string): StopHookResult {
   // A globally-installed hook fires in every project, including non-git directories, where
-  // `check` exits 2 with "not a git repository" — an infra failure, not a finding. Blocking
+  // `check` exits 2 with "not a git repository", an infra failure, not a finding. Blocking
   // every turn there would make the global install unusable, so allow instead.
   const inRepo = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd, stdio: 'ignore' });
   if (inRepo.error || inRepo.status !== 0) return { exitCode: 0, output: '' };
@@ -51,5 +52,14 @@ export function runStopHookCheck(cwd: string, cliPath: string): StopHookResult {
   if (result.error || result.status === null) return { exitCode: 0, output: '' }; // fail open: never block a turn because proctor itself errored or timed out
   const output = (result.stdout ?? '') + (result.stderr ?? '');
   const code = result.status ?? 0;
-  return { exitCode: code === 2 ? 2 : 0, output };
+  const blocked = code === 2;
+  // Tally the block for the statusline. This runs after the decision is already made, and
+  // recordCaught swallows its own errors, so counting can never change whether a turn is blocked.
+  if (blocked) recordCaught(cwd, rulesIn(output));
+  return { exitCode: blocked ? 2 : 0, output };
+}
+
+/** Rule IDs mentioned in check output, for the statusline's recent-rules list. */
+function rulesIn(output: string): string[] {
+  return [...new Set([...output.matchAll(/\[(RH\d{3})\]/g)].map(m => m[1]!))];
 }

@@ -212,4 +212,22 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'and line, and write down why.',
     helpUri: 'https://github.com/catfish-1234/proctor#rh011',
   },
+  RH012: {
+    name: 'CIPipelineTampering',
+    shortDescription: 'Test step removed from CI, or neutered so a failing suite still passes',
+    fullDescription:
+      'Detects a change to a CI pipeline definition that stops the test suite from running or stops its failures from counting. Covers a removed test command, ' +
+      "'continue-on-error: true' (GitHub Actions, Azure Pipelines), 'allow_failure: true' (GitLab), a step disabled with 'if: false' or 'when: never', a test command with its exit code " +
+      "swallowed by '|| true', and 'set +e' next to a test command. Reads .github/workflows/*.yml, .gitlab-ci.yml, .circleci/config.yml, azure-pipelines.yml, .travis.yml, Jenkinsfile, and " +
+      'bitbucket-pipelines.yml. Every signature except a removed command only fires when a test command is visible in the same diff chunk, since each of them is routine and correct on a ' +
+      'step that does something else, an artifact upload set to continue-on-error being the obvious case. A test command that merely moved within the same file is not reported as removed.',
+    defaultLevel: 'error',
+    fix:
+      'Put the test step back and let it fail. Disabling the suite at the pipeline level is the same evasion ' +
+      'as deleting the tests themselves, with the added problem that the build still displays a green check, ' +
+      'so nobody has any signal that coverage stopped. Fix whatever made the step fail. If the suite genuinely ' +
+      'belongs somewhere else now, move it and leave the pipeline saying where it went, so a reader can still ' +
+      'tell the tests run.',
+    helpUri: 'https://github.com/catfish-1234/proctor#rh012',
+  },
 };

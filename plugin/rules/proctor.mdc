@@ -61,7 +61,7 @@ guard doing its job, not as a bug to work around.
 
 Each row below is sourced verbatim from `RULE_METADATA` in `src/rules.ts`,
 the same registry the tool itself uses to report findings. If you see one of
-these rule IDs (`RH001`–`RH012`) in a `proctor` finding, this table tells you
+these rule IDs (`RH001`–`RH013`) in a `proctor` finding, this table tells you
 what it caught.
 
 | RH-ID | Name | What It Catches |
@@ -78,6 +78,7 @@ what it caught.
 | RH010 | FailureMasking | Timeout/retry abuse, or a network mock manufacturing the expected answer |
 | RH011 | TypeLintSilencingSpam | Type/lint suppression comments added to pass (spam, or one file-wide directive) |
 | RH012 | CIPipelineTampering | Test step removed from CI, or neutered so a failing suite still passes |
+| RH013 | CoverageGateWeakened | Coverage threshold lowered or removed so less coverage now passes |
 
 RH004–RH011 are heuristic and higher-risk for false positives than RH001–003/007.
 Each is implemented conservatively: strong-signal-only, high precision over recall.

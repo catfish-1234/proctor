@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { VERIFIERS } from '../../src/verifiers/registry.js';
 
 describe('Verifier registry (plugin-ready from day one)', () => {
-  it('registers all 12 RH0xx verifiers', () => {
+  it('registers all 13 RH0xx verifiers', () => {
     const ids = VERIFIERS.map(v => v.id).sort();
     expect(ids).toEqual([
-      'RH001', 'RH002', 'RH003', 'RH004', 'RH005', 'RH006', 'RH007', 'RH008', 'RH009', 'RH010', 'RH011', 'RH012',
+      'RH001', 'RH002', 'RH003', 'RH004', 'RH005', 'RH006', 'RH007', 'RH008', 'RH009', 'RH010', 'RH011', 'RH012', 'RH013',
     ]);
   });
 

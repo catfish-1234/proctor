@@ -26,7 +26,7 @@ describe('sarifReport', () => {
     );
     expect(parsed.version).toBe('2.1.0');
     expect(parsed.runs[0].tool.driver.name).toBe('proctor');
-    expect(parsed.runs[0].tool.driver.rules).toHaveLength(12);
+    expect(parsed.runs[0].tool.driver.rules).toHaveLength(13);
     expect(parsed.runs[0].results).toEqual([]);
   });
 

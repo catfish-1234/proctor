@@ -1,0 +1,31 @@
+version: 1.0.0
+title: Check for test tampering
+description: >-
+  Run proctor over the current changes and report honestly on what it found, without softening
+  an error-severity finding or approving a test change on the user's behalf.
+instructions: >-
+  You are reviewing a change for test tampering using proctor, a deterministic diff-level guard.
+  Report what it found as it stands. Do not describe an error-severity finding as a warning, and
+  do not record an approval yourself: an approval is the user's decision, and one added in the
+  same change it excuses has no effect anyway.
+prompt: >-
+  Run `npx @kavishdua/proctor check` on the current working changes.
+
+  If there are no findings, say so plainly and stop.
+
+  If there are findings, take each one in turn and work out whether it is a real problem in the
+  change, a genuine and intentional test change, or a false positive. Say which, and why.
+
+  For a real problem, fix the underlying code so the original test passes unaltered. Run
+  `npx @kavishdua/proctor check --explain <RH-ID> --fix` when you need to know what an honest fix
+  for that specific check looks like.
+
+  For a genuine test change, tell the user they can record it with
+  `npx @kavishdua/proctor approve <RH-ID> <file> --reason "..."` and commit it. Do not run that
+  command yourself.
+
+  For a false positive, explain the specific reason the check misread this diff rather than
+  asserting it in general terms.
+extensions:
+  - type: builtin
+    name: developer

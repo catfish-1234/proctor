@@ -1,0 +1,9 @@
+{
+  "hooks": {
+    "stop": [
+      {
+        "command": "npx @kavishdua/proctor stop-hook"
+      }
+    ]
+  }
+}

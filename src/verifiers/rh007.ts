@@ -60,8 +60,19 @@ function isConfigFile(filePath: string): boolean {
   return CONFIG_FILE_RE.test(filePath.replace(/\\/g, '/'));
 }
 
+/**
+ * The filename, whatever separator the path uses.
+ *
+ * node's path.basename does not split on a backslash when running on POSIX, so a Windows-style
+ * path arrives here whole and matches none of the checks below. isConfigFile already normalizes,
+ * which is why detection and classification disagreed on exactly those paths.
+ */
+function baseName(filePath: string): string {
+  return path.basename(filePath.replace(/\\/g, '/'));
+}
+
 function configLabel(filePath: string): string {
-  const base = path.basename(filePath);
+  const base = baseName(filePath);
   if (/^jest\.config\./.test(base)) return 'jest config';
   if (/^vitest\.config\./.test(base)) return 'vitest config';
   if (/^vite\.config\./.test(base)) return 'vite/vitest config';
@@ -111,7 +122,7 @@ type ConfigLang =
   | 'leiningen';
 
 function configLang(filePath: string): ConfigLang | null {
-  const base = path.basename(filePath);
+  const base = baseName(filePath);
   if (/^(?:jest|vitest|vite)\.config\./.test(base) || base === 'jest.config.json' || /^tsconfig/.test(base)) return 'js';
   if (base === 'pytest.ini' || base === 'setup.cfg' || base === 'pyproject.toml' || base === 'conftest.py') return 'pytest';
   if (base === 'pom.xml') return 'maven';

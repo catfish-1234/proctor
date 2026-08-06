@@ -28,11 +28,16 @@ function isConditionalReturn(line: string): boolean {
 // past. Strip that trailing noise before matching. Exported-shape kept local per the one-pure-
 // function-per-file convention (RH005 has its own copy, same as the duplicated LITERAL_TOKEN).
 export function stripTrailingNoise(content: string): string {
-  let s = content.replace(/\/\/[^\n]*$/, '').replace(/\/\*[^\n]*?\*\/\s*$/, '').replace(/\s+$/, '');
+  // trimEnd() rather than .replace(/\s+$/, ''): the two strip exactly the same set of characters,
+  // but the regex is quadratic on a long run of trailing whitespace. `$` cannot match when the
+  // line ends in anything else, so the engine retries `\s+` from all 50k positions in a 50k space
+  // run. That single call was measured at 427ms on adversarial input, and it runs twice here.
+  // Diff content is attacker-controlled, so this is the real ReDoS surface, not the return regex.
+  let s = content.replace(/\/\/[^\n]*$/, '').replace(/\/\*[^\n]*?\*\/\s*$/, '').trimEnd();
   // The lookbehind requires a real value char before the cast, so the leading whitespace can't be
   // scanned from every position in a long space run (that unanchored scan was the ReDoS). The type
   // is a single contiguous token (disjoint from the trailing `;`/`}`/space class).
-  s = s.replace(/(?<=[\w)\]'"`])\s+(?:as|satisfies)\s+[A-Za-z0-9_.<>[\]|&,]+([;}\s]*)$/, '$1').replace(/\s+$/, '');
+  s = s.replace(/(?<=[\w)\]'"`])\s+(?:as|satisfies)\s+[A-Za-z0-9_.<>[\]|&,]+([;}\s]*)$/, '$1').trimEnd();
   return s;
 }
 

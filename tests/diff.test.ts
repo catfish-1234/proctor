@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import parseDiff from 'parse-diff';
 
-// Minimal valid unified diff — two-file change, one line added
+// Minimal valid unified diff, two-file change, one line added
 const INLINE_UNIFIED_DIFF = `diff --git a/src/calc.ts b/src/calc.ts
 index abc1234..def5678 100644
 --- a/src/calc.ts

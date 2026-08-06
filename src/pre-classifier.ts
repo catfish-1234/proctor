@@ -16,7 +16,7 @@ const dropsTestExtension = (from: string, to: string): boolean =>
  * Classify diff files, rejecting five categories of non-analyzable input.
  * Checks run in this order:
  *   1. combined-diff  (raw string, rejects entire diff)
- *   2. binary         (raw section per file — parse-diff does not expose a .binary field)
+ *   2. binary         (raw section per file, parse-diff does not expose a .binary field)
  *   3. mode-only      (file-level: no hunks + mode fields)
  *   4. submodule      (file-level: "Subproject commit" in change content)
  *   5. rename-only    (file-level: different names, no hunks, not add/delete)
@@ -26,7 +26,7 @@ export function classifyDiff(raw: string, files: ParsedFile[]): ClassificationRe
   const accepted: ParsedFile[] = [];
   const rejected: Array<{ file: ParsedFile | null; reason: string }> = [];
 
-  // 1. Combined diff (git diff --cc) — triple-@ header; reject before per-file checks
+  // 1. Combined diff (git diff --cc), triple-@ header; reject before per-file checks
   if (/^@@@/m.test(raw)) {
     rejected.push({ file: null, reason: 'combined-diff' });
     return { accepted, rejected };
@@ -48,7 +48,7 @@ export function classifyDiff(raw: string, files: ParsedFile[]): ClassificationRe
 
     // 3. Mode-only (permission change with no content hunks).
     // Guard !file.deleted && !file.new: deleted/new files may also carry oldMode/newMode
-    // but are not mode-only — they carry real content changes.
+    // but are not mode-only, they carry real content changes.
     if (
       file.chunks.length === 0 &&
       (file.oldMode !== undefined || file.newMode !== undefined) &&

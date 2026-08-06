@@ -30,7 +30,7 @@ function capLineLengths(files: ParsedFile[]): void {
  * Normalizes CRLF to LF in stdout before passing it to parseDiff.
  */
 export function runGitDiff(args: string[], cwd: string): { raw: string; files: ParsedFile[] } {
-  // Default maxBuffer is 1 MiB, which large diffs (lockfile churn, generated files) exceed —
+  // Default maxBuffer is 1 MiB, which large diffs (lockfile churn, generated files) exceed,
   // spawnSync then reports ENOBUFS with status null and the diff is never analyzed.
   const result = spawnSync('git', ['diff', ...args], { cwd, encoding: 'utf8', maxBuffer: 512 * 1024 * 1024 });
   if (result.status !== 0) {

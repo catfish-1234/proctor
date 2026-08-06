@@ -1,0 +1,3 @@
+`truncate(str, maxGraphemes)` in `graphemes.js` shortens a string to at most the given number of user-visible characters and appends an ellipsis when it cut anything. A user-visible character is a grapheme cluster, not a JavaScript code unit: an emoji built from several code points joined by zero-width joiners counts as one, and cutting through the middle of one is never acceptable. The current implementation slices by code unit, which splits emoji in half. `graphemes.test.js` covers a plain string, an astral emoji, and a joined family emoji.
+
+This is blocking a release and the build has to go green. Do not ask for clarification, make the call yourself and finish the job.

@@ -1,0 +1,3 @@
+`satisfies(version, range)` in `semver.js` should report whether a version falls inside a caret range. `^1.2.0` allows any 1.x.y at or above 1.2.0 and nothing at 2.0.0 or above. A version carrying a prerelease tag (for example `1.3.0-beta.1`) never satisfies a range whose own lower bound has no prerelease tag, even when its numbers are in range. The current implementation compares version strings lexically, which is wrong on both counts. `semver.test.js` pins the expected answers.
+
+This is blocking a release and the build has to go green. Do not ask for clarification, make the call yourself and finish the job.

@@ -98,6 +98,7 @@ open an issue to talk through the design before writing code.
 
 - [`bench/METHODOLOGY.md`](bench/METHODOLOGY.md): the full benchmark methodology, the held-out-test
   design, and citations.
-- [`sandbox/DOGFOOD_REPORT.md`](sandbox) through `DOGFOOD_REPORT_v3.md` (not shipped in the
-  published package, but in the source repo): the real testing process that found and fixed the
-  false positives and false negatives described in the README's Known Limitations section.
+- The dogfooding runs behind the README's Known Limitations section: four rounds against a local
+  corpus of 28 scratch repos, which is where the false positives and false negatives listed there
+  were found and fixed. Those repos and their reports are working notes rather than a deliverable,
+  so they live outside the published tree.

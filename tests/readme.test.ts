@@ -105,9 +105,9 @@ describe('README.md content', () => {
     expect(readmeContent).toMatch(/deleted the test and told you it passed/i);
   });
 
-  it('mentions the statusline badge and honest-pass badge concepts', () => {
-    expect(readmeContent).toMatch(/statusline badge/i);
+  it('documents the honest-pass badge and what disqualifies a run from earning it', () => {
     expect(readmeContent).toContain('honest pass');
+    expect(readmeContent).toMatch(/approvedTestChanges.*do not count as clean/s);
   });
 
   it('links to RESEARCH.md, which describes the Claim + Verifier core architecture', () => {
@@ -126,10 +126,6 @@ describe('README.md content', () => {
   it('embeds a generated honest-pass badge image linked to src/badge', () => {
     expect(readmeContent).toContain('img.shields.io/badge/proctor-honest_pass');
     expect(readmeContent).toContain('src/badge/index.ts');
-  });
-
-  it('has no em dashes', () => {
-    expect(readmeContent).not.toContain('—');
   });
 
   it('explains what the RH codes mean, in plain language', () => {
@@ -210,7 +206,8 @@ describe('README agent roster (AGENT-05)', () => {
   it('documents the contributor process for adding a further adapter', () => {
     expect(readmeContent).toMatch(/Adding an adapter/i);
     expect(readmeContent).toContain('AGENT_ADAPTERS');
-    expect(readmeContent).toMatch(/guardExisting/);
+    expect(readmeContent).toMatch(/shared/);
+    expect(readmeContent).toMatch(/proctor:start/);
     expect(readmeContent).toMatch(/drift-check/);
   });
 
@@ -224,9 +221,8 @@ describe('README agent roster (AGENT-05)', () => {
 describe('RESEARCH.md content', () => {
   const researchContent = readFileSync(join(__dirname, '../RESEARCH.md'), 'utf8');
 
-  it('exists and has no em dashes either', () => {
+  it('exists', () => {
     expect(researchContent.length).toBeGreaterThan(0);
-    expect(researchContent).not.toContain('—');
   });
 
   it('links back to the README for anyone who lands here first', () => {

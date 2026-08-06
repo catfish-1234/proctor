@@ -7,3 +7,9 @@ AGENTS.md
 
 sandbox/
 SPEC.md
+
+# Local tooling and build spew, never published
+.codex/
+.gradle/
+__pycache__/
+*.pyc

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fallback demo.gif renderer — use only if `vhs demo/demo.tape` fails.
+"""Fallback demo.gif renderer, for when `vhs demo/demo.tape` fails.
 
 VHS (charmbracelet/vhs) is the canonical way to regenerate demo.gif from
 demo/demo.tape. This script exists because VHS's go-rod dependency hung
@@ -7,7 +7,7 @@ indefinitely on this project's Windows dev environment (confirmed via
 isolated diagnosis: headless Chrome and ttyd each work standalone, but
 VHS's orchestration of the two via a websocket CDP connection never
 completes, even on a trivial one-line tape, even with a different
-Chromium build). If `vhs demo/demo.tape` works for you, prefer it —
+Chromium build). If `vhs demo/demo.tape` works for you, prefer it,
 it's the source of truth for the two-scene structure. This script
 reproduces the same two scenes by running the real proctor CLI, capturing
 its real (ANSI-colored) output, and rasterizing it directly with Pillow
@@ -16,7 +16,7 @@ its real (ANSI-colored) output, and rasterizing it directly with Pillow
 Requires: Python 3.9+, Pillow (`pip install Pillow`), a built dist/cli.js
 (`npm run build`), and Windows with the Cascadia Mono font (ships with
 Windows Terminal / recent Windows 11). Run from anywhere; writes
-demo.gif to the repo root.
+assets/demo.gif.
 """
 import os
 import re
@@ -166,7 +166,7 @@ def capture_real_output(cli_js: Path):
 def build_frames(diff_txt, check_txt, stophook_txt):
     frames = []
 
-    title1 = "Scene 1 — proctor catches a test deletion"
+    title1 = "Scene 1: proctor catches a test deletion"
     frames.append((render_frame([prompt_line("git diff --staged")], title1), 15))
     f2 = [prompt_line("git diff --staged")] + lines_from_ansi_text(diff_txt)
     frames.append((render_frame(f2, title1), 35))
@@ -176,7 +176,7 @@ def build_frames(diff_txt, check_txt, stophook_txt):
     f4 = [prompt_line("proctor check --staged")] + lines_from_ansi_text(check_txt)
     frames.append((render_frame(f4, title1), 50))
 
-    title2 = "Scene 2 — Claude Code Stop hook blocks the turn"
+    title2 = "Scene 2: Claude Code Stop hook blocks the turn"
     comment = [[("# Claude Code session: agent attempts to delete a test to make it pass",
                  (98, 114, 164), False, True)]]
     frames.append((render_frame(comment, title2), 20))
@@ -192,7 +192,7 @@ def build_frames(diff_txt, check_txt, stophook_txt):
 def main():
     cli_js = REPO_ROOT / "dist" / "cli.js"
     if not cli_js.exists():
-        print("dist/cli.js not found — run `npm run build` first.", file=sys.stderr)
+        print("dist/cli.js not found, run `npm run build` first.", file=sys.stderr)
         sys.exit(1)
 
     diff_txt, check_txt, stophook_txt = capture_real_output(cli_js)
@@ -201,7 +201,7 @@ def main():
     images = [img for img, _ in frames]
     durations = [hold * FRAME_MS for _, hold in frames]
 
-    out_path = REPO_ROOT / "demo.gif"
+    out_path = REPO_ROOT / "assets" / "demo.gif"
     images[0].save(out_path, save_all=True, append_images=images[1:],
                     duration=durations, loop=0, optimize=False)
     print(f"Wrote {out_path} ({out_path.stat().st_size} bytes, {len(images)} frames)")

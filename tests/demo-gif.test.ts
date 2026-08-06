@@ -5,10 +5,10 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const REPO_ROOT = path.join(__dirname, '..');
-const GIF_PATH = path.join(REPO_ROOT, 'demo.gif');
+const GIF_PATH = path.join(REPO_ROOT, 'assets/demo.gif');
 const TAPE_PATH = path.join(REPO_ROOT, 'demo/demo.tape');
 
-describe('demo/demo.tape — VHS source', () => {
+describe('demo/demo.tape, VHS source', () => {
   it('demo/demo.tape exists', () => {
     expect(existsSync(TAPE_PATH)).toBe(true);
   });
@@ -24,8 +24,8 @@ describe('demo/demo.tape — VHS source', () => {
       expect(tape).toMatch(/stop-hook|Stop hook/i);
     });
 
-    it('has an Output demo.gif directive', () => {
-      expect(tape).toMatch(/Output\s+demo\.gif/);
+    it('has an Output directive pointing at the committed gif', () => {
+      expect(tape).toMatch(/Output\s+assets\/demo\.gif/);
     });
 
     it('has two clearly-commented scenes', () => {
@@ -40,8 +40,8 @@ describe('demo/demo.tape — VHS source', () => {
   });
 });
 
-describe('demo.gif — rendered artifact', () => {
-  it('demo.gif exists at repo root with nonzero size', () => {
+describe('demo.gif, rendered artifact', () => {
+  it('exists under assets/ with nonzero size', () => {
     expect(existsSync(GIF_PATH)).toBe(true);
     expect(statSync(GIF_PATH).size).toBeGreaterThan(0);
   });

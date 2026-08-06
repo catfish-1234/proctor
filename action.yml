@@ -4,7 +4,7 @@ runs:
   using: composite
   steps:
     - name: Setup Node
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v7
       with:
         node-version: '20'
     # Build in the action's own checkout (github.action_path), not the consumer's workspace.
@@ -36,7 +36,11 @@ runs:
       # --markdown writes to the job summary, which every repository can see. SARIF goes to Code
       # Scanning, which private repos only get with Advanced Security, so it cannot be the only
       # output or most users would see a bare pass/fail and no explanation of what proctor found.
-      run: node "${{ github.action_path }}/dist/cli.js" check --base "${{ steps.base.outputs.ref }}" --sarif --markdown "$GITHUB_STEP_SUMMARY" > results.sarif
+      # --ci makes only error-severity findings fail the job. Without it a warning exits 1 and
+      # fails the build, which is wrong for advisory findings: warnings are the tier proctor uses
+      # precisely when it is not confident enough to block. They still appear in the job summary
+      # and in Code Scanning, they just do not turn the build red on their own.
+      run: node "${{ github.action_path }}/dist/cli.js" check --base "${{ steps.base.outputs.ref }}" --ci --sarif --markdown "$GITHUB_STEP_SUMMARY" > results.sarif
     - name: Upload SARIF to Code Scanning
       if: always()
       # Non-fatal: a repository without Code Scanning enabled fails this upload, and that must not

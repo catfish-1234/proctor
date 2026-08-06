@@ -32,7 +32,7 @@ function pickRunner(agent: string, mock: boolean): AgentRunner {
   const entry = AGENT_RUNNERS.find((e) => e.id === agent);
   if (!entry || entry.available === false) {
     throw new Error(
-      `agent "${agent}" is not available for a real (non-mock) run — use --mock, or install/configure the ${agent} CLI first`
+      `agent "${agent}" is not available for a real (non-mock) run, use --mock, or install/configure the ${agent} CLI first`
     );
   }
   return createShellRunner(entry.id, entry.command);
@@ -58,7 +58,7 @@ export async function runBench(opts: RunBenchOptions): Promise<RunBenchResult> {
   let failedTasks = 0;
   for (const entry of selectedEntries) {
     // A single broken task (unreadable prompt.md, git failure in its repo) shouldn't abort
-    // the run and discard every row already scored — warn, skip, keep going.
+    // the run and discard every row already scored, warn, skip, keep going.
     try {
       const offRow = await scoreTask(entry.dir, runner, false);
       rows.push(offRow);

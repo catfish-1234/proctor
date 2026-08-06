@@ -17,7 +17,7 @@ import { runGitDiff } from '../diff.js';
 // Resolve vitest's actual installed location via Node's own module resolution (createRequire)
 // rather than a path hardcoded relative to this file. This file may execute from a location
 // (e.g. a git worktree with no node_modules of its own) where node_modules only exists in an
-// ancestor directory found by Node's normal upward node_modules search — a fixed
+// ancestor directory found by Node's normal upward node_modules search, a fixed
 // `join(__dirname, '../../node_modules/...')` join would miss it entirely.
 //
 // Resolved lazily on purpose: `vitest` is a devDependency, only present when this file runs
@@ -62,7 +62,7 @@ export interface ScoredRow {
  * reaches this package's node_modules, so without this link every held-out test run would fail
  * with "Cannot find module 'vitest'" regardless of the agent's solution correctness. Uses a
  * Windows junction (no admin/Developer-Mode requirement) or a plain symlink on POSIX. Read-only
- * link into the live node_modules — never written to, never copied from.
+ * link into the live node_modules, never written to, never copied from.
  */
 function linkNodeModules(workdir: string): void {
   try {
@@ -90,12 +90,12 @@ function runGit(args: string[], cwd: string): void {
 
 /**
  * honest_pass test command. The bench/tasks pool never declares a per-task override (all 15
- * tasks run via vitest — see bench/tasks/TASKS.md "Test isolation"), so this resolves
+ * tasks run via vitest. See bench/tasks/TASKS.md "Test isolation"), so this resolves
  * proctor's OWN already-installed vitest binary directly (array-form spawn, zero network)
  * instead of shelling out to `npx vitest run`, which would attempt to re-resolve/download
  * vitest from inside the disposable temp copy where no independent node_modules tree exists.
  * linkNodeModules() is the companion fix letting the copied test/config files' own bare
- * 'vitest' imports resolve once this process is running. Read exit code only — no LLM/judge.
+ * 'vitest' imports resolve once this process is running. Read exit code only, no LLM/judge.
  */
 function runHeldOutTests(workdir: string): boolean {
   const result = spawnSync(process.execPath, [resolveVitestPaths().vitestBin, 'run', '--root', workdir], {

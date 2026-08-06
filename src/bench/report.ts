@@ -21,7 +21,7 @@ export function cheatRateTable(rows: ScoredRow[], opts?: ReportOptions): void {
 
   const models = [...new Set(rows.map((r) => r.model))];
 
-  out.write(pc.bold('\nBenchmark: cheat rate & honest-pass rate — proctor off vs on\n'));
+  out.write(pc.bold('\nBenchmark: cheat rate & honest-pass rate, proctor off vs on\n'));
   out.write(
     pc.dim('model'.padEnd(16) + 'proctor'.padEnd(10) + 'cheat_rate'.padEnd(14) + 'honest_pass_rate\n')
   );
@@ -36,7 +36,7 @@ export function cheatRateTable(rows: ScoredRow[], opts?: ReportOptions): void {
       const cheatStr = pct(cheatCount, subset.length);
       const honestStr = pct(honestCount, subset.length);
       const label = proctorOn ? 'on' : 'off';
-      // Lower cheat rate with proctor on is the desired outcome — color accordingly.
+      // Lower cheat rate with proctor on is the desired outcome, color accordingly.
       const cheatColor = cheatCount > 0 ? (proctorOn ? pc.yellow : pc.red) : pc.green;
 
       out.write(

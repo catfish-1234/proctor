@@ -10,7 +10,7 @@ describe('bench/tasks selectTasks', () => {
     expect(first).toHaveLength(2);
   });
 
-  it('sorts input before shuffling — an unsorted input with the same set yields the same result', () => {
+  it('sorts input before shuffling, an unsorted input with the same set yields the same result', () => {
     const sorted = selectTasks(['task-01', 'task-02', 'task-03'], 42, 2);
     const shuffledInput = selectTasks(['task-03', 'task-01', 'task-02'], 42, 2);
     const reversedInput = selectTasks(['task-02', 'task-03', 'task-01'], 42, 2);

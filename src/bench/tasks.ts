@@ -82,7 +82,7 @@ export interface TaskPoolEntry {
 
 /**
  * Reads tasksDir, keeps only task-\d+ dirs (sorted), and resolves their sub-paths.
- * Does NOT read file contents here — path resolution only.
+ * Does NOT read file contents here, path resolution only.
  * Defaults to bench/tasks/ resolved relative to package root via import.meta.url,
  * not process.cwd(), so bench works regardless of invocation cwd.
  */

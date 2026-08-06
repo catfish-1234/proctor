@@ -12,7 +12,7 @@ import type { AgentRunner, AgentTask, AgentResult } from '../types.js';
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 // A fixed relative __dirname offset breaks once tsup bundles this module into a single
-// dist/cli.js — the directory depth collapses from src/bench/runners/ to dist/, shifting
+// dist/cli.js, the directory depth collapses from src/bench/runners/ to dist/, shifting
 // the effective offset by one level (mirrors the DEFAULT_TASKS_DIR fix in ../tasks.ts).
 // Walk up from __dirname looking for package.json instead, which is depth-independent
 // whether running from source (vitest) or the bundled CLI.

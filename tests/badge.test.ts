@@ -43,7 +43,7 @@ describe('badge', () => {
     expect(md).toMatch(/^\[!\[proctor\]\(.*\)\]\(.*\)$/);
   });
 
-  it('is deterministic — identical output for identical receipts', () => {
+  it('is deterministic, identical output for identical receipts', () => {
     const receipt = buildReceipt([], new Date('2026-01-01T00:00:00.000Z'));
     expect(badgeMarkdown(receipt)).toBe(badgeMarkdown(receipt));
   });

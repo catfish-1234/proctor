@@ -3,6 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { describe, it, expect } from 'vitest';
+import { AGENT_ADAPTERS } from '../src/adapters/registry.js';
 
 const CLI = resolve(process.cwd(), 'dist/cli.js');
 
@@ -99,13 +100,26 @@ describe('CLI smoke tests', () => {
     }
   });
 
-  it('stop-hook with invalid JSON stdin exits 0', () => {
-    const result = spawnSync('node', [CLI, 'stop-hook'], {
-      input: 'not-json',
-      encoding: 'utf8',
-      cwd: process.cwd(),
-    });
-    expect(result.status).toBe(0);
+  it('stop-hook with invalid JSON stdin falls back to cwd and exits 0', () => {
+    // Runs in a clean throwaway repo rather than the proctor checkout. The behavior under test is
+    // "unparseable stdin falls back to the process cwd instead of crashing", and pointing that at
+    // the developer's own working tree made the result depend on whatever happened to be staged.
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      execSync('git config user.email x@x', { cwd: tmpDir });
+      execSync('git config user.name x', { cwd: tmpDir });
+      execSync('git commit --allow-empty -m init', { cwd: tmpDir });
+
+      const result = spawnSync('node', [CLI, 'stop-hook'], {
+        input: 'not-json',
+        encoding: 'utf8',
+        cwd: tmpDir,
+      });
+      expect(result.status).toBe(0);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 
   it('stop-hook with stop_hook_active true exits 0', () => {
@@ -192,13 +206,22 @@ describe('CLI smoke tests', () => {
     }
   });
 
-  it('install-skill writes byte-identical canonical SKILL.md to every adapter path', () => {
+  it('install-skill deploys the canonical ruleset to a proctor-owned adapter path', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
       const result = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
       expect(result.status).toBe(0);
       const canonical = readFileSync(resolve(process.cwd(), 'src/skill/SKILL.md'), 'utf8');
-      const deployed = readFileSync(join(tmpDir, '.claude', 'skills', 'proctor', 'SKILL.md'), 'utf8');
+
+      // Claude Code's copy carries skill frontmatter, so it wraps the canonical body rather than
+      // matching it byte for byte. The body itself must still pass through untouched, exactly once.
+      const claudeCode = readFileSync(join(tmpDir, '.claude', 'skills', 'proctor', 'SKILL.md'), 'utf8');
+      expect(claudeCode).toContain(canonical);
+      expect(claudeCode.startsWith('---')).toBe(true);
+
+      // An adapter with no transform still gets a byte-identical copy.
+      const plain = AGENT_ADAPTERS.find(a => !a.transform && !a.shared)!;
+      const deployed = readFileSync(join(tmpDir, ...plain.relativePath.split('/')), 'utf8');
       expect(deployed).toBe(canonical);
       expect(result.stdout).toContain('Installed:');
     } finally {
@@ -211,25 +234,23 @@ describe('CLI smoke tests', () => {
     expect(result.status).toBe(0);
   });
 
-  it('install-skill writes the 7 new verbatim adapter paths byte-identical to canonical, and drift-check exits 0', () => {
+  it('install-skill writes every adapter path with the canonical ruleset, and drift-check exits 0', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
       const result = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
       expect(result.status).toBe(0);
       const canonical = readFileSync(resolve(process.cwd(), 'src/skill/SKILL.md'), 'utf8');
 
-      const newPaths = [
-        '.rules',
-        'AGENTS.md',
-        join('.openhands', 'microagents', 'repo.md'),
-        join('.kiro', 'steering', 'proctor.md'),
-        join('.tabnine', 'guidelines', 'proctor.md'),
-        join('.trae', 'rules', 'proctor.md'),
-        join('.github', 'copilot-instructions.md'),
-      ];
-      for (const relPath of newPaths) {
-        const deployed = readFileSync(join(tmpDir, relPath), 'utf8');
-        expect(deployed).toBe(canonical);
+      for (const adapter of AGENT_ADAPTERS) {
+        if (adapter.transform) continue;
+        const deployed = readFileSync(join(tmpDir, ...adapter.relativePath.split('/')), 'utf8');
+        if (adapter.shared) {
+          // Shared files carry the ruleset inside the managed block, not as the whole file.
+          expect(deployed, adapter.id).toContain(canonical.trim());
+          expect(deployed, adapter.id).toContain('<!-- proctor:start -->');
+        } else {
+          expect(deployed, adapter.id).toBe(canonical);
+        }
       }
 
       const drift = spawnSync('node', [CLI, 'drift-check'], { cwd: tmpDir, encoding: 'utf8' });
@@ -239,61 +260,59 @@ describe('CLI smoke tests', () => {
     }
   });
 
-  it('install-skill does NOT overwrite a pre-existing divergent best_practices.md (Qodo collision guard), warns to stderr, and drift-check does not flag it', () => {
+  it('install-skill preserves pre-existing content in a shared file and merges the ruleset alongside it', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
-      writeFileSync(join(tmpDir, 'best_practices.md'), 'unrelated user content', 'utf8');
+      writeFileSync(join(tmpDir, 'AGENTS.md'), '# House rules\n\nAlways use tabs.\n', 'utf8');
       const result = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
       expect(result.status).toBe(0);
-      expect(result.stderr).toContain('best_practices.md');
-      expect(result.stderr.toLowerCase()).toMatch(/skip|not overwriting/);
+      expect(result.stdout).toContain('Merged: ');
 
-      const content = readFileSync(join(tmpDir, 'best_practices.md'), 'utf8');
-      expect(content).toBe('unrelated user content');
+      const canonical = readFileSync(resolve(process.cwd(), 'src/skill/SKILL.md'), 'utf8');
+      const content = readFileSync(join(tmpDir, 'AGENTS.md'), 'utf8');
+      expect(content).toContain('# House rules');
+      expect(content).toContain('Always use tabs.');
+      expect(content).toContain(canonical.trim());
 
       const drift = spawnSync('node', [CLI, 'drift-check'], { cwd: tmpDir, encoding: 'utf8' });
       expect(drift.status).toBe(0);
-      expect(drift.stderr).not.toContain('best_practices.md');
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
-  it('install-skill writes best_practices.md normally with canonical content when absent', () => {
+  it('install-skill writes a shared file as a bare managed block when it is absent', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
       const result = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
       expect(result.status).toBe(0);
       const canonical = readFileSync(resolve(process.cwd(), 'src/skill/SKILL.md'), 'utf8');
       const deployed = readFileSync(join(tmpDir, 'best_practices.md'), 'utf8');
-      expect(deployed).toBe(canonical);
-      expect(result.stderr).not.toContain('best_practices.md');
+      expect(deployed).toBe(`<!-- proctor:start -->\n${canonical.trim()}\n<!-- proctor:end -->\n`);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
-  it('install-skill is idempotent when best_practices.md already equals canonical content', () => {
+  it('install-skill is idempotent across runs for both owned and shared paths', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
-      const first = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
-      expect(first.status).toBe(0);
-      const canonical = readFileSync(resolve(process.cwd(), 'src/skill/SKILL.md'), 'utf8');
-      expect(readFileSync(join(tmpDir, 'best_practices.md'), 'utf8')).toBe(canonical);
+      writeFileSync(join(tmpDir, 'AGENTS.md'), '# House rules\n', 'utf8');
+      expect(spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' }).status).toBe(0);
+      const afterFirst = readFileSync(join(tmpDir, 'AGENTS.md'), 'utf8');
+      const ownedAfterFirst = readFileSync(join(tmpDir, '.claude/skills/proctor/SKILL.md'), 'utf8');
 
-      const second = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
-      expect(second.status).toBe(0);
-      expect(second.stderr).not.toContain('best_practices.md');
-      expect(readFileSync(join(tmpDir, 'best_practices.md'), 'utf8')).toBe(canonical);
+      expect(spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' }).status).toBe(0);
+      expect(readFileSync(join(tmpDir, 'AGENTS.md'), 'utf8')).toBe(afterFirst);
+      expect(readFileSync(join(tmpDir, '.claude/skills/proctor/SKILL.md'), 'utf8')).toBe(ownedAfterFirst);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
-  it('drift-check DOES flag best_practices.md once proctor has genuinely written it and it is later tampered with (CR-01 fix)', () => {
+  it('drift-check flags a shared file whose managed block was deleted after install', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
-      // Absent at install time -> install-skill writes it for real and records provenance.
       const install = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
       expect(install.status).toBe(0);
       expect(existsSync(join(tmpDir, '.proctor-adapter-manifest.json'))).toBe(true);
@@ -301,19 +320,18 @@ describe('CLI smoke tests', () => {
       const cleanDrift = spawnSync('node', [CLI, 'drift-check'], { cwd: tmpDir, encoding: 'utf8' });
       expect(cleanDrift.status).toBe(0);
 
-      // Tamper with proctor's own previously-written content.
-      writeFileSync(join(tmpDir, 'best_practices.md'), 'tampered after install', 'utf8');
+      writeFileSync(join(tmpDir, 'AGENTS.md'), 'ruleset removed\n', 'utf8');
 
       const tamperedDrift = spawnSync('node', [CLI, 'drift-check'], { cwd: tmpDir, encoding: 'utf8' });
       expect(tamperedDrift.status).toBe(1);
-      expect(tamperedDrift.stderr).toContain('best_practices.md');
+      expect(tamperedDrift.stderr).toContain('AGENTS.md');
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
   it('install-claude-hook --global writes into the (sandboxed) home directory', () => {
-    // HOME/USERPROFILE are overridden so os.homedir() resolves into a temp sandbox —
+    // HOME/USERPROFILE are overridden so os.homedir() resolves into a temp sandbox,
     // this test must NEVER read or write the developer's real ~/.claude/settings.json.
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     const tmpHome = mkdtempSync(join(tmpdir(), 'proctor-home-'));
@@ -431,7 +449,7 @@ describe('install-claude-hook settings safety', () => {
 });
 
 describe('check --ci exit semantics', () => {
-  // A staged snapshot rewrite triggers RH006, which is warn severity — the right shape for
+  // A staged snapshot rewrite triggers RH006, which is warn severity, the right shape for
   // testing that warnings exit 1 normally but 0 under --ci ("exit nonzero on error only").
   function setupWarnOnlyRepo(): string {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
@@ -678,6 +696,83 @@ describe('check --sarif flag', () => {
   });
 });
 
+describe('check --markdown flag', () => {
+  /** A repo with one staged RH003 cheat, the same setup the SARIF test uses. */
+  function repoWithCheat(): string {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    execSync('git init', { cwd: tmpDir });
+    execSync('git config user.email x@x', { cwd: tmpDir });
+    execSync('git config user.name x', { cwd: tmpDir });
+    execSync('git commit --allow-empty -m init', { cwd: tmpDir });
+    writeFileSync(join(tmpDir, 'foo.test.ts'), 'it.skip("cheating", () => {})');
+    execSync('git add .', { cwd: tmpDir });
+    return tmpDir;
+  }
+
+  it('writes a Markdown summary to the named file alongside the normal output', () => {
+    const tmpDir = repoWithCheat();
+    try {
+      const summary = join(tmpDir, 'summary.md');
+      const result = spawnSync('node', [CLI, 'check', '--staged', '--markdown', summary], {
+        cwd: tmpDir,
+        encoding: 'utf8',
+      });
+      expect(result.status).toBe(2);
+      const md = readFileSync(summary, 'utf8');
+      expect(md).toContain('## proctor');
+      expect(md).toContain('RH003');
+      expect(md).toContain('foo.test.ts');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('appends rather than truncating, since $GITHUB_STEP_SUMMARY is shared by every step', () => {
+    const tmpDir = repoWithCheat();
+    try {
+      const summary = join(tmpDir, 'summary.md');
+      writeFileSync(summary, '## an earlier step\n', 'utf8');
+      spawnSync('node', [CLI, 'check', '--staged', '--markdown', summary], { cwd: tmpDir, encoding: 'utf8' });
+      expect(readFileSync(summary, 'utf8')).toContain('## an earlier step');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('works with --sarif, so one run can feed both Code Scanning and the job summary', () => {
+    const tmpDir = repoWithCheat();
+    try {
+      const summary = join(tmpDir, 'summary.md');
+      const result = spawnSync('node', [CLI, 'check', '--staged', '--sarif', '--markdown', summary], {
+        cwd: tmpDir,
+        encoding: 'utf8',
+      });
+      expect(JSON.parse(result.stdout).version).toBe('2.1.0');
+      expect(readFileSync(summary, 'utf8')).toContain('## proctor');
+      expect(result.status).toBe(2);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('reports an unwritable summary path without changing the verdict', () => {
+    // A report that silently fails to write looks exactly like a clean run, which is the
+    // confusion this option exists to remove. The findings stay the verdict either way.
+    const tmpDir = repoWithCheat();
+    try {
+      const result = spawnSync('node', [CLI, 'check', '--staged', '--markdown', join(tmpDir, 'no', 'such', 'dir.md')], {
+        cwd: tmpDir,
+        encoding: 'utf8',
+      });
+      expect(result.stderr).toContain('could not write --markdown file');
+      expect(result.stderr).not.toContain('at Command');
+      expect(result.status).toBe(2);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('check --explain flag', () => {
   it('prints the full explanation for a known verifier ID and exits 0 without touching git', () => {
     // Run from a non-git tmpDir to prove --explain never attempts a diff.
@@ -758,7 +853,7 @@ describe('check --base flag', () => {
       writeFileSync(join(tmpDir, 'foo.test.ts'), 'it.skip("cheating", () => {})');
       execSync('git add .', { cwd: tmpDir });
       execSync('git commit -m "feat: add feature (plants RH003)"', { cwd: tmpDir });
-      // Nothing staged or unstaged at this point — only --base can see the finding.
+      // Nothing staged or unstaged at this point, only --base can see the finding.
       const result = spawnSync('node', [CLI, 'check', '--base', baseSha], {
         cwd: tmpDir,
         encoding: 'utf8',
@@ -804,6 +899,156 @@ describe('check --base flag', () => {
       expect(result.status).toBe(2);
       expect(result.stderr).toContain('proctor:');
       expect(existsSync(join(tmpDir, 'pwned...HEAD'))).toBe(false);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('approve command', () => {
+  it('creates proctor.config.json with the approval and tells the user to commit it', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      const result = spawnSync(
+        'node',
+        [CLI, 'approve', 'RH001', 'tests/legacy.test.ts', '--reason', 'suite retired in RFC-88'],
+        { cwd: tmpDir, encoding: 'utf8' }
+      );
+      expect(result.status).toBe(0);
+      expect(result.stdout).toMatch(/commit proctor\.config\.json/i);
+
+      const config = JSON.parse(readFileSync(join(tmpDir, 'proctor.config.json'), 'utf8'));
+      expect(config.approvedTestChanges).toEqual([
+        { rule: 'RH001', file: 'tests/legacy.test.ts', reason: 'suite retired in RFC-88' },
+      ]);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('preserves unrelated config fields when appending an approval', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      writeFileSync(
+        join(tmpDir, 'proctor.config.json'),
+        JSON.stringify({ enabled: ['RH001'], ignorePatterns: ['fixtures/**'] }),
+        'utf8'
+      );
+      const result = spawnSync(
+        'node',
+        [CLI, 'approve', 'RH001', 'tests/legacy.test.ts', '--reason', 'retired'],
+        { cwd: tmpDir, encoding: 'utf8' }
+      );
+      expect(result.status).toBe(0);
+      const config = JSON.parse(readFileSync(join(tmpDir, 'proctor.config.json'), 'utf8'));
+      expect(config.enabled).toEqual(['RH001']);
+      expect(config.ignorePatterns).toEqual(['fixtures/**']);
+      expect(config.approvedTestChanges).toHaveLength(1);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('updates the reason in place rather than adding a duplicate entry', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      const args = [CLI, 'approve', 'RH001', 'tests/legacy.test.ts', '--reason'];
+      spawnSync('node', [...args, 'first reason'], { cwd: tmpDir, encoding: 'utf8' });
+      spawnSync('node', [...args, 'second reason'], { cwd: tmpDir, encoding: 'utf8' });
+
+      const config = JSON.parse(readFileSync(join(tmpDir, 'proctor.config.json'), 'utf8'));
+      expect(config.approvedTestChanges).toHaveLength(1);
+      expect(config.approvedTestChanges[0].reason).toBe('second reason');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects an unknown rule ID', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      const result = spawnSync(
+        'node',
+        [CLI, 'approve', 'RH999', 'tests/legacy.test.ts', '--reason', 'nope'],
+        { cwd: tmpDir, encoding: 'utf8' }
+      );
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('RH999');
+      expect(existsSync(join(tmpDir, 'proctor.config.json'))).toBe(false);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses to write when approvedTestChanges is the wrong shape, and leaves the file alone', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      const corrupt = '{"approvedTestChanges": "oops"}';
+      writeFileSync(join(tmpDir, 'proctor.config.json'), corrupt, 'utf8');
+      const result = spawnSync(
+        'node',
+        [CLI, 'approve', 'RH001', 'tests/legacy.test.ts', '--reason', 'retired'],
+        { cwd: tmpDir, encoding: 'utf8' }
+      );
+      expect(result.status).toBe(2);
+      expect(result.stderr).toMatch(/not an array/);
+      expect(result.stderr).not.toContain('at Command');
+      expect(readFileSync(join(tmpDir, 'proctor.config.json'), 'utf8')).toBe(corrupt);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('reports a malformed config instead of overwriting it', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      const corrupt = '{ not json';
+      writeFileSync(join(tmpDir, 'proctor.config.json'), corrupt, 'utf8');
+      const result = spawnSync(
+        'node',
+        [CLI, 'approve', 'RH001', 'tests/legacy.test.ts', '--reason', 'retired'],
+        { cwd: tmpDir, encoding: 'utf8' }
+      );
+      expect(result.status).toBe(2);
+      expect(readFileSync(join(tmpDir, 'proctor.config.json'), 'utf8')).toBe(corrupt);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('requires a reason', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      const result = spawnSync('node', [CLI, 'approve', 'RH001', 'tests/legacy.test.ts'], {
+        cwd: tmpDir,
+        encoding: 'utf8',
+      });
+      expect(result.status).not.toBe(0);
+      expect(existsSync(join(tmpDir, 'proctor.config.json'))).toBe(false);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('install-skill resilience', () => {
+  it('skips an unwritable adapter path, still installs the rest, and exits nonzero', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      // Zed's adapter path is `.rules`; make it a directory so writing the file cannot succeed.
+      mkdirSync(join(tmpDir, '.rules'), { recursive: true });
+
+      const result = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('.rules');
+      expect(result.stderr).toMatch(/skipped/i);
+      // No raw stack trace: the failure is reported as a message, not a crash.
+      expect(result.stderr).not.toContain('at Command');
+
+      const installed = (result.stdout.match(/^(Installed|Merged): /gm) ?? []).length;
+      expect(installed).toBe(AGENT_ADAPTERS.length - 1);
+      expect(existsSync(join(tmpDir, '.claude', 'skills', 'proctor', 'SKILL.md'))).toBe(true);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }

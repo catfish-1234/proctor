@@ -63,6 +63,14 @@ export async function installPreCommitHook(cwd: string): Promise<string> {
     return hookPath;
   }
 
+  // Without this, `mkdir -p .git/hooks` below happily creates a .git directory in a plain folder,
+  // leaving behind something that looks like a repository, contains a hook nothing will ever run,
+  // and reports success.
+  const insideRepo = spawnSync('git', ['rev-parse', '--git-dir'], { cwd, encoding: 'utf8' });
+  if (insideRepo.status !== 0) {
+    throw new Error('not a git repository, so there is no pre-commit hook to install');
+  }
+
   const hookPath = join(cwd, '.git', 'hooks', 'pre-commit');
   await mkdir(join(cwd, '.git', 'hooks'), { recursive: true });
   await backupForeignHook(hookPath);

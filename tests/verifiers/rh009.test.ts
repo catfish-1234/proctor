@@ -96,4 +96,44 @@ describe('rh009, coverage gaming detection', () => {
     });
     expect(findings).toEqual([]);
   });
+
+  describe('a tautology does not count as replacement coverage', () => {
+    /** A file gutted down to a single test that compares an expression to itself. */
+    const guttedToTautology = (assertion: string): ParsedFile[] => [
+      {
+        from: 'calculator.test.ts',
+        to: 'calculator.test.ts',
+        chunks: [{
+          content: '',
+          changes: [
+            { type: 'del', del: true, ln: 5, content: '-  expect(add(1, 2)).toBe(3);' },
+            { type: 'del', del: true, ln: 9, content: '-  expect(sub(3, 1)).toBe(2);' },
+            { type: 'add', add: true, ln: 5, content: "+  it('works', () => {" },
+            { type: 'add', add: true, ln: 6, content: `+    ${assertion}` },
+            { type: 'add', add: true, ln: 7, content: '+  });' },
+          ],
+          oldStart: 1, oldLines: 10, newStart: 1, newLines: 7,
+        }],
+        deleted: false,
+        new: false,
+      },
+    ] as ParsedFile[];
+
+    it.each([
+      ['expect(true).toBe(true);'],
+      ['expect(result).toEqual(result);'],
+      ['assertEqual(value, value)'],
+    ])('flags a file gutted down to %s', assertion => {
+      // The matcher is strong, so without the tautology carve-out this reads as real coverage
+      // replacing what was removed and the check stays silent on a gutted file.
+      const findings = rh009.run({ ...baseCtx, files: guttedToTautology(assertion) });
+      expect(findings).toHaveLength(1);
+      expect(findings[0]!.message).toContain('2 real assertions were removed');
+    });
+
+    it('still treats a genuine specific-value assertion as replacement coverage', () => {
+      const findings = rh009.run({ ...baseCtx, files: guttedToTautology('expect(add(2, 2)).toBe(4);') });
+      expect(findings).toEqual([]);
+    });
+  });
 });

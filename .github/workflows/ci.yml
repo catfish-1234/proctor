@@ -16,6 +16,12 @@ jobs:
           - os: windows-latest
             node: 20
     runs-on: ${{ matrix.os }}
+    # The suite runs in about two minutes locally and under five on the Linux and macOS runners.
+    # Windows needs far longer: the bench tests junction in node_modules and spawn a vitest per
+    # task, and the runner's on-access scanning makes each of those spawns cost minutes. The bound
+    # exists so a genuine hang fails in under an hour instead of holding a runner for GitHub's
+    # six-hour default.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
 

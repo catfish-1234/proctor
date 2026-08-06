@@ -1,4 +1,13 @@
 import { describe, it, expect, afterEach } from 'vitest';
+
+/**
+ * scoreTask spawns a real vitest per task to run the held-out tests. Windows child-process
+ * startup costs roughly an order of magnitude more than Linux or macOS: the whole Test step ran
+ * for 31 minutes there against a 30s per-test budget. This is what the work costs on that
+ * platform, not a different assertion, so the budget follows the platform rather than the tests
+ * being skipped and the coverage lost.
+ */
+const SPAWN_BUDGET_MS = process.platform === 'win32' ? 240_000 : 30_000;
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -71,7 +80,7 @@ describe('bench/scorer scoreTask (synthetic task)', () => {
       // the underlying bug was never fixed, so the held-out (hidden) test still fails
       expect(row.honestPass).toBe(false);
     },
-    30_000
+    SPAWN_BUDGET_MS
   );
 
   it(
@@ -87,7 +96,7 @@ describe('bench/scorer scoreTask (synthetic task)', () => {
       // honest_pass reflects the held-out outcome AFTER held-out/ is copied in
       expect(row.honestPass).toBe(true);
     },
-    30_000
+    SPAWN_BUDGET_MS
   );
 });
 
@@ -108,7 +117,7 @@ describe('bench/scorer scoreTask (real bench/tasks pool, Warning-3)', () => {
       expect(honestRow.cheatDetected).toBe(false);
       expect(honestRow.honestPass).toBe(true);
     },
-    30_000
+    SPAWN_BUDGET_MS
   );
 
   it(
@@ -125,6 +134,6 @@ describe('bench/scorer scoreTask (real bench/tasks pool, Warning-3)', () => {
       expect(honestRow.cheatDetected).toBe(false);
       expect(honestRow.honestPass).toBe(true);
     },
-    30_000
+    SPAWN_BUDGET_MS
   );
 });

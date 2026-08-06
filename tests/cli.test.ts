@@ -7,6 +7,13 @@ import { AGENT_ADAPTERS } from '../src/adapters/registry.js';
 
 const CLI = resolve(process.cwd(), 'dist/cli.js');
 
+/**
+ * `bench --mock` still spawns a real vitest per task to run the held-out tests. Windows child
+ * process startup costs roughly ten times what it does on Linux or macOS, so the budget is
+ * per-platform: this is how expensive the work is there, not a different assertion.
+ */
+const BENCH_CLI_BUDGET_MS = process.platform === 'win32' ? 600_000 : 90_000;
+
 describe('CLI smoke tests', () => {
   it('check --help exits 0 and shows --staged', () => {
     const result = spawnSync('node', [CLI, 'check', '--help'], { encoding: 'utf8' });
@@ -623,7 +630,7 @@ describe('bench CLI', () => {
         rmSync(tmpDir, { recursive: true, force: true });
       }
     },
-    90_000
+    BENCH_CLI_BUDGET_MS
   );
 
   it(
@@ -656,7 +663,7 @@ describe('bench CLI', () => {
         rmSync(tmpDir, { recursive: true, force: true });
       }
     },
-    90_000
+    BENCH_CLI_BUDGET_MS
   );
 
   it('--tasks 0 exits 2 with a message', () => {

@@ -28,12 +28,15 @@ describe('prose style', () => {
 });
 
 describe('CLI reference coverage', () => {
-  it('every registered command has a section in the README', () => {
+  it('every registered command has a section in the CLI reference', () => {
+    // The reference moved out of the README into docs/CLI.md so a first-time reader is not handed
+    // every flag before they have installed anything. The guard is unchanged: a command that is
+    // registered and never documented still fails.
     const cli = readFileSync(resolve(REPO, 'src/cli.ts'), 'utf8');
-    const readme = readFileSync(resolve(REPO, 'README.md'), 'utf8');
+    const reference = readFileSync(resolve(REPO, 'docs/CLI.md'), 'utf8');
     const commands = [...cli.matchAll(/\.command\('([\w-]+)/g)].map(m => m[1]!);
     expect(commands.length).toBeGreaterThan(0);
-    const undocumented = commands.filter(c => !readme.includes(`### \`proctor ${c}`));
-    expect(undocumented, `commands missing a README section: ${undocumented.join(', ')}`).toEqual([]);
+    const undocumented = commands.filter(c => !reference.includes(`### \`proctor ${c}`));
+    expect(undocumented, `commands missing a section in docs/CLI.md: ${undocumented.join(', ')}`).toEqual([]);
   });
 });

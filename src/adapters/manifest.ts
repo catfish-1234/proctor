@@ -4,13 +4,12 @@ import { join } from 'node:path';
 export const MANIFEST_FILENAME = '.proctor-adapter-manifest.json';
 
 /**
- * Install-provenance record for `guardExisting` adapters (e.g. Qodo's un-namespaced
- * best_practices.md). Without this, drift-check has no way to distinguish a guardExisting path
- * that was never proctor's (install-skill correctly declined to overwrite pre-existing unrelated
- * content) from one proctor DID successfully write that has since been tampered with — both look
- * identical from file content alone. `written[adapterId] = true` means install-skill has, at some
- * point, actually written proctor's content to that adapter's path (either because it was absent,
- * or because it already matched) — so a later content mismatch is real drift, not a guard.
+ * Install-provenance record for `shared` adapters (AGENTS.md, GEMINI.md, WARP.md, ...).
+ *
+ * A shared file with no managed proctor block is ambiguous from content alone: either proctor was
+ * never installed for that agent, or it was installed and the block has since been deleted. The
+ * second case is exactly the tampering proctor exists to catch. `written[adapterId] = true` means
+ * install-skill did write a block to that path, so a later missing or modified block is drift.
  *
  * This file is meant to be committed alongside the adapter files it tracks, so drift-check works
  * consistently across clones and CI, the same way the adapter files themselves are committed.
@@ -25,14 +24,14 @@ function isValidManifest(value: unknown): value is AdapterManifest {
   return typeof written === 'object' && written !== null && !Array.isArray(written);
 }
 
-/** Malformed or missing manifest reads as empty — no adapter has recorded provenance yet. */
+/** Malformed or missing manifest reads as empty, no adapter has recorded provenance yet. */
 export async function readManifest(cwd: string): Promise<AdapterManifest> {
   try {
     const raw = await readFile(join(cwd, MANIFEST_FILENAME), 'utf8');
     const parsed: unknown = JSON.parse(raw);
     if (isValidManifest(parsed)) return parsed;
   } catch {
-    // ENOENT (never installed a guardExisting adapter yet) or malformed JSON — both read as empty.
+    // ENOENT (never installed a guardExisting adapter yet) or malformed JSON, both read as empty.
   }
   return { written: {} };
 }

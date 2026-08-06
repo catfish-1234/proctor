@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { checkAdapterDrift } from '../src/adapters/drift-check.js';
 import { AGENT_ADAPTERS, type AgentAdapter } from '../src/adapters/registry.js';
 import { recordWritten } from '../src/adapters/manifest.js';
+import { upsertBlock } from '../src/adapters/block.js';
 
 const CLI = resolve(process.cwd(), 'dist/cli.js');
 
@@ -14,7 +15,7 @@ describe('checkAdapterDrift (unit)', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
       const canonical = 'canonical content\n';
-      const [matching, mutated] = AGENT_ADAPTERS;
+      const [matching, mutated] = AGENT_ADAPTERS.filter(a => !a.transform && !a.shared);
       const matchingPath = join(tmpDir, matching.relativePath);
       const mutatedPath = join(tmpDir, mutated.relativePath);
       mkdirSync(dirname(matchingPath), { recursive: true });
@@ -35,7 +36,7 @@ describe('checkAdapterDrift (unit)', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
       const canonical = 'line one\nline two\n';
-      const [adapter] = AGENT_ADAPTERS;
+      const [adapter] = AGENT_ADAPTERS.filter(a => !a.transform && !a.shared);
       const adapterPath = join(tmpDir, adapter.relativePath);
       mkdirSync(dirname(adapterPath), { recursive: true });
       writeFileSync(adapterPath, canonical.replace(/\n/g, '\r\n'), 'utf8');
@@ -95,7 +96,7 @@ describe('checkAdapterDrift (unit)', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
       const canonical = 'canonical content\n';
-      const [adapter] = AGENT_ADAPTERS;
+      const [adapter] = AGENT_ADAPTERS.filter(a => !a.transform && !a.shared);
       const adapterPath = join(tmpDir, adapter.relativePath);
       mkdirSync(dirname(adapterPath), { recursive: true });
 
@@ -111,17 +112,17 @@ describe('checkAdapterDrift (unit)', () => {
     }
   });
 
-  it('guardExisting adapter with divergent content and NO manifest record is not flagged (never proctors, collision guard case)', async () => {
+  it('shared adapter holding only unrelated user content and no manifest record is not flagged', async () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
       const canonical = 'canonical content\n';
-      const guarded: AgentAdapter = {
-        id: 'fake-guarded', displayName: 'Fake Guarded', relativePath: 'guarded.md', scriptable: false, guardExisting: true,
+      const shared: AgentAdapter = {
+        id: 'fake-shared', displayName: 'Fake Shared', relativePath: 'shared.md', scriptable: false, shared: true,
       };
-      const adapterPath = join(tmpDir, guarded.relativePath);
+      const adapterPath = join(tmpDir, shared.relativePath);
       writeFileSync(adapterPath, 'unrelated pre-existing content', 'utf8');
 
-      const { drifted, checked } = await checkAdapterDrift(tmpDir, canonical, [guarded]);
+      const { drifted, checked } = await checkAdapterDrift(tmpDir, canonical, [shared]);
       expect(drifted).toEqual([]);
       expect(checked).toContain(adapterPath);
     } finally {
@@ -129,25 +130,65 @@ describe('checkAdapterDrift (unit)', () => {
     }
   });
 
-  it('guardExisting adapter WITH a manifest record IS flagged when its content diverges (proctor wrote it, now tampered, the CR-01 fix)', async () => {
+  it('shared adapter ignores user content outside the managed block', async () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
       const canonical = 'canonical content\n';
-      const guarded: AgentAdapter = {
-        id: 'fake-guarded', displayName: 'Fake Guarded', relativePath: 'guarded.md', scriptable: false, guardExisting: true,
+      const shared: AgentAdapter = {
+        id: 'fake-shared', displayName: 'Fake Shared', relativePath: 'shared.md', scriptable: false, shared: true,
       };
-      const adapterPath = join(tmpDir, guarded.relativePath);
-      writeFileSync(adapterPath, canonical, 'utf8');
-      await recordWritten(tmpDir, guarded.id);
+      const adapterPath = join(tmpDir, shared.relativePath);
+      writeFileSync(adapterPath, upsertBlock('# my own rules\n', canonical), 'utf8');
+      await recordWritten(tmpDir, shared.id);
 
-      // Not yet tampered: matches canonical, no drift.
-      const clean = await checkAdapterDrift(tmpDir, canonical, [guarded]);
+      const clean = await checkAdapterDrift(tmpDir, canonical, [shared]);
       expect(clean.drifted).toEqual([]);
 
-      // Tampered after a recorded write: now real drift, must be flagged.
-      writeFileSync(adapterPath, 'tampered content', 'utf8');
-      const tampered = await checkAdapterDrift(tmpDir, canonical, [guarded]);
-      expect(tampered.drifted).toContain(adapterPath);
+      // Editing content outside the block is the user's business, not drift.
+      writeFileSync(adapterPath, upsertBlock('# my own rules\n\nnow with more notes\n', canonical), 'utf8');
+      const stillClean = await checkAdapterDrift(tmpDir, canonical, [shared]);
+      expect(stillClean.drifted).toEqual([]);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('shared adapter IS flagged when the managed block content is tampered with', async () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      const canonical = 'canonical content\n';
+      const shared: AgentAdapter = {
+        id: 'fake-shared', displayName: 'Fake Shared', relativePath: 'shared.md', scriptable: false, shared: true,
+      };
+      const adapterPath = join(tmpDir, shared.relativePath);
+      writeFileSync(adapterPath, upsertBlock('# my own rules\n', 'weakened ruleset'), 'utf8');
+      await recordWritten(tmpDir, shared.id);
+
+      const { drifted } = await checkAdapterDrift(tmpDir, canonical, [shared]);
+      expect(drifted).toContain(adapterPath);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('shared adapter IS flagged when the managed block is deleted after install', async () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      const canonical = 'canonical content\n';
+      const shared: AgentAdapter = {
+        id: 'fake-shared', displayName: 'Fake Shared', relativePath: 'shared.md', scriptable: false, shared: true,
+      };
+      const adapterPath = join(tmpDir, shared.relativePath);
+      writeFileSync(adapterPath, upsertBlock(undefined, canonical), 'utf8');
+      await recordWritten(tmpDir, shared.id);
+
+      expect((await checkAdapterDrift(tmpDir, canonical, [shared])).drifted).toEqual([]);
+
+      // The whole point of the manifest: a removed block is indistinguishable from a
+      // never-installed one by content alone.
+      writeFileSync(adapterPath, '# my own rules only\n', 'utf8');
+      const { drifted } = await checkAdapterDrift(tmpDir, canonical, [shared]);
+      expect(drifted).toContain(adapterPath);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -167,7 +208,7 @@ describe('drift-check CLI (smoke)', () => {
     }
   });
 
-  it('exits 0 with zero drift for the two transformed adapters (Cursor .mdc, Copilot applyTo) — AGENT-04 nyquist validation', () => {
+  it('exits 0 with zero drift for the two transformed adapters (Cursor .mdc, Copilot applyTo), AGENT-04 nyquist validation', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
       const install = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });

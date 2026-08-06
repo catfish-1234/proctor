@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { AGENT_ADAPTERS, type AgentAdapter } from './registry.js';
 import { readManifest } from './manifest.js';
+import { extractBlock } from './block.js';
 
 export interface DriftCheckResult {
   drifted: string[];
@@ -19,22 +20,22 @@ function sha256(content: string): string {
 /**
  * Compares every deployed agent adapter file against the canonical SKILL.md
  * content by sha256 hash. Adapters that were never installed (ENOENT) are
- * skipped — an absent file is not "drifted", it's simply not deployed yet.
+ * skipped, an absent file is not "drifted", it's simply not deployed yet.
  * Other read errors are surfaced to stderr but do not stop the scan.
  *
- * Each adapter's expected content is computed PER ADAPTER inside the loop —
- * `adapter.transform(canonical)` when present, else raw `canonical` — so a
+ * Each adapter's expected content is computed PER ADAPTER inside the loop,
+ * `adapter.transform(canonical)` when present, else raw `canonical`, so a
  * legitimately-transformed adapter (e.g. Cursor's `.mdc` frontmatter) reports
  * zero drift instead of permanently false-positiving against a single
  * raw-canonical hash computed once outside the loop.
  *
- * `guardExisting` adapters (e.g. Qodo's un-namespaced best_practices.md) get one extra check:
- * a content mismatch only counts as drift if the install-provenance manifest (manifest.ts)
- * records that proctor actually wrote this adapter's path at some point. If install-skill
- * never wrote it (the path held pre-existing, unrelated content that the collision guard
- * correctly declined to overwrite), a mismatch is expected and not drift. If proctor DID write
- * it and the content has since diverged, that's real drift and is now reported like any other
- * adapter — closing the blind spot a raw guardExisting exclusion used to have.
+ * `shared` adapters (AGENTS.md, GEMINI.md, WARP.md, ...) hold user-authored content alongside
+ * proctor's, so only the managed block is compared and the surrounding file is ignored. A file
+ * with no managed block at all is "not deployed here" and is skipped, unless the
+ * install-provenance manifest (manifest.ts) records that proctor did write a block to it, in
+ * which case the block was deleted after install and that is drift. Removing the ruleset from a
+ * shared file is exactly the tampering proctor exists to catch, which is why the manifest is
+ * committed alongside the adapter files.
  *
  * `adapters` defaults to the real `AGENT_ADAPTERS` registry; the parameter
  * exists so tests can inject a transform-bearing adapter without mutating
@@ -56,7 +57,7 @@ export async function checkAdapterDrift(
       content = await readFile(path, 'utf8');
     } catch (err: unknown) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        // Not installed — not drifted.
+        // Not installed, not drifted.
         continue;
       }
       process.stderr.write(`proctor: failed to read ${path}: ${String(err)}\n`);
@@ -64,13 +65,21 @@ export async function checkAdapterDrift(
     }
     checked.push(path);
     const expected = adapter.transform ? adapter.transform(canonical) : canonical;
-    if (sha256(content) !== sha256(expected)) {
-      // Only flag a guardExisting adapter when the manifest proves proctor actually wrote this
-      // path — otherwise a mismatch is the collision guard working as intended, not drift.
-      const guardedButNeverWritten = adapter.guardExisting && !manifest.written[adapter.id];
-      if (!guardedButNeverWritten) {
-        drifted.push(path);
+
+    if (adapter.shared) {
+      const block = extractBlock(content);
+      if (block === undefined) {
+        // No managed block: not deployed here, unless proctor is on record as having written
+        // one, in which case it was removed.
+        if (manifest.written[adapter.id]) drifted.push(path);
+        continue;
       }
+      if (sha256(block) !== sha256(expected.trim())) drifted.push(path);
+      continue;
+    }
+
+    if (sha256(content) !== sha256(expected)) {
+      drifted.push(path);
     }
   }
 

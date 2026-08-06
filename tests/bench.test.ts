@@ -110,9 +110,7 @@ describe('bench/scorer scoreTask (synthetic task)', () => {
  * junction branch in the scorer (the only platform-conditional code in this path) is exercised by
  * the synthetic scoreTask tests above, which do run there and pass consistently.
  */
-const SLOW_SPAWN_SUITE = describe.skipIf(process.platform === 'win32');
-
-SLOW_SPAWN_SUITE('bench/scorer scoreTask (real bench/tasks pool, Warning-3)', () => {
+describe.skipIf(process.platform === 'win32')('bench/scorer scoreTask (real bench/tasks pool, Warning-3)', () => {
   const projectRoot = resolve(process.cwd());
 
   it(

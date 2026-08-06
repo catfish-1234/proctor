@@ -42,9 +42,28 @@ jobs:
 
       - run: npm ci
 
+      # A tag that disagrees with package.json publishes the wrong version under the right name,
+      # and npm will not let that version number be reused afterwards. Cheaper to fail here.
+      - name: Check the tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "tag v$TAG does not match package.json version $PKG" >&2
+            exit 1
+          fi
+          echo "Publishing version $PKG"
+
       - run: npm run build
 
       - run: npm test
+
+      # The manifests that carry a version (plugin, Cursor, Gemini, Qwen, marketplace) are checked
+      # against package.json by tests/distribution.test.ts, so a release cannot ship an npm package
+      # and an agent plugin claiming different versions.
+      - name: Verify the published tarball contents
+        run: npm run verify:pack
 
       # OIDC trusted publishing is auto-detected when id-token: write is present
       # AND npm >= 11.5.1. NODE_AUTH_TOKEN is a fallback for NPM_TOKEN secret.

@@ -36,3 +36,6 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Validate Claude Code plugin
+        run: npx --yes @anthropic-ai/claude-code plugin validate ./plugin --strict

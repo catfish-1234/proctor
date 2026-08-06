@@ -1,0 +1,6 @@
+{
+  "name": "proctor",
+  "version": "1.0.0",
+  "description": "Catches AI coding agents gaming their test suites: deleting tests, skipping them, weakening assertions, or hardcoding outputs to fake a green build.",
+  "contextFileName": "PROCTOR.md"
+}

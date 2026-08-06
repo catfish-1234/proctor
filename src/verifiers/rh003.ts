@@ -470,11 +470,14 @@ function isBatsFile(filePath: string): boolean {
  * test. Tooling that generates or asserts on test source hits this constantly, and proctor's own
  * test suite is the clearest example.
  *
- * Anchored on the quote being directly before the construct, so it cannot swallow a real skip:
- * ordinary code never writes `'it.skip`. A construct inside a multi-line template literal is not
- * covered, since recognizing it needs state this line-level model does not carry.
+ * Anchored on the construct following a quote, allowing the diff prefix and indentation that a
+ * test corpus embeds inside the string (`"+  it.skip('x')"`). It cannot swallow a real skip:
+ * ordinary code never writes `'it.skip` or `"+  it.skip`, because in real source the quote opens
+ * the test's own name argument and therefore comes after the construct, not before it. A construct
+ * inside a multi-line template literal is not covered, since recognizing it needs state this
+ * line-level model does not carry.
  */
-const QUOTED_SKIP_CONSTRUCT = /['"`]\s*(?:(?:it|test|describe)(?:\.\w+)*\.(?:skip|only)|xit|xdescribe|xtest|fit|fdescribe)\b/;
+const QUOTED_SKIP_CONSTRUCT = /['"`][+\-\s]*(?:(?:it|test|describe)(?:\.\w+)*\.(?:skip|only)|xit|xdescribe|xtest|fit|fdescribe)\b/;
 
 function isSkipPattern(content: string, flags: {
   ext: string | undefined;

@@ -11,6 +11,7 @@ import { rh008 } from '../src/verifiers/rh008.js';
 import { rh009 } from '../src/verifiers/rh009.js';
 import { rh010 } from '../src/verifiers/rh010.js';
 import { rh011 } from '../src/verifiers/rh011.js';
+import { rh012 } from '../src/verifiers/rh012.js';
 import type { Context, Finding, Verifier } from '../src/types.js';
 import type { ParsedFile } from '../src/diff.js';
 
@@ -54,7 +55,7 @@ async function runFixture(verifier: Verifier, relDir: string): Promise<Finding[]
   const files = fixtureDiff(relDir);
   const commitMessage = readCommitMessage(relDir);
   // A commit-message.txt fixture represents a *committed* change checked via `--base` (the only
-  // flow where RH006's reason-suppression applies, per Finding #3's fix) — not an uncommitted
+  // flow where RH006's reason-suppression applies, per Finding #3's fix), not an uncommitted
   // working-tree diff, where the "last commit" message can't be trusted as a reason for this change.
   const committedDiff = commitMessage !== undefined;
   const findings = await verifier.run({ ...baseCtx(commitMessage, committedDiff), files });
@@ -71,9 +72,10 @@ const CASES: Array<{ id: string; verifier: Verifier }> = [
   { id: 'RH009', verifier: rh009 },
   { id: 'RH010', verifier: rh010 },
   { id: 'RH011', verifier: rh011 },
+  { id: 'RH012', verifier: rh012 },
 ];
 
-describe('P3 fixtures — true-positive fires, near-miss stays silent (no --ai)', () => {
+describe('P3 fixtures, true-positive fires, near-miss stays silent (no --ai)', () => {
   for (const { id, verifier } of CASES) {
     it(`${id}: true-positive fixture flags exactly the expected finding(s)`, async () => {
       const actual = await runFixture(verifier, id);

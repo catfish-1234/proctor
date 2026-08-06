@@ -31,7 +31,7 @@ describe('buildContext', () => {
     expect(ctx.isTestFile('tests/test_thing.py')).toBe(true);
     expect(ctx.isTestFile('src/thing_test.py')).toBe(true);
     expect(ctx.isTestFile('src/foo.ts')).toBe(false);
-    expect(ctx.enabled).toHaveLength(11);
+    expect(ctx.enabled).toHaveLength(12);
     expect(ctx.enabled).toContain('RH001');
   });
 
@@ -254,13 +254,13 @@ describe('buildContext', () => {
     git('commit', '--allow-empty', '-m', 'init');
     await writeFile(join(tmpDir, 'proctor.config.json'), JSON.stringify({ enabled: [] }));
     const ctx = await buildContext(tmpDir, [], { configRef: 'HEAD' });
-    expect(ctx.enabled).toHaveLength(11);
+    expect(ctx.enabled).toHaveLength(12);
   });
 
   it('falls back to default enabled when config enabled is not an array (malformed)', async () => {
     await writeFile(join(tmpDir, 'proctor.config.json'), JSON.stringify({ enabled: 'RH001' }));
     const ctx = await buildContext(tmpDir, []);
-    expect(ctx.enabled).toHaveLength(11);
+    expect(ctx.enabled).toHaveLength(12);
   });
 
   it('drops an invalid severity value ("warning") instead of applying it', async () => {
@@ -286,6 +286,6 @@ describe('buildContext', () => {
   it('falls back to defaults when enabled lists ONLY unknown IDs (no silent zero-verifier run)', async () => {
     await writeFile(join(tmpDir, 'proctor.config.json'), JSON.stringify({ enabled: ['RH01', 'NOPE'] }));
     const ctx = await buildContext(tmpDir, []);
-    expect(ctx.enabled).toHaveLength(11);
+    expect(ctx.enabled).toHaveLength(12);
   });
 });

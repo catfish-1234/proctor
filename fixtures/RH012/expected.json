@@ -1,0 +1,10 @@
+[
+  {
+    "verifierId": "RH012",
+    "severity": "error",
+    "file": "ci.yml",
+    "line": 11,
+    "message": "'continue-on-error: true' added to a test step in ci.yml, so the suite can fail without failing the build.",
+    "suggestion": "Remove the 'continue-on-error: true' added in this change and fix the failing test instead."
+  }
+]

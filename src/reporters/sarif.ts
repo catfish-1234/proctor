@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { Finding } from '../types.js';
-import { RULE_METADATA } from '../rules.js';
+import { APPROVAL_GUIDANCE, RULE_METADATA } from '../rules.js';
 import pkg from '../../package.json' with { type: 'json' };
 
 function levelFor(severity: Finding['severity']): 'error' | 'warning' | 'note' {
@@ -19,6 +19,13 @@ export function sarifReport(findings: Finding[]): string {
     name: meta.name,
     shortDescription: { text: meta.shortDescription },
     fullDescription: { text: meta.fullDescription },
+    // SARIF viewers, GitHub Code Scanning included, show `help` alongside a result. Putting the
+    // fix guidance here means a reviewer reading a PR annotation sees what an honest fix looks
+    // like, not only what tripped, without having to go and run the CLI themselves.
+    help: {
+      text: `${meta.fix}\n\n${APPROVAL_GUIDANCE}`,
+      markdown: `**How to fix this honestly**\n\n${meta.fix}\n\n${APPROVAL_GUIDANCE}`,
+    },
     helpUri: meta.helpUri,
     defaultConfiguration: { level: meta.defaultLevel },
   }));
@@ -26,7 +33,13 @@ export function sarifReport(findings: Finding[]): string {
   const results = findings.map(f => ({
     ruleId: f.verifierId,
     level: levelFor(f.severity),
-    message: { text: `${f.message} ${f.suggestion}` },
+    // An approved finding still appears as a PR annotation, carrying the reason it was let
+    // through, so a reviewer sees the decision instead of seeing nothing at all.
+    message: {
+      text: f.approved
+        ? `${f.message} Approved: ${f.approvalReason}`
+        : `${f.message} ${f.suggestion}`,
+    },
     locations: [
       {
         physicalLocation: {

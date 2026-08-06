@@ -27,25 +27,25 @@ function fileWith(content: string, ln = 5): ParsedFile[] {
   }];
 }
 
-describe('rh010 — failure masking detection', () => {
-  it('flags jest.retryTimes(5) — retry abuse', () => {
+describe('rh010, failure masking detection', () => {
+  it('flags jest.retryTimes(5), retry abuse', () => {
     const findings = rh010.run({ ...baseCtx, files: fileWith('+  jest.retryTimes(5);') });
     expect(findings.length).toBe(1);
     expect(findings[0].verifierId).toBe('RH010');
     expect(findings[0].severity).toBe('warn');
   });
 
-  it('returns [] for jest.retryTimes(1) — a single retry is common for flaky infra (near-miss)', () => {
+  it('returns [] for jest.retryTimes(1), a single retry is common for flaky infra (near-miss)', () => {
     const findings = rh010.run({ ...baseCtx, files: fileWith('+  jest.retryTimes(1);') });
     expect(findings).toEqual([]);
   });
 
-  it('flags jest.setTimeout(300000) — an unusually large timeout', () => {
+  it('flags jest.setTimeout(300000), an unusually large timeout', () => {
     const findings = rh010.run({ ...baseCtx, files: fileWith('+  jest.setTimeout(300000);') });
     expect(findings.length).toBe(1);
   });
 
-  it('returns [] for jest.setTimeout(10000) — a modest timeout (near-miss)', () => {
+  it('returns [] for jest.setTimeout(10000), a modest timeout (near-miss)', () => {
     const findings = rh010.run({ ...baseCtx, files: fileWith('+  jest.setTimeout(10000);') });
     expect(findings).toEqual([]);
   });
@@ -133,7 +133,7 @@ describe('rh010 — failure masking detection', () => {
     expect(findings.length).toBe(1);
   });
 
-  it('returns [] for a single retry ({ retry: 1 }) — a common allowance', () => {
+  it('returns [] for a single retry ({ retry: 1 }), a common allowance', () => {
     expect(rh010.run({ ...baseCtx, files: fileWith('+  it("x", { retry: 1 }, () => {})') })).toEqual([]);
   });
 

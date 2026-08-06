@@ -36,7 +36,7 @@ function run(context: Context): Finding[] {
     const filePath = (file.to ?? file.from ?? '').replace(/\\/g, '/');
     if (!micromatch.isMatch(filePath, globs)) continue;
 
-    // Skip pure-deletion diffs — removing old snapshots is routine maintenance, not suspicious
+    // Skip pure-deletion diffs, removing old snapshots is routine maintenance, not suspicious
     const firstAdd = file.chunks.flatMap(c => c.changes).find(c => c.type === 'add');
     if (!firstAdd) continue;
     const line = (firstAdd as { ln: number }).ln;

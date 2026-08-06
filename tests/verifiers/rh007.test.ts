@@ -42,7 +42,7 @@ function makeAddFile(filename: string, content: string, ln: number): ParsedFile 
   };
 }
 
-describe('rh007 — config exclusion patterns', () => {
+describe('rh007, config exclusion patterns', () => {
   it('detects testPathIgnorePatterns from fixture diff at line 2', () => {
     const files = fixtureDiff('RH007', 'jest.config.ts');
     const findings = rh007.run({ ...baseCtx, files });
@@ -71,7 +71,7 @@ describe('rh007 — config exclusion patterns', () => {
     expect(rh007.run({ ...baseCtx, files: [file] })).toEqual([]);
   });
 
-  it('detects a test-like "exclude": in tsconfig.json (warn — heuristic)', () => {
+  it('detects a test-like "exclude": in tsconfig.json (warn, heuristic)', () => {
     const files = [makeAddFile('tsconfig.json', '+"exclude": ["**/*.test.ts"]', 5)];
     const findings = rh007.run({ ...baseCtx, files });
     expect(findings.length).toBe(1);
@@ -85,7 +85,7 @@ describe('rh007 — config exclusion patterns', () => {
     expect(rh007.run({ ...baseCtx, files })).toEqual([]);
   });
 
-  it('detects an unquoted exclude: with a test-looking value in vitest.config.ts (warn — heuristic)', () => {
+  it('detects an unquoted exclude: with a test-looking value in vitest.config.ts (warn, heuristic)', () => {
     const files = [makeAddFile('vitest.config.ts', "+    exclude: ['**/payments.test.ts'],", 8)];
     const findings = rh007.run({ ...baseCtx, files });
     expect(findings.length).toBe(1);
@@ -158,7 +158,7 @@ describe('rh007 — config exclusion patterns', () => {
   });
 });
 
-describe('rh007 — new-language config exclusion + Go build-tag branch (LANG-03/LANG-06)', () => {
+describe('rh007, new-language config exclusion + Go build-tag branch (LANG-03/LANG-06)', () => {
   const langExpected: Array<{ verifierId: string; severity: string; file: string; line: number; message: string; suggestion: string }> =
     JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH007', 'lang-expected.json'), 'utf8'));
 
@@ -221,7 +221,7 @@ describe('rh007 — new-language config exclusion + Go build-tag branch (LANG-03
   });
 });
 
-describe('rh007 — GROUP A Windows-path regression (LANG-10, RESEARCH Pitfall 5)', () => {
+describe('rh007, GROUP A Windows-path regression (LANG-10, RESEARCH Pitfall 5)', () => {
   // Each new (?:^|\/)-anchored / extension-anchored config-file pattern from GROUP A must still
   // match when the diff's file path uses Windows backslash separators (parse-diff's file.to/from
   // carries whatever separator the OS/git produced). Mirrors 08-03's regression test for the same
@@ -270,7 +270,7 @@ describe('rh007 — GROUP A Windows-path regression (LANG-10, RESEARCH Pitfall 5
   });
 });
 
-describe('rh007 — GROUP A config exclusion (LANG-10, LANG-13)', () => {
+describe('rh007, GROUP A config exclusion (LANG-10, LANG-13)', () => {
   const langiiAExpected: Array<{ verifierId: string; severity: string; file: string; line: number; message: string; suggestion: string }> =
     JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH007', 'langii-a-expected.json'), 'utf8'));
 
@@ -279,8 +279,8 @@ describe('rh007 — GROUP A config exclusion (LANG-10, LANG-13)', () => {
     ['Calculator.xctestplan', 'xctestplan skippedTests entry'],
     ['dart_test.yaml', 'dart_test.yaml exclude_tags'],
     ['build.sbt', 'build.sbt Tests.Exclude'],
-    ['build.gradle', 'Groovy reuse — Gradle excludeTestsMatching (zero new code)'],
-    ['VisualBasicTests.runsettings', 'VB.NET reuse — .runsettings TestCaseFilter (zero new code)'],
+    ['build.gradle', 'Groovy reuse, Gradle excludeTestsMatching (zero new code)'],
+    ['VisualBasicTests.runsettings', 'VB.NET reuse, .runsettings TestCaseFilter (zero new code)'],
   ];
 
   for (const [filename, label] of cases) {
@@ -296,7 +296,7 @@ describe('rh007 — GROUP A config exclusion (LANG-10, LANG-13)', () => {
   }
 
   // Explicit reuse-proof: the VB.NET and Groovy fixtures above fire through the EXACT SAME
-  // patterns Phase 8 shipped for C# (.runsettings) and Java/Kotlin (build.gradle) — no branch in
+  // patterns Phase 8 shipped for C# (.runsettings) and Java/Kotlin (build.gradle), no branch in
   // rh007.ts is scoped to 'vbnet' or 'groovy' as a language. Confirms the RESEARCH-predicted
   // zero-new-code reuse claim with a live fixture, not just an assertion in prose.
   it('VB.NET .runsettings reuse fires via the existing C# runsettingsFilter pattern (zero new code)', () => {
@@ -342,7 +342,7 @@ describe('rh007 — GROUP A config exclusion (LANG-10, LANG-13)', () => {
   });
 });
 
-describe('rh007 — GROUP B config exclusion (LANG-10, LANG-13)', () => {
+describe('rh007, GROUP B config exclusion (LANG-10, LANG-13)', () => {
   const langiiBExpected: Array<{ verifierId: string; severity: string; file: string; line: number; message: string; suggestion: string }> =
     JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH007', 'langii-b-expected.json'), 'utf8'));
 
@@ -351,7 +351,7 @@ describe('rh007 — GROUP B config exclusion (LANG-10, LANG-13)', () => {
     ['calculator.cabal', 'Haskell .cabal buildable: False inside test-suite stanza (error)'],
     ['test_helper.exs', 'Elixir test_helper.exs ExUnit.start(exclude: ...) (error)'],
     ['.busted', 'Lua .busted ["exclude-tags"] (error)'],
-    ['project.clj', 'Clojure project.clj :test-selectors (warn — Open Question 3 resolution)'],
+    ['project.clj', 'Clojure project.clj :test-selectors (warn, Open Question 3 resolution)'],
   ];
 
   for (const [filename, label] of cases) {
@@ -367,7 +367,7 @@ describe('rh007 — GROUP B config exclusion (LANG-10, LANG-13)', () => {
   }
 
   // Negative fixture: buildable: False on a library stanza (no test-suite header anywhere in the
-  // file) must yield zero findings — proves the chunkMentionsTestSuite gate actually restricts
+  // file) must yield zero findings, proves the chunkMentionsTestSuite gate actually restricts
   // firing to test-suite stanzas rather than any buildable: False edit in a .cabal file.
   it('does NOT flag calculator.cabal buildable: False on a library stanza (negative fixture)', () => {
     const files = fixtureDiff('RH007/negative', 'calculator-library.cabal');

@@ -28,7 +28,7 @@ const baseCtx: Context = {
   getLanguage: () => 'ts' as const,
 };
 
-describe('rh002 — weakened assertion', () => {
+describe('rh002, weakened assertion', () => {
   it('detects weakened assertion from fixture diff', () => {
     const files = fixtureDiff('RH002', 'calculator.test.ts');
     const findings = rh002.run({ ...baseCtx, files });
@@ -144,7 +144,7 @@ function pairAt(filename: string, del: string, add: string, delLn = 5, addLn = 6
   }];
 }
 
-describe('RH002 — new-language flat matcher pairs (LANG-04)', () => {
+describe('RH002, new-language flat matcher pairs (LANG-04)', () => {
   it('Go (testify): assert.Equal -> assert.NotNil is caught', () => {
     const findings = rh002.run({ ...baseCtx, files: pairAt(
       'calculator_test.go',
@@ -221,7 +221,7 @@ describe('RH002 — new-language flat matcher pairs (LANG-04)', () => {
   });
 });
 
-describe('RH002 — GROUP A flat matcher pairs + shared XCTest + reuse (LANG-11)', () => {
+describe('RH002, GROUP A flat matcher pairs + shared XCTest + reuse (LANG-11)', () => {
   it('C++ Google Test: EXPECT_EQ -> EXPECT_TRUE is caught', () => {
     const findings = rh002.run({ ...baseCtx, files: pairAt(
       'calculator_test.cpp',
@@ -314,7 +314,7 @@ describe('RH002 — GROUP A flat matcher pairs + shared XCTest + reuse (LANG-11)
   });
 });
 
-describe('RH002 — same-subject / macro weakening for Rust, Ruby, AssertJ (LANG-04)', () => {
+describe('RH002, same-subject / macro weakening for Rust, Ruby, AssertJ (LANG-04)', () => {
   it('Rust: assert_eq!(result, 3) -> assert!(result.is_some()) is caught (same subject)', () => {
     const findings = rh002.run({ ...baseCtx, files: pairAt(
       'calculator.rs',
@@ -352,7 +352,7 @@ describe('RH002 — same-subject / macro weakening for Rust, Ruby, AssertJ (LANG
       ], oldStart: 5, oldLines: 1, newStart: 6, newLines: 1 }],
       deleted: false, new: false,
     }];
-    // baseCtx.isTestFile only matches '.test.' — this file wouldn't pass that gate, proving
+    // baseCtx.isTestFile only matches '.test.', this file wouldn't pass that gate, proving
     // the Rust block doesn't rely on it.
     expect(rh002.run({ ...baseCtx, files })).toHaveLength(1);
   });
@@ -403,7 +403,7 @@ describe('RH002 — same-subject / macro weakening for Rust, Ruby, AssertJ (LANG
   });
 });
 
-describe('RH002 — GROUP A same-subject extractors: Catch2, Swift Testing, Dart, Scala (LANG-11)', () => {
+describe('RH002, GROUP A same-subject extractors: Catch2, Swift Testing, Dart, Scala (LANG-11)', () => {
   it('Catch2: REQUIRE(result == 3) -> REQUIRE(result) is caught (same subject)', () => {
     const findings = rh002.run({ ...baseCtx, files: pairAt(
       'calculator_test.cpp',
@@ -508,7 +508,7 @@ describe('RH002 — GROUP A same-subject extractors: Catch2, Swift Testing, Dart
   });
 });
 
-describe('RH002 — GROUP B (LANG-11) flat pairs + same-subject extractors', () => {
+describe('RH002, GROUP B (LANG-11) flat pairs + same-subject extractors', () => {
   it('Perl (Test::More): is(...) -> ok(...) is caught (flat pair)', () => {
     const findings = rh002.run({ ...baseCtx, files: pairAt(
       'calculator.t',
@@ -684,7 +684,7 @@ describe('RH002 Python tolerance-widening', () => {
     expect(findings[0]!.verifierId).toBe('RH002');
   });
 
-  it('returns [] when places= value is increased (stricter assertion — not weaker)', () => {
+  it('returns [] when places= value is increased (stricter assertion, not weaker)', () => {
     const files = makePythonFile(
       '-        self.assertAlmostEqual(result, 3.14, places=2)',
       '+        self.assertAlmostEqual(result, 3.14, places=5)',
@@ -694,7 +694,7 @@ describe('RH002 Python tolerance-widening', () => {
   });
 });
 
-describe('rh002 — new-language weakening fixtures (LANG-06)', () => {
+describe('rh002, new-language weakening fixtures (LANG-06)', () => {
   const langExpected: Array<Record<string, unknown>> = JSON.parse(
     readFileSync(path.join(FIXTURES_DIR, 'RH002', 'lang-expected.json'), 'utf8'),
   );
@@ -720,7 +720,7 @@ describe('rh002 — new-language weakening fixtures (LANG-06)', () => {
   });
 });
 
-describe('rh002 — GROUP A weakening (LANG-11, LANG-13)', () => {
+describe('rh002, GROUP A weakening (LANG-11, LANG-13)', () => {
   const langiiAExpected: Array<Record<string, unknown>> = JSON.parse(
     readFileSync(path.join(FIXTURES_DIR, 'RH002', 'langii-a-expected.json'), 'utf8'),
   );
@@ -747,7 +747,7 @@ describe('rh002 — GROUP A weakening (LANG-11, LANG-13)', () => {
   });
 });
 
-describe('rh002 — GROUP B weakening (LANG-11, LANG-13)', () => {
+describe('rh002, GROUP B weakening (LANG-11, LANG-13)', () => {
   const langiiBExpected: Array<Record<string, unknown>> = JSON.parse(
     readFileSync(path.join(FIXTURES_DIR, 'RH002', 'langii-b-expected.json'), 'utf8'),
   );
@@ -780,5 +780,28 @@ describe('rh002 — GROUP B weakening (LANG-11, LANG-13)', () => {
     const files = fixtureDiff('RH002', 'calculator_negative.exs');
     const findings = rh002.run({ ...baseCtx, files });
     expect(findings).toEqual(langiiBNegativeExpected);
+  });
+});
+
+describe('rh002 does not report an assertion as weakened into itself', () => {
+  it('stays silent when only prose around an unchanged assertion changed', () => {
+    const files = parseDiff(
+      `diff --git a/docs/NOTES.md b/docs/NOTES.md\n` +
+        `--- a/docs/NOTES.md\n+++ b/docs/NOTES.md\n@@ -1,1 +1,1 @@\n` +
+        `-Deterministic: yes; every pattern (expect(f(x)).toBe(f(x))) is a tautology\n` +
+        `+Deterministic: yes, every pattern (expect(f(x)).toBe(f(x))) is a tautology\n`
+    );
+    const findings = rh002.run({ ...baseCtx, files });
+    expect(findings.filter(f => /weakened from (.+) to \1\./.test(f.message))).toEqual([]);
+  });
+
+  it('still reports a genuine weakening', () => {
+    const files = parseDiff(
+      `diff --git a/a.test.ts b/a.test.ts\n` +
+        `--- a/a.test.ts\n+++ b/a.test.ts\n@@ -1,1 +1,1 @@\n` +
+        `-  expect(total).toBe(6);\n` +
+        `+  expect(total).toBeDefined();\n`
+    );
+    expect(rh002.run({ ...baseCtx, files }).length).toBeGreaterThan(0);
   });
 });

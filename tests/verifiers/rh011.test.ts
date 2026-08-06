@@ -15,7 +15,7 @@ function fixtureDiff(ruleId: string, filename: string): ParsedFile[] {
   const beforePath = path.join(FIXTURES_DIR, ruleId, 'before', filename);
   const afterPath = path.join(FIXTURES_DIR, ruleId, 'after', filename);
   const result = spawnSync('git', ['diff', '--no-index', '--', beforePath, afterPath], { encoding: 'utf8' });
-  // git diff --no-index exits 1 when files differ — normal
+  // git diff --no-index exits 1 when files differ, normal
   return parseDiff(result.stdout);
 }
 
@@ -43,7 +43,7 @@ function fileWithLines(lines: string[]): ParsedFile[] {
   }];
 }
 
-describe('rh011 — type/lint silencing spam detection', () => {
+describe('rh011, type/lint silencing spam detection', () => {
   it('flags 2+ suppression comments added in the same change', () => {
     const findings = rh011.run({
       ...baseCtx,
@@ -54,7 +54,7 @@ describe('rh011 — type/lint silencing spam detection', () => {
     expect(findings[0].severity).toBe('warn');
   });
 
-  it('returns [] for a single suppression comment (near-miss — often legitimate)', () => {
+  it('returns [] for a single suppression comment (near-miss, often legitimate)', () => {
     const findings = rh011.run({
       ...baseCtx,
       files: fileWithLines([
@@ -91,7 +91,7 @@ describe('rh011 — type/lint silencing spam detection', () => {
 });
 
 // proctor-ignore: RH011 reason: planted fixtures exercising the detector, not real suppressions
-describe('rh011 — per-language suppression-spam line-scoped detection (LANG-05)', () => {
+describe('rh011, per-language suppression-spam line-scoped detection (LANG-05)', () => {
   it('Go: two //nolint lines added trip the spam threshold', () => {
     const findings = rh011.run({
       ...baseCtx,
@@ -173,7 +173,7 @@ describe('rh011 — per-language suppression-spam line-scoped detection (LANG-05
 });
 
 // proctor-ignore: RH011 reason: planted fixtures exercising the detector, not real suppressions
-describe('rh011 — GROUP A suppression-spam line-scoped + file-wide detection (LANG-12, LANG-13)', () => {
+describe('rh011, GROUP A suppression-spam line-scoped + file-wide detection (LANG-12, LANG-13)', () => {
   it('C/C++/Objective-C: two // NOLINT lines added in one file trip the spam threshold', () => {
     const findings = rh011.run({
       ...baseCtx,
@@ -237,7 +237,7 @@ describe('rh011 — GROUP A suppression-spam line-scoped + file-wide detection (
 
   it('Swift: a line-scoped // swiftlint:disable:next does NOT double-count as file-wide', () => {
     const findings = rh011.run({ ...baseCtx, files: fileWithLines(['+  // swiftlint:disable:next force_cast', '+  let x = a as! Int']) });
-    // Only 1 occurrence, below SPAM_THRESHOLD (2) — must be [] (proves it did not get classified
+    // Only 1 occurrence, below SPAM_THRESHOLD (2), must be [] (proves it did not get classified
     // as the unconditional file-wide finding, which would return length 1 with a "File-wide" message).
     expect(findings).toEqual([]);
   });
@@ -317,7 +317,7 @@ describe('rh011 — GROUP A suppression-spam line-scoped + file-wide detection (
   });
 });
 
-describe('rh011 — new-language suppression-spam fixtures (LANG-06)', () => {
+describe('rh011, new-language suppression-spam fixtures (LANG-06)', () => {
   const expected: Array<{ file: string; line: number }> = JSON.parse(
     readFileSync(path.join(FIXTURES_DIR, 'RH011', 'lang-expected.json'), 'utf8'),
   );
@@ -348,8 +348,8 @@ describe('rh011 — new-language suppression-spam fixtures (LANG-06)', () => {
   });
 });
 
-describe('rh011 — GROUP A new-language suppression-spam fixtures (LANG-12, LANG-13)', () => {
-  // Fixtures live under fixtures/RH011/lang2/{before,after}/ — a distinct subdirectory from
+describe('rh011, GROUP A new-language suppression-spam fixtures (LANG-12, LANG-13)', () => {
+  // Fixtures live under fixtures/RH011/lang2/{before,after}/, a distinct subdirectory from
   // Phase 8's fixtures/RH011/lang/ (LANG-06/07) so this diff doesn't collide with either the
   // flat fixtures/RH011/before-vs-after true-positive assertion in fixtures-p3.test.ts, or with
   // Phase 8's lang/ fixtures, per 08.1-RESEARCH.md's Wave 0 Gaps note and the 08-05 collision
@@ -400,7 +400,7 @@ describe('rh011 — GROUP A new-language suppression-spam fixtures (LANG-12, LAN
 });
 
 // proctor-ignore: RH011 reason: planted fixtures exercising the detector, not real suppressions
-describe('rh011 — GROUP B suppression spam (LANG-12, LANG-13)', () => {
+describe('rh011, GROUP B suppression spam (LANG-12, LANG-13)', () => {
   it('Perl: two ## no critic lines trip the spam threshold', () => {
     const findings = rh011.run({
       ...baseCtx,
@@ -508,7 +508,7 @@ describe('rh011 — GROUP B suppression spam (LANG-12, LANG-13)', () => {
       new: false,
     }];
     const findings = rh011.run({ ...baseCtx, files });
-    // Julia has no RH011 detector at all — this fixture uses a generic, plausible-looking
+    // Julia has no RH011 detector at all, this fixture uses a generic, plausible-looking
     // lint-suppression-comment SHAPE (not any real language's actual convention, and deliberately
     // not colliding with any existing SUPPRESSION_PATTERNS literal) purely to prove the absence of
     // any Julia-specific or accidentally-shared detection, not because Julia itself uses this syntax.
@@ -516,7 +516,7 @@ describe('rh011 — GROUP B suppression spam (LANG-12, LANG-13)', () => {
   });
 });
 
-describe('rh011 — GROUP B new-language suppression-spam fixtures (LANG-12, LANG-13)', () => {
+describe('rh011, GROUP B new-language suppression-spam fixtures (LANG-12, LANG-13)', () => {
   // Fixtures live under fixtures/RH011/lang2/{before,after}/ alongside plan 09's GROUP A fixtures
   // (same collision-safe subdirectory, distinct expected-JSON file: lang2b-expected.json keeps
   // GROUP A/B outputs independent per 08.1-10-PLAN.md).

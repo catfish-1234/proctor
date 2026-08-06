@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import parseDiff from 'parse-diff';
 import { rh004 } from '../../src/verifiers/rh004.js';
 import type { Context } from '../../src/types.js';
 import type { ParsedFile } from '../../src/diff.js';
@@ -150,7 +151,7 @@ const legitimateRefactor: ParsedFile[] = [
   },
 ];
 
-describe('rh004 — deterministic strong signals (no AI needed)', () => {
+describe('rh004, deterministic strong signals (no AI needed)', () => {
   it('flags a bare-literal return that replaced a real computed expression', async () => {
     const ctx: Context = { ...baseCtx, files: hardcodedReturnReplacesComputation, aiEnabled: false, judge: undefined };
     const findings = await rh004.run(ctx);
@@ -245,7 +246,7 @@ describe('rh004 — deterministic strong signals (no AI needed)', () => {
   });
 });
 
-describe('rh004 — implementation hardcoding detection', () => {
+describe('rh004, implementation hardcoding detection', () => {
   it('returns [] when aiEnabled is false, even if heuristic would match', async () => {
     const ctx: Context = { ...baseCtx, files: implAndTestFiles, aiEnabled: false, judge: undefined };
     const findings = await rh004.run(ctx);
@@ -296,5 +297,70 @@ describe('rh004 — implementation hardcoding detection', () => {
     };
     const findings = await rh004.run(ctx);
     expect(findings).toEqual([]);
+  });
+});
+
+describe('rh004 does not flag emptiness guards', () => {
+  it('stays silent on a length-zero early return', async () => {
+    const files = parseDiff(
+      `diff --git a/src/util.ts b/src/util.ts\n--- a/src/util.ts\n+++ b/src/util.ts\n@@ -1,0 +1,1 @@\n` +
+        `+  if (items.length === 0) return false;\n`
+    );
+    expect(await rh004.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('stays silent on a size-zero early return', async () => {
+    const files = parseDiff(
+      `diff --git a/src/util.ts b/src/util.ts\n--- a/src/util.ts\n+++ b/src/util.ts\n@@ -1,0 +1,1 @@\n` +
+        `+  if (removed.size === 0) return false;\n`
+    );
+    expect(await rh004.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('stays silent on a typeof type guard', async () => {
+    const files = parseDiff(
+      `diff --git a/src/util.ts b/src/util.ts
+--- a/src/util.ts
++++ b/src/util.ts
+@@ -1,0 +1,1 @@
+` +
+        `+  if (typeof value !== 'object' || value === null) return false;
+`
+    );
+    expect(await rh004.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('stays silent on a positive typeof check', async () => {
+    const files = parseDiff(
+      `diff --git a/src/util.ts b/src/util.ts
+--- a/src/util.ts
++++ b/src/util.ts
+@@ -1,0 +1,1 @@
+` +
+        `+  if (typeof v.caught === 'number') return true;
+`
+    );
+    expect(await rh004.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('still flags a literal special-case that merely mentions a type name', async () => {
+    const files = parseDiff(
+      `diff --git a/src/util.ts b/src/util.ts
+--- a/src/util.ts
++++ b/src/util.ts
+@@ -1,0 +1,1 @@
+` +
+        `+  if (kind === 'object') return 'the fixture value';
+`
+    );
+    expect((await rh004.run({ ...baseCtx, files })).length).toBeGreaterThan(0);
+  });
+
+  it('still flags a genuine literal special-case', async () => {
+    const files = parseDiff(
+      `diff --git a/src/util.ts b/src/util.ts\n--- a/src/util.ts\n+++ b/src/util.ts\n@@ -1,0 +1,1 @@\n` +
+        `+  if (input === 42) return 'the answer';\n`
+    );
+    expect((await rh004.run({ ...baseCtx, files })).length).toBeGreaterThan(0);
   });
 });

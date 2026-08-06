@@ -5,39 +5,41 @@ import type { Context, Finding, Severity, Verifier } from '../types.js';
 
 // Covers jest/vitest config in .{m,c}{j,t}s AND jest.config.json (a supported Jest format), plus
 // vite.config.* (where Vitest config commonly lives), tsconfig, and the Python config files, plus
-// (LANG-03) the 6 new-language config-exclusion files: Maven pom.xml, Gradle build.gradle(.kts),
-// Rust Cargo.toml, Ruby .rspec, PHPUnit phpunit.xml(.dist), and C# .runsettings, plus (LANG-10
-// GROUP A) 4 more: C++/C CMakeLists.txt, Swift/Objective-C *.xctestplan, Dart dart_test.yaml, and
-// Scala build.sbt, plus (LANG-10 GROUP B) 5 more: R .Rbuildignore, Haskell *.cabal, Elixir
-// test_helper.exs, Lua .busted, and Clojure project.clj. Each new entry is anchored to a
+// the 6 new-language config-exclusion files: Maven pom.xml, Gradle build.gradle(.kts),
+// Rust Cargo.toml, Ruby .rspec, PHPUnit phpunit.xml(.dist), and C# .runsettings, plus C++/C
+// CMakeLists.txt, Swift/Objective-C *.xctestplan, Dart dart_test.yaml, Scala build.sbt,
+// R .Rbuildignore, Haskell *.cabal, Elixir test_helper.exs, Lua .busted, and Clojure project.clj. Each new entry is anchored to a
 // basename/extension shape so it can't false-match a similarly-named source file. VB.NET
-// (.runsettings) and Groovy (build.gradle(.kts)) deliberately need no new entries here — they
+// (.runsettings) and Groovy (build.gradle(.kts)) deliberately need no new entries here, they
 // reuse the existing C#/Java(Kotlin) patterns as-is. Perl, Shell/Bash, and Julia deliberately have
-// NO entry here — RESEARCH found no config-file exclusion mechanism (or safe structural analogue)
-// for any of the three; they're documented gaps, not forced detectors (see 08.1-06-SUMMARY.md).
+// NO entry here, since no config-file exclusion mechanism (or safe structural analogue) was found
+// for any of the three; they're documented gaps, not forced detectors (see the language support
+// matrix in the README).
 const CONFIG_FILE_RE = /(?:jest|vitest|vite)\.config\.(?:[mc]?[jt]s|json)$|(?:^|\/)jest\.config\.json$|tsconfig(?:\.[^/]*)?\.json$|(?:pytest\.ini|setup\.cfg|pyproject\.toml|conftest\.py)$|(?:^|\/)pom\.xml$|(?:^|\/)build\.gradle(?:\.kts)?$|(?:^|\/)Cargo\.toml$|(?:^|\/)\.rspec$|(?:^|\/)phpunit\.xml(?:\.dist)?$|\.runsettings$|(?:^|\/)CMakeLists\.txt$|\.xctestplan$|(?:^|\/)dart_test\.yaml$|(?:^|\/)build\.sbt$|(?:^|\/)\.Rbuildignore$|\.cabal$|(?:^|\/)test_helper\.exs$|(?:^|\/)\.busted$|(?:^|\/)project\.clj$/;
 
 // package.json can carry a Jest config inline ("jest": { "testPathIgnorePatterns": [...] }). It is
-// not a dedicated config file, so it's handled separately and only for testPathIgnorePatterns —
+// not a dedicated config file, so it's handled separately and only for testPathIgnorePatterns,
 // the unambiguous "exclude tests from the run" key. testMatch/testRegex are omitted here because
 // a first-time add is indistinguishable from a narrowing edit on a single line.
 const PACKAGE_JSON_RE = /(?:^|\/)package\.json$/;
 const JEST_EXCLUSION_KEY_RE = /"(testPathIgnorePatterns)"\s*:/;
 
 // proctor's own config: enforcement is pinned to the committed version (see buildContext's
-// configRef), so an in-diff edit can't neuter checks — but the edit itself is still worth
+// configRef), so an in-diff edit can't neuter checks, but the edit itself is still worth
 // surfacing, since it changes what future runs enforce.
 const PROCTOR_CONFIG_RE = /(?:^|\/)proctor\.config\.json$/;
-const PROCTOR_ENFORCEMENT_KEY_RE = /"(enabled|ignorePatterns|severity|testPathGlobs|snapshotGlobs)"\s*:/;
+// approvedTestChanges belongs here for the same reason as the rest: an approval downgrades a
+// finding to non-blocking, so adding one changes what future runs enforce. A broad entry like
+// `{"rule": "RH001", "file": "**"}` would quietly stop every test deletion from blocking.
+const PROCTOR_ENFORCEMENT_KEY_RE = /"(enabled|ignorePatterns|severity|testPathGlobs|snapshotGlobs|approvedTestChanges)"\s*:/;
 
-// Go has no dedicated exclusion config file the way Jest/pytest/PHPUnit do (RESEARCH RH007
-// section B). Its closest equivalent is a build-tag directive added to the top of an existing
+// Go has no dedicated exclusion config file the way Jest/pytest/PHPUnit do (there is no equivalent). Its closest equivalent is a build-tag directive added to the top of an existing
 // _test.go file: without passing the tag at `go test -tags <tag>` time, the whole file is
-// silently excluded from compilation and therefore from every future test run — functionally
+// silently excluded from compilation and therefore from every future test run, functionally
 // identical to testPathIgnorePatterns, but expressed as an in-file directive on the test file
 // itself, not a separate config file. This is a structurally distinct branch (closer to RH003's
-// "directive added to a test file" model than to this file's CONFIG_FILE_RE model — see Pitfall
-// 2 in RESEARCH), restricted strictly to _test.go files so an ordinary build tag on regular Go
+// "directive added to a test file" model than to this file's CONFIG_FILE_RE model. See Pitfall
+// restricted strictly to _test.go files so an ordinary build tag on regular Go
 // source never fires.
 function isGoTestFile(filePath: string): boolean {
   return /_test\.go$/.test(filePath);
@@ -86,8 +88,8 @@ function configLabel(filePath: string): string {
 // Which "language" a config file belongs to, used to scope EXCLUSION_PATTERNS entries so an
 // ambiguous shared token (e.g. the XML `<exclude>` tag used by both Maven and PHPUnit, at
 // different severities) is only evaluated against the file type it actually applies to. This
-// also prevents a coincidental keyword collision — e.g. the popular Rust `ignore` crate dependency
-// line `ignore = "0.4"` in Cargo.toml — from tripping a pytest-scoped pattern now that Cargo.toml
+// also prevents a coincidental keyword collision, e.g. the popular Rust `ignore` crate dependency
+// line `ignore = "0.4"` in Cargo.toml, from tripping a pytest-scoped pattern now that Cargo.toml
 // is a recognized config file.
 type ConfigLang =
   | 'js'
@@ -136,7 +138,7 @@ interface ExclusionPattern {
   severity: Severity;
   langs: ConfigLang[];
   // Ambiguous bare keys (JS/tsconfig `exclude`) only count when the excluded value looks
-  // test-like and the chunk isn't a routine coverage-exclude block — mirrors the original
+  // test-like and the chunk isn't a routine coverage-exclude block, mirrors the original
   // carve-out, now expressed as data instead of a key-name string comparison.
   requiresTestLikeValue?: boolean;
   // Human-readable label used in the suggestion text in place of the raw internal key.
@@ -160,18 +162,18 @@ const EXCLUSION_PATTERNS: ExclusionPattern[] = [
   // Ambiguous (can be legit default selection), so reported as warn below.
   { re: /\baddopts\b[^\n]*(?:\s-k\b|\s-m\b|--deselect\b)/, key: 'addopts', severity: 'warn', langs: ['pytest'] },
 
-  // --- LANG-03: 6 new-language config-file exclusion mechanisms ---
+  // --- 6 new-language config-file exclusion mechanisms ---
   // Maven Surefire: <exclude>...</exclude> or <excludedGroups>...</excludedGroups> inside the
   // surefire plugin's <configuration> block. pom.xml edits are broad, so this stays warn.
   { re: /<exclude>|<excludedGroups>/, key: 'mavenExclude', severity: 'warn', langs: ['maven'], suggestionLabel: 'the <exclude>/<excludedGroups> surefire' },
   // Gradle: dedicated `excludeTestsMatching` (Kotlin DSL filter block) or a bare `exclude '...'`
-  // inside a `test { }` block (Groovy). Both warn — `exclude` is also a common Gradle key for
+  // inside a `test { }` block (Groovy). Both warn, `exclude` is also a common Gradle key for
   // unrelated dependency exclusion, same ambiguity rationale as Maven.
   { re: /excludeTestsMatching/, key: 'excludeTestsMatching', severity: 'warn', langs: ['gradle'], suggestionLabel: 'the excludeTestsMatching' },
   { re: /\bexclude\s+['"][^'"\r\n]+['"]/, key: 'gradleExclude', severity: 'warn', langs: ['gradle'], suggestionLabel: 'the exclude' },
   // Cargo: `test = false` under a `[[test]]` target disables that named integration-test target
-  // from `cargo test` — a dedicated, unambiguous key (verified against
-  // doc.rust-lang.org/cargo/reference/cargo-targets.html "The test field" — see SUMMARY), so
+  // from `cargo test`, a dedicated, unambiguous key (verified against
+  // doc.rust-lang.org/cargo/reference/cargo-targets.html "The test field". See SUMMARY), so
   // error. Carved out below to only fire when the same diff chunk shows a `[[test]]` header,
   // since the identical key is also legitimate on `[[bin]]`/`[[example]]` targets.
   { re: /\btest\s*=\s*false\b/, key: 'cargoTestFalse', severity: 'error', langs: ['cargo'], suggestionLabel: "the 'test = false'" },
@@ -186,7 +188,7 @@ const EXCLUSION_PATTERNS: ExclusionPattern[] = [
   // so this stays warn (same ambiguity tier as Maven/Gradle).
   { re: /<TestCaseFilter>|<Filter>/, key: 'runsettingsFilter', severity: 'warn', langs: ['runsettings'], suggestionLabel: 'the <TestCaseFilter>/<Filter>' },
 
-  // --- LANG-10 GROUP A: 4 more config-file exclusion mechanisms (CMake, xctestplan, Dart, Scala) ---
+  // --- 4 more config-file exclusion mechanisms (CMake, xctestplan, Dart, Scala) ---
   // CMake/CTest: set_tests_properties(<name> PROPERTIES ... DISABLED TRUE) is a dedicated,
   // unambiguous test-disabling property. Shared by C and C++ since the signal lives in
   // CMakeLists.txt itself, language-agnostic (both commonly build via the same CMake+CTest setup).
@@ -194,25 +196,25 @@ const EXCLUSION_PATTERNS: ExclusionPattern[] = [
   // xctestplan (JSON): a newly-added string entry inside the "skippedTests" array excludes that
   // test from the plan's run. The bare-quoted-string shape alone is too generic to trust in
   // isolation, so it's gated below (chunkMentionsSkippedTests) to only fire when the same diff
-  // chunk also shows the "skippedTests" key — mirrors the Cargo [[test]]-header carve-out.
-  // NOTE: `^[+-]?` (not bare `^`) — parse-diff's change.content keeps the raw +/- diff-line
+  // chunk also shows the "skippedTests" key, mirrors the Cargo [[test]]-header carve-out.
+  // NOTE: `^[+-]?` (not bare `^`), parse-diff's change.content keeps the raw +/- diff-line
   // prefix character, so a bare `^\s*` anchor would never match an added line (see 08.1-05
   // Deviations for the regression test that caught this).
   { re: /^[+-]?\s*"[^"]+"\s*,?\s*$/, key: 'xctestplanSkippedTest', severity: 'error', langs: ['xctestplan'], suggestionLabel: 'the skippedTests' },
   // Dart: exclude_tags is a dedicated selector-exclusion field (error); the per-tag
   // `tags: <tag>: skip: true/"reason"` form is more indirect since it depends on which tests
-  // actually use that tag (warn) — same ambiguity tier as Maven/Gradle's tag-based excludes.
+  // actually use that tag (warn), same ambiguity tier as Maven/Gradle's tag-based excludes.
   { re: /exclude_tags\s*:/, key: 'dartExcludeTags', severity: 'error', langs: ['dart'], suggestionLabel: 'the exclude_tags' },
   { re: /^[+-]?\s*skip\s*:\s*(?:true|['"][^'"\r\n]*['"])/, key: 'dartTagSkip', severity: 'warn', langs: ['dart'], suggestionLabel: 'the skip' },
   // Scala/sbt: Tests.Exclude is a dedicated, unambiguous class-name-exclusion API (error);
-  // Tests.Argument(..., "-l", "TagName") tag-based exclusion is more indirect — could be a
+  // Tests.Argument(..., "-l", "TagName") tag-based exclusion is more indirect, could be a
   // legitimate CI shard rather than an outright exclusion (warn).
   { re: /Tests\.Exclude\b/, key: 'sbtTestsExclude', severity: 'error', langs: ['sbt'], suggestionLabel: 'the Tests.Exclude' },
   { re: /Tests\.Argument\([^)]*"-l"/, key: 'sbtTestsArgumentTag', severity: 'warn', langs: ['sbt'], suggestionLabel: 'the Tests.Argument(..., "-l", ...)' },
 
-  // --- LANG-10 GROUP B: 5 more config-file exclusion mechanisms (R, Haskell, Elixir, Lua, Clojure) ---
+  // --- 5 more config-file exclusion mechanisms (R, Haskell, Elixir, Lua, Clojure) ---
   // R: .Rbuildignore excludes files/paths from the package build via a plain-text list of regex
-  // lines, not specifically from a test run — a blunter, more indirect signal than Jest's
+  // lines, not specifically from a test run, a blunter, more indirect signal than Jest's
   // testPathIgnorePatterns (a line here could legitimately exclude non-test files too). Any
   // added, non-comment, non-blank line is a candidate; requiresTestLikeValue below gates on the
   // line's own content looking test-like (tests/, test-, testthat), mirroring the JS/tsconfig
@@ -220,7 +222,7 @@ const EXCLUSION_PATTERNS: ExclusionPattern[] = [
   // signal in this file format.
   { re: /^[+-]?\s*(?!#)\S/, key: 'rbuildignoreLine', severity: 'warn', langs: ['rbuild'], requiresTestLikeValue: true, suggestionLabel: 'the newly-added .Rbuildignore line' },
   // Haskell: buildable: False is a dedicated, unambiguous Cabal field, but it's also legitimate on
-  // `library`/`executable` stanzas — carved out below (chunkMentionsTestSuite) to only fire when
+  // `library`/`executable` stanzas, carved out below (chunkMentionsTestSuite) to only fire when
   // the same diff chunk shows a `test-suite` stanza header, mirroring Cargo's `[[test]]`-header
   // gate.
   { re: /\bbuildable\s*:\s*False\b/, key: 'cabalBuildableFalse', severity: 'error', langs: ['cabal'], suggestionLabel: 'the buildable: False' },
@@ -230,9 +232,9 @@ const EXCLUSION_PATTERNS: ExclusionPattern[] = [
   // Lua: busted's ["exclude-tags"] config key (or the CLI-mirroring exclude_tags form) is a
   // dedicated, unambiguous exclusion mechanism.
   { re: /\[\s*["']exclude-tags["']\s*\]\s*=|\bexclude_tags\s*=/, key: 'bustedExcludeTags', severity: 'error', langs: ['busted'], suggestionLabel: 'the exclude-tags' },
-  // Clojure: :test-selectors in project.clj wraps an arbitrary Clojure function form — a regex
+  // Clojure: :test-selectors in project.clj wraps an arbitrary Clojure function form, a regex
   // can detect the key was touched but not reliably classify "narrows" (a cheat) vs. "widens"
-  // (legitimate) the set of tests that run. Resolved to `warn` per RESEARCH Open Question 3:
+  // (legitimate) the set of tests that run. Deliberately `warn`, not `error`:
   // key-touched-not-value-analyzed, not overclaimed as `error` precision.
   { re: /:test-selectors\b/, key: 'leiningenTestSelectors', severity: 'warn', langs: ['leiningen'], suggestionLabel: 'the :test-selectors' },
 ];
@@ -272,7 +274,7 @@ function run(context: Context): Finding[] {
             severity: 'warn',
             file: filePath,
             line: change.ln,
-            message: `proctor.config.json '${keyMatch[1]!}' modified in this change — enforcement settings changed for future runs.`,
+            message: `proctor.config.json '${keyMatch[1]!}' modified in this change, so enforcement settings changed for future runs.`,
             suggestion: 'Review the config change; this run still enforces the committed configuration.',
           });
         }
@@ -305,7 +307,7 @@ function run(context: Context): Finding[] {
     // run against non-Go files or Go source files outside the test-file naming convention.
     if (isGoTestFile(filePath)) {
       // A build tag that merely moved (e.g. reformatted onto an adjacent line) shouldn't be
-      // re-flagged as newly added — collect any build-tag lines removed anywhere in this file's
+      // re-flagged as newly added, collect any build-tag lines removed anywhere in this file's
       // diff first, so an added line with identical tag text can be recognized as a non-cheat.
       const deletedTagLines = new Set<string>();
       for (const chunk of file.chunks) {
@@ -342,18 +344,18 @@ function run(context: Context): Finding[] {
 
     for (const chunk of file.chunks) {
       // A bare `exclude:` inside a coverage block (`coverage.exclude` in vitest/jest) routinely
-      // lists test globs and is not a test-run exclusion — skip the bare-key heuristic for the
+      // lists test globs and is not a test-run exclusion, skip the bare-key heuristic for the
       // whole chunk when coverage context is visible in it.
       const chunkMentionsCoverage = chunk.changes.some(c => /\bcoverage\b/.test(c.content));
       // Cargo's `test = false` key is also legitimate (and common) on [[bin]]/[[example]]
-      // targets — only treat it as a test-exclusion cheat when the same chunk shows a `[[test]]`
+      // targets, only treat it as a test-exclusion cheat when the same chunk shows a `[[test]]`
       // target header.
       const chunkMentionsTestTarget = chunk.changes.some(c => /\[\[test\]\]/.test(c.content));
       // xctestplan's bare-quoted-string shape (`"CalculatorTests/testFoo()"`) is too generic to
-      // trust on its own — only treat it as a skipped-test entry when the same chunk also shows
+      // trust on its own, only treat it as a skipped-test entry when the same chunk also shows
       // the "skippedTests" array key.
       const chunkMentionsSkippedTests = chunk.changes.some(c => /skippedTests/.test(c.content));
-      // Haskell's `buildable: False` is also legitimate on `library`/`executable` stanzas — only
+      // Haskell's `buildable: False` is also legitimate on `library`/`executable` stanzas, only
       // treat it as a test-exclusion cheat when the same chunk shows a `test-suite` stanza header
       // (case-insensitive per Cabal's stanza-type keyword rules). Also capture the stanza's name
       // (if present in the same chunk) for the finding's excludedVal.
@@ -375,14 +377,14 @@ function run(context: Context): Finding[] {
         if (pattern.key === 'cabalBuildableFalse' && !chunkMentionsTestSuite) continue;
 
         const quotedMatch = afterMatch.match(/['"`]([^'"`\r\n]+)['"`]/);
-        // XML tag-content fallback (`<exclude>CalculatorTest.java</exclude>`) — value sits
+        // XML tag-content fallback (`<exclude>CalculatorTest.java</exclude>`), value sits
         // between the opening tag we matched and the next `<`.
         const xmlMatch = afterMatch.match(/^([^<>\r\n]+)</);
         let excludedVal = quotedMatch ? quotedMatch[1]! : xmlMatch ? xmlMatch[1]!.trim() : 'test files';
 
         // CMake's set_tests_properties(...) and xctestplan's bare-quoted-string entry both carry
         // their value inside the matched text itself (not after it), so the generic afterMatch
-        // extraction above finds nothing for them — pull the value from the full line instead.
+        // extraction above finds nothing for them, pull the value from the full line instead.
         if (pattern.key === 'cmakeDisabledTest') {
           const nameMatch = change.content.match(/set_tests_properties\(\s*([A-Za-z0-9_]+)/);
           if (nameMatch) excludedVal = nameMatch[1]!;
@@ -391,19 +393,19 @@ function run(context: Context): Finding[] {
           if (nameMatch) excludedVal = nameMatch[1]!;
         } else if (pattern.key === 'rbuildignoreLine') {
           // The whole added line IS the exclusion value (a plain-text regex pattern), not a value
-          // sitting after a keyword — extract it directly rather than via the generic
+          // sitting after a keyword, extract it directly rather than via the generic
           // quoted/XML afterMatch extraction, which finds nothing for this bare-line format.
           excludedVal = stripDiffPrefix(change.content);
         } else if (pattern.key === 'cabalBuildableFalse' && testSuiteNameMatch) {
           excludedVal = testSuiteNameMatch[1]!;
         } else if (pattern.key === 'exunitExclude') {
           // The excluded value is an Elixir atom (`:integration`) inside a list, not a quoted
-          // string — extract the atom name directly after the matched `exclude:` key.
+          // string, extract the atom name directly after the matched `exclude:` key.
           const atomMatch = afterMatch.match(/:([A-Za-z_][A-Za-z0-9_]*)/);
           if (atomMatch) excludedVal = atomMatch[1]!;
         } else if (pattern.key === 'leiningenTestSelectors') {
           // The selector value is an arbitrary Clojure function form (e.g. `(complement
-          // :integration)`) — take the last `:keyword` atom in the matched value as the excluded
+          // :integration)`), take the last `:keyword` atom in the matched value as the excluded
           // tag name, a reasonable approximation without evaluating the form.
           const atoms = [...afterMatch.matchAll(/:([\w-]+)/g)].map(m => m[1]!);
           if (atoms.length > 0) excludedVal = atoms[atoms.length - 1]!;

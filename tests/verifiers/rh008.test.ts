@@ -27,7 +27,7 @@ function fileWith(from: string, content: string, ln = 5): ParsedFile[] {
   }];
 }
 
-describe('rh008 — tautological assertion detection (fully deterministic, no AI)', () => {
+describe('rh008, tautological assertion detection (fully deterministic, no AI)', () => {
   it('flags `assert True` with no AI needed', () => {
     const findings = rh008.run({ ...baseCtx, files: fileWith('tests/calculator.test.ts', '+  assert True') });
     expect(findings.length).toBe(1);
@@ -45,7 +45,7 @@ describe('rh008 — tautological assertion detection (fully deterministic, no AI
     expect(findings.length).toBe(1);
   });
 
-  it('flags `expect(f(x)).toBe(f(x))` — the identical call repeated, not just a bare identifier', () => {
+  it('flags `expect(f(x)).toBe(f(x))`, the identical call repeated, not just a bare identifier', () => {
     const findings = rh008.run({
       ...baseCtx,
       files: fileWith('tests/math.test.ts', '+  expect(compute(x)).toBe(compute(x));'),

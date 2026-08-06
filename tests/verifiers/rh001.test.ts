@@ -20,7 +20,7 @@ function fixtureDiff(ruleId: string, filename: string): ParsedFile[] {
   const beforePath = path.join(FIXTURES_DIR, ruleId, 'before', filename);
   const afterPath = path.join(FIXTURES_DIR, ruleId, 'after', filename);
   const result = spawnSync('git', ['diff', '--no-index', '--', beforePath, afterPath], { encoding: 'utf8' });
-  // git diff --no-index exits 1 when files differ — normal
+  // git diff --no-index exits 1 when files differ, normal
   return parseDiff(result.stdout);
 }
 
@@ -34,7 +34,7 @@ const baseCtx: Context = {
   getLanguage: () => 'ts' as const,
 };
 
-describe('rh001 — test deletion', () => {
+describe('rh001, test deletion', () => {
   it('detects deleted test function from fixture diff (path 2)', () => {
     const files = fixtureDiff('RH001', 'calculator.test.ts');
     const findings = rh001.run({ ...baseCtx, files });
@@ -106,7 +106,7 @@ describe('rh001 — test deletion', () => {
       { from: 'otherThing.test.ts', to: undefined, chunks: [], deleted: true, new: false },
     ];
     const findings = rh001.run({ ...baseCtx, files });
-    expect(findings.length).toBe(2); // both are test files deleted alone — both flag
+    expect(findings.length).toBe(2); // both are test files deleted alone, both flag
   });
 
   it('path 1: still flags a generic-named test deletion co-deleted with a same-named impl in a DIFFERENT dir (evasion guard)', () => {
@@ -129,7 +129,7 @@ describe('rh001 — test deletion', () => {
   });
 });
 
-describe('rh001 — path 2 add/del reconciliation (renames, reformats, .skip wraps, .each consolidation)', () => {
+describe('rh001, path 2 add/del reconciliation (renames, reformats, .skip wraps, .each consolidation)', () => {
   function makeFile(changes: ParsedFile['chunks'][number]['changes']): ParsedFile[] {
     return [{
       from: 'calculator.test.ts',
@@ -202,13 +202,13 @@ describe('rh001 — path 2 add/del reconciliation (renames, reformats, .skip wra
   });
 });
 
-describe('rh001 — new-language whole-file deletion (LANG-06)', () => {
+describe('rh001, new-language whole-file deletion (LANG-06)', () => {
   // One genuine, language-idiomatic test file per new language planted under
-  // fixtures/RH001/before/. No after/ counterpart — these represent a whole test file being
+  // fixtures/RH001/before/. No after/ counterpart, these represent a whole test file being
   // deleted (Path 1), matching the RH001 scoping decision in 08-01-PLAN.md (no new detection
   // code; relies entirely on isTestFile recognizing the extended DEFAULT_GLOBS from Task 1).
   // relPath is relative to fixtures/RH001/before/. Rust lives under a tests/ subdirectory,
-  // mirroring Cargo's real integration-test convention (crate_root/tests/*.rs) — this is also
+  // mirroring Cargo's real integration-test convention (crate_root/tests/*.rs), this is also
   // the only path shape the extended DEFAULT_GLOBS glob (**/tests/**/*.rs) recognizes, since a
   // bare top-level *_test.rs has no reliable glob per RESEARCH's documented Rust gap.
   const NEW_LANG_FIXTURES = [
@@ -262,10 +262,10 @@ describe('rh001 — new-language whole-file deletion (LANG-06)', () => {
   });
 });
 
-describe('rh001 — new-language whole-file deletion (LANG-13)', () => {
+describe('rh001, new-language whole-file deletion (LANG-13)', () => {
   // 16 more genuine, language-idiomatic test files planted under fixtures/RH001/before/ for
   // Phase 8.1's language expansion (08.1-02-PLAN.md). Same Path 1 whole-file-deletion shape as
-  // the LANG-06 block above — no new detection code, coverage comes entirely from plan 08.1-01's
+  // the LANG-06 block above, no new detection code, coverage comes entirely from plan 08.1-01's
   // DEFAULT_GLOBS extension. relPath is relative to fixtures/RH001/before/. Dart, Haskell,
   // Elixir, Clojure, and Julia live under test/ (their tool's documented discovery convention);
   // Perl lives under t/ (prove's default t/*.t glob); R lives under tests/testthat/

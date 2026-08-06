@@ -1,4 +1,8 @@
 {
+  "ignorePatterns": [
+    "fixtures/**",
+    "bench/tasks/**"
+  ],
   "approvedTestChanges": [
     {
       "rule": "RH001",

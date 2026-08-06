@@ -77,6 +77,28 @@ program
         process.stderr.write(`proctor: unknown verifier ID '${options.explain}'\n`);
         process.exit(2);
       }
+      if (options.json) {
+        // Agents read this, and prose is the one format they have to guess at. Everything the
+        // human-readable forms print is here as fields, so an agent can act on the fix guidance
+        // without scraping it back out of a paragraph.
+        process.stdout.write(
+          JSON.stringify(
+            {
+              id: options.explain,
+              name: meta.name,
+              shortDescription: meta.shortDescription,
+              fullDescription: meta.fullDescription,
+              defaultLevel: meta.defaultLevel,
+              fix: meta.fix,
+              approvalGuidance: APPROVAL_GUIDANCE,
+              helpUri: meta.helpUri,
+            },
+            null,
+            2
+          ) + '\n'
+        );
+        process.exit(0);
+      }
       if (options.fix) {
         // Being blocked tells an agent only that something was wrong. This is the other half:
         // what to do instead, with the approval route stated last so it reads as the exception.
@@ -212,7 +234,21 @@ program
   .description('Install Claude Code Stop hook')
   .option('--global', 'write to ~/.claude/settings.json')
   .action(async (options: { global?: boolean }) => {
-    const dir = options.global ? join(homedir(), '.claude') : join(process.cwd(), '.claude');
+    const result = await installStopHook(options.global ? join(homedir(), '.claude') : join(process.cwd(), '.claude'));
+    if (result.status === 'invalid-json') {
+      process.stderr.write(`proctor: ${result.path} exists but is not valid JSON; fix it manually and re-run\n`);
+      process.exit(2);
+    }
+    process.stdout.write(result.status === 'already' ? 'Already installed\n' : 'Installed: ' + result.path + '\n');
+  });
+
+/**
+ * Adds the Stop hook to a Claude Code settings file, merging into whatever is already there.
+ * Reports rather than throws, so `setup` can carry on with the other installs when this one
+ * cannot proceed.
+ */
+async function installStopHook(dir: string): Promise<{ status: 'installed' | 'already' | 'invalid-json'; path: string }> {
+  {
     const settingsPath = join(dir, 'settings.json');
     let settings: Record<string, unknown> = {};
     let rawSettings: string | undefined;
@@ -225,17 +261,13 @@ program
       } catch {
         // A malformed settings file must not be silently replaced, that would destroy
         // whatever configuration the user had in it.
-        process.stderr.write(`proctor: ${settingsPath} exists but is not valid JSON; fix it manually and re-run\n`);
-        process.exit(2);
+        return { status: 'invalid-json', path: settingsPath };
       }
     }
     // Skip if the hook is already installed, so running this command twice is a no-op.
     const stopGroups = ((settings['hooks'] as Record<string, unknown> | undefined)?.['Stop'] ?? []) as Array<{ hooks?: Array<{ command?: string }> }>;
     const alreadyInstalled = stopGroups.some(g => g.hooks?.some(h => h.command?.includes('proctor stop-hook')));
-    if (alreadyInstalled) {
-      process.stdout.write('Already installed\n');
-      process.exit(0);
-    }
+    if (alreadyInstalled) return { status: 'already', path: settingsPath };
     // Merge into any existing settings rather than overwriting them.
     const hooks = ((settings['hooks'] ?? {}) as Record<string, unknown>);
     const stop = ((hooks['Stop'] ?? []) as unknown[]);
@@ -247,14 +279,65 @@ program
     settings['hooks'] = hooks;
     await mkdir(dir, { recursive: true });
     await writeFile(settingsPath, JSON.stringify(settings, null, 2), 'utf8');
-    process.stdout.write('Installed: ' + settingsPath + '\n');
+    return { status: 'installed', path: settingsPath };
+  }
+}
+
+program
+  .command('setup')
+  .description('One-command install: writes the ruleset to every agent this repo uses, and installs both hooks')
+  .action(async () => {
+    // The whole product in one command. Three separate install steps is three chances to do one
+    // of them and think you are covered, and the ruleset without the hooks is the configuration
+    // this tool exists to argue against: rules an agent can decline to follow, with nothing
+    // behind them.
+    const cwd = process.cwd();
+
+    const failed = await deploySkill(cwd);
+    process.stdout.write(
+      `Ruleset written to ${AGENT_ADAPTERS.length - failed} of ${AGENT_ADAPTERS.length} agent paths.\n`
+    );
+
+    try {
+      const hookPath = await installPreCommitHook(cwd);
+      process.stdout.write(`Pre-commit hook installed: ${hookPath}\n`);
+    } catch (err: unknown) {
+      // Outside a git repository there is nothing to hook. That is worth saying plainly, but it
+      // is not a reason to abandon the rest of the setup.
+      const msg = String(err).replace(/^Error:\s*/, '');
+      process.stderr.write(`proctor: could not install the pre-commit hook (${msg})\n`);
+      process.exitCode = 1;
+    }
+
+    const stop = await installStopHook(join(cwd, '.claude'));
+    if (stop.status === 'invalid-json') {
+      process.stderr.write(`proctor: ${stop.path} is not valid JSON, so the Stop hook was not installed; fix it and re-run\n`);
+      process.exitCode = 1;
+    } else {
+      process.stdout.write(
+        stop.status === 'already' ? 'Stop hook already installed.\n' : `Stop hook installed: ${stop.path}\n`
+      );
+    }
+
+    process.stdout.write('\nDone. Your agent reads the rules before it works, and gets stopped if it breaks them.\n');
   });
 
 program
   .command('install-skill')
   .description('Deploy canonical SKILL.md to every supported agent adapter path')
   .action(async () => {
-    const cwd = process.cwd();
+    const failed = await deploySkill(process.cwd());
+    // Nonzero so a scripted install surfaces a partial deployment instead of looking like a
+    // clean run that happened to print to stderr.
+    if (failed > 0) {
+      process.stderr.write(`proctor: ${failed} adapter${failed === 1 ? '' : 's'} could not be written\n`);
+      process.exitCode = 1;
+    }
+  });
+
+/** Writes the ruleset to every adapter path. Returns how many could not be written. */
+async function deploySkill(cwd: string): Promise<number> {
+  {
     const canonical = await readFile(canonicalSkillPath(), 'utf8');
     let failed = 0;
     for (const adapter of AGENT_ADAPTERS) {
@@ -292,13 +375,9 @@ program
         process.stderr.write(`proctor: skipped ${adapter.displayName} at ${dest} (${code})\n`);
       }
     }
-    // Nonzero so a scripted install surfaces a partial deployment instead of looking like a
-    // clean run that happened to print to stderr.
-    if (failed > 0) {
-      process.stderr.write(`proctor: ${failed} adapter${failed === 1 ? '' : 's'} could not be written\n`);
-      process.exitCode = 1;
-    }
-  });
+    return failed;
+  }
+}
 
 program
   .command('drift-check')

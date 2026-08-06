@@ -696,6 +696,53 @@ describe('check --sarif flag', () => {
   });
 });
 
+describe('setup command', () => {
+  it('installs the ruleset and both hooks in one run', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      const result = spawnSync('node', [CLI, 'setup'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(0);
+      expect(existsSync(join(tmpDir, '.git/hooks/pre-commit'))).toBe(true);
+      expect(existsSync(join(tmpDir, '.claude/settings.json'))).toBe(true);
+      expect(existsSync(join(tmpDir, 'AGENTS.md'))).toBe(true);
+      expect(result.stdout).toContain(`of ${AGENT_ADAPTERS.length} agent paths`);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('is safe to run twice', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      spawnSync('node', [CLI, 'setup'], { cwd: tmpDir, encoding: 'utf8' });
+      const second = spawnSync('node', [CLI, 'setup'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(second.status).toBe(0);
+      expect(second.stdout).toContain('Stop hook already installed');
+      // A second run must not stack a duplicate hook entry onto the settings file.
+      const settings = JSON.parse(readFileSync(join(tmpDir, '.claude/settings.json'), 'utf8'));
+      expect(settings.hooks.Stop).toHaveLength(1);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('completes the other steps and exits nonzero when there is no git repository', () => {
+    // Half a setup that reports success is worse than one that says which half is missing.
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      const result = spawnSync('node', [CLI, 'setup'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('pre-commit hook');
+      expect(existsSync(join(tmpDir, 'AGENTS.md'))).toBe(true);
+      expect(existsSync(join(tmpDir, '.claude/settings.json'))).toBe(true);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('check --markdown flag', () => {
   /** A repo with one staged RH003 cheat, the same setup the SARIF test uses. */
   function repoWithCheat(): string {

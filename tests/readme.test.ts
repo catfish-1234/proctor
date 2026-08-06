@@ -7,6 +7,16 @@ import { AGENT_ADAPTERS } from '../src/adapters/registry.js';
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const README_PATH = join(__dirname, '../README.md');
 const readmeContent = readFileSync(README_PATH, 'utf8');
+
+/**
+ * The reference material moved out of the README into docs/ so a first-time reader is not handed
+ * 780 lines before they have installed anything. These assertions are about the documentation
+ * being complete, not about which file it happens to live in, so they run against the README plus
+ * every page it links to. Nothing here was weakened: the same content still has to exist.
+ */
+const docsContent = readmeContent + ['docs/CLI.md', 'docs/CONFIGURATION.md', 'docs/LANGUAGES.md']
+  .map(f => readFileSync(join(__dirname, '..', f), 'utf8'))
+  .join('\n');
 const BENCH_CSV_PATH = join(__dirname, '../bench/results-live.csv');
 const benchCsv = readFileSync(BENCH_CSV_PATH, 'utf8');
 
@@ -47,13 +57,13 @@ describe('README.md content', () => {
 
   it('CLI reference mentions all 7 subcommands', () => {
     for (const cmd of SUBCOMMANDS) {
-      expect(readmeContent).toContain(cmd);
+      expect(docsContent).toContain(cmd);
     }
   });
 
   it('has a configuration section naming the 5 config fields', () => {
     for (const field of CONFIG_FIELDS) {
-      expect(readmeContent).toContain(field);
+      expect(docsContent).toContain(field);
     }
   });
 
@@ -119,8 +129,8 @@ describe('README.md content', () => {
   });
 
   it('CLI reference documents the P1 --rules and --explain flags', () => {
-    expect(readmeContent).toContain('--rules');
-    expect(readmeContent).toContain('--explain');
+    expect(docsContent).toContain('--rules');
+    expect(docsContent).toContain('--explain');
   });
 
   it('embeds a generated honest-pass badge image linked to src/badge', () => {
@@ -133,25 +143,25 @@ describe('README.md content', () => {
   });
 
   it('documents inline suppression with an anchor matching the links to it', () => {
-    expect(readmeContent).toContain('Inline suppression');
-    expect(readmeContent).toContain('#inline-suppression');
+    expect(docsContent).toContain('Inline suppression');
+    expect(docsContent).toContain('#inline-suppression');
   });
 
   it('documents the per-language support matrix (LANG-07)', () => {
     const newLanguages = ['Go', 'Java', 'Rust', 'Ruby', 'PHP', 'C#', 'Kotlin'];
     for (const lang of newLanguages) {
-      expect(readmeContent).toContain(lang);
+      expect(docsContent).toContain(lang);
     }
     // The matrix table itself, keyed by its RH-ID column header.
-    expect(readmeContent).toMatch(/\|\s*RH-ID\s*\|/);
+    expect(docsContent).toMatch(/\|\s*RH-ID\s*\|/);
   });
 
   it('marks RH004/RH005/RH006/RH008 as JS/TS/Python-only with a stated rationale', () => {
-    expect(readmeContent).toContain('JS/TS/Python-only');
-    expect(readmeContent).toContain('RH004');
-    expect(readmeContent).toContain('RH005');
-    expect(readmeContent).toContain('RH006');
-    expect(readmeContent).toContain('RH008');
+    expect(docsContent).toContain('JS/TS/Python-only');
+    expect(docsContent).toContain('RH004');
+    expect(docsContent).toContain('RH005');
+    expect(docsContent).toContain('RH006');
+    expect(docsContent).toContain('RH008');
   });
 
   it('documents the expanded 16-language support matrix (Language Expansion II, LANG-14)', () => {
@@ -174,45 +184,45 @@ describe('README.md content', () => {
       'VB.NET',
     ];
     for (const lang of newerLanguages) {
-      expect(readmeContent).toContain(lang);
+      expect(docsContent).toContain(lang);
     }
     // The second matrix block header, keyed the same way as the original.
-    expect(readmeContent).toMatch(/Language Expansion II/i);
-    expect(readmeContent).toMatch(/\|\s*RH-ID\s*\|\s*C\+\+\s*\|/);
+    expect(docsContent).toMatch(/Language Expansion II/i);
+    expect(docsContent).toMatch(/\|\s*RH-ID\s*\|\s*C\+\+\s*\|/);
   });
 
   it('still marks RH004/RH005/RH006/RH008 as JS/TS/Python-only across the expanded 25+-language boundary', () => {
-    expect(readmeContent).toMatch(/25\+/);
-    expect(readmeContent).toMatch(/JS\/TS\/Python-only.*25\+|25\+.*JS\/TS\/Python-only/s);
+    expect(docsContent).toMatch(/25\+/);
+    expect(docsContent).toMatch(/JS\/TS\/Python-only.*25\+|25\+.*JS\/TS\/Python-only/s);
   });
 
   it('documents at least one Language Expansion II gap explicitly (matrix cannot silently drop a gap)', () => {
     // RH011 Julia whole-category gap
-    expect(readmeContent).toMatch(/Julia has no RH011 coverage/);
+    expect(docsContent).toMatch(/Julia has no RH011 coverage/);
     // RH007 Perl/Shell/Julia gaps
-    expect(readmeContent).toMatch(/Perl, Shell\/Bash, and Julia have no RH007\s+coverage/);
+    expect(docsContent).toMatch(/Perl, Shell\/Bash, and Julia have no RH007\s+coverage/);
     // RH003 Objective-C documented gap
-    expect(readmeContent).toMatch(/Objective-C has no RH003 coverage/);
+    expect(docsContent).toMatch(/Objective-C has no RH003 coverage/);
   });
 });
 
 describe('README agent roster (AGENT-05)', () => {
   it('lists every AGENT_ADAPTERS displayName, so the roster table cannot silently drift from the registry', () => {
     for (const adapter of AGENT_ADAPTERS) {
-      expect(readmeContent).toContain(adapter.displayName);
+      expect(docsContent).toContain(adapter.displayName);
     }
   });
 
   it('documents the contributor process for adding a further adapter', () => {
-    expect(readmeContent).toMatch(/Adding an adapter/i);
-    expect(readmeContent).toContain('AGENT_ADAPTERS');
-    expect(readmeContent).toMatch(/shared/);
-    expect(readmeContent).toMatch(/proctor:start/);
-    expect(readmeContent).toMatch(/drift-check/);
+    expect(docsContent).toMatch(/Adding an adapter/i);
+    expect(docsContent).toContain('AGENT_ADAPTERS');
+    expect(docsContent).toMatch(/shared/);
+    expect(docsContent).toMatch(/proctor:start/);
+    expect(docsContent).toMatch(/drift-check/);
   });
 
   it('no longer contains the stale 10-agent prose sentence', () => {
-    expect(readmeContent).not.toMatch(
+    expect(docsContent).not.toMatch(
       /deploys the honest-completion skill to\s*\nClaude Code, Codex CLI, Cursor, Windsurf, Gemini CLI, Aider, Continue\.dev, Cline, Amazon Q/
     );
   });

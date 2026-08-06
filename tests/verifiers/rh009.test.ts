@@ -34,7 +34,7 @@ const coverageGamed: ParsedFile[] = [
   },
 ];
 
-// Only a new trivial test added, no assertions removed — a legitimate additional smoke test.
+// Only a new trivial test added, no assertions removed, a legitimate additional smoke test.
 const onlyAdditiveTest: ParsedFile[] = [
   {
     from: 'calculator.test.ts',
@@ -70,7 +70,7 @@ const onlyAssertionRemoved: ParsedFile[] = [
   },
 ];
 
-describe('rh009 — coverage gaming detection', () => {
+describe('rh009, coverage gaming detection', () => {
   it('flags a trivial test added while real assertions were removed', () => {
     const findings = rh009.run({ ...baseCtx, files: coverageGamed });
     expect(findings.length).toBe(1);

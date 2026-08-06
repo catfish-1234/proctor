@@ -22,7 +22,7 @@ function tautologyReason(content: string): string | null {
   const assertEqualSelf = content.match(ASSERT_EQUAL_SELF);
   if (assertEqualSelf) return `asserts \`assertEqual(${assertEqualSelf[1]!}, ${assertEqualSelf[1]!})\`, a value against itself`;
   const expectMatch = content.match(EXPECT_SELF);
-  if (expectMatch) return `asserts \`${expectMatch[1]!}\` against itself — both sides are the identical expression`;
+  if (expectMatch) return `asserts \`${expectMatch[1]!}\` against itself, both sides are the identical expression`;
   if (EXPECT_ZERO_ARG.test(content)) return 'asserts on an empty `expect()` with no value under test';
   return null;
 }
@@ -46,7 +46,7 @@ function run(context: Context): Finding[] {
           severity: 'warn',
           file: filePath,
           line: (change as { ln: number }).ln,
-          message: `Tautological assertion — ${reason} — so it always passes regardless of behavior.`,
+          message: `Tautological assertion: ${reason}, so it always passes regardless of behavior.`,
           suggestion: 'Replace with a meaningful assertion that checks actual output against a known expected value.',
         });
       }

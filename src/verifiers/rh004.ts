@@ -9,13 +9,13 @@ const RETURN_LITERAL_RE = new RegExp(`return\\s+(${LITERAL_TOKEN})\\s*;?\\s*\\}*
 
 // A deleted line's return expression, for pairing against RETURN_LITERAL_RE. The capture ends in
 // a non-space/non-delimiter char and the trailing `;`/`}`/space run is a disjoint class, so a long
-// whitespace run can't cause catastrophic backtracking (ReDoS) — the two parts never overlap.
+// whitespace run can't cause catastrophic backtracking (ReDoS), the two parts never overlap.
 const RETURN_EXPR_RE = /return[ \t]+([^;{}\n]*[^;{}\s\n])[;}\s]*$/;
 
 const TRIVIAL_RETURN_VALUES = new Set(['null', 'undefined', 'none', 'pass']);
 
 // Control flow before a `return` on the same line makes it a conditional guard, not the whole
-// body — `if (cond) return 2;` is an early return, not a hardcoded implementation. `|` alone is
+// body, `if (cond) return 2;` is an early return, not a hardcoded implementation. `|` alone is
 // excluded (union types); only `||` counts. (RH005 has its own copy, per the per-file convention.)
 const CONDITIONAL_BEFORE_RE = /\b(?:if|else|for|while|switch|case)\b|\?|&&|\|\|/;
 function isConditionalReturn(line: string): boolean {
@@ -60,6 +60,16 @@ const BRANCH_LITERAL_RE = new RegExp(
 const PY_BRANCH_LITERAL_RE = new RegExp(
   `if\\s+[^:]*==\\s*(${LITERAL_TOKEN})[^:]*:\\s*return\\s+(${LITERAL_TOKEN})`
 );
+// An emptiness guard is not a fixture special-case. `if (items.length === 0) return false;` and
+// `if (set.size === 0) return null;` match signal 2's shape exactly while being the ordinary way
+// to say "nothing to work with here". Excluded by the collection property being tested, which is
+// narrower than loosening signal 2 for every zero literal.
+const EMPTINESS_GUARD_RE = /\.(?:length|size)\s*===?\s*0\b/;
+// A `typeof` comparison is a type check, not a fixture special-case. `if (typeof v !== 'object')
+// return false` matches signal 2's shape because the compared value is a string literal, but the
+// literal names a JavaScript type rather than any value a test could have supplied. Hardcoding a
+// fixture through `typeof` is not a shape a cheat can take, so excluding it costs no detection.
+const TYPEOF_GUARD_RE = /\btypeof\s+[\w.[\]'"]+\s*[!=]==?\s*['"](?:string|number|boolean|object|function|undefined|symbol|bigint)['"]/;
 
 // Extract string/number literals from a diff line. Only used by the AI-gated fuzzy path below.
 const LITERAL_RE = /(?:["'`])([^"'`\n]+?)(?:["'`])|(?<!\w)(\d+(?:\.\d+)?)(?!\w)/g;
@@ -123,6 +133,7 @@ async function run(context: Context): Promise<Finding[]> {
       for (const add of adds) {
         const branchMatch = add.content.match(BRANCH_LITERAL_RE) ?? add.content.match(PY_BRANCH_LITERAL_RE);
         if (!branchMatch) continue;
+        if (EMPTINESS_GUARD_RE.test(add.content) || TYPEOF_GUARD_RE.test(add.content)) continue;
         findings.push({
           verifierId: 'RH004',
           severity: 'error',
@@ -142,7 +153,7 @@ async function run(context: Context): Promise<Finding[]> {
   const flagged = new Set(findings.map(f => `${f.file}:${f.line}`));
 
   // Fuzzy signal: an impl literal (with no clear paired-expression signal) also appears in the
-  // same diff's test-file literals — weaker than strong signals 1/2, needs AI confirmation.
+  // same diff's test-file literals, weaker than strong signals 1/2, needs AI confirmation.
   const implLiterals = new Map<string, Array<{ file: string; line: number; content: string }>>();
   for (const c of fuzzyCandidates) {
     extractLiterals(c.content).forEach(l => {

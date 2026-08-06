@@ -60,7 +60,7 @@ function makeAmbiguousGuttedFile(): ParsedFile {
   };
 }
 
-// A diff where body GROWS (more adds than dels) — not a shrink
+// A diff where body GROWS (more adds than dels), not a shrink
 function makeGrowingImplFile(): ParsedFile {
   return {
     from: 'src/calculator.ts',
@@ -105,7 +105,7 @@ function makeGuttedTestFile(): ParsedFile {
   };
 }
 
-// A diff where body shrinks but the add is a real return (not null/undefined/pass) — a
+// A diff where body shrinks but the add is a real return (not null/undefined/pass), a
 // legitimate refactor to a concise implementation (near-miss).
 function makeRealReturnImplFile(): ParsedFile {
   return {
@@ -144,7 +144,7 @@ function makeSelfMockFile(mockPath = './calculator'): ParsedFile {
   };
 }
 
-describe('rh005 — gutted function detection (deterministic core)', () => {
+describe('rh005, gutted function detection (deterministic core)', () => {
   it('flags a gutted return with no AI when the diff shows a clear prior computation', async () => {
     const ctx: Context = { ...baseCtx, files: [makeGuttedImplFile()], aiEnabled: false, judge: undefined };
     const findings = await rh005.run(ctx);
@@ -172,7 +172,7 @@ describe('rh005 — gutted function detection (deterministic core)', () => {
     expect(findings).toEqual([]);
   });
 
-  it('returns [] when body shrinks but add is a real return value — legitimate refactor (near-miss)', async () => {
+  it('returns [] when body shrinks but add is a real return value, legitimate refactor (near-miss)', async () => {
     const ctx: Context = { ...baseCtx, files: [makeRealReturnImplFile()], aiEnabled: false, judge: undefined };
     const findings = await rh005.run(ctx);
     expect(findings).toEqual([]);
@@ -303,7 +303,7 @@ describe('rh005 — gutted function detection (deterministic core)', () => {
   });
 });
 
-describe('rh005 — AI-gated fuzzy path (ambiguous gutting, no clear prior computation)', () => {
+describe('rh005, AI-gated fuzzy path (ambiguous gutting, no clear prior computation)', () => {
   it('returns [] when aiEnabled is false, even though a gutted return exists', async () => {
     const ctx: Context = { ...baseCtx, files: [makeAmbiguousGuttedFile()], aiEnabled: false, judge: undefined };
     const findings = await rh005.run(ctx);

@@ -1,7 +1,8 @@
 import { basename } from 'node:path';
 import type { Context, Finding, Verifier } from '../types.js';
+import type { ParsedFile } from '../diff.js';
 
-// Modifier forms (it.each, test.skip, describe.only, ...) are deletions of tests too — keep
+// Modifier forms (it.each, test.skip, describe.only, ...) are deletions of tests too, keep
 // this in sync with JS_TS_ADD below so both sides of the pairing see the same shapes.
 const JS_TS_DEL = /^-\s*(?:it|test|describe)(?:\.\w+)?\s*\(/;
 const PY_DEL = /^-\s*(?:async\s+)?def test_/;
@@ -46,6 +47,69 @@ const GENERIC_STEMS = new Set([
 ]);
 const dirOf = (p: string): string => { const i = p.lastIndexOf('/'); return i === -1 ? '' : p.slice(0, i); };
 
+// Test titles, for matching a deleted test against the same test reappearing elsewhere. Covers
+// the `it('name')` / `def test_name` declaration forms RH001 already recognizes.
+function testTitlesIn(file: ParsedFile, kind: 'del' | 'add'): Set<string> {
+  const titles = new Set<string>();
+  const declRe = kind === 'del' ? JS_TS_DEL : JS_TS_ADD;
+  const pyRe = kind === 'del' ? PY_DEL : PY_ADD;
+  for (const chunk of file.chunks) {
+    for (const change of chunk.changes) {
+      if (change.type !== kind) continue;
+      if (declRe.test(change.content)) {
+        titles.add(extractTestName(change.content));
+      } else if (pyRe.test(change.content)) {
+        titles.add(change.content.replace(/^[+-]\s*(?:async\s+)?def /, '').replace(/\s*\(.*/, ''));
+      }
+    }
+  }
+  return titles;
+}
+
+// Assertion shapes strong enough to count as a test still doing its job. Matching a title alone
+// is not enough to prove a test moved, since an empty-bodied clone can reproduce any title.
+const ASSERTION_RE = /\bexpect\s*\(|\bassert\b|\bassertEqual\(|\bassertRaises\(|\.should\b|\bshouldBe\b/;
+
+function assertionCount(file: ParsedFile, kind: 'del' | 'add'): number {
+  let n = 0;
+  for (const chunk of file.chunks) {
+    for (const change of chunk.changes) {
+      if (change.type === kind && ASSERTION_RE.test(change.content)) n++;
+    }
+  }
+  return n;
+}
+
+/**
+ * True when the tests being removed from `file` show up in another test file in the same diff.
+ *
+ * Two conditions, and both matter. Every removed test title has to reappear, which distinguishes a
+ * move or a split from "deleted the auth tests, added an unrelated one somewhere else". And the
+ * receiving files have to pick up at least as many assertions as the deleted file gave up, which
+ * is what stops the obvious dodge: cloning the titles into empty test bodies so the names line up
+ * while the checks themselves quietly disappear.
+ *
+ * A file whose deletion removes no recognizable test titles at all (an unparsed language, a
+ * fixture-only file) never qualifies, so the plain deletion case still fires.
+ */
+function testsRelocated(file: ParsedFile, files: ParsedFile[], ctx: Context): boolean {
+  const removed = testTitlesIn(file, 'del');
+  if (removed.size === 0) return false;
+
+  const relocated = new Set<string>();
+  let assertionsGained = 0;
+  for (const other of files) {
+    if (other === file) continue;
+    if (!ctx.isTestFile(other.to ?? other.from ?? '')) continue;
+    for (const title of testTitlesIn(other, 'add')) {
+      if (removed.has(title)) relocated.add(title);
+    }
+    assertionsGained += assertionCount(other, 'add');
+  }
+  if (relocated.size !== removed.size) return false;
+  return assertionsGained >= assertionCount(file, 'del');
+}
+
 function run(context: Context): Finding[] {
   const files = context.files;
   const ctx = context;
@@ -72,6 +136,10 @@ function run(context: Context): Finding[] {
       };
       const hasCoordinatedImplDeletion = files.some(isCoordinatedImpl);
       if (hasCoordinatedImplDeletion) continue; // coordinated removal, not a hidden test deletion
+      // Moving or splitting a test file shows up as delete-here plus add-there whenever git
+      // doesn't score it as a rename (a move with edits usually doesn't). If the same test names
+      // land in another test file in this same diff, the tests weren't dropped, they relocated.
+      if (testsRelocated(file, files, ctx)) continue;
       findings.push({
         verifierId: 'RH001',
         severity: 'error',

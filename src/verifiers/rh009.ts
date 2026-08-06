@@ -1,6 +1,6 @@
 import type { Context, Finding, Verifier } from '../types.js';
 
-// Assertion patterns strong enough to count as "real" coverage — deliberately excludes weak
+// Assertion patterns strong enough to count as "real" coverage, deliberately excludes weak
 // matchers (toBeDefined/toBeTruthy/etc, shared with RH002) so a test that only checks "it ran"
 // doesn't count as replacing what was removed.
 const STRONG_ASSERTION_RE = [

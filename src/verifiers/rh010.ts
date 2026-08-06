@@ -62,7 +62,7 @@ function run(context: Context): Finding[] {
             severity: 'warn',
             file: filePath,
             line,
-            message: `jest.retryTimes(${retryM[1]!}) added — masks a flaky or failing test by re-running it instead of fixing it.`,
+            message: `jest.retryTimes(${retryM[1]!}) added, which masks a flaky or failing test by re-running it instead of fixing it.`,
             suggestion: 'Fix the underlying flakiness instead of retrying past it.',
           });
           continue;
@@ -75,7 +75,7 @@ function run(context: Context): Finding[] {
             severity: 'warn',
             file: filePath,
             line,
-            message: `Test retry count of ${vitestRetryM[1]!} added — masks a flaky or failing test by re-running it instead of fixing it.`,
+            message: `Test retry count of ${vitestRetryM[1]!} added, which masks a flaky or failing test by re-running it instead of fixing it.`,
             suggestion: 'Fix the underlying flakiness instead of retrying past it.',
           });
           continue;
@@ -88,7 +88,7 @@ function run(context: Context): Finding[] {
             severity: 'warn',
             file: filePath,
             line,
-            message: `jest.setTimeout(${timeoutM[1]!}) added — an unusually large timeout can mask a hanging or failing operation instead of fixing it.`,
+            message: `jest.setTimeout(${timeoutM[1]!}) added. An unusually large timeout can mask a hanging or failing operation instead of fixing it.`,
             suggestion: 'Investigate why the test needs a long timeout instead of masking it.',
           });
           continue;
@@ -101,7 +101,7 @@ function run(context: Context): Finding[] {
             severity: 'warn',
             file: filePath,
             line,
-            message: `@pytest.mark.flaky(reruns=${flakyM[1]!}) added — masks a flaky or failing test by re-running it instead of fixing it.`,
+            message: `@pytest.mark.flaky(reruns=${flakyM[1]!}) added, which masks a flaky or failing test by re-running it instead of fixing it.`,
             suggestion: 'Fix the underlying flakiness instead of retrying past it.',
           });
           continue;
@@ -114,7 +114,7 @@ function run(context: Context): Finding[] {
             severity: 'warn',
             file: filePath,
             line,
-            message: `@pytest.mark.timeout(${pyTimeoutM[1]!}) added — an unusually large timeout can mask a hanging or failing operation instead of fixing it.`,
+            message: `@pytest.mark.timeout(${pyTimeoutM[1]!}) added. An unusually large timeout can mask a hanging or failing operation instead of fixing it.`,
             suggestion: 'Investigate why the test needs a long timeout instead of masking it.',
           });
           continue;
@@ -128,7 +128,7 @@ function run(context: Context): Finding[] {
             severity: 'warn',
             file: filePath,
             line,
-            message: `Network response mocked to return ${normalize(mockLit)}, the exact value the test then asserts against — the test may not exercise real behavior.`,
+            message: `Network response mocked to return ${normalize(mockLit)}, the exact value the test then asserts against, so the test may not exercise real behavior.`,
             suggestion: 'Mock only the network boundary with representative data, not the exact expected assertion value.',
           });
         }

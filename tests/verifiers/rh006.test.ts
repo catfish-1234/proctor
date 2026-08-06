@@ -14,7 +14,7 @@ const baseCtx: Context = {
   isTestFile: (p: string) => p.includes('.test.'),
   getLanguage: () => 'ts' as const,
   commitMessage: undefined,
-  snapshotGlobs: ['**/__snapshots__/*.snap'],  // tight glob — avoids fixture path collision
+  snapshotGlobs: ['**/__snapshots__/*.snap'],  // tight glob, avoids fixture path collision
 };
 
 function makeSnapFile(filePath: string, ln = 5): ParsedFile {
@@ -31,7 +31,7 @@ function makeSnapFile(filePath: string, ln = 5): ParsedFile {
   };
 }
 
-describe('rh006 — snapshot rewrite detection', () => {
+describe('rh006, snapshot rewrite detection', () => {
   it('returns one warn finding for __snapshots__/*.snap with no commit message', () => {
     const files = [makeSnapFile('src/__snapshots__/Button.test.ts.snap')];
     const findings = rh006.run({ ...baseCtx, files });
@@ -53,7 +53,7 @@ describe('rh006 — snapshot rewrite detection', () => {
     expect(findings).toEqual([]);
   });
 
-  it('still flags — does NOT suppress — a reason-bearing commit message when committedDiff is not set (D-23: working-tree/staged checks cannot trust the last commit message)', () => {
+  it('still flags, does NOT suppress, a reason-bearing commit message when committedDiff is not set (D-23: working-tree/staged checks cannot trust the last commit message)', () => {
     const files = [makeSnapFile('src/__snapshots__/Button.test.ts.snap')];
     const findings = rh006.run({ ...baseCtx, files, commitMessage: 'regenerate snapshots' });
     expect(findings.length).toBe(1);
@@ -80,7 +80,7 @@ describe('rh006 — snapshot rewrite detection', () => {
 
   it('returns [] when custom snapshotGlobs does not match golden/ path', () => {
     const files = [makeSnapFile('golden/output.json')];
-    // snapshotGlobs only matches __snapshots__/*.snap — golden/ is excluded
+    // snapshotGlobs only matches __snapshots__/*.snap, golden/ is excluded
     const findings = rh006.run({ ...baseCtx, files, snapshotGlobs: ['**/__snapshots__/*.snap'] });
     expect(findings).toEqual([]);
   });

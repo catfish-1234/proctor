@@ -42,7 +42,7 @@ function makeAddFile(filename: string, content: string, ln: number): ParsedFile 
   };
 }
 
-describe('rh003 — skip/disable patterns', () => {
+describe('rh003, skip/disable patterns', () => {
   it('detects .skip from fixture diff at line 5', () => {
     const files = fixtureDiff('RH003', 'calculator.test.ts');
     const findings = rh003.run({ ...baseCtx, files });
@@ -168,12 +168,12 @@ describe('rh003 — skip/disable patterns', () => {
   });
 });
 
-describe('rh003 — new-language skip/disable detection (LANG-02, LANG-06)', () => {
+describe('rh003, new-language skip/disable detection (LANG-02, LANG-06)', () => {
   const langExpected = JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH003', 'lang-expected.json'), 'utf8'));
   const langNegativeExpected = JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH003', 'lang-negative-expected.json'), 'utf8'));
 
   // isTestFile is not consulted by the new-language branches (each gates itself internally via
-  // isGoTestFile/isRubyTestFile/isKotlinTestFile or runs ungated) — false here on purpose, to
+  // isGoTestFile/isRubyTestFile/isKotlinTestFile or runs ungated), false here on purpose, to
   // prove the new-language detection does not silently depend on the JS/TS test-file gate.
   const langCtx: Context = { ...baseCtx, isTestFile: () => false };
 
@@ -193,7 +193,7 @@ describe('rh003 — new-language skip/disable detection (LANG-02, LANG-06)', () 
   });
 
   // proctor-ignore: RH003 reason: planted negative fixture proving the Ruby DSL-shape anchor
-  // holds even inside a correctly-gated _spec.rb file — not a real disabled test.
+  // holds even inside a correctly-gated _spec.rb file, not a real disabled test.
   it('does not flag a bare Ruby `skip` used as an ordinary variable name inside a _spec.rb file', () => {
     const files = fixtureDiff('RH003/negative', 'calculator_spec.rb');
     const findings = rh003.run({ ...langCtx, files });
@@ -207,12 +207,12 @@ describe('rh003 — new-language skip/disable detection (LANG-02, LANG-06)', () 
   });
 });
 
-describe('rh003 — GROUP A skip/disable (LANG-09, LANG-13)', () => {
+describe('rh003, GROUP A skip/disable (LANG-09, LANG-13)', () => {
   const langiiAExpected = JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH003', 'langii-a-expected.json'), 'utf8'));
   const langiiANegativeExpected = JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH003', 'langii-a-negative-expected.json'), 'utf8'));
 
   // isTestFile is not consulted by the GROUP A branches (each gates itself internally via
-  // isCTestFile/isScalaTestFile or runs ungated) — false here on purpose, mirroring the
+  // isCTestFile/isScalaTestFile or runs ungated), false here on purpose, mirroring the
   // Phase 8 new-language describe block above.
   const langiiACtx: Context = { ...baseCtx, isTestFile: () => false };
 
@@ -232,7 +232,7 @@ describe('rh003 — GROUP A skip/disable (LANG-09, LANG-13)', () => {
   });
 
   // proctor-ignore: RH003 reason: planted negative fixture proving the ScalaTest bare-`ignore`
-  // call-shape anchor discriminates even inside a correctly-gated *Spec.scala file — a local
+  // call-shape anchor discriminates even inside a correctly-gated *Spec.scala file, a local
   // val named `ignore` used outside the `"desc" ignore { }` shape is not a real disabled test.
   it('does not flag a bare Scala `ignore` used as an ordinary local val inside a *Spec.scala file', () => {
     const files = fixtureDiff('RH003/negative', 'CalculatorSpec.scala');
@@ -241,7 +241,7 @@ describe('rh003 — GROUP A skip/disable (LANG-09, LANG-13)', () => {
   });
 
   // proctor-ignore: RH003 reason: unit-level coverage for CMocka's skip() (no dedicated fixture
-  // pair — see 08.1-03-SUMMARY.md decision record), proving the named-C-test-file gate holds.
+  // pair. See 08.1-03-SUMMARY.md decision record), proving the named-C-test-file gate holds.
   it('detects CMocka skip() inside a named C test file', () => {
     const files = [makeAddFile('test_calculator.c', '+    skip();', 5)];
     const findings = rh003.run({ ...langiiACtx, files });
@@ -260,7 +260,7 @@ describe('rh003 — GROUP A skip/disable (LANG-09, LANG-13)', () => {
   // `...\src\test\Foo.kt` survives into Finding.file as `...\\src\\test\\Foo.kt` (each separator
   // is TWO raw backslash characters). A naive `.replace(/\\/g, '/')` alone turns that into
   // `src//test//`, which silently fails the single-slash-anchored `.includes('/src/test/')`
-  // check in isKotlinTestFile/isScalaTestFile — this proves the slash-run-collapse fix holds.
+  // check in isKotlinTestFile/isScalaTestFile, this proves the slash-run-collapse fix holds.
   it('recognizes a Kotlin src/test/ directory file even with Windows-doubled backslash separators (Kotest x-form, gated)', () => {
     const doubledBackslashPath = 'C:\\\\repo\\\\src\\\\test\\\\Foo.kt';
     const files = [makeAddFile(doubledBackslashPath, '+xit("does a thing") {}', 5)];
@@ -276,12 +276,12 @@ describe('rh003 — GROUP A skip/disable (LANG-09, LANG-13)', () => {
   });
 });
 
-describe('rh003 — GROUP B skip/disable (LANG-09, LANG-13)', () => {
+describe('rh003, GROUP B skip/disable (LANG-09, LANG-13)', () => {
   const langiiBExpected = JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH003', 'langii-b-expected.json'), 'utf8'));
   const langiiBNegativeExpected = JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'RH003', 'langii-b-negative-expected.json'), 'utf8'));
 
   // isTestFile is not consulted by the GROUP B branches (each gates itself internally via
-  // isRTestFile/isHaskellTestFile/isLuaTestFile/isBatsFile or runs ungated) — false here on
+  // isRTestFile/isHaskellTestFile/isLuaTestFile/isBatsFile or runs ungated), false here on
   // purpose, mirroring the GROUP A describe block above.
   const langiiBCtx: Context = { ...baseCtx, isTestFile: () => false };
 
@@ -302,7 +302,7 @@ describe('rh003 — GROUP B skip/disable (LANG-09, LANG-13)', () => {
   });
 
   // proctor-ignore: RH003 reason: planted negative fixtures proving each GROUP B bare-word gate
-  // discriminates (RESEARCH Pitfall 6) — none of these are real disabled tests.
+  // discriminates (RESEARCH Pitfall 6), none of these are real disabled tests.
   it.each([
     ['R', 'skip_helpers.R', 'a user-defined skip()/skip_if_short() function outside tests/testthat/'],
     ['Haskell', 'TaskQueue.hs', 'a `pending` identifier used as an ordinary function name outside test/ or *Spec.hs'],
@@ -315,7 +315,7 @@ describe('rh003 — GROUP B skip/disable (LANG-09, LANG-13)', () => {
   });
 
   // proctor-ignore: RH003 reason: unit-level coverage for Hspec's gated pendingWith/pending (no
-  // dedicated positive fixture — the planted Haskell fixture above uses the ungated `xit` form —
+  // dedicated positive fixture, the planted Haskell fixture above uses the ungated `xit` form,
   // mirrors 08.1-03's CMocka precedent), proving the named-Hspec-test-file gate holds in both
   // directions.
   it('detects Hspec pendingWith inside a named *Spec.hs file', () => {

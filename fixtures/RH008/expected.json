@@ -4,7 +4,7 @@
     "severity": "warn",
     "file": "calculator.test.ts",
     "line": 18,
-    "message": "Tautological assertion — asserts `add(1, 2)` against itself — both sides are the identical expression — so it always passes regardless of behavior.",
+    "message": "Tautological assertion: asserts `add(1, 2)` against itself, both sides are the identical expression, so it always passes regardless of behavior.",
     "suggestion": "Replace with a meaningful assertion that checks actual output against a known expected value."
   }
 ]

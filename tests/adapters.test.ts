@@ -75,8 +75,8 @@ describe('registry wiring', () => {
 });
 
 describe('AGENT_ADAPTERS roster shape (AGENT-01/AGENT-02)', () => {
-  it('has exactly 18 entries — the original 10 plus the 8 researched additions', () => {
-    expect(AGENT_ADAPTERS.length).toBe(18);
+  it('has exactly 30 entries, the original 10, the 8 Phase 9 additions, and the 12 Phase 10 additions', () => {
+    expect(AGENT_ADAPTERS.length).toBe(30);
   });
 
   it('every entry has a non-empty string id, displayName, relativePath, and a boolean scriptable', () => {
@@ -137,11 +137,68 @@ describe('AGENT_ADAPTERS roster shape (AGENT-01/AGENT-02)', () => {
     expect(global?.relativePath).not.toBe(scoped?.relativePath);
   });
 
-  it('the qodo entry has the researched path, scriptable true, and guardExisting true', () => {
+  it('the qodo entry has the researched path, scriptable true, and merges as a shared file', () => {
     const qodo = AGENT_ADAPTERS.find((a) => a.id === 'qodo');
     expect(qodo).toBeDefined();
     expect(qodo?.relativePath).toBe('best_practices.md');
     expect(qodo?.scriptable).toBe(true);
-    expect(qodo?.guardExisting).toBe(true);
+    expect(qodo?.shared).toBe(true);
+  });
+
+  it('includes the 12 Phase 10 adapters with their verified paths and scriptability', () => {
+    const expected: Array<{ id: string; relativePath: string; scriptable: boolean; shared: boolean }> = [
+      { id: 'roo-code', relativePath: '.roo/rules/proctor.md', scriptable: false, shared: false },
+      { id: 'kilo-code', relativePath: '.kilocode/rules/proctor.md', scriptable: true, shared: false },
+      { id: 'augment', relativePath: '.augment/rules/proctor.md', scriptable: true, shared: false },
+      { id: 'antigravity', relativePath: '.agents/rules/proctor.md', scriptable: false, shared: false },
+      { id: 'goose', relativePath: '.goosehints', scriptable: true, shared: true },
+      { id: 'junie', relativePath: '.junie/guidelines.md', scriptable: true, shared: true },
+      { id: 'qwen-code', relativePath: 'QWEN.md', scriptable: true, shared: true },
+      { id: 'crush', relativePath: 'CRUSH.md', scriptable: true, shared: true },
+      { id: 'warp', relativePath: 'WARP.md', scriptable: false, shared: true },
+      { id: 'amp', relativePath: 'AGENT.md', scriptable: true, shared: true },
+      { id: 'firebase-studio', relativePath: '.idx/airules.md', scriptable: false, shared: true },
+      { id: 'replit', relativePath: 'replit.md', scriptable: false, shared: true },
+    ];
+    for (const exp of expected) {
+      const adapter = AGENT_ADAPTERS.find((a) => a.id === exp.id);
+      expect(adapter?.id, `expected adapter id ${exp.id} to exist`).toBe(exp.id);
+      expect(adapter?.relativePath).toBe(exp.relativePath);
+      expect(adapter?.scriptable).toBe(exp.scriptable);
+      expect(adapter?.shared === true).toBe(exp.shared);
+    }
+  });
+
+  it("Amp's AGENT.md is a different file from the universal AGENTS.md", () => {
+    const amp = AGENT_ADAPTERS.find((a) => a.id === 'amp');
+    const universal = AGENT_ADAPTERS.find((a) => a.id === 'agents-md');
+    expect(amp?.relativePath).toBe('AGENT.md');
+    expect(universal?.relativePath).toBe('AGENTS.md');
+  });
+
+  it("Antigravity's .agents/rules/ does not collide with the codex .agents/skills/ entry", () => {
+    const antigravity = AGENT_ADAPTERS.find((a) => a.id === 'antigravity');
+    const codex = AGENT_ADAPTERS.find((a) => a.id === 'codex');
+    expect(antigravity?.relativePath).toBe('.agents/rules/proctor.md');
+    expect(codex?.relativePath).toBe('.agents/skills/proctor/SKILL.md');
+  });
+
+  it('no adapter is both shared and transformed, a merged block cannot carry file-level frontmatter', () => {
+    for (const adapter of AGENT_ADAPTERS) {
+      expect(
+        adapter.shared === true && adapter.transform !== undefined,
+        `adapter ${adapter.id} must not set both shared and transform`
+      ).toBe(false);
+    }
+  });
+
+  it('every proctor-owned (non-shared) path is namespaced to proctor, so it can never clobber a user file', () => {
+    for (const adapter of AGENT_ADAPTERS) {
+      if (adapter.shared) continue;
+      expect(
+        adapter.relativePath.toLowerCase().includes('proctor'),
+        `adapter ${adapter.id} owns ${adapter.relativePath} but is not proctor-namespaced; it should be shared: true`
+      ).toBe(true);
+    }
   });
 });

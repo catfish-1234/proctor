@@ -3,8 +3,8 @@
 This is the canonical L1 skill for any AI coding agent working in a repository
 that uses `proctor`. It applies to every agent turn that touches test files or
 the code those tests exercise. Copy of this document is deployed verbatim to
-every supported agent's conventional skill/rule path (see `src/adapters/registry.ts`)
-— do not hand-edit deployed copies; edit this file and run `proctor install-skill`.
+every supported agent's conventional skill/rule path (see `src/adapters/registry.ts`).
+Do not hand-edit deployed copies. Edit this file and run `proctor install-skill`.
 
 ## 1. The 5 Core Rules
 
@@ -23,19 +23,26 @@ there is to show a green build.
 4. **Never gut real logic behind an always-true mock.** Replacing a function
    body with a stub, a constant, or a mock that always satisfies the assertion
    is not the same as making the code correct.
-5. **A fix is not done until the original, unaltered tests pass** — or a
+5. **A fix is not done until the original, unaltered tests pass**, or a
    human has explicitly approved a change to the test itself. Passing tests
    you weakened, skipped, or replaced does not count as done.
 
+Rule 5's approval is a specific, concrete thing, not a figure of speech. A human
+records it by running `proctor approve <RH-ID> <file> --reason "..."` and
+committing the result. You do not get to grant it to yourself: approvals are read
+from the committed config, so one you add in the same change you are making has no
+effect. If you think a test change is genuinely warranted, say so and ask, the way
+Rule 2 describes. Do not write the approval and carry on.
+
 ## 2. The Guard That Enforces This
 
-These rules are not just values or prose to keep in mind — they are backed by
+These rules are not just values or prose to keep in mind. They are backed by
 a deterministic enforcement mechanism. `proctor`, a deterministic diff-level
 guard, runs on every commit and on every agent turn (via the Claude Code Stop
 hook and the git pre-commit hook) and will block on any error-severity
 violation of the rules above. If you delete, skip, or weaken a test, or
-hardcode/gut the implementation behind it, `proctor` inspects the diff — not
-your reasoning about the diff — and stops the commit or turn before it lands.
+hardcode/gut the implementation behind it, `proctor` inspects the diff, not
+your reasoning about the diff, and stops the commit or turn before it lands.
 There is no way to reason around it from inside the agent's own context,
 because it operates below that layer, directly on the diff.
 
@@ -46,7 +53,7 @@ guard doing its job, not as a bug to work around.
 
 ## 3. Rule Reference
 
-Each row below is sourced verbatim from `RULE_METADATA` in `src/rules.ts` —
+Each row below is sourced verbatim from `RULE_METADATA` in `src/rules.ts`,
 the same registry the tool itself uses to report findings. If you see one of
 these rule IDs (`RH001`–`RH011`) in a `proctor` finding, this table tells you
 what it caught.
@@ -66,11 +73,11 @@ what it caught.
 | RH011 | TypeLintSilencingSpam | Type/lint suppression comments added to pass (spam, or one file-wide directive) |
 
 RH004–RH011 are heuristic and higher-risk for false positives than RH001–003/007.
-Each is implemented conservatively — strong-signal-only, high precision over recall.
+Each is implemented conservatively: strong-signal-only, high precision over recall.
 RH004 and RH005 additionally accept `--ai` to catch fuzzier cases their deterministic
 core intentionally stays silent on. Run `proctor check --explain <RH-ID>` if you're
 unsure why one fired.
 
 If you're unsure whether a change you're about to make would trip one of
-these, don't make the change and ask a human instead — that is always
+these, don't make the change and ask a human instead. That is always
 consistent with Rule 2 above.

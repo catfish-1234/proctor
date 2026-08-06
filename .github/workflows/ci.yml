@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+# Least privilege: these jobs only read the checkout. Without an explicit block the token carries
+# whatever the repository default grants, which on an older default is write access to everything.
+permissions:
+  contents: read
+
 jobs:
   checks:
     strategy:

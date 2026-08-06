@@ -60,4 +60,15 @@ describe('markdownReport', () => {
     const tableRows = md.split('\n').filter(l => l.startsWith('| error'));
     expect(tableRows).toHaveLength(1);
   });
+
+  it('escapes a backslash before the pipe, so the escape cannot be escaped away', () => {
+    // Escaping only the pipe turns `\|` into `\\|`: an escaped backslash, then a live separator.
+    // Findings quote diff content, so this input is attacker-controlled.
+    const md = markdownReport([finding({ message: 'a \\| b' })]);
+    expect(md).toContain('a \\\\\\| b');
+    const tableRows = md.split('\n').filter(l => l.startsWith('| error'));
+    expect(tableRows).toHaveLength(1);
+    // One row, and its cell count is what the header promised: four columns, five pipes.
+    expect((tableRows[0]!.match(/(?<!\\)\|/g) ?? []).length).toBe(5);
+  });
 });

@@ -12,7 +12,7 @@ import { RULE_METADATA } from '../rules.js';
 
 const DEFAULT_GLOBS = [
   // Brace-expanded so React/Vue `.test.tsx`/`.spec.jsx` and ESM `.test.mts`/`.mjs` test files
-  // are recognized, not just plain .ts/.js — otherwise those tests escape every test-file check.
+  // are recognized, not just plain .ts/.js, otherwise those tests escape every test-file check.
   '**/*.test.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
   '**/*.spec.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
   'test/**/*',
@@ -20,8 +20,8 @@ const DEFAULT_GLOBS = [
   '__tests__/**/*',
   '**/test_*.py',
   '**/*_test.py',
-  // Go: the compiler itself only picks up _test.go files as test files — no bare **/*.go glob,
-  // that would match ordinary non-test source (see RESEARCH Pitfall 2).
+  // Go: the compiler itself only picks up _test.go files as test files. No bare **/*.go glob,
+  // since that would match ordinary non-test source.
   '**/*_test.go',
   // Java: Maven Surefire's documented default include patterns.
   '**/*Test.java',
@@ -29,21 +29,21 @@ const DEFAULT_GLOBS = [
   '**/*Tests.java',
   '**/*TestCase.java',
   // Rust: integration tests under tests/ (inline #[cfg(test)] unit tests share a file with impl
-  // code and have no reliable glob — see RESEARCH "structural gap").
+  // code and have no reliable glob. a documented structural gap).
   '**/tests/**/*.rs',
   // Ruby: RSpec and Minitest/Test::Unit conventions.
   '**/*_spec.rb',
   '**/*_test.rb',
   // PHP: PHPUnit's near-universal filename convention.
   '**/*Test.php',
-  // C#: filename convention only — actual .NET test discovery is attribute-based, which proctor
-  // cannot see without AST (see RESEARCH Pitfall 4).
+  // C#: filename convention only. Actual .NET test discovery is attribute-based, which a
+  // diff-level tool cannot see.
   '**/*Tests.cs',
   '**/*Test.cs',
   // Kotlin: mirrors Java/Gradle/Maven convention since Kotlin shares JUnit5/Gradle tooling.
   '**/*Test.kt',
   '**/src/test/**/*.kt',
-  // C++: Google Test's official style guide recommends _test.cc — convention-only, not
+  // C++: Google Test's official style guide recommends _test.cc, convention-only, not
   // compiler-enforced (unlike Go), so an unconventionally-named test file is invisible here.
   '**/*_test.{cpp,cc,cxx}',
   '**/test_*.{cpp,cc,cxx}',
@@ -66,7 +66,7 @@ const DEFAULT_GLOBS = [
   '**/src/test/scala/**/*.scala',
   '**/*Spec.scala',
   '**/*Suite.scala',
-  // Perl: .t is prove's own default discovery glob (t/*.t) — effectively tool-enforced.
+  // Perl: .t is prove's own default discovery glob (t/*.t), effectively tool-enforced.
   '**/*.t',
   '**/t/**/*.pl',
   // R: testthat's documented package-test-directory convention.
@@ -89,7 +89,7 @@ const DEFAULT_GLOBS = [
   // mirroring the namespace-under-test.
   '**/test/**/*.clj',
   '**/*_test.clj',
-  // Shell/Bash: .bats is tool-enforced (bats only executes .bats files) — the cleanest signal
+  // Shell/Bash: .bats is tool-enforced (bats only executes .bats files), the cleanest signal
   // in this group; _test.sh/test_*.sh are shunit2 naming convention only, not enforced.
   '**/*.bats',
   '**/*_test.sh',
@@ -99,14 +99,14 @@ const DEFAULT_GLOBS = [
   // files are typically include()-d from runtests.jl rather than independently discovered.
   '**/test/runtests.jl',
   '**/test/**/*.jl',
-  // VB.NET: mirrors C#'s existing filename-convention-only caveat — actual .NET test discovery
+  // VB.NET: mirrors C#'s existing filename-convention-only caveat, actual .NET test discovery
   // is attribute-based, not filename-based, for VB.NET exactly as it is for C#.
   '**/*Tests.vb',
   '**/*Test.vb',
 ];
 
 const DEFAULT_ENABLED = [
-  'RH001', 'RH002', 'RH003', 'RH004', 'RH005', 'RH006', 'RH007', 'RH008', 'RH009', 'RH010', 'RH011',
+  'RH001', 'RH002', 'RH003', 'RH004', 'RH005', 'RH006', 'RH007', 'RH008', 'RH009', 'RH010', 'RH011', 'RH012',
 ];
 
 const VALID_SEVERITIES = new Set(['error', 'warn', 'info']);
@@ -121,7 +121,7 @@ function normalizeConfig(config: ProctorConfig): ProctorConfig {
   const out: ProctorConfig = { ...config };
   const warn = (msg: string) => process.stderr.write(`proctor: ${msg}\n`);
 
-  const stringArray = (key: 'enabled' | 'testPathGlobs' | 'ignorePatterns' | 'snapshotGlobs' | 'approvedTestChanges') => {
+  const stringArray = (key: 'enabled' | 'testPathGlobs' | 'ignorePatterns' | 'snapshotGlobs') => {
     const val = config[key];
     if (val === undefined) return;
     if (!Array.isArray(val) || val.some(v => typeof v !== 'string')) {
@@ -133,7 +133,29 @@ function normalizeConfig(config: ProctorConfig): ProctorConfig {
   stringArray('testPathGlobs');
   stringArray('ignorePatterns');
   stringArray('snapshotGlobs');
-  stringArray('approvedTestChanges');
+
+  // Every approval needs a rule, a file, and a stated reason. An entry missing any of the three
+  // is dropped rather than partially honored: a blanket "mute RH001 everywhere" is exactly what
+  // this field must not become, and an approval nobody can explain is not an approval.
+  if (config.approvedTestChanges !== undefined) {
+    if (!Array.isArray(config.approvedTestChanges)) {
+      warn(`config 'approvedTestChanges' must be an array; ignoring it`);
+      delete out.approvedTestChanges;
+    } else {
+      const valid = config.approvedTestChanges.filter((entry, i) => {
+        const ok =
+          typeof entry === 'object' && entry !== null &&
+          typeof entry.rule === 'string' && entry.rule in RULE_METADATA &&
+          typeof entry.file === 'string' && entry.file.trim() !== '' &&
+          typeof entry.reason === 'string' && entry.reason.trim() !== '';
+        if (!ok) {
+          warn(`config 'approvedTestChanges[${i}]' needs a known rule ID, a file, and a non-empty reason; ignoring that entry`);
+        }
+        return ok;
+      });
+      out.approvedTestChanges = valid;
+    }
+  }
 
   // Validate enabled rule IDs against the known registry: a typo like ["RH01"] would otherwise
   // pass the array-of-strings check, match no verifier, and silently mint a false honest pass.
@@ -143,7 +165,7 @@ function normalizeConfig(config: ProctorConfig): ProctorConfig {
       warn(`config 'enabled' has unknown rule ID(s): ${unknown.join(', ')} (known IDs are ${Object.keys(RULE_METADATA).join(', ')})`);
       out.enabled = out.enabled.filter(id => id in RULE_METADATA);
       if (out.enabled.length === 0) {
-        warn(`config 'enabled' listed only unknown rule IDs — no verifiers would run; falling back to defaults`);
+        warn(`config 'enabled' listed only unknown rule IDs, no verifiers would run; falling back to defaults`);
         delete out.enabled;
       }
     }
@@ -185,7 +207,7 @@ function normalizeConfig(config: ProctorConfig): ProctorConfig {
  * in the very commit it cheats in (e.g. add `{"enabled": []}` alongside a deleted test).
  * Without configRef (unit tests, library callers) the working-tree file is read as before.
  */
-export async function buildContext(cwd: string, files: ParsedFile[], opts?: { configRef?: string }): Promise<Context> {
+export async function buildContext(cwd: string, files: ParsedFile[], opts?: { configRef?: string; quiet?: boolean }): Promise<Context> {
   let config: ProctorConfig = {};
 
   if (opts?.configRef) {
@@ -195,7 +217,7 @@ export async function buildContext(cwd: string, files: ParsedFile[], opts?: { co
         'git', ['show', `${opts.configRef}:proctor.config.json`], { cwd },
       ));
     } catch {
-      // Config doesn't exist at the baseline ref (or the ref is unborn) — run with defaults.
+      // Config doesn't exist at the baseline ref (or the ref is unborn), run with defaults.
     }
     if (baselineRaw !== undefined) {
       try {
@@ -206,13 +228,15 @@ export async function buildContext(cwd: string, files: ParsedFile[], opts?: { co
     }
     // Surface (but do not honor) an uncommitted config change, so the drift is visible instead
     // of silently ignored. Line endings are normalized so autocrlf checkouts don't false-alarm.
+    // `quiet` is for callers that walk history: comparing today's working tree against every past
+    // commit's config differs by definition, and saying so once per commit is noise, not a signal.
     try {
       const workingTree = await readFile(join(cwd, 'proctor.config.json'), 'utf8');
-      if (workingTree.replace(/\r\n/g, '\n') !== (baselineRaw ?? '').replace(/\r\n/g, '\n')) {
+      if (!opts.quiet && workingTree.replace(/\r\n/g, '\n') !== (baselineRaw ?? '').replace(/\r\n/g, '\n')) {
         process.stderr.write(`proctor: proctor.config.json differs from the version at ${opts.configRef}; enforcement uses the committed version\n`);
       }
     } catch {
-      if (baselineRaw !== undefined) {
+      if (!opts.quiet && baselineRaw !== undefined) {
         process.stderr.write(`proctor: proctor.config.json was deleted in the working tree; enforcement uses the version at ${opts.configRef}\n`);
       }
     }
@@ -222,10 +246,10 @@ export async function buildContext(cwd: string, files: ParsedFile[], opts?: { co
       config = JSON.parse(raw) as ProctorConfig;
     } catch (err: unknown) {
       if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-        // malformed JSON — warn and fall back to defaults
+        // malformed JSON, warn and fall back to defaults
         process.stderr.write(`proctor: failed to parse proctor.config.json: ${String(err)}\n`);
       }
-      // ENOENT is expected when no config exists — silent fallback
+      // ENOENT is expected when no config exists, silent fallback
     }
   }
 
@@ -261,8 +285,8 @@ export async function buildContext(cwd: string, files: ParsedFile[], opts?: { co
     if (ext === 'kt' || ext === 'kts') return 'kotlin';
     if (ext === 'cpp' || ext === 'cc' || ext === 'cxx' || ext === 'hpp' || ext === 'hxx') return 'cpp';
     // .h is genuinely ambiguous between C and C++ (a C++ project's own headers conventionally use
-    // .hpp/.hxx, reserving bare .h for C-compatible headers) — defaulting .h to 'c' is a deliberate
-    // judgment call, not a guaranteed-correct classification (see RESEARCH A1/Pitfall 4).
+    // .hpp/.hxx, reserving bare .h for C-compatible headers), defaulting .h to 'c' is a deliberate
+    // judgment call, not a guaranteed-correct classification.
     if (ext === 'c' || ext === 'h') return 'c';
     if (ext === 'swift') return 'swift';
     // .mm is Objective-C++ (mixed ObjC/C++); classified as 'objc' since XCTest macro usage is
@@ -289,7 +313,7 @@ export async function buildContext(cwd: string, files: ParsedFile[], opts?: { co
     .then(({ stdout }) => stdout.trim() || undefined)
     .catch(() => undefined);
 
-  // snapshotGlobs / aiModel read from config only (no defaults here — rh006.ts owns DEFAULT_SNAPSHOT_GLOBS)
+  // snapshotGlobs / aiModel read from config only (no defaults here, rh006.ts owns DEFAULT_SNAPSHOT_GLOBS)
   const snapshotGlobs = config.snapshotGlobs;
   const aiModel = config.aiModel;
 
@@ -303,6 +327,7 @@ export async function buildContext(cwd: string, files: ParsedFile[], opts?: { co
     getLanguage,
     severity: config.severity,
     ignorePatterns: config.ignorePatterns,
+    approvedTestChanges: config.approvedTestChanges,
     commitMessage,
     snapshotGlobs,
     aiModel,

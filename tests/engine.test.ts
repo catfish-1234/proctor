@@ -18,7 +18,7 @@ function makeCtx(overrides: Partial<Context> = {}): Context {
   };
 }
 
-// Minimal ParsedFile stub — no chunks, just path metadata
+// Minimal ParsedFile stub, no chunks, just path metadata
 function makeFile(to: string, chunks: ParsedFile['chunks'] = []): ParsedFile {
   return { from: to, to, deleted: false, new: false, chunks } as unknown as ParsedFile;
 }
@@ -48,13 +48,13 @@ describe('runChecks', () => {
         ],
       } as unknown as ParsedFile['chunks'][number],
     ]);
-    // Only RH001 enabled — RH003 firing should never run (pre-filtered by registry)
+    // Only RH001 enabled, RH003 firing should never run (pre-filtered by registry)
     const result = await runChecks(makeCtx({ files: [skipFile], enabled: ['RH001'] }));
     expect(result.every(f => f.verifierId === 'RH001')).toBe(true);
   });
 
   it('does NOT suppress when the proctor-ignore comment is added in the same diff, on the line above (same-commit self-approval)', async () => {
-    // RH003 finding at line 5; a marker ADDED alongside it (not pre-existing) must not suppress —
+    // RH003 finding at line 5; a marker ADDED alongside it (not pre-existing) must not suppress,
     // otherwise the same agent making the cheat could self-issue its own excuse in one commit.
     const suppressFile = makeFile('src/calc.test.ts', [
       {
@@ -70,7 +70,7 @@ describe('runChecks', () => {
   });
 
   it('suppresses when the proctor-ignore marker PREDATES the diff (unchanged context line)', async () => {
-    // The marker already existed in the base version — it's a 'normal' (unchanged) line in this
+    // The marker already existed in the base version, it's a 'normal' (unchanged) line in this
     // diff, not one introduced alongside the flagged change. This is the only path that suppresses:
     // a genuine exception has to be committed BEFORE the change it excuses.
     const suppressFile = makeFile('src/calc.test.ts', [
@@ -104,7 +104,7 @@ describe('runChecks', () => {
 
   it('does not suppress via a marker in a file whose path merely ends with the finding file name', async () => {
     // foo.test.ts has the skip (finding); myfoo.test.ts has a valid, pre-existing (normal/context)
-    // marker at the same lines — eligible to suppress on its own terms. A bare endsWith match
+    // marker at the same lines, eligible to suppress on its own terms. A bare endsWith match
     // would let myfoo.test.ts's marker suppress foo.test.ts's finding; the file-path guard must
     // prevent that regardless of the marker otherwise being a valid pre-existing exception.
     const colliderFile = makeFile('myfoo.test.ts', [
@@ -130,7 +130,7 @@ describe('runChecks', () => {
   });
 
   it('does NOT suppress when reason: is absent from proctor-ignore comment', async () => {
-    // Marker is pre-existing (normal) — eligible to suppress on temporal grounds alone — so this
+    // Marker is pre-existing (normal), eligible to suppress on temporal grounds alone, so this
     // isolates the reason-required guard specifically.
     const suppressFile = makeFile('src/calc.test.ts', [
       {
@@ -149,7 +149,7 @@ describe('runChecks', () => {
 
   it('does NOT suppress when the proctor-ignore marker is an inline trailing comment on the SAME added line as the flagged change', async () => {
     // The strongest same-commit case: marker and cheat on one line, added together. Must not
-    // suppress — this is exactly the one-shot self-approval the temporal-separation rule closes.
+    // suppress, this is exactly the one-shot self-approval the temporal-separation rule closes.
     const suppressFile = makeFile('src/calc.test.ts', [
       {
         content: '',
@@ -185,7 +185,7 @@ describe('runChecks', () => {
   });
 
   it('does NOT suppress a finding in a DIFFERENT chunk from where the marker was added', async () => {
-    // Marker is pre-existing (normal) — eligible to suppress on temporal grounds alone — so this
+    // Marker is pre-existing (normal), eligible to suppress on temporal grounds alone, so this
     // isolates the chunk-scoping guard specifically.
     const suppressFile = makeFile('src/calc.test.ts', [
       {
@@ -207,7 +207,7 @@ describe('runChecks', () => {
   });
 
   it('does NOT suppress when proctor-ignore comment names wrong rule', async () => {
-    // Marker is pre-existing (normal) — eligible to suppress on temporal grounds alone — so this
+    // Marker is pre-existing (normal), eligible to suppress on temporal grounds alone, so this
     // isolates the rule-ID matching guard specifically.
     const suppressFile = makeFile('src/calc.test.ts', [
       {
@@ -279,18 +279,3 @@ describe('runChecks', () => {
   });
 });
 
-describe('runChecks AST pre-pass', () => {
-  it('ctx.ast is empty when only RH001/RH003 are enabled (AST not needed)', async () => {
-    const ctx = makeCtx({ files: [], enabled: ['RH001', 'RH003'] });
-    await runChecks(ctx);
-    expect(ctx.ast).toBeDefined();
-    expect(ctx.ast!.size).toBe(0);
-  });
-
-  it('ctx.ast is a Map when RH004 is enabled (AST pre-pass ran)', async () => {
-    const ctx = makeCtx({ files: [], enabled: ['RH004'] });
-    await runChecks(ctx);
-    expect(ctx.ast).toBeDefined();
-    expect(ctx.ast).toBeInstanceOf(Map);
-  });
-});

@@ -12,6 +12,7 @@
   },
   "files": [
     "dist",
+    "!dist/scripts",
     "proctor.schema.json",
     "src/skill/SKILL.md"
   ],
@@ -37,11 +38,11 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "drift-check": "node dist/cli.js drift-check",
-    "verify:pack": "bash scripts/verify-pack.sh"
+    "verify:pack": "bash scripts/verify-pack.sh",
+    "sync-plugin": "node dist/scripts/sync-plugin.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.110.0",
-    "@typescript-eslint/typescript-estree": "^8.62.1",
     "commander": "^13.1.0",
     "fast-glob": "3.3.3",
     "micromatch": "^4.0.8",
@@ -54,5 +55,8 @@
     "tsup": "8.5.1",
     "typescript": "6.0.3",
     "vitest": "4.1.9"
+  },
+  "overrides": {
+    "esbuild": "^0.28.1"
   }
 }

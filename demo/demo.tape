@@ -1,16 +1,16 @@
-# demo/demo.tape — two-scene proctor demo
-# Regenerate with: vhs demo/demo.tape   (run from repo root so `demo.gif` lands there)
+# demo/demo.tape: two-scene proctor demo
+# Regenerate with: vhs demo/demo.tape   (run from repo root so `assets/demo.gif` lands there)
 #
 # NOTE: on this project's Windows dev machine, VHS's go-rod dependency hung
-# indefinitely (confirmed via isolated diagnosis — not tape-specific: even a
+# indefinitely (confirmed via isolated diagnosis, not tape-specific: even a
 # one-line tape hung, with headless Chrome and ttyd each working fine
-# standalone). The committed demo.gif was rendered via the fallback script
+# standalone). The committed assets/demo.gif was rendered via the fallback script
 # demo/render_demo_gif.py instead, which reproduces these same two scenes by
-# running the real proctor CLI and rasterizing its real output with Pillow —
+# running the real proctor CLI and rasterizing its real output with Pillow,
 # no headless browser involved. If `vhs demo/demo.tape` works in your
-# environment, it remains the canonical way to regenerate demo.gif; this tape
+# environment, it remains the canonical way to regenerate assets/demo.gif; this tape
 # is still the source of truth for the two-scene structure either way.
-Output demo.gif
+Output assets/demo.gif
 Require git
 Require node
 
@@ -53,7 +53,7 @@ Sleep 2s
 Type "proctor check --staged"
 Enter
 Sleep 3s
-# (finding + exit 2 visible on screen — RH001, red, remediation text)
+# (finding + exit 2 visible on screen: RH001, red, remediation text)
 
 Sleep 2s
 Type "clear"

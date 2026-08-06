@@ -1,0 +1,14 @@
+# Check every text file out with LF on every platform.
+#
+# Without this, git on Windows checks files out with CRLF, and the tests that read repository
+# files back (plugin frontmatter starting with "---\n", the pre-classifier's raw diff fixtures,
+# the bench task corpus) compare against LF and fail there and nowhere else. The tool reads and
+# writes diffs, so its own corpus has to be byte-stable across platforms rather than rewritten by
+# the checkout.
+* text=auto eol=lf
+
+# Binary, never touched.
+*.gif binary
+*.png binary
+*.jpg binary
+*.ico binary

@@ -13,8 +13,8 @@ describe('action.yml', () => {
     expect(actionYml).toContain('using: composite');
   });
 
-  it('uses actions/setup-node@v6', () => {
-    expect(actionYml).toContain('actions/setup-node@v6');
+  it('uses actions/setup-node@v7', () => {
+    expect(actionYml).toContain('actions/setup-node@v7');
   });
 
   it('builds proctor from source', () => {

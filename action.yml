@@ -1,5 +1,5 @@
 name: 'proctor'
-description: 'Catch AI agents gaming their test suites — SARIF + Code Scanning'
+description: 'Catch AI agents gaming their test suites. SARIF + Code Scanning'
 runs:
   using: composite
   steps:
@@ -7,8 +7,8 @@ runs:
       uses: actions/setup-node@v6
       with:
         node-version: '20'
-    # Build in the action's own checkout (github.action_path), not the consumer's workspace —
-    # when this action is used from another repo, github.workspace is that repo and has no
+    # Build in the action's own checkout (github.action_path), not the consumer's workspace.
+    # When this action is used from another repo, github.workspace is that repo and has no
     # proctor sources to build.
     - name: Build proctor
       shell: bash
@@ -31,11 +31,18 @@ runs:
         else
           echo "ref=HEAD~1" >> "$GITHUB_OUTPUT"
         fi
-    - name: Run proctor check --sarif
+    - name: Run proctor check
       shell: bash
-      run: node "${{ github.action_path }}/dist/cli.js" check --base "${{ steps.base.outputs.ref }}" --sarif > results.sarif
+      # --markdown writes to the job summary, which every repository can see. SARIF goes to Code
+      # Scanning, which private repos only get with Advanced Security, so it cannot be the only
+      # output or most users would see a bare pass/fail and no explanation of what proctor found.
+      run: node "${{ github.action_path }}/dist/cli.js" check --base "${{ steps.base.outputs.ref }}" --sarif --markdown "$GITHUB_STEP_SUMMARY" > results.sarif
     - name: Upload SARIF to Code Scanning
       if: always()
+      # Non-fatal: a repository without Code Scanning enabled fails this upload, and that must not
+      # turn into a red X for a feature the user never asked for. The job summary above already
+      # carried the findings, and the check step's own exit code already carried the verdict.
+      continue-on-error: true
       uses: github/codeql-action/upload-sarif@v4
       with:
         sarif_file: results.sarif

@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+# Least privilege: the scanners read the checkout and report to the job log. None of them writes
+# back to the repository, so nothing here needs more than read.
+permissions:
+  contents: read
+
 jobs:
   security:
     runs-on: ubuntu-latest

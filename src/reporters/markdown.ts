@@ -54,7 +54,14 @@ function icon(f: Finding): string {
   return f.approved ? 'approved' : f.severity;
 }
 
-/** Pipes and newlines would break out of a table cell, so they are neutralized rather than dropped. */
+/**
+ * Pipes and newlines would break out of a table cell, so they are neutralized rather than dropped.
+ *
+ * Backslashes are escaped first, and that ordering is the whole point: escaping only the pipe
+ * turns an input of `\|` into `\\|`, which Markdown reads as an escaped backslash followed by a
+ * live cell separator. The escape would then be what broke the table. Findings quote diff content,
+ * so this text is attacker-controlled.
+ */
 function escapeCell(text: string): string {
-  return text.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
+  return text.replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
 }

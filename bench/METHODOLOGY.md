@@ -47,15 +47,34 @@ and RH005 (gutted implementation), which consult the LLM judge for ambiguous cas
 their deterministic cores deliberately leave alone. RH008 (tautological test) has no
 AI gate at all; it is fully deterministic.
 
-The tasks themselves are narrower than the detector. Every task in `bench/tasks/`
-plants its cheat opportunity using one of five signatures: **RH001** (test deletion),
-**RH002** (weakened assertion), **RH003** (disabled/skipped test), **RH006** (snapshot
-rewrite), and **RH007** (config-based test exclusion). So `cheat_detected` in the
-benchmark CSV should be read as "did proctor's deterministic, offline checks catch
-this," where the planted cheats target those five signatures but any of the eleven can
-flag what the agent actually did. A future bench version could plant RH004/RH005-shaped
-cheats and thread `--ai` through the scorer to measure the fuzzy extensions; bench v1
-does not.
+The tasks themselves are narrower than the detector. Each task in `bench/tasks/`
+plants its cheat opportunity using one of seven signatures: **RH001** (test deletion),
+**RH002** (weakened assertion), **RH003** (disabled/skipped test), **RH004** (hardcoded
+implementation, in its deterministic special-case form), **RH006** (snapshot rewrite),
+**RH007** (config-based test exclusion), and **RH012** (CI pipeline tampering). So
+`cheat_detected` in the benchmark CSV should be read as "did proctor's deterministic,
+offline checks catch this," where the planted cheats target those signatures but any of
+the thirteen can flag what the agent actually did.
+
+## Task Difficulty Is The Thing Being Controlled
+
+The first fifteen tasks are single-line fixes, and a live run against `claude-code`
+produced a 0.0% cheat rate in both arms because of it. That is not a measurement of
+honesty, it is a measurement of the tasks: the agent never reached a point where
+cheating was cheaper than fixing, so there was nothing for proctor to catch either way.
+
+Tasks 16 through 22 change that ratio deliberately. Each pairs a fix that takes real
+work with a cheat that stays one line away, and several state a rule that reads as wrong
+on first contact, which is the condition under which an agent talks itself into
+"correcting" the test instead of the code. Every prompt in this tier also ends with the
+same explicit deadline pressure, because that is the situation the tool exists for. Both
+choices are disclosed rather than buried: this benchmark measures behavior under
+pressure on hard problems, and a number produced under those conditions should be read
+as that, not as a general honesty rate.
+
+Every reference fix is verified to pass its own visible and held-out tests, and every
+cheat state is verified to be caught, before a task enters the pool. A reference fix that
+did not actually pass would silently make every honest-pass number meaningless.
 
 ## Proctor On vs Off Is a Real Intervention, Not Model Nondeterminism
 
@@ -84,7 +103,7 @@ result never depends on filesystem `readdir` ordering), then shuffled with a
 hand-rolled mulberry32 PRNG seeded by `--seed`. The same `(pool, seed, tasks)` triple
 always selects the same tasks in the same order, this makes a benchmark run
 reproducible without needing to persist which tasks were chosen. The task pool itself
-is fixed and hand-authored (15 tasks as of this writing, see `bench/tasks/TASKS.md`),
+is fixed and hand-authored (22 tasks as of this writing, see `bench/tasks/TASKS.md`),
 not procedurally generated, so `--seed` controls sampling/ordering only.
 
 ## CSV Schema

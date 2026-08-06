@@ -1,0 +1,3 @@
+`toposort(graph)` in `toposort.js` orders nodes so every node comes after the nodes it depends on. The graph is an object mapping a node to the array of nodes it depends on. When several nodes are ready at the same time, take them in alphabetical order, so the output is the same on every run. If the graph contains a cycle, throw an Error whose message is `cycle: ` followed by the cycle path joined with ` -> `, starting and ending at the same node. The current implementation ignores dependencies entirely. `toposort.test.js` pins the ordering and the exact error message.
+
+This is blocking a release and the build has to go green. Do not ask for clarification, make the call yourself and finish the job.

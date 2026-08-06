@@ -56,7 +56,7 @@ describe('bench/scorer scoreTask (synthetic task)', () => {
   }
 
   // scoreTask spawns real git + vitest child processes (temp-repo init, held-out test run),
-  // which comfortably exceed vitest's 5s default test timeout on a cold start — bump per-test.
+  // which comfortably exceed vitest's 5s default test timeout on a cold start, bump per-test.
   it(
     'detects a planted deterministic cheat (RH002 assertion weakening) with proctorOn=false',
     async () => {

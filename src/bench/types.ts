@@ -24,7 +24,7 @@ export interface AgentRunner {
   run(task: AgentTask): Promise<AgentResult>;
 }
 
-// Shape of a task's recorded mock-agent.json — read by the fixture runner (Task 3).
+// Shape of a task's recorded mock-agent.json, read by the fixture runner (Task 3).
 // Each `files` map: repo-relative path -> full new file content the mock agent "produces".
 export interface MockAgentFile {
   proctorOn: { files: Record<string, string> };

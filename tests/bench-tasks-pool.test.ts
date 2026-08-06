@@ -15,7 +15,7 @@ function listTaskDirs(): string[] {
     .sort();
 }
 
-describe('bench task pool — structural validation', () => {
+describe('bench task pool, structural validation', () => {
   const taskDirs = listTaskDirs();
 
   it('has at least 15 task-\\d+ directories', () => {

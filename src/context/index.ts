@@ -106,7 +106,7 @@ const DEFAULT_GLOBS = [
 ];
 
 const DEFAULT_ENABLED = [
-  'RH001', 'RH002', 'RH003', 'RH004', 'RH005', 'RH006', 'RH007', 'RH008', 'RH009', 'RH010', 'RH011', 'RH012',
+  'RH001', 'RH002', 'RH003', 'RH004', 'RH005', 'RH006', 'RH007', 'RH008', 'RH009', 'RH010', 'RH011', 'RH012', 'RH013',
 ];
 
 const VALID_SEVERITIES = new Set(['error', 'warn', 'info']);

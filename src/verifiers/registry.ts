@@ -11,6 +11,7 @@ import { rh009 } from './rh009.js';
 import { rh010 } from './rh010.js';
 import { rh011 } from './rh011.js';
 import { rh012 } from './rh012.js';
+import { rh013 } from './rh013.js';
 
 /**
  * The Verifier registry. Verifiers are discovered from a registry so proctor-plugin-* packages
@@ -19,5 +20,5 @@ import { rh012 } from './rh012.js';
  * the engine.
  */
 export const VERIFIERS: Verifier[] = [
-  rh001, rh002, rh003, rh004, rh005, rh006, rh007, rh008, rh009, rh010, rh011, rh012,
+  rh001, rh002, rh003, rh004, rh005, rh006, rh007, rh008, rh009, rh010, rh011, rh012, rh013,
 ];

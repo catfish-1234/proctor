@@ -12,6 +12,7 @@ import { rh009 } from '../src/verifiers/rh009.js';
 import { rh010 } from '../src/verifiers/rh010.js';
 import { rh011 } from '../src/verifiers/rh011.js';
 import { rh012 } from '../src/verifiers/rh012.js';
+import { rh013 } from '../src/verifiers/rh013.js';
 import type { Context, Finding, Verifier } from '../src/types.js';
 import type { ParsedFile } from '../src/diff.js';
 
@@ -73,6 +74,7 @@ const CASES: Array<{ id: string; verifier: Verifier }> = [
   { id: 'RH010', verifier: rh010 },
   { id: 'RH011', verifier: rh011 },
   { id: 'RH012', verifier: rh012 },
+  { id: 'RH013', verifier: rh013 },
 ];
 
 describe('P3 fixtures, true-positive fires, near-miss stays silent (no --ai)', () => {

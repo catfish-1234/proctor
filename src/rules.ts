@@ -230,4 +230,20 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'tell the tests run.',
     helpUri: 'https://github.com/catfish-1234/proctor#rh012',
   },
+  RH013: {
+    name: 'CoverageGateWeakened',
+    shortDescription: 'Coverage threshold lowered or removed so less coverage now passes',
+    fullDescription:
+      'Detects a coverage threshold reduced or deleted in a project config, which lets a suite that lost coverage keep reporting as passing. Covers Jest and Vitest coverage thresholds, ' +
+      'nyc, package.json, Python coverage fail_under (.coveragerc, setup.cfg, pyproject.toml, pytest.ini, tox.ini), SimpleCov, PHPUnit, Maven and Gradle, and Codecov targets. ' +
+      'Only a threshold that moved down is reported: raising one, or adding one where none existed, is the change this check wants to see. A threshold deleted outright is reported too, ' +
+      'since nothing enforces a floor afterwards. Old and new values are paired by key name within the same diff chunk, so a reformatted or reordered config still pairs correctly.',
+    defaultLevel: 'error',
+    fix:
+      'Put the threshold back where it was and write the tests that reach it. Lowering the gate is the ' +
+      'same move as deleting a test, one level up: the coverage it was protecting is gone either way, and ' +
+      'the build still reports green. If the number was genuinely unreachable, say so next to it and lower ' +
+      'it deliberately in its own change, not as part of the work that made it fail.',
+    helpUri: 'https://github.com/catfish-1234/proctor#rh013',
+  },
 };

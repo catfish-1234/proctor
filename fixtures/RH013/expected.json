@@ -1,0 +1,10 @@
+[
+  {
+    "verifierId": "RH013",
+    "severity": "error",
+    "file": "pyproject.toml",
+    "line": 2,
+    "message": "Coverage threshold 'fail_under' lowered from 90 to 45 in pyproject.toml, so less coverage than before now passes.",
+    "suggestion": "Restore the 'fail_under' threshold to 90 and add the tests that bring coverage back up to it."
+  }
+]

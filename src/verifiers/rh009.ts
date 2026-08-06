@@ -20,7 +20,20 @@ const STRONG_ASSERTION_RE = [
 
 const TEST_DECL_RE = /^\+\s*(?:it|test)\s*\(\s*['"`]|^\+\s*(?:async\s+)?def\s+test_/;
 
+/**
+ * An assertion comparing an expression to itself. It uses a strong matcher, so without this it
+ * would count as coverage replacing what was removed, which lets a file be gutted down to a
+ * single `expect(true).toBe(true)` while this check stays silent. The backreference is what makes
+ * it a tautology rather than merely a simple assertion: both sides have to be the same text.
+ */
+const TAUTOLOGY_RE = [
+  /expect\(\s*(.+?)\s*\)\s*\.\s*(?:toBe|toEqual|toStrictEqual|toMatchObject)\(\s*\1\s*\)/,
+  /assertEqual\(\s*(.+?)\s*,\s*\1\s*\)/,
+  /\bassert\s+(.+?)\s*==\s*\1\s*$/,
+];
+
 function isStrongAssertion(content: string): boolean {
+  if (TAUTOLOGY_RE.some(re => re.test(content))) return false;
   return STRONG_ASSERTION_RE.some(re => re.test(content));
 }
 

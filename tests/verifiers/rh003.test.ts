@@ -330,3 +330,25 @@ describe('rh003, GROUP B skip/disable (LANG-09, LANG-13)', () => {
     expect(rh003.run({ ...langiiBCtx, files })).toEqual([]);
   });
 });
+
+describe('RH003, a skip construct inside a string literal is data, not a skip', () => {
+  // Any tool that generates or asserts on test source writes lines like this. proctor's own test
+  // suite is full of them, and every one used to be reported as a real skip.
+  it.each([
+    [`+      writeFileSync(join(dir, 'a.test.ts'), "it.skip('x', () => {});");`],
+    [`+    const cheat = one + 'it.skip("subtracts", () => {});';`],
+    ['+      expect(source).toContain("xdescribe(");'],
+  ])('stays silent on %s', line => {
+    expect(rh003.run({ ...baseCtx, files: [makeAddFile('gen.test.ts', line, 5)] })).toEqual([]);
+  });
+
+  it('still flags a real skip, where the quote sits inside the call rather than before it', () => {
+    const files = [makeAddFile('calculator.test.ts', "+  it.skip('adds two numbers', () => {})", 5)];
+    expect(rh003.run({ ...baseCtx, files })).toHaveLength(1);
+  });
+
+  it('still flags a commented-out test, which is not string data', () => {
+    const files = [makeAddFile('calculator.test.ts', "+  // it('adds two numbers', () => {})", 5)];
+    expect(rh003.run({ ...baseCtx, files })).toHaveLength(1);
+  });
+});

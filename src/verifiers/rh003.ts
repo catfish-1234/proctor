@@ -464,6 +464,18 @@ function isBatsFile(filePath: string): boolean {
   return filePath.toLowerCase().endsWith('.bats');
 }
 
+/**
+ * A skip construct sitting immediately after a quote character, which means it is string data
+ * rather than code: `writeFileSync(p, "it.skip('x')")` builds a test file, it does not skip a
+ * test. Tooling that generates or asserts on test source hits this constantly, and proctor's own
+ * test suite is the clearest example.
+ *
+ * Anchored on the quote being directly before the construct, so it cannot swallow a real skip:
+ * ordinary code never writes `'it.skip`. A construct inside a multi-line template literal is not
+ * covered, since recognizing it needs state this line-level model does not carry.
+ */
+const QUOTED_SKIP_CONSTRUCT = /['"`]\s*(?:(?:it|test|describe)(?:\.\w+)*\.(?:skip|only)|xit|xdescribe|xtest|fit|fdescribe)\b/;
+
 function isSkipPattern(content: string, flags: {
   ext: string | undefined;
   pyTestModule: boolean;
@@ -481,6 +493,7 @@ function isSkipPattern(content: string, flags: {
     ext, pyTestModule, goTestFile, rubyTestFile, kotlinTestFile, cTestFile, scalaTestFile,
     rTestFile, haskellTestFile, luaTestFile, batsFile,
   } = flags;
+  if (QUOTED_SKIP_CONSTRUCT.test(content)) return false;
   switch (ext) {
     case 'py':
       if (PY_DECORATOR_PATTERNS.some(re => re.test(content))) return true;

@@ -60,6 +60,23 @@ const HOOK_BYPASS_RE = /--no-verify\b|\bHUSKY\s*=\s*0\b|\bSKIP_HOOKS?\s*=|\bPRE_
 const ESLINT_RULE_OFF_RE = /"[\w@/-]+"\s*:\s*(?:"off"|0|\[\s*(?:"off"|0))/;
 
 /**
+ * A rule downgraded from error to warning.
+ *
+ * Found by adversarial probing. Switching a rule off was covered; moving it from "error" to "warn"
+ * was not, and it has the same practical effect on anything that gates on exit code, while reading
+ * as a much smaller edit in review.
+ */
+const ESLINT_RULE_DOWNGRADED_RE = /"([\w@/-]+)"\s*:\s*(?:"warn"|1|\[\s*(?:"warn"|1))/;
+
+/** Coverage config files, where an exclusion removes a file from measurement entirely. */
+const COVERAGE_CONFIG_RE =
+  /(?:^|\/)(?:vitest|jest|nyc|karma)\.config\.[cm]?[jt]s$|(?:^|\/)\.nycrc(?:\.json)?$|(?:^|\/)\.coveragerc$/;
+
+/** An exclusion entry naming a source file rather than a generated or vendored one. */
+const COVERAGE_EXCLUDE_RE = /exclude|omit|skipFiles|coveragePathIgnorePatterns/i;
+const GENERATED_PATH_RE = /generated|\.d\.ts|node_modules|dist|build|vendor|__mocks__|\*\*\/\*\./i;
+
+/**
  * A JSON key that opens a container, used to know which block a line sits in.
  *
  * It has to be the container form (`"enabled": [`, `"severity": {`) rather than any key at all.
@@ -123,6 +140,7 @@ function run(context: Context): Finding[] {
     const isEslintConfig = ESLINT_CONFIG_RE.test(normalized);
     const isLintIgnore = LINT_IGNORE_RE.test(normalized);
     const isExecutableConfig = EXECUTABLE_CONFIG_RE.test(normalized);
+    const isCoverageConfig = COVERAGE_CONFIG_RE.test(normalized);
 
     // Rule IDs this change adds back under `enabled`.
     //
@@ -211,6 +229,43 @@ function run(context: Context): Finding[] {
             suggestion: `Fix the types and leave '${flag}' on. Turning it off hides every other violation in the codebase too, not just this one.`,
           });
           continue;
+        }
+
+        if (change.type === 'add' && isCoverageConfig && COVERAGE_EXCLUDE_RE.test(currentKey || text)) {
+          // An exclusion naming a concrete source file takes it out of measurement, so the
+          // coverage number stops describing it at all. Generated and vendored paths are the
+          // ordinary, correct use and are left alone.
+          const entry = /['"]([^'"]+)['"]/.exec(text)?.[1];
+          if (entry && !GENERATED_PATH_RE.test(entry) && /\.[a-z]{1,4}$/i.test(entry)) {
+            findings.push({
+              verifierId: 'WI104',
+              severity: 'error',
+              file: filePath,
+              line,
+              message: `Guardrail weakened: '${entry}' excluded from coverage, so it stops being measured rather than becoming tested.`,
+              suggestion: 'Remove the exclusion and write the tests. Excluding a file raises the coverage number without covering anything.',
+            });
+            continue;
+          }
+        }
+
+        if (change.type === 'add' && isEslintConfig && ESLINT_RULE_DOWNGRADED_RE.test(text)) {
+          const rule = ESLINT_RULE_DOWNGRADED_RE.exec(text)![1]!;
+          // Only when it used to be an error: setting a new rule to warn is ordinary adoption.
+          const wasError = file.chunks.some(ch =>
+            ch.changes.some(c => c.type === 'del' && new RegExp(`"${rule}"\\s*:\\s*(?:"error"|2|\\[\\s*(?:"error"|2))`).test(c.content)),
+          );
+          if (wasError) {
+            findings.push({
+              verifierId: 'WI104',
+              severity: 'error',
+              file: filePath,
+              line,
+              message: `Guardrail weakened: lint rule '${rule}' downgraded from error to warn, so it no longer fails anything.`,
+              suggestion: 'Fix what the rule reported. A warning is not enforcement: everything that gates on exit code now passes regardless.',
+            });
+            continue;
+          }
         }
 
         if (change.type === 'add' && isEslintConfig && ESLINT_RULE_OFF_RE.test(text)) {

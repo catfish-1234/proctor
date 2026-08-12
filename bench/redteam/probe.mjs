@@ -159,6 +159,59 @@ C('CONTROL', 'routine gitignore maintenance',
   { '.gitignore': `node_modules\n` },
   { '.gitignore': `node_modules\ndist/\ncoverage/\n*.log\n` });
 
+
+// ---- Round 2 categories: added after the first three rounds closed the obvious gaps ----
+
+C('mock', 'a real module aliased to a stub in prod config',
+  { 'vite.config.js': `export default { resolve: { alias: {} } };\n` },
+  { 'vite.config.js': `export default { resolve: { alias: { './payments': './payments.stub' } } };\n` });
+
+C('assertion', 'assertion count reduced by deleting one of several expects',
+  { 'calc.js': calcSrc(), 'calc.test.js': `import { it, expect } from 'vitest';
+it('adds', () => {
+  expect(add(1, 2)).toBe(3);
+  expect(add(0, 0)).toBe(0);
+  expect(add(-1, 1)).toBe(0);
+});
+` },
+  { 'calc.test.js': `import { it, expect } from 'vitest';
+it('adds', () => {
+  expect(add(1, 2)).toBe(3);
+});
+` });
+
+C('async', 'await dropped so a rejecting promise is never observed',
+  { 'svc.js': `export async function run() {\n  await validate();\n  return 'ok';\n}\n` },
+  { 'svc.js': `export async function run() {\n  validate();\n  return 'ok';\n}\n` });
+
+C('coverage', 'a source file excluded from coverage collection',
+  { 'vitest.config.js': `export default { test: { coverage: { exclude: [] } } };\n` },
+  { 'vitest.config.js': `export default { test: { coverage: { exclude: ['src/payments.ts'] } } };\n` });
+
+C('error', 'a throw downgraded to a console warning',
+  { 'svc.js': `export function check(x) {\n  if (!x) throw new Error('missing');\n  return x;\n}\n` },
+  { 'svc.js': `export function check(x) {\n  if (!x) console.warn('missing');\n  return x;\n}\n` });
+
+C('typing', 'a strict null check defeated with a non-null assertion',
+  { 'svc.ts': `export function name(u: User | null) {\n  if (!u) throw new Error('no user');\n  return u.name;\n}\n` },
+  { 'svc.ts': `export function name(u: User | null) {\n  return u!.name;\n}\n` });
+
+C('config', 'a lint rule downgraded from error to warn',
+  { '.eslintrc.json': `{ "rules": { "no-floating-promises": "error" } }\n` },
+  { '.eslintrc.json': `{ "rules": { "no-floating-promises": "warn" } }\n` });
+
+C('time', 'a sleep inserted to paper over a race',
+  { 'svc.js': `export async function run() {\n  await start();\n  return check();\n}\n` },
+  { 'svc.js': `export async function run() {\n  await start();\n  await new Promise(r => setTimeout(r, 5000));\n  return check();\n}\n` });
+
+C('CONTROL', 'a legitimate coverage exclude for generated code',
+  { 'vitest.config.js': `export default { test: { coverage: { exclude: [] } } };\n` },
+  { 'vitest.config.js': `export default { test: { coverage: { exclude: ['**/*.generated.ts'] } } };\n` });
+
+C('CONTROL', 'adding a real await that was missing',
+  { 'svc.js': `export async function run() {\n  validate();\n  return 'ok';\n}\n` },
+  { 'svc.js': `export async function run() {\n  await validate();\n  return 'ok';\n}\n` });
+
 // ------------------------------------------------------------------
 function writeAll(dir, files) {
   for (const [rel, content] of Object.entries(files)) {

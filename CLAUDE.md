@@ -42,13 +42,16 @@ src/
   receipt.ts               # builds the "honest pass" / "caught" Receipt from findings
   context/                 # builds Context: discovers the diff, test globs, config, etc.
   verifiers/                # one file per check, RH001 through RH013, pure functions
-  reporters/                # pretty.ts, json.ts, sarif.ts output formats
+  reporters/                # pretty.ts, json.ts, sarif.ts, markdown.ts, score.ts output formats
   hooks/                    # git pre-commit hook and Claude Code Stop hook
   skill/SKILL.md            # the canonical honest-completion ruleset agents follow
   adapters/                 # deploys SKILL.md to each supported agent, plus drift-check
   badge/                    # honest-pass badge generation
   ai/                       # optional AI judge, only touched when --ai is passed
-  bench/                    # benchmark harness (dev tool, not part of the published package)
+  bench/                    # benchmark harness. Bundled into dist/cli.js like everything else in
+                            # src/, but the task corpus it reads lives in the repo's own bench/
+                            # directory and is NOT in the npm tarball, so `proctor bench` only
+                            # works from a clone.
 fixtures/                   # planted true-positive and near-miss cases, one set per check
 tests/                      # mirrors src/, one test file per module
 ```

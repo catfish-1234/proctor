@@ -1,6 +1,6 @@
 # Troubleshooting
 
-The four things that actually go wrong, and what each one means.
+The things that actually go wrong, and what each one means.
 
 ## The Stop hook never fired
 
@@ -19,9 +19,17 @@ cat .claude/settings.json
 You want a `Stop` entry whose command contains `proctor stop-hook`. If it is missing, run
 `proctor setup` again, or `proctor install-claude-hook` for just this part.
 
-**The hook is installed but never blocks.** It deliberately fails open: outside a git repository,
-or when proctor itself errors or takes more than 60 seconds, it allows the turn rather than
-becoming a wall. Run the check by hand to see what it sees:
+**The hook is installed but never blocks.** It deliberately fails open. It allows the turn when it
+is outside a git repository, when proctor itself errors or takes more than 60 seconds, and during a
+merge, rebase, cherry-pick, or revert. That last one matters: mid-merge the working tree holds the
+incoming branch's changes too, so a test that branch deleted would look like this turn deleting it.
+The pre-commit hook still guards the resolution, which is where it becomes your change.
+
+**A brand-new file the agent never staged is not seen.** The hook reads tracked changes; a file
+that git does not know about yet is invisible to it. `git add` the file, or rely on the pre-commit
+hook, which sees it once it is staged.
+
+Run the check by hand to see what the hook sees:
 
 ```bash
 proctor check --uncommitted

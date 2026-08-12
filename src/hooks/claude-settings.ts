@@ -40,11 +40,26 @@ export async function installStopHook(dir: string): Promise<InstallStopHookResul
     rawSettings = await readFile(settingsPath, 'utf8');
   } catch { /* ENOENT, no settings yet, start fresh */ }
   if (rawSettings !== undefined) {
+    let parsed: unknown;
     try {
-      settings = JSON.parse(rawSettings) as Record<string, unknown>;
+      parsed = JSON.parse(rawSettings);
     } catch {
       // A malformed settings file must not be silently replaced, that would destroy
       // whatever configuration the user had in it.
+      return { status: 'invalid-json', path: settingsPath };
+    }
+    // Parseable is not the same as usable. A root that is an array, a string, or null, or a
+    // `hooks` that is not an object, or a `Stop` that is not an array, would all either throw
+    // while merging or be silently dropped by JSON.stringify and reported as a successful
+    // install. Both outcomes are worse than saying the file needs a look.
+    if (!isPlainObject(parsed)) return { status: 'invalid-json', path: settingsPath };
+    settings = parsed;
+    const existingHooks = settings['hooks'];
+    if (existingHooks !== undefined && !isPlainObject(existingHooks)) {
+      return { status: 'invalid-json', path: settingsPath };
+    }
+    const existingStop = (existingHooks as Record<string, unknown> | undefined)?.['Stop'];
+    if (existingStop !== undefined && !Array.isArray(existingStop)) {
       return { status: 'invalid-json', path: settingsPath };
     }
   }
@@ -71,13 +86,17 @@ export async function installStopHook(dir: string): Promise<InstallStopHookResul
  */
 export async function removeStopHook(dir: string, dryRun: boolean): Promise<string | undefined> {
   const settingsPath = join(dir, 'settings.json');
-  let settings: Record<string, unknown>;
+  let parsed: unknown;
   try {
-    settings = JSON.parse(await readFile(settingsPath, 'utf8')) as Record<string, unknown>;
+    parsed = JSON.parse(await readFile(settingsPath, 'utf8'));
   } catch {
     // Missing or malformed: nothing safe to edit, and rewriting it would risk the user's config.
     return undefined;
   }
+  // A root that is null, an array, or a primitive holds no hooks to remove, and reaching into it
+  // would throw. Nothing of proctor's is there, so there is nothing to do.
+  if (!isPlainObject(parsed)) return undefined;
+  const settings = parsed;
   const groups = readStopGroups(settings);
   const kept = groups.filter(g => !isProctorGroup(g));
   if (kept.length === groups.length) return undefined;
@@ -93,9 +112,16 @@ export async function removeStopHook(dir: string, dryRun: boolean): Promise<stri
   return settingsPath;
 }
 
+/** A JSON object, as opposed to an array, a primitive, or null, all of which `typeof` calls object. */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 /** The `Stop` groups in a settings object, or an empty list for any shape that is not a list. */
 function readStopGroups(settings: Record<string, unknown>): StopHookGroup[] {
-  const stop = (settings['hooks'] as Record<string, unknown> | undefined)?.['Stop'];
+  const hooks = settings['hooks'];
+  if (!isPlainObject(hooks)) return [];
+  const stop = hooks['Stop'];
   return Array.isArray(stop) ? (stop as StopHookGroup[]) : [];
 }
 

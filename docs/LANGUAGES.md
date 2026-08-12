@@ -5,7 +5,8 @@ deliberately not covered. Start at the [README](../README.md) if you just want i
 
 **Languages:** JavaScript and TypeScript (Jest and Vitest conventions) and Python (pytest and
 unittest conventions) have full coverage across all 11 language-level checks. RH012 and RH013 read
-CI and coverage config rather than source, so they apply to every language equally. Go, Java, Rust, Ruby, PHP, C#,
+CI and coverage config rather than source, so they apply to every language equally, which is why
+they are not in the tables. Go, Java, Rust, Ruby, PHP, C#,
 Kotlin, C++, C, Swift, Objective-C, Dart, Scala, Perl, R, Haskell, Elixir, Lua, Groovy, Clojure,
 Shell/Bash, Julia, and VB.NET (25+ languages total) are covered by the five diff-level signature
 checks (RH001, RH002, RH003, RH007, RH011) that work off diff-line patterns. The two tables below are the per-language, per-check support matrix: the original 9
@@ -68,6 +69,18 @@ fall back to the `--ai` judge. Porting gutted-function, hardcoded-return, and
 tautological-assertion detection to every other language would carry a much higher false-positive
 risk than the diff-line signature checks above, so this is a stated boundary, not an oversight.
 
+RH009 and RH010 are JS/TS/Python-only for the same reason, and are left out of the tables above
+only because a row of one tick and twenty-four crosses says less than this sentence does. RH009
+reads `it`/`test`/`describe` declarations and Python test functions to spot a trivial test swapped
+in for a real one. RH010 matches the retry and timeout knobs of two ecosystems specifically:
+`jest.retryTimes`, `jest.setTimeout`, Vitest's per-test `retry:`, mocha's `this.retries`,
+`@pytest.mark.flaky`, and `@pytest.mark.timeout`. Both are warn-severity, which is the right tier
+for a signal this narrow.
+
+That accounts for all thirteen: five diff-level checks across every language (RH001, RH002, RH003,
+RH007, RH011), six JS/TS/Python-only (RH004, RH005, RH006, RH008, RH009, RH010), and two that read
+config rather than source and so apply everywhere (RH012, RH013).
+
 RH012 is absent from both tables on purpose. It reads CI pipeline definitions, not source, so it
 does not vary by language: `.github/workflows/*.yml`, `.gitlab-ci.yml`, `.circleci/config.yml`,
 `azure-pipelines.yml`, `.travis.yml`, `Jenkinsfile`, and `bitbucket-pipelines.yml` all get the same
@@ -110,7 +123,7 @@ missed case; `.mm` resolves to Objective-C since XCTest macro usage there is ide
 
 **Agents:** running `npx @kavishdua/proctor install-skill` deploys the honest-completion skill to
 every agent below from one source file (see
-[`src/adapters/registry.ts`](src/adapters/registry.ts)). The Claude Code Stop hook only works with
+[`src/adapters/registry.ts`](../src/adapters/registry.ts)). The Claude Code Stop hook only works with
 Claude Code specifically. The git pre-commit hook works no matter which agent (or human) is making
 the commit.
 
@@ -210,7 +223,7 @@ nothing: the ruleset lands at the agent's own conventional path either way.
 
 To add support for another agent:
 
-1. Add one entry to `AGENT_ADAPTERS` in [`src/adapters/registry.ts`](src/adapters/registry.ts)
+1. Add one entry to `AGENT_ADAPTERS` in [`src/adapters/registry.ts`](../src/adapters/registry.ts)
    with `id`, `displayName`, `relativePath`, and `scriptable`.
 2. If the agent's file format diverges from plain markdown (needs frontmatter, a wrapper, etc.),
    write a pure `transform: (canonical: string) => string` function that wraps the canonical

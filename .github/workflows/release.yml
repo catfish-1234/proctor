@@ -25,7 +25,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write # Required to create the GitHub release below
       id-token: write # Required for OIDC trusted publishing + automatic provenance
     steps:
       - uses: actions/checkout@v7
@@ -36,17 +36,25 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       # npm 10.x (shipped with node 22) does not support OIDC trusted publishing.
-      # Requires npm >= 11.5.1.
+      # Requires npm >= 11.5.1. Pinned to a range rather than `latest` so a future npm major
+      # cannot land unreviewed in the release path.
       - name: Upgrade npm for trusted publishing
-        run: npm install -g npm@latest
+        run: npm install -g "npm@^11.5.1"
 
       - run: npm ci
 
       # A tag that disagrees with package.json publishes the wrong version under the right name,
       # and npm will not let that version number be reused afterwards. Cheaper to fail here.
+      #
+      # This runs unconditionally. Gating it on `startsWith(github.ref, 'refs/tags/v')` left the
+      # workflow_dispatch path with no version check at all, so a dispatch from any branch could
+      # publish whatever package.json happened to say.
       - name: Check the tag matches package.json
-        if: startsWith(github.ref, 'refs/tags/v')
         run: |
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "release runs from a v* tag; got ${GITHUB_REF_TYPE} ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
           TAG="${GITHUB_REF_NAME#v}"
           PKG="$(node -p "require('./package.json').version")"
           if [ "$TAG" != "$PKG" ]; then
@@ -65,10 +73,31 @@ jobs:
       - name: Verify the published tarball contents
         run: npm run verify:pack
 
-      # OIDC trusted publishing is auto-detected when id-token: write is present
-      # AND npm >= 11.5.1. NODE_AUTH_TOKEN is a fallback for NPM_TOKEN secret.
+      # OIDC trusted publishing is auto-detected when id-token: write is present AND npm >= 11.5.1,
+      # but it can only authenticate a package that already exists, because the trusted publisher
+      # is configured on the package's own settings page. So the FIRST publish needs NPM_TOKEN;
+      # afterwards, configure the trusted publisher on npmjs.com and the secret can be deleted.
+      #
+      # The OTP is passed as a separate argument rather than interpolated into the command, so a
+      # value containing a space or a glob character cannot become extra argv entries.
       - name: Publish to npm
-        run: npm publish --access public ${NPM_OTP:+--otp="$NPM_OTP"}
+        run: |
+          if [ -n "$NPM_OTP" ]; then
+            npm publish --access public --otp="$NPM_OTP"
+          else
+            npm publish --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_OTP: ${{ github.event.inputs.otp }}
+
+      # The tag is what a human looks for; leaving it without a release means the changelog entry
+      # for this version is only findable by reading the repository.
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes "See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/CHANGELOG.md) for what changed." \
+            --verify-tag

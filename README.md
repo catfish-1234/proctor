@@ -255,8 +255,8 @@ Everything above is the whole product for most people. These pages are for when 
 | [bench/METHODOLOGY.md](bench/METHODOLOGY.md) | How the benchmark works and what it does not claim |
 
 proctor supports 25+ languages and installs to 30 agents. Five diff-level checks (RH001, RH002,
-RH003, RH007, RH011) work across all of them; RH004, RH005, RH006 and RH008 are JS/TS/Python-only.
-RH012 and RH013 read CI and coverage config, so they apply everywhere.
+RH003, RH007, RH011) work across all of them; six (RH004, RH005, RH006, RH008, RH009, RH010) are
+JS/TS/Python-only; and RH012 and RH013 read CI and coverage config, so they apply everywhere.
 [Full matrix](docs/LANGUAGES.md).
 
 ## Benchmark

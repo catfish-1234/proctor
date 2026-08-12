@@ -18,10 +18,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      # semgrep/semgrep-action was archived in 2024 and its own description says it is deprecated,
+      # so the scan depended on an unmaintained wrapper that could stop resolving without warning.
+      # The CLI is the maintained path and needs no action and no account. `--error` fails the job
+      # on a finding, which is what the action did, and matches Trivy's exit-code below.
       - name: Semgrep
-        uses: semgrep/semgrep-action@v1
-        with:
-          config: auto
+        run: |
+          pipx install semgrep
+          semgrep scan --config auto --error --metrics=off .
 
       - name: Gitleaks
         uses: gitleaks/gitleaks-action@v3

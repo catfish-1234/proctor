@@ -66,6 +66,13 @@ export async function deploySkill(cwd: string, adapters: AgentAdapter[], canonic
   return failed;
 }
 
+export interface UninstallResult {
+  /** One human-readable line per item removed, relative to the repo root. */
+  done: string[];
+  /** Items that could not be removed, with the reason. Non-empty means an incomplete uninstall. */
+  failed: string[];
+}
+
 /**
  * Undoes an install, and touches nothing else.
  *
@@ -76,9 +83,22 @@ export async function deploySkill(cwd: string, adapters: AgentAdapter[], canonic
  *
  * Returns one human-readable line per item, relative to the repo root.
  */
-export async function uninstallProctor(cwd: string, dryRun: boolean): Promise<string[]> {
+export async function uninstallProctor(cwd: string, dryRun: boolean): Promise<UninstallResult> {
   const done: string[] = [];
+  const failed: string[] = [];
   const rel = (p: string): string => relative(cwd, p).replace(/\\/g, '/');
+
+  // One unremovable path must not abort the rest. Aborting mid-roster would leave files already
+  // deleted with no record of which, since the report is only returned at the end.
+  const attempt = async (what: string, fn: () => Promise<void>): Promise<void> => {
+    try {
+      await fn();
+      done.push(what);
+    } catch (err: unknown) {
+      const code = (err as NodeJS.ErrnoException).code ?? 'unknown error';
+      failed.push(`${what} (${code})`);
+    }
+  };
 
   for (const adapter of AGENT_ADAPTERS) {
     const dest = join(cwd, adapter.relativePath);
@@ -93,31 +113,44 @@ export async function uninstallProctor(cwd: string, dryRun: boolean): Promise<st
       if (extractBlock(existing) === undefined) continue;
       const stripped = removeBlock(existing);
       if (stripped.trim() === '') {
-        if (!dryRun) await rm(dest, { force: true });
-        done.push(`Removed: ${adapter.relativePath}`);
+        // Nothing but proctor's own block was in the file, so the file is proctor's too.
+        await attempt(`Removed: ${adapter.relativePath}`, async () => {
+          if (!dryRun) await rm(dest, { force: true });
+        });
       } else {
-        if (!dryRun) await writeFile(dest, stripped, 'utf8');
-        done.push(`Unmerged the proctor block from: ${adapter.relativePath}`);
+        await attempt(`Unmerged the proctor block from: ${adapter.relativePath}`, async () => {
+          if (!dryRun) await writeFile(dest, stripped, 'utf8');
+        });
       }
       continue;
     }
 
-    if (!dryRun) await rm(dest, { force: true });
-    done.push(`Removed: ${adapter.relativePath}`);
+    await attempt(`Removed: ${adapter.relativePath}`, async () => {
+      if (!dryRun) await rm(dest, { force: true });
+    });
   }
 
   const manifest = join(cwd, MANIFEST_FILENAME);
   try {
     await readFile(manifest, 'utf8');
-    if (!dryRun) await rm(manifest, { force: true });
-    done.push(`Removed: ${MANIFEST_FILENAME}`);
+    await attempt(`Removed: ${MANIFEST_FILENAME}`, async () => {
+      if (!dryRun) await rm(manifest, { force: true });
+    });
   } catch { /* never installed a shared adapter here */ }
 
-  const hookPath = await removePreCommitHook(cwd, dryRun);
-  if (hookPath) done.push(`Removed: ${rel(hookPath)}`);
+  try {
+    const hookPath = await removePreCommitHook(cwd, dryRun);
+    if (hookPath) done.push(`Removed: ${rel(hookPath)}`);
+  } catch (err: unknown) {
+    failed.push(`the pre-commit hook (${(err as NodeJS.ErrnoException).code ?? 'unknown error'})`);
+  }
 
-  const stop = await removeStopHook(join(cwd, '.claude'), dryRun);
-  if (stop) done.push(`Removed the proctor Stop hook from: ${rel(stop)}`);
+  try {
+    const stop = await removeStopHook(join(cwd, '.claude'), dryRun);
+    if (stop) done.push(`Removed the proctor Stop hook from: ${rel(stop)}`);
+  } catch (err: unknown) {
+    failed.push(`the Stop hook entry (${(err as NodeJS.ErrnoException).code ?? 'unknown error'})`);
+  }
 
-  return done;
+  return { done, failed };
 }

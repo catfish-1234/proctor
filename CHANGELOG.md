@@ -29,6 +29,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   docs; several cross-document links pointed at the wrong file; `docs/CLI.md` quoted stale
   `--explain` output.
 
+- **A shared file whose own prose contained the literal `<!-- proctor:start -->` marker could lose
+  content, or be deleted entirely, on uninstall.** The block pattern matched from the user's stray
+  marker to proctor's real end marker, so removing "the block" took everything in between with it.
+  A conventions file that documents how proctor works is an ordinary thing to write, and it is
+  exactly the file proctor merges into. The pattern is now tempered so a block body cannot span
+  another start marker.
+- **`uninstall` aborted on the first unremovable path**, printing nothing at all, so a failure
+  partway through the roster left files already deleted with no record of which. Each item is now
+  attempted independently, failures are reported by name, and a partial uninstall exits nonzero.
+- **`setup` crashed with a raw `TypeError` on a settings file that was valid JSON but an odd
+  shape** (`hooks.Stop` an object rather than an array, `hooks` a string, a `null` or array root),
+  leaving a half-finished install. Those are now reported through the existing "fix it and re-run"
+  path, and a root shape that `JSON.stringify` would silently drop is no longer reported as a
+  successful install.
+- **`uninstall` left `.husky/pre-commit` in place on a Windows clone** while reporting that proctor
+  was not installed. The hook is a committed file, so `core.autocrlf` checks it out with CRLF and
+  the byte-exact comparison failed. Line endings are normalized now.
+- **The Stop hook no longer blocks a turn during a merge, rebase, cherry-pick, or revert**, where
+  the working tree carries the incoming branch's changes and a test that branch deleted would read
+  as this turn deleting it. The pre-commit hook still guards the resolution.
+
 ### Added
 
 - **`proctor uninstall`** removes everything `setup` installed, and nothing else. A shared file

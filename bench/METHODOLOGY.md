@@ -40,7 +40,7 @@ proctor. Reusing `runChecks` in-process means the benchmark is only ever asking 
 ## Scope: What Can Fire in a Bench Run
 
 `runChecks` is called without enabling `ctx.aiEnabled`/`ctx.judge`, matching how
-`proctor check` behaves without `--ai`. All eleven checks run in that mode, and every
+`proctor check` behaves without `--ai`. All thirteen checks run in that mode, and every
 one of them has a deterministic core that can fire on an agent's diff. The only parts
 that stay silent are the optional fuzzy extensions of RH004 (hardcoded implementation)
 and RH005 (gutted implementation), which consult the LLM judge for ambiguous cases

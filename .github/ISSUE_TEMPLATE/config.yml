@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/catfish-1234/proctor/security/advisories/new
+    about: Report privately through a GitHub Security Advisory, not a public issue.
+  - name: New check or design change
+    url: https://github.com/catfish-1234/proctor/issues/new
+    about: Open a plain issue so the design can be talked through before anyone writes it.

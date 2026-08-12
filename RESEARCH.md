@@ -81,7 +81,7 @@ remember. They're short, stable labels so you can reference one specific check i
 think of an ESLint rule ID: a lookup key, not something to memorize.
 
 You'll always see the plain-English name and a description alongside the code (in `proctor check`
-output, in `--explain`, and in the [README's CLI reference](README.md#cli-reference)), so you never
+output, in `--explain`, and in the [CLI reference](docs/CLI.md)), so you never
 have to guess what a code means. Run `proctor check --explain RH001` to print the full explanation
 for any rule.
 
@@ -98,7 +98,7 @@ open an issue to talk through the design before writing code.
 
 - [`bench/METHODOLOGY.md`](bench/METHODOLOGY.md): the full benchmark methodology, the held-out-test
   design, and citations.
-- The dogfooding runs behind the README's Known Limitations section: four rounds against a local
+- The dogfooding runs behind the [known limitations](docs/LANGUAGES.md#known-limitations): four rounds against a local
   corpus of 28 scratch repos, which is where the false positives and false negatives listed there
   were found and fixed. Those repos and their reports are working notes rather than a deliverable,
   so they live outside the published tree.

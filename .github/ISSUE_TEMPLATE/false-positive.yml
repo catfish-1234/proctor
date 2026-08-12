@@ -1,0 +1,50 @@
+name: False positive
+description: proctor blocked a change that was honest
+labels: ["false-positive"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A check that fires on honest code is worse than no check, so these are worth fixing.
+        The diff that triggered it is worth more than a description of it.
+  - type: input
+    id: rule
+    attributes:
+      label: Which check fired
+      placeholder: RH004
+    validations:
+      required: true
+  - type: textarea
+    id: diff
+    attributes:
+      label: The diff that triggered it
+      description: The smallest diff that still reproduces it. Redact freely.
+      render: diff
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why this change was honest
+      description: What the code is actually doing, that the check misread.
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output of `proctor check --json`
+      render: json
+  - type: input
+    id: version
+    attributes:
+      label: proctor version
+      description: Output of `proctor --version`
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: OS and Node version
+      placeholder: "Windows 11, Node 20.11.0"
+    validations:
+      required: true

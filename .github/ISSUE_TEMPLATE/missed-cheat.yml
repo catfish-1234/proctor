@@ -1,0 +1,47 @@
+name: Missed cheat
+description: An agent gamed the tests and proctor let it through
+labels: ["missed-cheat"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: the Stop hook checks uncommitted changes and fails open (it allows the turn
+        if proctor errors, times out, or runs outside a git repository). See
+        [docs/TROUBLESHOOTING.md](../blob/main/docs/TROUBLESHOOTING.md) first.
+  - type: textarea
+    id: diff
+    attributes:
+      label: The diff that should have been caught
+      render: diff
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should have fired, and why
+      description: A check ID if you know one, otherwise describe the cheat in your own words.
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where you expected it to be caught
+      options:
+        - proctor check, run by hand
+        - git pre-commit hook
+        - Claude Code Stop hook
+        - GitHub Action / CI
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: proctor version
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: OS and Node version
+    validations:
+      required: true

@@ -4,7 +4,7 @@ proctor runs with no config file. This page is for the cases where you want to c
 something: approving a genuine test change, adjusting severities, or silencing one line.
 
 Drop a `proctor.config.json` in your repo root (it's validated against
-[`proctor.schema.json`](proctor.schema.json)):
+[`proctor.schema.json`](../proctor.schema.json)):
 
 ```json
 {
@@ -20,7 +20,7 @@ Drop a `proctor.config.json` in your repo root (it's validated against
 
 | Field | Type | What it does |
 |-------|------|---------|
-| `enabled` | `string[]` | which checks to run. Defaults to all of them, `RH001` through `RH012` |
+| `enabled` | `string[]` | which checks to run. Defaults to all of them, `RH001` through `RH013` |
 | `severity` | `object` | override how serious a check is, per check ID (e.g. `"RH006": "warn"`) |
 | `testPathGlobs` | `string[]` | glob patterns that identify your test files |
 | `ignorePatterns` | `string[]` | glob patterns for files to ignore entirely |

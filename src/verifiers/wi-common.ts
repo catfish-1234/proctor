@@ -95,6 +95,111 @@ export function isWatchedSource(context: Context, filePath: string): boolean {
 }
 
 /**
+ * Characters after which a `/` opens a regular expression rather than dividing.
+ *
+ * Enough to tell `{ re: /\bas\s+any\b/ }` from `total / count`. Getting this wrong in the
+ * permissive direction blanks a bit of arithmetic, which costs nothing here; getting it wrong in
+ * the strict direction leaves a pattern definition looking like code, which is the bug this exists
+ * to fix.
+ */
+const REGEX_CAN_START_AFTER = /^$|[(,=:[!&|?{};+\-*%~^<>]/;
+
+/**
+ * Blanks the contents of string and regex literals, leaving their delimiters in place.
+ *
+ * A tool that detects a token necessarily contains that token. Proctor's own verifiers list every
+ * pattern they look for, in regex literals and in the `what:` strings beside them, and its rule
+ * metadata describes all of them in prose. Reading a raw diff line, all of that looks exactly like
+ * the thing being detected, so proctor reported its own source as a violation of itself: seven
+ * type widenings in WI106's signature table, five suppression comments across the family. None of
+ * them was code.
+ *
+ * This is not a proctor-specific problem, which is why the fix is not a proctor-specific exclusion.
+ * Any repository holding a linter, a codemod, a security scanner, or a migration guide hits it the
+ * moment it writes the token down.
+ *
+ * Comments are deliberately processed too, rather than skipped: the offending mentions are as often
+ * inside a comment ("a bare marker such as `# noqa`") as inside code. An unterminated quote is left
+ * alone, so an apostrophe in prose cannot swallow the rest of the line.
+ */
+export function withoutLiterals(text: string): string {
+  let out = '';
+  let previous = '';
+  let i = 0;
+
+  while (i < text.length) {
+    const ch = text[i]!;
+
+    // A comment marker is never a regex, and its delimiters carry no content to blank.
+    if (ch === '/' && (text[i + 1] === '/' || text[i + 1] === '*')) {
+      out += ch + text[i + 1];
+      previous = '/';
+      i += 2;
+      continue;
+    }
+
+    if (ch === "'" || ch === '"' || ch === '`') {
+      const end = findClosing(text, i + 1, ch);
+      // No closing quote on this line: an apostrophe in prose, not a string. Treat it as text.
+      if (end < 0) {
+        out += ch;
+        previous = ch;
+        i++;
+        continue;
+      }
+      out += ch + ch;
+      previous = ch;
+      i = end + 1;
+      continue;
+    }
+
+    if (ch === '/' && REGEX_CAN_START_AFTER.test(previous)) {
+      const end = findRegexEnd(text, i + 1);
+      if (end >= 0) {
+        out += '//';
+        previous = '/';
+        i = end + 1;
+        continue;
+      }
+    }
+
+    out += ch;
+    if (!/\s/.test(ch)) previous = ch;
+    i++;
+  }
+
+  return out;
+}
+
+/** Index of the closing quote, or -1 when the literal does not terminate on this line. */
+function findClosing(text: string, start: number, quote: string): number {
+  for (let i = start; i < text.length; i++) {
+    if (text[i] === '\\') {
+      i++;
+      continue;
+    }
+    if (text[i] === quote) return i;
+  }
+  return -1;
+}
+
+/** Index of the closing slash of a regex literal, or -1 when there is none on this line. */
+function findRegexEnd(text: string, start: number): number {
+  let inCharClass = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '\\') {
+      i++;
+      continue;
+    }
+    if (ch === '[') inCharClass = true;
+    else if (ch === ']') inCharClass = false;
+    else if (ch === '/' && !inCharClass) return i;
+  }
+  return -1;
+}
+
+/**
  * Strips a trailing line comment so a signature match isn't defeated by a comment after it.
  *
  * The SQL/Lua `--` form requires whitespace after it, which is not pedantry: without that, this
@@ -123,4 +228,9 @@ export function hasExplanation(text: string): boolean {
   // for enough prose that somebody had to think about the sentence.
   if (/^(?:todo|fixme|xxx|hack|noqa|nosec|eslint-disable\S*|prettier-ignore)\b\W*$/i.test(words)) return false;
   return words.split(/\s+/).filter(Boolean).length >= 3;
+}
+
+/** True when the whole line is a comment, so nothing on it is executable code. */
+export function isCommentLine(text: string): boolean {
+  return /^\s*(?:\/\/|\/\*|\*|#(?!\!)|--\s)/.test(text);
 }

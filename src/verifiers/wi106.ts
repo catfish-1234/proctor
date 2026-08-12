@@ -1,6 +1,6 @@
 import type { Context, Finding, Verifier } from '../types.js';
 import type { DiffLine } from './wi-common.js';
-import { addedLines, deletedLines, hasExplanation, isWatchedSource, pathOf, withoutTrailingComment } from './wi-common.js';
+import { addedLines, deletedLines, hasExplanation, isCommentLine, isWatchedSource, pathOf, withoutLiterals, withoutTrailingComment } from './wi-common.js';
 
 /**
  * Type safety eroded to silence the checker.
@@ -64,7 +64,11 @@ function run(context: Context): Finding[] {
 
     const widened: { line: DiffLine; what: string }[] = [];
     for (const line of added) {
-      const sig = WIDENING_SIGNATURES.find(s => s.re.test(withoutTrailingComment(line.text)));
+      // A widening named in a comment, quoted in a string, or written into a regex is a mention,
+      // not a cast. Without this, WI106's own signature table read as seven type widenings.
+      if (isCommentLine(line.text)) continue;
+      const code = withoutLiterals(withoutTrailingComment(line.text));
+      const sig = WIDENING_SIGNATURES.find(s => s.re.test(code));
       // A cast the author explained is the boundary case this check is designed not to punish.
       if (sig && !hasExplanation(line.text)) widened.push({ line, what: sig.what });
     }

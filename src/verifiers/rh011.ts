@@ -1,4 +1,5 @@
 import type { Context, Finding, Verifier } from '../types.js';
+import { withoutLiterals } from './wi-common.js';
 
 const SUPPRESSION_PATTERNS = [
   /@ts-ignore\b/,
@@ -185,6 +186,36 @@ function isSuppression(content: string): boolean {
 }
 
 /**
+ * Blanks string and regex literal contents before matching.
+ *
+ * Comments themselves are left intact, because a suppression directive *is* a comment: stripping
+ * those would leave this check with nothing to read. What gets blanked is the quoted text inside
+ * them, which is where a mention lives rather than a directive. A directive quoted inside a
+ * sentence is prose about a suppression; the same token standing alone on a line is one. Proctor's
+ * own rule metadata and shared helpers are full of the former, and this check reported every one of
+ * them as the latter.
+ */
+function suppressionInCode(content: string): boolean {
+  // Haskell is the exception, and a real one rather than a workaround: an HLint annotation puts its
+  // payload inside a string by design, so blanking literals erases the directive itself rather than
+  // a mention of it. Its ANN anchor sits outside the quotes, which is what makes matching the raw
+  // line safe here. The cost is that this one pattern stays self-referential: a comment spelling the
+  // annotation out in full still reads as a directive, which is why neither this comment nor its
+  // test writes one.
+  if (LITERAL_SPANNING_PATTERNS.some(re => re.test(content))) return true;
+  return isSuppression(withoutLiterals(content));
+}
+
+/** Directives whose payload legitimately lives inside a string literal, so stripping breaks them. */
+const LITERAL_SPANNING_PATTERNS = [/\{-#\s*ANN\b[^#]*HLint:\s*ignore/];
+
+/** File-wide equivalent of suppressionInCode, with the same Haskell exception. */
+function filewideInCode(content: string): boolean {
+  if (FILEWIDE_HLINT_RE.test(content)) return true;
+  return isFilewideSuppression(withoutLiterals(content));
+}
+
+/**
  * Documentation, where a suppression token is a word rather than a directive.
  *
  * Prose telling a reader not to add a TypeScript ignore directive necessarily contains one, and two
@@ -210,9 +241,9 @@ function run(context: Context): Finding[] {
     if (DOC_FILE_RE.test(filePath)) continue;
     for (const chunk of file.chunks) {
       for (const add of chunk.changes.filter(c => c.type === 'add')) {
-        if (isFilewideSuppression(add.content)) {
+        if (filewideInCode(add.content)) {
           filewideOccurrences.push({ file: filePath, line: (add as { ln: number }).ln });
-        } else if (isSuppression(add.content)) {
+        } else if (suppressionInCode(add.content)) {
           occurrences.push({ file: filePath, line: (add as { ln: number }).ln });
         }
       }

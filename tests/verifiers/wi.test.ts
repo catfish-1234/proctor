@@ -339,3 +339,34 @@ describe('WI106, type safety eroded', () => {
     expect(await run(wi106, addedOf('src/a.rb', 'value = thing as any'))).toEqual([]);
   });
 });
+
+describe('WI106, a mention inside a literal is not a widening', () => {
+  it('stays silent on a signature table listing the widenings it detects', async () => {
+    // WI106's own signature table read as seven type widenings on this PR's diff. Every one was a
+    // regex literal or the string beside it, and not one was a cast.
+    const table = [
+      'const WIDENING_SIGNATURES = [',
+      "  { re: /\\bas\\s+any\\b/, what: 'as any' },",
+      "  { re: /Array<any>|any\\[\\]/, what: 'any[]' },",
+      "  { re: /\\binterface\\{\\}/, what: 'interface{}' },",
+      "  { re: /\\bdynamic\\b/, what: 'dynamic' },",
+      "  { re: /\\b@ts-expect-error\\b/, what: '@ts-expect-error' },",
+      '];',
+    ].join('\n');
+    expect(await run(wi106, addedOf('src/verifiers/types.ts', table))).toEqual([]);
+  });
+
+  it('stays silent on a regex that merely names the top type', async () => {
+    const code = 'const KNOWN = /^(?:any|Any|unknown|object)$/;\nconst OTHER = /^(?:any|Any)$/;';
+    expect(await run(wi106, addedOf('src/verifiers/types.ts', code))).toEqual([]);
+  });
+
+  it('stays silent on a doc comment describing the tokens', async () => {
+    const code = ' * Widening to `as any` or `: any` does not make two types agree.\n * Nor does `as unknown as`.';
+    expect(await run(wi106, addedOf('src/verifiers/types.ts', code))).toEqual([]);
+  });
+
+  it('still fires on real casts on adjacent lines', async () => {
+    expect((await run(wi106, addedOf('src/a.ts', 'const a = x as any;\nconst b = y as any;'))).length).toBe(2);
+  });
+});

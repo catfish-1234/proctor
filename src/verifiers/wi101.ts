@@ -1,5 +1,5 @@
 import type { Context, Finding, Verifier } from '../types.js';
-import { addedLines, afterLines, hasExplanation, isWatchedSource, pathOf } from './wi-common.js';
+import { addedLines, afterLines, hasExplanation, insideTemplateLiteral, isCommentLine, isWatchedSource, pathOf, withoutLiterals } from './wi-common.js';
 
 /**
  * Silent error swallowing.
@@ -178,11 +178,19 @@ function run(context: Context): Finding[] {
 
     for (const chunk of file.chunks) {
       const after = afterLines(chunk);
+      const addedInOrder = addedLines(chunk);
+      const templated = insideTemplateLiteral(addedInOrder);
 
-      for (const added of addedLines(chunk)) {
+      for (const [index, added] of addedInOrder.entries()) {
+        if (templated.has(index)) continue;
         if (hasExplanation(added.text)) continue;
+        // A handler quoted inside a string is a test payload or a documentation example, not a
+        // handler. proctor's own red-team corpus is a file full of them, and every one was
+        // reported as a real swallowed error.
+        if (isCommentLine(added.text)) continue;
+        const code = withoutLiterals(added.text);
 
-        const inline = INLINE_SIGNATURES.find(sig => sig.opener.test(added.text));
+        const inline = INLINE_SIGNATURES.find(sig => sig.opener.test(code));
         if (inline) {
           findings.push({
             verifierId: 'WI101',
@@ -198,7 +206,7 @@ function run(context: Context): Finding[] {
 
         const blockIndex = after.findIndex(l => l.line === added.line && l.added);
         if (blockIndex < 0) continue;
-        const block = BLOCK_SIGNATURES.find(sig => sig.opener.test(added.text));
+        const block = BLOCK_SIGNATURES.find(sig => sig.opener.test(code));
         if (!block) continue;
         if (!bodyIsEmpty(after, blockIndex, block.braced)) continue;
 

@@ -234,3 +234,32 @@ export function hasExplanation(text: string): boolean {
 export function isCommentLine(text: string): boolean {
   return /^\s*(?:\/\/|\/\*|\*|#(?!\!)|--\s)/.test(text);
 }
+
+/**
+ * Indices of lines that sit inside an unterminated template literal.
+ *
+ * `withoutLiterals` works a line at a time, which is enough for a quoted mention on one line and
+ * useless for a backtick string spanning twenty. The interior lines of a multi-line template carry
+ * no visible quote at all: to a line-based scan they are indistinguishable from ordinary code, so a
+ * cheat payload embedded in a test fixture reads as a real cheat. That is not hypothetical, it is
+ * how proctor's own red-team corpus, which is one file of multi-line payloads, tripped WI101.
+ *
+ * Walks the lines in order and toggles on each odd count of unescaped backticks. Deliberately
+ * conservative: the opening and closing lines are not marked, since real code routinely sits
+ * alongside a template on those.
+ */
+export function insideTemplateLiteral(lines: DiffLine[]): Set<number> {
+  const inside = new Set<number>();
+  let open = false;
+  for (let i = 0; i < lines.length; i++) {
+    const text = lines[i]!.text;
+    if (open) inside.add(i);
+    let ticks = 0;
+    for (let c = 0; c < text.length; c++) {
+      if (text[c] === '\\') { c++; continue; }
+      if (text[c] === '`') ticks++;
+    }
+    if (ticks % 2 === 1) open = !open;
+  }
+  return inside;
+}

@@ -251,6 +251,7 @@ Everything above is the whole product for most people. These pages are for when 
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | It didn't fire, it fired wrongly, my approval didn't take |
 | [docs/LANGUAGES.md](docs/LANGUAGES.md) | Per-language support matrix, the 30 supported agents, known limitations |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Setting up, adding a check, adding an agent |
+| [docs/RELEASING.md](docs/RELEASING.md) | Maintainer notes: how a tag becomes a release |
 | [RESEARCH.md](RESEARCH.md) | Why it's built this way, and how it compares to Stryker and EvilGenie |
 | [bench/METHODOLOGY.md](bench/METHODOLOGY.md) | How the benchmark works and what it does not claim |
 

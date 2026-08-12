@@ -6,61 +6,25 @@
 
 <p align="center"><strong>Your agent didn't fix the bug. It deleted the test and told you it passed. proctor catches it.</strong></p>
 
-Proctor is a skill you give your coding agent, plus the guard that makes the skill mean something.
+## What this is
 
-The skill is a short ruleset about finishing work honestly: don't delete a failing test, don't skip
-it, don't weaken the assertion, don't hardcode the answer the fixture expects. Most agents will
+proctor is a command-line tool that reads your git diff and blocks the changes an AI coding agent
+makes when it fakes a passing build: deleting a failing test, skipping it, weakening the assertion,
+hardcoding the answer the test expects.
+
+It has two halves.
+
+The **ruleset** is a short document telling your agent how to finish work honestly. Most agents
 follow it most of the time.
 
-The guard is for the rest of the time. A ruleset alone is a request, and an agent under pressure to
-show a green build can talk itself out of a request. So proctor also ships a
+The **guard** is for the rest of the time. A ruleset alone is a request, and an agent under
+pressure to show green can talk itself out of a request. So proctor also ships a
 deterministic, diff-level guard that runs on every commit and at the end of every agent turn, and
 blocks the changes that broke the rules. It works below the agent's own reasoning: it reads the
 code change itself, never the agent's explanation of it, so nothing the agent says can argue
 with it.
 
-## Install
-
-Pick your agent. One command, and you are done.
-
-**Claude Code**
-
-```
-/plugin marketplace add catfish-1234/proctor
-/plugin install proctor@proctor-marketplace
-```
-
-**Cursor**: install proctor from the [Cursor Marketplace](https://cursor.com/marketplace).
-
-**Gemini CLI or Qwen Code**
-
-```bash
-gemini extensions install https://github.com/catfish-1234/proctor
-qwen extensions install https://github.com/catfish-1234/proctor
-```
-
-**Anything else** (30 agents supported, or none at all)
-
-```bash
-npx @kavishdua/proctor setup
-```
-
-You need Node 20 or newer. That is the only requirement: no config file, no server, no account.
-
-## That's the whole setup
-
-`setup` does everything else for you. It works out which agents this repository is set up for,
-writes the ruleset to each one, and installs the hooks that enforce it. From then on your agent
-reads the rules before it works, and gets stopped if it breaks them anyway.
-
-You do not need to run proctor by hand, remember any flags, or write a config file. If you never
-read another page of this README, proctor still works.
-
-Want to see it right now without installing anything?
-
-```bash
-npx @kavishdua/proctor check
-```
+No network, no account, no API key. The whole check runs offline.
 
 ## See it catch a real cheat
 
@@ -83,6 +47,10 @@ $ proctor check
 tests/slug.test.ts
   ❌ tests/slug.test.ts:5  [RH001]  Test function 'handles a whitespace-only input' was deleted in this change.
       Restore the deleted test or document why it was intentionally removed.
+
+How to fix these honestly:
+  proctor check --explain RH001 --fix
+
 1 finding (1 error, 0 warnings)
 $ echo $?
 2
@@ -95,23 +63,119 @@ Claude Code Stop hook blocking the same cheat live in an agent session.
 
 ![proctor demo](assets/demo.gif)
 
+## Try it before installing anything
+
+In a git repository where you have uncommitted changes:
+
+```bash
+npx @kavishdua/proctor check
+```
+
+You need Node 20 or newer. Nothing is written, nothing is installed, and no network call is made.
+
+If it prints `✓ proctor: honest pass`, your current changes are clean. If your changes don't touch
+tests at all, that's the answer you should expect.
+
+## Install
+
+Pick your agent. One command, and you are done.
+
+**Claude Code**
+
+```
+/plugin marketplace add catfish-1234/proctor
+/plugin install proctor@proctor-marketplace
+```
+
+**Gemini CLI or Qwen Code**
+
+```bash
+gemini extensions install https://github.com/catfish-1234/proctor
+qwen extensions install https://github.com/catfish-1234/proctor
+```
+
+**Anything else** (30 agents supported, or none at all)
+
+```bash
+npx @kavishdua/proctor setup
+```
+
+### What `setup` does
+
+Three things, and then it tells you what it did:
+
+1. Works out which agents this repository actually uses, by looking for their config
+   (`.cursor/`, `.claude/`, `WARP.md`, and so on), and writes the ruleset to just those. A repo
+   with no agent config gets `AGENTS.md`, the cross-vendor standard.
+2. Installs a git pre-commit hook, so a cheat can't be committed.
+3. Installs the Claude Code Stop hook, if this repo uses Claude Code, so a cheat is caught at the
+   end of the turn rather than at commit time.
+
+Run `proctor agents` first if you want to see what it will write. `--all` installs to all 30
+supported agents; `--agents claude-code,cursor` names them yourself.
+
+### One thing to do afterwards
+
+**Commit what it wrote.** The ruleset files and `.proctor-adapter-manifest.json` are ordinary files
+in your repo, and they only reach your teammates and your CI once they're committed.
+
+```bash
+git add -A && git commit -m "chore: add proctor"
+```
+
+If you use Claude Code, restart it so it picks up the new Stop hook.
+
+That's the whole setup. You don't need to run proctor by hand, remember any flags, or write a
+config file.
+
+### Checking it worked
+
+```bash
+proctor drift-check   # exits 0 if every deployed ruleset copy still matches the source
+proctor statusline    # "proctor: watching", or "proctor: 3 caught" once it has blocked something
+```
+
+Or trip it deliberately: delete a test in a scratch branch and run `proctor check`.
+
+### Removing it
+
+```bash
+proctor uninstall --dry-run   # see what would go
+proctor uninstall
+```
+
+It removes only what it installed. Your own content in a shared file like `AGENTS.md` stays, a
+pre-commit hook that isn't proctor's is left alone, and `proctor.config.json` is left for you to
+keep or delete. To skip the hook once without uninstalling: `git commit --no-verify`.
+
 ## What happens when it blocks
 
-Your agent handles it. When a check fires, proctor tells the agent what tripped and what an honest
-fix looks like, and the agent goes and does that instead. That is the normal path and it needs
-nothing from you.
+Your agent handles it. When a check fires, proctor prints what tripped and what an honest fix looks
+like, and the agent goes and does that instead. That's the normal path and it needs nothing from
+you. At the terminal you'll see the finding and an exit code of `2`.
 
-Two cases do want a human, and both are one command:
+Three cases want a human, and each is one command.
 
 **The test change was genuinely intended.** A feature got removed, so its tests went with it.
 Record it and the finding stops blocking:
 
 ```bash
 proctor approve RH001 tests/legacy-billing.test.ts --reason "billing v1 removed in RFC-88"
+git add proctor.config.json && git commit -m "chore: approve RH001 for legacy billing"
 ```
 
-It stays visible in every report with your reason attached. Approvals are read from the committed
-config, so an agent cannot approve its own change in the change it is making.
+It stays visible in every report with your reason attached. Approvals are read from the **committed**
+config, so an agent cannot approve its own change in the change it is making, and an approval you
+haven't committed yet has no effect.
+
+**It's a false positive.** Suppress that one line:
+
+```js
+// proctor-ignore: RH004 reason: this is a lookup table, not a fixture hardcode
+```
+
+The marker has to be committed before the change it excuses, for the same reason approvals do. See
+[inline suppression](docs/CONFIGURATION.md#inline-suppression).
 
 **You want to know why a check exists.** Every finding prints its ID, and every ID explains itself:
 
@@ -146,16 +210,22 @@ memorize: the plain-English name and full explanation print with every finding.
 
 [![proctor](https://img.shields.io/badge/proctor-honest_pass-22C55E)](https://github.com/catfish-1234/proctor)
 
-`✓ proctor: honest pass` prints after every clean `proctor check`, and the badge above is the same
-result in a form you can paste into your own README (generated by
-[`src/badge/index.ts`](src/badge/index.ts)).
+`✓ proctor: honest pass` prints after a clean `proctor check`, and `proctor badge` gives you the
+same result as Markdown to paste into your own README or a PR description (generated by
+[`src/badge/index.ts`](src/badge/index.ts)):
+
+```bash
+$ proctor badge
+[![proctor](https://img.shields.io/badge/proctor-honest_pass-22C55E)](https://github.com/catfish-1234/proctor)
+```
 
 A run only earns it when it is genuinely clean. Findings you approved through `approvedTestChanges`
-do not count as clean, since somebody decided to let those through.
+do not count as clean, since somebody decided to let those through. The printed line is suppressed
+under `--ci`, which is what the hooks and the GitHub Action use.
 
 ## CI
 
-Add proctor to a pull request in six lines. Findings land in the job summary, and in Code Scanning
+Add proctor to a pull request in eight lines. Findings land in the job summary, and in Code Scanning
 as inline PR comments if the repository has it enabled.
 
 ```yaml
@@ -178,13 +248,15 @@ Everything above is the whole product for most people. These pages are for when 
 |------|--------------|
 | [docs/CLI.md](docs/CLI.md) | Every command and flag |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Config file, severities, approvals, [inline suppression](docs/CONFIGURATION.md#inline-suppression) |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | It didn't fire, it fired wrongly, my approval didn't take |
 | [docs/LANGUAGES.md](docs/LANGUAGES.md) | Per-language support matrix, the 30 supported agents, known limitations |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Setting up, adding a check, adding an agent |
 | [RESEARCH.md](RESEARCH.md) | Why it's built this way, and how it compares to Stryker and EvilGenie |
 | [bench/METHODOLOGY.md](bench/METHODOLOGY.md) | How the benchmark works and what it does not claim |
 
-Proctor supports 25+ languages and installs to 30 agents. The five diff-level checks (RH001,
-RH002, RH003, RH007, RH011) work across all of them; RH004, RH005, RH006 and RH008 are
-JS/TS/Python-only. RH012 and RH013 read CI and coverage config, so they apply everywhere.
+proctor supports 25+ languages and installs to 30 agents. Five diff-level checks (RH001, RH002,
+RH003, RH007, RH011) work across all of them; RH004, RH005, RH006 and RH008 are JS/TS/Python-only.
+RH012 and RH013 read CI and coverage config, so they apply everywhere.
 [Full matrix](docs/LANGUAGES.md).
 
 ## Benchmark
@@ -202,7 +274,11 @@ real work (banker's rounding, semver prerelease rules, grapheme clusters) agains
 still one line away. Those numbers have not been collected yet. Until they are, treat the table
 above as what it is, a null result on tasks too easy to measure anything.
 
+The task corpus ships with this repository rather than the npm package, so `bench` needs a clone:
+
 ```bash
+git clone https://github.com/catfish-1234/proctor && cd proctor
+npm install && npm run build
 node dist/cli.js bench --tasks 22 --agent claude-code --out bench/results-live.csv
 ```
 

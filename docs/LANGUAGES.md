@@ -4,8 +4,8 @@ Which checks work in which language, which agents proctor installs to, and what 
 deliberately not covered. Start at the [README](../README.md) if you just want it running.
 
 **Languages:** JavaScript and TypeScript (Jest and Vitest conventions) and Python (pytest and
-unittest conventions) have full coverage across all 11 language-level checks. RH012 reads CI
-pipeline files rather than source, so it applies to every language equally. Go, Java, Rust, Ruby, PHP, C#,
+unittest conventions) have full coverage across all 11 language-level checks. RH012 and RH013 read
+CI and coverage config rather than source, so they apply to every language equally. Go, Java, Rust, Ruby, PHP, C#,
 Kotlin, C++, C, Swift, Objective-C, Dart, Scala, Perl, R, Haskell, Elixir, Lua, Groovy, Clojure,
 Shell/Bash, Julia, and VB.NET (25+ languages total) are covered by the five diff-level signature
 checks (RH001, RH002, RH003, RH007, RH011) that work off diff-line patterns. The two tables below are the per-language, per-check support matrix: the original 9
@@ -79,6 +79,14 @@ Everything except a removed test command is scoped to the individual step, not t
 coverage upload marked `continue-on-error: true` right after a test step is an ordinary, correct
 edit, and a chunk-wide read would flag it every time.
 
+RH013 is absent from both tables for the same reason, one layer over again. It reads coverage
+thresholds out of config rather than source: Jest and Vitest `coverageThreshold`, nyc, `.coveragerc`
+and `pyproject.toml`, SimpleCov, PHPUnit, Maven and Gradle (JaCoCo), and `codecov.yml`. The
+threshold's own file format varies by ecosystem, but nothing about the check varies by the language
+the tests are written in. It exists because a coverage gate is one of the easiest things to meet by
+lowering it: dropping the bar from 90 to 40, or deleting the threshold block outright, turns a red
+build green without a single test changing.
+
 Documented gaps: Go's RH002 coverage is testify-only, stdlib comparison-weakening isn't
 pattern-matched. Kotlin's Kotest `enabled = false` skip form isn't covered, it's too generic a
 token to anchor safely. Go, Ruby, and C# don't have a genuine file-wide suppression detector for
@@ -139,11 +147,12 @@ the commit.
 | Firebase Studio | `.idx/airules.md` | ✅ | ❌ |
 | Replit Agent | `replit.md` | ✅ | ❌ |
 
-¹ Cursor and GitHub Copilot get a per-format `transform` applied before writing: Cursor's
-`.mdc` gains `description`/`globs`/`alwaysApply` YAML frontmatter so the rule auto-attaches,
-and Copilot's instructions file gains `applyTo: '**'` frontmatter so it actually activates.
-Both transforms only prepend static frontmatter; the canonical ruleset body passes through
-byte-for-byte.
+¹ Four adapters get a per-format `transform` applied before writing. Cursor's `.mdc` gains
+`description`/`globs`/`alwaysApply` YAML frontmatter so the rule auto-attaches. Copilot's
+instructions file gains `applyTo: '**'` so it actually activates. Claude Code and Codex both read
+the Agent Skills format and gain `name`/`description` frontmatter, which Codex requires outright:
+without it the skill is not recognized at all. Every transform only prepends static frontmatter;
+the canonical ruleset body passes through byte-for-byte.
 
 ² Some agents read a single instructions file that you also write your own content into
 (`AGENTS.md`, `GEMINI.md`, `WARP.md`, `.goosehints`, and so on). For those, `install-skill` does
@@ -246,4 +255,4 @@ pattern to hardcode) or would open up a new way to sneak a cheat past a wider ne
 - **A reason you haven't written down yet.** Proctor reads diffs, not intent. It can't know why a
   snapshot changed or why a test's timeout grew unless that reason is somewhere it can actually
   read. This isn't a bug: if you have a good reason, say so with the
-  [inline marker](#inline-suppression) in a prior commit, before the change it justifies.
+  [inline marker](CONFIGURATION.md#inline-suppression) in a prior commit, before the change it justifies.

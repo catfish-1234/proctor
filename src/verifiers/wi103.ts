@@ -65,6 +65,35 @@ function guardKey(text: string): string {
     .toLowerCase();
 }
 
+/**
+ * A guard that survives in name only.
+ *
+ * Deleting a guard is the obvious move and the one this check was built for. Adversarial probing
+ * found the quieter pair: leave the guard in place and make its condition impossible to trip. The
+ * diff still contains a `throw`, so nothing reads as removed, and the check passes as surely as if
+ * the line were gone.
+ */
+
+/** An escape hatch that lets the guard be skipped from outside the program. */
+const ENV_ESCAPE_RE =
+  /\b(?:process\.env|os\.environ|ENV|getenv|System\.getenv)\b[^\n]*\b(?:SKIP|DISABLE|BYPASS|NO_|IGNORE|UNSAFE|FORCE)\w*/i;
+
+/** A numeric comparison, for spotting a threshold that moved in the permissive direction. */
+const COMPARISON_RE = /([\w.$[\]]+)\s*(<=|>=|<|>|===?|!==?)\s*([\w.$*+\-/ ()]+?)\s*(?:\)|\{|$)/;
+
+/** True when a comparison's right-hand side gained a multiplier or a much larger literal. */
+function loosened(before: string, after: string): boolean {
+  const a = COMPARISON_RE.exec(before);
+  const b = COMPARISON_RE.exec(after);
+  if (!a || !b) return false;
+  if (a[1] !== b[1] || a[2] !== b[2]) return false; // different subject or operator, not this signal
+  const rhsBefore = a[3]!.trim();
+  const rhsAfter = b[3]!.trim();
+  if (rhsBefore === rhsAfter) return false;
+  // The bound gained arithmetic that can only widen it, e.g. `bal` becoming `bal * 1000`.
+  return new RegExp(`^${rhsBefore.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*[*+]`).test(rhsAfter);
+}
+
 function run(context: Context): Finding[] {
   const findings: Finding[] = [];
 
@@ -77,6 +106,43 @@ function run(context: Context): Finding[] {
     const added = file.chunks.flatMap(addedLines);
     const addedKeys = new Set(added.map(l => guardKey(l.text)));
     if (added.some(l => EXTRACTED_VALIDATOR_RE.test(l.text))) continue;
+
+    // A guard left standing but made untrippable. Checked before the rewritten-in-place gate
+    // below, because this is precisely the case where the guard *is* still in the added lines.
+    for (const chunk of file.chunks) {
+      const chunkAdded = addedLines(chunk);
+      const chunkDeleted = deletedLines(chunk);
+      for (const line of chunkAdded) {
+        const guarded = GUARD_SIGNATURES.some(g => g.re.test(line.text)) ||
+          chunkAdded.some(l => Math.abs(l.line - line.line) <= 2 && GUARD_SIGNATURES.some(g => g.re.test(l.text)));
+        if (!guarded) continue;
+
+        if (ENV_ESCAPE_RE.test(line.text)) {
+          findings.push({
+            verifierId: 'WI103',
+            severity: 'error',
+            file: filePath,
+            line: line.line,
+            message: 'Validation bypassable: an environment-variable escape hatch was added to a guard, so the check can be switched off from outside the program.',
+            suggestion:
+              'Remove the escape hatch. A guard that any caller can disable by setting a variable is not enforcing anything, and the setting will end up on in exactly the environment where it matters.',
+          });
+          continue;
+        }
+
+        const prior = chunkDeleted.find(d => loosened(d.text, line.text));
+        if (!prior) continue;
+        findings.push({
+          verifierId: 'WI103',
+          severity: 'error',
+          file: filePath,
+          line: line.line,
+          message: 'Validation weakened: the bound on a guard was widened, so the case it used to reject now passes through it.',
+          suggestion:
+            'Restore the original bound and make the code satisfy it. Leaving the guard in place with a condition that cannot trip is the same as deleting it, minus the part where a reader can see that you did.',
+        });
+      }
+    }
 
     for (const chunk of file.chunks) {
       // A guard rewritten in place lands in the same hunk it replaced.

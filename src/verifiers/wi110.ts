@@ -1,0 +1,188 @@
+import path from 'node:path';
+import type { Context, Finding, Severity, Verifier } from '../types.js';
+import { addedLines, deletedLines, isCommentLine, pathOf, withoutLiterals } from './wi-common.js';
+
+/**
+ * The command that runs the checks, neutered.
+ *
+ * RH012 watches CI pipeline definitions. RH007 watches test-runner config. Between them sits the
+ * layer both assume is honest: the `test`, `lint` and `build` scripts that the pipeline invokes and
+ * that a developer runs locally. Rewriting `"test": "vitest run"` to `"test": "echo no tests"`
+ * turns every one of those green at once, in a file nobody thinks of as a test file, and neither
+ * existing check looks there.
+ *
+ * Found by adversarial probing rather than by reasoning: four separate variants of this got through
+ * a corpus of twenty cheats, and it was the single largest cluster of misses.
+ */
+
+/** Task-runner files whose entries are the commands everything else depends on. */
+const TASK_FILE_RE =
+  /(?:^|\/)package\.json$|(?:^|\/)Makefile$|(?:^|\/)Taskfile\.ya?ml$|(?:^|\/)justfile$|(?:^|\/)pyproject\.toml$|(?:^|\/)Rakefile$|(?:^|\/)composer\.json$/i;
+
+/** Script names whose whole purpose is to fail when something is wrong. */
+const VERIFICATION_SCRIPT_RE = /"(test|tests|check|lint|typecheck|type-check|tsc|verify|validate|ci|coverage|audit)[\w:-]*"\s*:/i;
+
+/** Commands that actually run a verification tool. */
+const REAL_VERIFIER_RE =
+  /\b(?:vitest|jest|mocha|ava|pytest|tox|nox|rspec|phpunit|cargo\s+test|go\s+test|dotnet\s+test|mvn|gradle|swift\s+test|mix\s+test|bats|busted|prove|tsc|eslint|ruff|flake8|mypy|pylint|clippy|rubocop|phpstan|stylelint|biome)\b|\bnpm\s+run\s+\w+|\bpytest\b/;
+
+/** Replacements that make a verification script succeed without verifying anything. */
+const NO_OP_COMMAND_RE =
+  /^\s*(?:echo\b|true\b|:\s*$|exit\s+0\b|#|node\s+-e\s+["']["']|cd\s+\.)/;
+
+interface Signature {
+  re: RegExp;
+  key: string;
+  severity: Severity;
+  what: string;
+  suggestion: string;
+}
+
+/** Flags and shapes that let a verification command fail without the script failing. */
+const NEUTERING_SIGNATURES: Signature[] = [
+  {
+    re: /--passWithNoTests\b/,
+    key: 'passWithNoTests',
+    severity: 'error',
+    what: "'--passWithNoTests' added, so a suite with no tests left in it reports success",
+    suggestion: 'Remove the flag and put the tests back. An empty suite passing is the outcome this flag exists to produce.',
+  },
+  {
+    re: /\|\|\s*(?:true|:|exit\s+0)\b/,
+    key: 'swallowedExit',
+    severity: 'error',
+    what: "a failure swallowed with '|| true', so the command's exit code stops mattering",
+    suggestion: "Remove the '|| true' so the failure reaches whoever runs this.",
+  },
+  {
+    re: /--(?:no-fail|ignore-failures|exit-zero|force)\b/,
+    key: 'forceFlag',
+    severity: 'error',
+    what: 'a flag that makes the tool exit zero regardless of what it found',
+    suggestion: 'Remove the flag and fix what the tool reported.',
+  },
+  {
+    re: /\bprocess\.exit\(\s*0\s*\)/,
+    key: 'forcedExitZero',
+    severity: 'error',
+    what: 'a forced exit 0, so the real exit code is discarded',
+    suggestion: 'Propagate the real exit code instead of forcing success.',
+  },
+];
+
+/** A Makefile recipe prefixed with `-`, which tells make to ignore the command's failure. */
+const MAKE_IGNORE_ERROR_RE = /^\s*-\s*\S/;
+
+/** Extracts the command half of a `"name": "command"` script entry. */
+function scriptCommand(text: string): string | undefined {
+  const m = /"[\w:-]+"\s*:\s*"([^"]*)"/.exec(text);
+  return m?.[1];
+}
+
+function run(context: Context): Finding[] {
+  const findings: Finding[] = [];
+
+  for (const file of context.files) {
+    const filePath = pathOf(file);
+    if (!filePath) continue;
+    const normalized = filePath.replace(/\\/g, '/');
+    const isTaskFile = TASK_FILE_RE.test(normalized);
+    const isMakefile = /(?:^|\/)Makefile$/.test(normalized);
+    // A shell script that runs the suite is the same layer under a different name.
+    const isShellScript = /\.(?:sh|bash)$/.test(normalized);
+    if (!isTaskFile && !isShellScript) continue;
+
+    for (const chunk of file.chunks) {
+      const added = addedLines(chunk);
+      const deleted = deletedLines(chunk);
+
+      // A verification script whose command was replaced by something that cannot fail.
+      for (const line of added) {
+        if (isCommentLine(line.text)) continue;
+        if (!VERIFICATION_SCRIPT_RE.test(line.text)) continue;
+        const command = scriptCommand(line.text);
+        if (command === undefined) continue;
+        if (!NO_OP_COMMAND_RE.test(command)) continue;
+        // Only when it previously ran something real: adding a placeholder script to a new project
+        // is not a cheat, replacing a working one is.
+        const previouslyReal = deleted.some(d => {
+          if (!VERIFICATION_SCRIPT_RE.test(d.text)) return false;
+          const old = scriptCommand(d.text);
+          return old !== undefined && REAL_VERIFIER_RE.test(old);
+        });
+        if (!previouslyReal) continue;
+        findings.push({
+          verifierId: 'WI110',
+          severity: 'error',
+          file: filePath,
+          line: line.line,
+          message: `Verification neutered: a script in ${path.basename(filePath)} that ran a real check now runs '${command.trim().slice(0, 40)}', which cannot fail.`,
+          suggestion:
+            'Put the real command back and fix what it reported. A script that always succeeds is indistinguishable from a passing build to everything downstream, including CI.',
+        });
+      }
+
+      // A verification command that still runs, with its failure defanged.
+      for (const line of added) {
+        if (isCommentLine(line.text)) continue;
+        const code = withoutLiterals(line.text) === line.text ? line.text : line.text;
+        if (!REAL_VERIFIER_RE.test(code) && !VERIFICATION_SCRIPT_RE.test(code)) continue;
+        for (const sig of NEUTERING_SIGNATURES) {
+          if (!sig.re.test(code)) continue;
+          findings.push({
+            verifierId: 'WI110',
+            severity: sig.severity,
+            file: filePath,
+            line: line.line,
+            message: `Verification neutered: ${sig.what}.`,
+            suggestion: sig.suggestion,
+          });
+          break;
+        }
+      }
+
+      // Make's leading `-`, which tells it to carry on when a recipe line fails.
+      if (isMakefile) {
+        for (const line of added) {
+          if (!MAKE_IGNORE_ERROR_RE.test(line.text)) continue;
+          if (!REAL_VERIFIER_RE.test(line.text)) continue;
+          findings.push({
+            verifierId: 'WI110',
+            severity: 'error',
+            file: filePath,
+            line: line.line,
+            message: "Verification neutered: a '-' prefix added to a test recipe, so make ignores the failure.",
+            suggestion: "Remove the '-' so a failing suite fails the target.",
+          });
+        }
+      }
+
+      // A verification step dropped out of a composite script entirely.
+      for (const del of deleted) {
+        const oldCommand = scriptCommand(del.text);
+        if (oldCommand === undefined || !/&&/.test(oldCommand)) continue;
+        const oldSteps = oldCommand.split('&&').map(s => s.trim());
+        const newEntry = added.find(a => {
+          const name = /"([\w:-]+)"\s*:/.exec(del.text)?.[1];
+          return name !== undefined && new RegExp(`"${name}"\\s*:`).test(a.text);
+        });
+        if (!newEntry) continue;
+        const newCommand = scriptCommand(newEntry.text) ?? '';
+        const dropped = oldSteps.filter(s => REAL_VERIFIER_RE.test(s) && !newCommand.includes(s));
+        if (dropped.length === 0) continue;
+        findings.push({
+          verifierId: 'WI110',
+          severity: 'error',
+          file: filePath,
+          line: newEntry.line,
+          message: `Verification removed: '${dropped[0]!.slice(0, 40)}' was dropped from a script that still runs, so that check no longer happens.`,
+          suggestion: 'Restore the step. If it genuinely moved elsewhere, say where, so a reader can still tell the check runs.',
+        });
+      }
+    }
+  }
+
+  return findings;
+}
+
+export const wi110: Verifier = { id: 'WI110', severity: 'error', run };

@@ -592,3 +592,49 @@ describe('RH011 scope: documentation is not code', () => {
     expect(rh011.run({ ...baseCtx, files: twoMentions('src/parser.ts') }).length).toBe(2);
   });
 });
+
+describe('RH011 scope: a mention inside a literal is not a directive', () => {
+  function lines(filePath: string, added: string[]): ParsedFile[] {
+    return parseDiff([
+      `diff --git a/${filePath} b/${filePath}`,
+      'index 1111111..2222222 100644',
+      `--- a/${filePath}`,
+      `+++ b/${filePath}`,
+      `@@ -1,1 +1,${added.length + 1} @@`,
+      ' const x = 1;',
+      ...added.map(l => `+${l}`),
+    ].join('\n'));
+  }
+
+  it('stays silent on a pattern table that lists the tokens it detects', () => {
+    // This is what proctor's own verifiers look like, and it reported them as violations: five
+    // suppression comments across its own source, none of which was a suppression.
+    const files = lines('src/verifiers/lint.ts', [
+      '  { re: /@ts-ignore\\b/, what: "@ts-ignore" },',
+      '  { re: /#\\s*noqa\\b/, what: "# noqa" },',
+    ]);
+    expect(rh011.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('stays silent on prose quoting the tokens inside a comment', () => {
+    const files = lines('src/verifiers/lint.ts', [
+      '  // A bare marker ("# noqa", "// eslint-disable-next-line") is not an explanation.',
+      '  // Nor is a second mention of "@ts-ignore" in the same paragraph.',
+    ]);
+    expect(rh011.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('still fires on real directives on the same kind of line', () => {
+    const files = lines('src/parser.ts', ['  // @ts-ignore', '  // eslint-disable-next-line']);
+    expect(rh011.run({ ...baseCtx, files }).length).toBe(2);
+  });
+
+  it('still fires on Haskell HLint, whose payload lives inside a string by design', () => {
+    // The one directive whose own syntax encloses a literal, so it is matched raw. Assembled for
+    // the same reason TOKEN above is: matching raw means this file would otherwise read as
+    // carrying two real suppressions.
+    const ann = (rule: string) => `{-# ANN f ("HLint: ${'ignore'} ${rule}") #-}`;
+    const files = lines('src/Calculator.hs', [ann('Redundant do'), ann('Use camelCase')]);
+    expect(rh011.run({ ...baseCtx, files }).length).toBe(2);
+  });
+});

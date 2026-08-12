@@ -7,9 +7,9 @@ Straight from `proctor --help` and `proctor <command> --help`.
 
 ### `proctor setup`
 
-The one command most people need. It writes the ruleset to every agent path this repository is set
-up for, installs the git pre-commit hook, and installs the Claude Code Stop hook, then reports what
-it did.
+The one command most people need. It works out which agents this repository uses, writes the
+ruleset to those, installs the git pre-commit hook, and installs the Claude Code Stop hook if
+Claude Code is one of them, then reports what it did.
 
 ```bash
 npx @kavishdua/proctor setup
@@ -19,9 +19,29 @@ It is the three `install-*` commands below in one step, and it exists because do
 three is easy to mistake for being covered. The ruleset without the hooks is exactly the
 arrangement proctor argues against: rules an agent can decline to follow with nothing behind them.
 
+**How detection works.** An agent counts as in use when its own config file or directory is already
+in the repository: `.cursor/` for Cursor, `.claude/` or `CLAUDE.md` for Claude Code, `WARP.md` for
+Warp, and so on. Run `proctor agents` to see the full list and what was detected. A repository with
+no agent config at all gets `AGENTS.md`, the cross-vendor standard, so whatever you pick up later
+still reads the ruleset.
+
+Detection exists so proctor writes 2 files into a repository that uses two agents, not 30 into one
+that uses two. Use `--all` if you genuinely want the full roster.
+
+| Flag | What it does |
+|------|--------------|
+| `--all` | write to all 30 supported agents, not only the detected ones |
+| `--agents <ids>` | install to exactly these agent ids, e.g. `claude-code,cursor` |
+
 Running it again is safe. Shared instruction files are merged rather than overwritten, and a Stop
 hook that is already present is left alone. If one part cannot proceed (no git repository, a
-settings file that is not valid JSON) it says so and still completes the others, exiting nonzero.
+settings file that is not valid JSON, an unwritable path) it says so, still completes the others,
+and exits nonzero.
+
+**Commit what it writes.** The ruleset files and `.proctor-adapter-manifest.json` are ordinary
+files in your repository; they only reach your teammates and CI once they are committed. The
+manifest in particular is what lets `drift-check` tell "never installed here" apart from "installed
+and since deleted", which is the tampering case worth catching.
 
 ### `proctor check [path]`
 
@@ -30,13 +50,14 @@ Checks your current diff against every enabled check.
 | Flag | What it does |
 |------|--------------|
 | `--staged` | only look at staged changes |
+| `--uncommitted` | look at everything not yet committed, staged and unstaged together. This is what the Stop hook uses, since an agent finishing a turn has usually staged nothing |
 | `--base <ref>` | compare against a base ref (like `origin/main` or a commit SHA) instead of your working changes. Useful in CI, where nothing is staged in a fresh checkout |
 | `--ci` | quiet mode: only print errors, exit nonzero only on an error |
 | `--json` | print findings as JSON |
 | `--sarif` | print SARIF 2.1.0 JSON, for tools that consume that format |
-| `--ai` | turn on the optional AI judge for ambiguous cases (needs `ANTHROPIC_API_KEY`) |
+| `--ai` | turn on the optional AI judge for ambiguous cases (needs `ANTHROPIC_API_KEY`). Everything else is offline: no network, no account |
 | `--rules <ids>` | only run specific checks, e.g. `RH001,RH003` |
-| `--explain <id>` | print the full explanation for one check and exit, no diff analysis |
+| `--explain <id>` | print the full explanation for one check and exit, no diff analysis. Combine with `--json` for a structured record an agent can act on |
 | `--fix` | with `--explain`, print what an honest fix for that check looks like |
 | `--markdown <file>` | also append a Markdown summary to this file, e.g. `--markdown "$GITHUB_STEP_SUMMARY"` |
 
@@ -52,7 +73,10 @@ fixing the underlying code.
 
 Default severity: error
 More info: https://github.com/catfish-1234/proctor#rh001
+Honest fix: proctor check --explain RH001 --fix
 ```
+
+`proctor --version` prints the version and exits.
 
 ### `proctor install-hook`
 
@@ -66,9 +90,13 @@ own, and tells you it did.
 
 ### `proctor stop-hook`
 
-The Claude Code Stop hook itself. Reads the hook payload from stdin, runs a check, and exits `2`
-to block the turn if it finds something serious. Never exits `1`, since that's non-blocking in
-Claude Code.
+The Claude Code Stop hook itself. Reads the hook payload from stdin, runs `check --uncommitted
+--ci`, and exits `2` to block the turn if it finds something serious. Never exits `1`, since that's
+non-blocking in Claude Code.
+
+It reads uncommitted changes, staged and unstaged both, because an agent that has just finished
+editing has usually staged nothing. Outside a git repository, or if proctor itself errors or takes
+longer than 60 seconds, it allows the turn: a guard that breaks should not become a wall.
 
 ### `proctor install-claude-hook`
 
@@ -82,10 +110,60 @@ Safe to run more than once; it won't add a duplicate entry.
 
 ### `proctor install-skill`
 
-Deploys the honest-completion skill to every supported agent in one command, from a single source
-file (see [`src/adapters/registry.ts`](src/adapters/registry.ts)). Paths proctor owns are written
-whole. Shared files you also write your own content into are merged into a
-[managed block](#supported-languages-and-agents) instead, leaving the rest of the file alone.
+Deploys the honest-completion skill to the agents this repository uses, from a single source file
+(see [`src/adapters/registry.ts`](../src/adapters/registry.ts)). Paths proctor owns are written
+whole. Shared files you also write your own content into are merged into a managed block instead,
+leaving the rest of the file alone.
+
+This is the ruleset half of `setup`, without the hooks. It takes the same `--all` and
+`--agents <ids>` flags, and the same detection rules.
+
+### `proctor agents`
+
+Lists every supported agent, its install path, and whether this repository appears to use it. Run
+it before `setup` if you want to see what will be written.
+
+```bash
+$ proctor agents
+detected  claude-code            .claude/skills/proctor/SKILL.md
+       -  codex                  .agents/skills/proctor/SKILL.md
+detected  cursor                 .cursor/rules/proctor.mdc
+...
+2 of 30 detected.
+```
+
+### `proctor uninstall`
+
+Removes everything proctor installed in this repository: the ruleset files, the managed block in
+each shared file, the adapter manifest, the pre-commit hook, and the Stop hook entry.
+
+| Flag | What it does |
+|------|--------------|
+| `--dry-run` | list what would be removed without removing it |
+
+It is deliberately conservative about things that are not proctor's. A shared file keeps all of
+your own content and only loses the managed block; a file that would be left empty is deleted
+rather than left as a husk. A pre-commit hook that is not proctor's, and any other `Stop` hook in
+your settings, are left exactly as they are. `proctor.config.json` is left in place too, since your
+approvals and severities are yours to keep.
+
+### `proctor badge`
+
+Prints the honest-pass badge for the current changes, as Markdown you can paste into a README or a
+PR description.
+
+```bash
+$ proctor badge
+[![proctor](https://img.shields.io/badge/proctor-honest_pass-22C55E)](https://github.com/catfish-1234/proctor)
+```
+
+| Flag | What it does |
+|------|--------------|
+| `--staged` | judge staged changes instead of the working tree |
+| `--url` | print just the image URL, without the Markdown wrapper |
+
+The badge reflects the run it was generated from: a run with an error-severity finding produces a
+`caught` badge, not an honest pass.
 
 ### `proctor drift-check`
 
@@ -166,7 +244,8 @@ The tally lives in `.git/`, so it is local to your clone, never committed, and n
 
 Records a genuine test change in `proctor.config.json` so it stops blocking. The finding stays
 visible in every report with your reason attached, and the change has to be committed before it
-takes effect. See [Approving a genuine test change](#approving-a-genuine-test-change).
+takes effect. See
+[Approving a genuine test change](CONFIGURATION.md#approving-a-genuine-test-change).
 
 | Flag | What it does |
 |------|--------------|
@@ -177,6 +256,14 @@ takes effect. See [Approving a genuine test change](#approving-a-genuine-test-ch
 Runs the benchmark harness: a set of seeded tasks, run once with proctor on and once with it off,
 producing a CSV and a before/after cheat-rate table.
 
+The task corpus ships with the repository, not the npm package, so this command needs a clone:
+
+```bash
+git clone https://github.com/catfish-1234/proctor && cd proctor
+npm install && npm run build
+node dist/cli.js bench --mock
+```
+
 | Flag | What it does |
 |------|--------------|
 | `--tasks <n>` | how many tasks to run (default `10`) |
@@ -185,4 +272,4 @@ producing a CSV and a before/after cheat-rate table.
 | `--agent <id>` | which agent to run, e.g. `claude-code`, `codex` (default `claude-code`) |
 | `--out <path>` | where to write the results CSV |
 
-See [`bench/METHODOLOGY.md`](bench/METHODOLOGY.md) for the full methodology.
+See [`bench/METHODOLOGY.md`](../bench/METHODOLOGY.md) for the full methodology.

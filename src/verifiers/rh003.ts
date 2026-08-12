@@ -373,10 +373,30 @@ const NEW_LANG_EXTS = new Set([
   'pl', 'pm', 't', 'r', 'hs', 'ex', 'exs', 'lua', 'clj', 'cljc', 'sh', 'bash', 'bats', 'jl',
 ]);
 
+/**
+ * A diff path in a form the directory checks below can match.
+ *
+ * Backslashes become slashes, then runs of slashes collapse to one. The collapse is not cosmetic:
+ * git quotes absolute Windows paths in a diff header with C-style escaping, doubling every literal
+ * backslash, and `parse-diff` does not un-escape it. So `...\tests\testthat\test-calc.R` arrives as
+ * `...\\tests\\testthat\\test-calc.R`, two raw backslashes per separator. A bare
+ * `.replace(/\\/g, '/')` turns that into `tests//testthat//`, which silently fails any
+ * single-slash-anchored regex like `/tests\/testthat\//`. Found while wiring the R fixtures.
+ */
+function normalizePath(filePath: string): string {
+  return filePath.replace(/\\/g, '/').replace(/\/{2,}/g, '/');
+}
+
+/** Filename component of a diff path, Windows separators included. */
+function basename(filePath: string): string {
+  const normalized = normalizePath(filePath);
+  return normalized.split('/').pop() ?? normalized;
+}
+
 // A named pytest/unittest test module (test_x.py / x_test.py), excluding conftest.py and other
 // setup files where an imperative skip is normal.
 function isPyTestModule(filePath: string): boolean {
-  const base = filePath.split('/').pop() ?? filePath;
+  const base = basename(filePath);
   const named = /^test_.*\.py$/.test(base) || /_test\.py$/.test(base);
   return named && base !== 'conftest.py';
 }
@@ -390,71 +410,48 @@ function isGoTestFile(filePath: string): boolean {
 // RSpec/Minitest convention. Bare `skip`/`pending` and the x-forms are both gated to this so a
 // same-named identifier in ordinary Ruby source never fires.
 function isRubyTestFile(filePath: string): boolean {
-  const base = filePath.split('/').pop() ?? filePath;
+  const base = basename(filePath);
   return /_spec\.rb$/.test(base) || /_test\.rb$/.test(base);
 }
 
 // Mirrors the Kotlin DEFAULT_GLOBS convention (Java/Gradle/Maven-shared): *Test.kt filename, or
-// any file under a src/test/ directory. Slash-runs are collapsed after the backslash swap, see
-// isRTestFile's comment for why: a Windows-quoted diff path doubles every backslash, and a naive
-// `.replace(/\\/g, '/')` alone turns that into a double-slash `src//test//` that silently fails
-// this single-slash-anchored `.includes` check.
+// any file under a src/test/ directory.
 function isKotlinTestFile(filePath: string): boolean {
-  const normalized = filePath.replace(/\\/g, '/').replace(/\/{2,}/g, '/');
-  const base = normalized.split('/').pop() ?? normalized;
-  return /Test\.kt$/.test(base) || normalized.includes('/src/test/');
+  return /Test\.kt$/.test(basename(filePath)) || normalizePath(filePath).includes('/src/test/');
 }
 
 // Ceedling/Unity project-layout convention: *_test.c / test_*.c. CMocka's bare skip() is gated
 // to this so an unrelated C function literally named skip() elsewhere is never flagged.
 function isCTestFile(filePath: string): boolean {
-  const normalized = filePath.replace(/\\/g, '/');
-  const base = normalized.split('/').pop() ?? normalized;
+  const base = basename(filePath);
   return /_test\.c$/.test(base) || /^test_.*\.c$/.test(base);
 }
 
 // Mirrors the Scala DEFAULT_GLOBS convention: *Spec.scala/*Suite.scala filename, or any file
 // under a src/test/scala/ directory. Gates ScalaTest's bare-word FlatSpec `ignore` form.
-// Slash-runs collapsed after the backslash swap, same Windows-doubled-backslash fix as
-// isKotlinTestFile/isRTestFile above.
 function isScalaTestFile(filePath: string): boolean {
-  const normalized = filePath.replace(/\\/g, '/').replace(/\/{2,}/g, '/');
-  const base = normalized.split('/').pop() ?? normalized;
-  return /Spec\.scala$/.test(base) || /Suite\.scala$/.test(base) || normalized.includes('/src/test/scala/');
+  const base = basename(filePath);
+  return /Spec\.scala$/.test(base) || /Suite\.scala$/.test(base) ||
+    normalizePath(filePath).includes('/src/test/scala/');
 }
 
 // testthat convention: tests/testthat/test-*.R. Gates R_SKIP so an unrelated user-defined
 // `skip(...)` function outside a test directory never fires (mirrors isCTestFile's precedent).
-// Note: `normalized` collapses runs of 2+ slashes to one after the backslash swap. This guards
-// against a real Windows-only diff artifact found while wiring these fixtures: git
-// quotes absolute Windows paths in a diff header using C-style escaping, doubling every literal
-// backslash (`\` becomes `\\` in the header text); `parse-diff` does not un-escape this, so a
-// nested path like `...\tests\testthat\test-calculator.R` survives into `Finding.file` as
-// `...\\tests\\testthat\\test-calculator.R` (each separator is TWO raw backslash characters, not
-// one). A naive `.replace(/\\/g, '/')` turns that into a double-slash `tests//testthat//`, which
-// silently fails a single-slash-anchored directory regex like `/tests\/testthat\//`, this bit
-// isRTestFile during fixture verification (the Windows-path-separator
-// pitfall, generalized beyond the RH007 case it originally documented).
 function isRTestFile(filePath: string): boolean {
-  const normalized = filePath.replace(/\\/g, '/').replace(/\/{2,}/g, '/');
-  const base = normalized.split('/').pop() ?? normalized;
-  return /(^|\/)tests\/testthat\//.test(normalized) && /^test-.*\.[Rr]$/.test(base);
+  return /(^|\/)tests\/testthat\//.test(normalizePath(filePath)) &&
+    /^test-.*\.[Rr]$/.test(basename(filePath));
 }
 
 // hspec-discover convention: *Spec.hs filename, or any file under a test/ directory. Gates
-// HASKELL_PENDING so an unrelated `pending` identifier outside test code never fires. See
-// isRTestFile's comment above for why slash-runs are collapsed after the backslash swap.
+// HASKELL_PENDING so an unrelated `pending` identifier outside test code never fires.
 function isHaskellTestFile(filePath: string): boolean {
-  const normalized = filePath.replace(/\\/g, '/').replace(/\/{2,}/g, '/');
-  const base = normalized.split('/').pop() ?? normalized;
-  return /Spec\.hs$/.test(base) || /(^|\/)test\//.test(normalized);
+  return /Spec\.hs$/.test(basename(filePath)) || /(^|\/)test\//.test(normalizePath(filePath));
 }
 
 // busted's dominant _spec.lua naming convention. Gates LUA_PENDING so an unrelated `pending(...)`
 // function call (e.g. a promise-library state) outside a spec file never fires.
 function isLuaTestFile(filePath: string): boolean {
-  const base = filePath.replace(/\\/g, '/').split('/').pop() ?? filePath;
-  return /_spec\.lua$/.test(base);
+  return /_spec\.lua$/.test(basename(filePath));
 }
 
 // bats-core only executes .bats files (tool-enforced), the cleanest test-file signal in this

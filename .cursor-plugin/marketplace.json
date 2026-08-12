@@ -1,0 +1,24 @@
+{
+  "name": "proctor-marketplace",
+  "description": "proctor: a guard that catches AI coding agents gaming their own test suites.",
+  "owner": {
+    "name": "Kavish Dua",
+    "url": "https://github.com/catfish-1234"
+  },
+  "plugins": [
+    {
+      "name": "proctor",
+      "source": "./plugin",
+      "description": "Catches AI coding agents gaming their test suites: deleting tests, skipping them, weakening assertions, or hardcoding outputs to fake a green build. Installs the honest-completion ruleset plus a stop hook that blocks a turn on any error-severity finding.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Kavish Dua",
+        "url": "https://github.com/catfish-1234"
+      },
+      "homepage": "https://github.com/catfish-1234/proctor#readme",
+      "repository": "https://github.com/catfish-1234/proctor",
+      "license": "MIT",
+      "keywords": ["testing", "guardrails", "code-review", "reward-hacking"]
+    }
+  ]
+}

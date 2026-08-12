@@ -11,7 +11,6 @@ export interface Receipt {
   findings: Finding[];
   approvedCount: number; // findings a committed approval downgraded; a pass with these is not clean
   timestamp: string;   // ISO 8601
-  signature?: string;  // reserved for a future signed-receipt mechanism, unused for now
 }
 
 /**

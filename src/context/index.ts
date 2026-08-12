@@ -6,7 +6,7 @@ import fg from 'fast-glob';
 
 const execFileAsync = promisify(execFile);
 import micromatch from 'micromatch';
-import type { Context, ProctorConfig } from '../types.js';
+import type { Context, Language, ProctorConfig } from '../types.js';
 import type { ParsedFile } from '../diff.js';
 import { RULE_METADATA } from '../rules.js';
 
@@ -270,7 +270,7 @@ export async function buildContext(cwd: string, files: ParsedFile[], opts?: { co
   const isTestFile = (path: string): boolean =>
     micromatch.isMatch(path.replace(/\\/g, '/'), testPathGlobs);
 
-  const getLanguage = (filePath: string): 'ts' | 'js' | 'python' | 'go' | 'java' | 'rust' | 'ruby' | 'php' | 'csharp' | 'kotlin' | 'cpp' | 'c' | 'swift' | 'objc' | 'dart' | 'scala' | 'perl' | 'r' | 'haskell' | 'elixir' | 'lua' | 'groovy' | 'clojure' | 'shell' | 'julia' | 'vbnet' | 'unknown' => {
+  const getLanguage = (filePath: string): Language => {
     const ext = filePath.split('.').pop()?.toLowerCase();
     // proctor-ignore: RH004 reason: extension-to-language mapping table, not a fixture hardcode
     if (ext === 'ts' || ext === 'tsx' || ext === 'mts' || ext === 'cts') return 'ts';

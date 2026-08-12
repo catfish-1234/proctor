@@ -37,7 +37,7 @@ export function markdownReport(findings: Finding[]): string {
   }
   lines.push('');
 
-  // Only the blocking rules get expanded fix guidance. Listing all eleven every run turns the
+  // Only the blocking rules get expanded fix guidance. Listing every rule each run turns the
   // summary into a wall nobody reads, and the warnings did not stop the build anyway.
   const blockingRules = [...new Set(findings.filter(f => f.severity === 'error').map(f => f.verifierId))];
   for (const id of blockingRules) {

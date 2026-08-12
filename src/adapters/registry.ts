@@ -22,6 +22,15 @@ export interface AgentAdapter {
    * in the file untouched; drift-check compares only that block. See src/adapters/block.ts.
    */
   shared?: boolean;
+  /**
+   * Extra paths whose presence means this repo already uses this agent, checked by `setup` so it
+   * only installs to the agents that are really there. These are the agent's own config file or
+   * directory, which exist before proctor has written anything. `relativePath` is always checked
+   * too, so a repo that has already run setup keeps detecting the same agents on a re-run.
+   *
+   * Omit when `relativePath` is itself the agent's pre-existing file (GEMINI.md, WARP.md, ...).
+   */
+  detect?: string[];
 }
 
 // Cursor's `.mdc` convention supports `description`, `globs`, and `alwaysApply` YAML frontmatter
@@ -69,64 +78,65 @@ ${canonical}`;
 export const AGENT_ADAPTERS: AgentAdapter[] = [
   // Claude Code gets skill frontmatter via skillFrontmatterTransform so the ruleset carries an explicit
   // description and loads when it is actually relevant.
-  { id: 'claude-code', displayName: 'Claude Code', relativePath: '.claude/skills/proctor/SKILL.md', scriptable: true, transform: skillFrontmatterTransform },
+  { id: 'claude-code', displayName: 'Claude Code', relativePath: '.claude/skills/proctor/SKILL.md', scriptable: true, transform: skillFrontmatterTransform, detect: ['.claude', 'CLAUDE.md'] },
   // Codex reads skills from `.agents/skills/` and REQUIRES `name` and `description` frontmatter;
   // without it the skill is not recognized, so this path needs the same transform Claude Code uses.
-  { id: 'codex', displayName: 'Codex CLI', relativePath: '.agents/skills/proctor/SKILL.md', scriptable: true, transform: skillFrontmatterTransform },
+  { id: 'codex', displayName: 'Codex CLI', relativePath: '.agents/skills/proctor/SKILL.md', scriptable: true, transform: skillFrontmatterTransform, detect: ['.codex', '.agents/skills'] },
   // Cursor gets .mdc YAML frontmatter (description/globs/alwaysApply) via cursorMdcTransform
   // so the rule reliably auto-attaches.
-  { id: 'cursor', displayName: 'Cursor', relativePath: '.cursor/rules/proctor.mdc', scriptable: true, transform: cursorMdcTransform },
+  { id: 'cursor', displayName: 'Cursor', relativePath: '.cursor/rules/proctor.mdc', scriptable: true, transform: cursorMdcTransform, detect: ['.cursor', '.cursorrules'] },
   // Windsurf's rules.md is the workspace rules file users write their own rules into, not a
   // proctor-owned path, so it merges rather than overwrites.
-  { id: 'windsurf', displayName: 'Windsurf', relativePath: '.windsurf/rules/rules.md', scriptable: false, shared: true },
-  { id: 'gemini-cli', displayName: 'Gemini CLI', relativePath: 'GEMINI.md', scriptable: true, shared: true },
-  { id: 'aider', displayName: 'Aider', relativePath: 'CONVENTIONS.md', scriptable: true, shared: true },
-  { id: 'continue', displayName: 'Continue.dev', relativePath: '.continue/rules/proctor.md', scriptable: true },
-  { id: 'cline', displayName: 'Cline', relativePath: '.clinerules/proctor.md', scriptable: true },
+  { id: 'windsurf', displayName: 'Windsurf', relativePath: '.windsurf/rules/rules.md', scriptable: false, shared: true, detect: ['.windsurf', '.windsurfrules'] },
+  { id: 'gemini-cli', displayName: 'Gemini CLI', relativePath: 'GEMINI.md', scriptable: true, shared: true, detect: ['.gemini'] },
+  { id: 'aider', displayName: 'Aider', relativePath: 'CONVENTIONS.md', scriptable: true, shared: true, detect: ['.aider.conf.yml', '.aider.conf.yaml'] },
+  { id: 'continue', displayName: 'Continue.dev', relativePath: '.continue/rules/proctor.md', scriptable: true, detect: ['.continue'] },
+  { id: 'cline', displayName: 'Cline', relativePath: '.clinerules/proctor.md', scriptable: true, detect: ['.clinerules'] },
   // Amazon Q Developer CLI is mid-transition to a closed-source "Kiro CLI", so treat this path
   // as unstable: adapter only, no bench runner wired up.
-  { id: 'amazon-q', displayName: 'Amazon Q Developer', relativePath: '.amazonq/rules/proctor.md', scriptable: false },
+  { id: 'amazon-q', displayName: 'Amazon Q Developer', relativePath: '.amazonq/rules/proctor.md', scriptable: false, detect: ['.amazonq'] },
   // GitHub Copilot gets `applyTo: '**'` frontmatter via copilotApplyToTransform so the scoped
   // instructions file actually activates.
-  { id: 'github-copilot', displayName: 'GitHub Copilot', relativePath: '.github/instructions/proctor.instructions.md', scriptable: false, transform: copilotApplyToTransform },
-  { id: 'zed', displayName: 'Zed', relativePath: '.rules', scriptable: false, shared: true },
+  // Detection deliberately does not treat a bare `.github/` as Copilot: nearly every repo has one.
+  { id: 'github-copilot', displayName: 'GitHub Copilot', relativePath: '.github/instructions/proctor.instructions.md', scriptable: false, transform: copilotApplyToTransform, detect: ['.github/instructions', '.github/copilot-instructions.md'] },
+  { id: 'zed', displayName: 'Zed', relativePath: '.rules', scriptable: false, shared: true, detect: ['.zed'] },
   // Universal cross-vendor AGENTS.md standard (Linux Foundation-stewarded). Also covers Codex
   // CLI's actual documented convention (developers.openai.com/codex/guides/agents-md) for free,
   // the existing `codex` entry above deliberately keeps its original `.agents/skills/` path.
   { id: 'agents-md', displayName: 'AGENTS.md (universal)', relativePath: 'AGENTS.md', scriptable: false, shared: true },
   // OpenHands' repo microagent is the one repo-wide instructions file, user-authored.
-  { id: 'openhands', displayName: 'OpenHands', relativePath: '.openhands/microagents/repo.md', scriptable: true, shared: true },
+  { id: 'openhands', displayName: 'OpenHands', relativePath: '.openhands/microagents/repo.md', scriptable: true, shared: true, detect: ['.openhands'] },
   // Kiro (AWS agentic IDE / Kiro CLI) intentionally coexists with the `amazon-q` entry above,
   // they are two separately-installed products today. Revisit consolidation if the
   // Amazon Q to Kiro merge ever completes.
-  { id: 'kiro', displayName: 'Kiro', relativePath: '.kiro/steering/proctor.md', scriptable: true },
-  { id: 'tabnine', displayName: 'Tabnine', relativePath: '.tabnine/guidelines/proctor.md', scriptable: true },
-  { id: 'trae', displayName: 'Trae', relativePath: '.trae/rules/proctor.md', scriptable: false },
-  { id: 'github-copilot-global', displayName: 'GitHub Copilot (global)', relativePath: '.github/copilot-instructions.md', scriptable: false, shared: true },
+  { id: 'kiro', displayName: 'Kiro', relativePath: '.kiro/steering/proctor.md', scriptable: true, detect: ['.kiro'] },
+  { id: 'tabnine', displayName: 'Tabnine', relativePath: '.tabnine/guidelines/proctor.md', scriptable: true, detect: ['.tabnine'] },
+  { id: 'trae', displayName: 'Trae', relativePath: '.trae/rules/proctor.md', scriptable: false, detect: ['.trae'] },
+  { id: 'github-copilot-global', displayName: 'GitHub Copilot (global)', relativePath: '.github/copilot-instructions.md', scriptable: false, shared: true, detect: ['.github/instructions'] },
   // Qodo's canonical path is a generic, un-namespaced repo-root filename that will often already
   // hold unrelated user content, so it merges into a managed block instead of overwriting.
-  { id: 'qodo', displayName: 'Qodo', relativePath: 'best_practices.md', scriptable: true, shared: true },
+  { id: 'qodo', displayName: 'Qodo', relativePath: 'best_practices.md', scriptable: true, shared: true, detect: ['.qodo'] },
 
   // --- Agents added after the first roster, all with a stable file-based repo convention ---
 
   // Roo Code reads every file under .roo/rules/ recursively, so a proctor-owned file drops in
   // cleanly alongside whatever else the user keeps there.
-  { id: 'roo-code', displayName: 'Roo Code', relativePath: '.roo/rules/proctor.md', scriptable: false },
+  { id: 'roo-code', displayName: 'Roo Code', relativePath: '.roo/rules/proctor.md', scriptable: false, detect: ['.roo', '.roomodes'] },
   // Kilo Code v7 moved config to kilo.jsonc but still auto-includes .kilocode/rules/ for
   // backward compatibility, which is the only path proctor can write without editing user config.
-  { id: 'kilo-code', displayName: 'Kilo Code', relativePath: '.kilocode/rules/proctor.md', scriptable: true },
-  { id: 'augment', displayName: 'Augment Code', relativePath: '.augment/rules/proctor.md', scriptable: true },
+  { id: 'kilo-code', displayName: 'Kilo Code', relativePath: '.kilocode/rules/proctor.md', scriptable: true, detect: ['.kilocode', 'kilo.jsonc'] },
+  { id: 'augment', displayName: 'Augment Code', relativePath: '.augment/rules/proctor.md', scriptable: true, detect: ['.augment'] },
   // Google Antigravity defaults to .agents/rules/ (with .agent/rules/ still read as a fallback).
   // Distinct subdirectory from the `codex` entry's .agents/skills/, so the two never collide.
-  { id: 'antigravity', displayName: 'Google Antigravity', relativePath: '.agents/rules/proctor.md', scriptable: false },
+  { id: 'antigravity', displayName: 'Google Antigravity', relativePath: '.agents/rules/proctor.md', scriptable: false, detect: ['.agents/rules', '.agent/rules'] },
   // goose reads a single .goosehints file per directory, user-authored.
   { id: 'goose', displayName: 'goose', relativePath: '.goosehints', scriptable: true, shared: true },
   // Junie now prefers AGENTS.md (covered above) but still reads .junie/guidelines.md, which
   // keeps older Junie installs covered.
-  { id: 'junie', displayName: 'JetBrains Junie', relativePath: '.junie/guidelines.md', scriptable: true, shared: true },
-  { id: 'qwen-code', displayName: 'Qwen Code', relativePath: 'QWEN.md', scriptable: true, shared: true },
+  { id: 'junie', displayName: 'JetBrains Junie', relativePath: '.junie/guidelines.md', scriptable: true, shared: true, detect: ['.junie'] },
+  { id: 'qwen-code', displayName: 'Qwen Code', relativePath: 'QWEN.md', scriptable: true, shared: true, detect: ['.qwen'] },
   // Crush reads CRUSH.md for Crush-specific rules in addition to AGENTS.md.
-  { id: 'crush', displayName: 'Crush', relativePath: 'CRUSH.md', scriptable: true, shared: true },
+  { id: 'crush', displayName: 'Crush', relativePath: 'CRUSH.md', scriptable: true, shared: true, detect: ['.crush'] },
   // Warp defaults to AGENTS.md now, but WARP.md still takes priority when both exist, so the
   // ruleset has to be in both for Warp users who already have a WARP.md.
   { id: 'warp', displayName: 'Warp', relativePath: 'WARP.md', scriptable: false, shared: true },
@@ -134,7 +144,7 @@ export const AGENT_ADAPTERS: AgentAdapter[] = [
   { id: 'amp', displayName: 'Amp', relativePath: 'AGENT.md', scriptable: true, shared: true },
   // Firebase Studio generates .idx/airules.md with its own default rules, so merge rather than
   // replace them.
-  { id: 'firebase-studio', displayName: 'Firebase Studio', relativePath: '.idx/airules.md', scriptable: false, shared: true },
+  { id: 'firebase-studio', displayName: 'Firebase Studio', relativePath: '.idx/airules.md', scriptable: false, shared: true, detect: ['.idx'] },
   // Replit Agent reads AGENTS.md as well, but replit.md is its native file and is auto-generated.
-  { id: 'replit', displayName: 'Replit Agent', relativePath: 'replit.md', scriptable: false, shared: true },
+  { id: 'replit', displayName: 'Replit Agent', relativePath: 'replit.md', scriptable: false, shared: true, detect: ['.replit'] },
 ];

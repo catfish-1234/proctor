@@ -29,10 +29,14 @@ export interface StopHookResult {
 }
 
 /**
- * Runs `proctor check --staged --ci` as a subprocess and maps its exit code to the Stop hook's
- * block/allow decision: exit 2 blocks the turn, and it never exits 1. `output` carries the
+ * Runs `proctor check --uncommitted --ci` as a subprocess and maps its exit code to the Stop
+ * hook's block/allow decision: exit 2 blocks the turn, and it never exits 1. `output` carries the
  * finding text back so the caller can print it, blocking a planted test-deletion turn with the
  * finding visible.
+ *
+ * `--uncommitted`, not `--staged`: an agent finishing a turn has edited the working tree and has
+ * usually staged nothing. Checking only the index would let every unstaged test deletion through,
+ * which is most of them.
  */
 export function runStopHookCheck(cwd: string, cliPath: string): StopHookResult {
   // A globally-installed hook fires in every project, including non-git directories, where
@@ -43,7 +47,7 @@ export function runStopHookCheck(cwd: string, cliPath: string): StopHookResult {
 
   // 60s timeout so a pathological check can never wedge the agent's turn forever. On timeout
   // spawnSync sets status=null and error, which the fail-open below maps to "allow".
-  const result = spawnSync(process.execPath, [cliPath, 'check', '--staged', '--ci'], {
+  const result = spawnSync(process.execPath, [cliPath, 'check', '--uncommitted', '--ci'], {
     cwd,
     stdio: ['ignore', 'pipe', 'pipe'],
     encoding: 'utf8',

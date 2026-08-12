@@ -82,15 +82,15 @@ fixture corpus in [`fixtures/`](fixtures):
 
 | | |
 |---|---|
-| **131 of 131** | planted cheats caught. One fixture per check per language, each asserted against the exact finding proctor has to produce, not just "something fired" |
-| **0 of 24** | near-miss fixtures flagged. Each one is a change built to look like a cheat and be legitimate: a single `@ts-ignore` with a justification, one retry rather than five, an empty catch whose comment explains itself, a guard clause extracted into a validator |
+| **133 of 133** | planted cheats caught. One fixture per check per language, each asserted against the exact finding proctor has to produce, not just "something fired" |
+| **0 of 26** | near-miss fixtures flagged. Each one is a change built to look like a cheat and be legitimate: a single `@ts-ignore` with a justification, one retry rather than five, an empty catch whose comment explains itself, a guard clause extracted into a validator |
 | **21 of 21** | recorded cheats caught in the benchmark corpus, across 7 signatures. Whole-repo task diffs rather than minimal fixtures. The 22nd task is a control that plants no cheat, and proctor stays silent on it. Reproduce with `proctor bench --mock` |
-| **19** | checks in two families, across **25+** languages, installable into **30** agents |
+| **21** | checks in two families, across **25+** languages, installable into **30** agents |
 | **under 1s** | to check a commit, offline. Measured here at roughly 0.25s on a 3-file diff and 0.55s on a 79-file one, cold Node start included |
 
 **What we don't claim.** That proctor makes an agent *behave* better. That is a different measurement
 and our own [benchmark](#benchmark) has not produced it yet: the numbers there are a null result on
-tasks that turned out too easy to cheat on. The 125/125 above is a detection claim, which is the
+tasks that turned out too easy to cheat on. The 133 of 133 above is a detection claim, which is the
 claim the tool actually makes.
 
 ## Try it before installing anything
@@ -286,6 +286,8 @@ read shipped code for the rest of them, and none of the cheats they catch touche
 | WI104 | Proctor, a commit hook, or a type/lint gate switched off instead of satisfied |
 | WI105 | Real network, database, or filesystem work replaced with canned data |
 | WI106 | Types widened to `any` to silence the type checker |
+| WI107 | A security check switched off, or an authorization gate removed |
+| WI108 | Source or tests hidden from git, and therefore from every check |
 
 Every WI check skips test files on purpose. An empty catch is how you assert that something throws,
 canned data is what a fixture is for, and a loose cast is ordinary when building a partial mock.

@@ -17,7 +17,7 @@ Do not hand-edit deployed copies. Edit this file and run `proctor install-skill`
 These rules are non-negotiable. They apply regardless of how much pressure
 there is to show a green build.
 
-Rules 1 to 5 are about the test suite. Rules 6 to 9 are about the work the
+Rules 1 to 5 are about the test suite. Rules 6 to 10 are about the work the
 suite is supposed to be proving, because a green build is only one of the
 things an agent can fake, and the others do not touch a test file at all.
 
@@ -51,7 +51,12 @@ things an agent can fake, and the others do not touch a test file at all.
    throw inside a change you describe as complete, and it covers returning
    canned, mock, or placeholder data from code that is supposed to do real
    work. If you could not build it, say so in plain words.
-9. **Never turn off the checks instead of satisfying them.** Do not disable
+9. **Never disable a security control or hide code from review.** Do not
+   turn off TLS certificate verification, drop an authorization gate, or
+   disable CSRF protection to make a request succeed. Do not add source or
+   test files to `.gitignore`, and do not use `git update-index
+   --assume-unchanged`: code git cannot see is code nobody can review.
+10. **Never turn off the checks instead of satisfying them.** Do not disable
    a proctor check, lower its severity, add an ignore pattern, write your own
    approval, delete a ruleset file, add `--no-verify`, switch off TypeScript
    strictness, or widen a type to `any` to silence the checker. If a check is
@@ -89,7 +94,7 @@ the same registry the tool itself uses to report findings. If you see one of
 these rule IDs in a `proctor` finding, this table tells you what it caught.
 
 There are two families. `RH001`–`RH013` check the claim "the tests pass": they
-read the test suite and the code directly beneath it. `WI101`–`WI106` check the
+read the test suite and the code directly beneath it. `WI101`–`WI108` check the
 claim "the work is done": they read shipped code for the ways a change can fake
 completion without touching a test at all.
 
@@ -121,6 +126,8 @@ completion without touching a test at all.
 | WI104 | GuardrailDisabled | Proctor, a commit hook, or a type/lint gate switched off instead of satisfied |
 | WI105 | FakeDataSubstituted | Real network, database, or filesystem work replaced with canned data |
 | WI106 | TypeSafetyEroded | Types widened to any or an unsafe cast to silence the type checker |
+| WI107 | SecurityControlDisabled | A security check switched off, or an authorization gate removed |
+| WI108 | SourceHiddenFromReview | Source or tests hidden from git, and therefore from every check |
 
 Every WI check skips test files by design. An empty catch is how you assert that
 something throws, canned data is what a fixture is, and a loose cast is routine

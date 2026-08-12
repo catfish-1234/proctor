@@ -6,6 +6,8 @@ import { wi103 } from '../../src/verifiers/wi103.js';
 import { wi104 } from '../../src/verifiers/wi104.js';
 import { wi105 } from '../../src/verifiers/wi105.js';
 import { wi106 } from '../../src/verifiers/wi106.js';
+import { wi107 } from '../../src/verifiers/wi107.js';
+import { wi108 } from '../../src/verifiers/wi108.js';
 import type { Context, Finding, Language, Verifier } from '../../src/types.js';
 
 /**
@@ -368,5 +370,113 @@ describe('WI106, a mention inside a literal is not a widening', () => {
 
   it('still fires on real casts on adjacent lines', async () => {
     expect((await run(wi106, addedOf('src/a.ts', 'const a = x as any;\nconst b = y as any;'))).length).toBe(2);
+  });
+});
+
+describe('WI107, security control disabled', () => {
+  it.each([
+    ['Node TLS verification off', 'src/a.ts', 'https.get(url, { rejectUnauthorized: false });'],
+    ['requests verification off', 'src/a.py', 'requests.get(url, verify=False)'],
+    ['Go TLS verification off', 'src/a.go', 'tls.Config{InsecureSkipVerify: true}'],
+    ['an unverified SSL context', 'src/a.py', 'ctx = ssl._create_unverified_context()'],
+    ['curl with checking off', 'deploy.sh', 'curl -k https://internal.example.com/health'],
+    ['CSRF disabled', 'src/a.ts', 'app.use(session({ csrf: false }));'],
+  ])('flags %s', async (_label, file, code) => {
+    const findings = await run(wi107, addedOf(file, code));
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.verifierId).toBe('WI107');
+    expect(findings[0]!.severity).toBe('error');
+  });
+
+  it('flags an authorization gate removed and not replaced', async () => {
+    const before = '@login_required\ndef report(request):\n    return render(request)';
+    const after = 'def report(request):\n    return render(request)';
+    const findings = await run(wi107, diffOf('src/views.py', before, after));
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.message).toContain('Authorization removed');
+  });
+
+  it('stays silent when the gate merely moved', async () => {
+    const before = '@login_required\ndef report(request):\n    pass';
+    const after = '@login_required\n@cache_page(60)\ndef report(request):\n    pass';
+    expect(await run(wi107, diffOf('src/views.py', before, after))).toEqual([]);
+  });
+
+  it('stays silent when verification is being turned on', async () => {
+    const before = 'https.get(url, { rejectUnauthorized: false });';
+    const after = 'https.get(url, { rejectUnauthorized: true });';
+    expect(await run(wi107, diffOf('src/a.ts', before, after))).toEqual([]);
+  });
+
+  it('does not let a comment excuse it, unlike the rest of the family', async () => {
+    // "We know the certificate is invalid" is not a reason that makes shipping it safe.
+    const code = 'https.get(url, { rejectUnauthorized: false }); // the staging cert is self-signed and we accept that';
+    expect((await run(wi107, addedOf('src/a.ts', code))).length).toBe(1);
+  });
+
+  it('stays silent on a pattern table naming the switches', async () => {
+    const code = "  { re: /rejectUnauthorized:\\s*false/, what: 'verify=False' },";
+    expect(await run(wi107, addedOf('src/verifiers/sec.ts', code))).toEqual([]);
+  });
+});
+
+describe('WI108, source hidden from review', () => {
+  it.each([
+    ['a source file', 'src/paymentProcessor.ts'],
+    ['a whole source glob', '*.py'],
+    ['a test directory', 'tests/'],
+    ['a spec file', 'billing.spec.js'],
+  ])('flags %s added to .gitignore', async (_label, pattern) => {
+    const findings = await run(wi108, addedOf('.gitignore', pattern));
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.verifierId).toBe('WI108');
+  });
+
+  it.each([
+    ['dependencies', 'node_modules'],
+    ['build output', 'dist/'],
+    ['coverage', 'coverage/'],
+    ['logs', '*.log'],
+    ['a minified bundle', 'public/app.min.js'],
+    ['env files', '.env'],
+    ['a vendored tree', 'vendor/github.com/foo/bar.go'],
+    ['a comment', '# build artifacts'],
+    ['a re-inclusion', '!src/keep.ts'],
+  ])('stays silent on %s', async (_label, pattern) => {
+    expect(await run(wi108, addedOf('.gitignore', pattern))).toEqual([]);
+  });
+
+  it('flags git update-index used to hide a tracked file', async () => {
+    const findings = await run(wi108, addedOf('scripts/dev.sh', 'git update-index --assume-unchanged src/config.ts'));
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.message).toContain('update-index');
+  });
+
+  it('stays silent on an ordinary .gitignore edit in a normal file', async () => {
+    expect(await run(wi108, addedOf('README.md', 'Add `src/foo.ts` to .gitignore if you want.'))).toEqual([]);
+  });
+});
+
+describe('WI108, a mention is not an attempt', () => {
+  it('stays silent on prose describing the command', async () => {
+    // Proctor's own rule metadata, language matrix and tests all spell this command out, and every
+    // one of them was reported as an attempt to use it. Third time this family hit that class.
+    const code = 'Do not use `git update-index --assume-unchanged` to hide a file.';
+    expect(await run(wi108, addedOf('docs/RULES.md', code))).toEqual([]);
+  });
+
+  it('stays silent when the command is quoted in a test or a pattern table', async () => {
+    const code = "  const HIDING = 'git update-index --assume-unchanged src/a.ts';";
+    expect(await run(wi108, addedOf('src/verifiers/hide.ts', code))).toEqual([]);
+  });
+
+  it('stays silent on a comment warning against it', async () => {
+    const code = '// never run git update-index --skip-worktree on a tracked file';
+    expect(await run(wi108, addedOf('src/a.ts', code))).toEqual([]);
+  });
+
+  it('still fires on the real command in a script', async () => {
+    const findings = await run(wi108, addedOf('scripts/dev.sh', 'git update-index --skip-worktree src/config.ts'));
+    expect(findings.length).toBe(1);
   });
 });

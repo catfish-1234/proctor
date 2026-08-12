@@ -1,0 +1,10 @@
+[
+  {
+    "verifierId": "WI107",
+    "severity": "error",
+    "file": "client.ts",
+    "line": 2,
+    "message": "Security control disabled: this change adds TLS certificate verification disabled (rejectUnauthorized: false).",
+    "suggestion": "Fix the underlying problem instead: trust the right certificate authority, or use a proper certificate in development. Turning the check off ships an insecure system that looks like it works."
+  }
+]

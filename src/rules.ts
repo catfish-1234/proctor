@@ -352,4 +352,34 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'firing on it.',
     helpUri: 'https://github.com/catfish-1234/proctor#wi106',
   },
+  WI107: {
+    name: 'SecurityControlDisabled',
+    shortDescription: 'A security check switched off, or an authorization gate removed',
+    fullDescription:
+      'Detects security controls turned off rather than satisfied. Covers TLS certificate verification disabled (rejectUnauthorized: false, verify=False, InsecureSkipVerify: true, strictSSL: false, NODE_TLS_REJECT_UNAUTHORIZED=0, an unverified SSL context, check_hostname=False, CURLOPT_SSL_VERIFYPEER off, curl -k, an accept-everything certificate callback, a trust-all manager), CSRF protection disabled or exempted, and the removal of a framework authorization gate (@login_required, @PreAuthorize, [Authorize], @Secured, @RolesAllowed, permission and auth decorators). ' +
+      'Scoped to framework gates rather than hand-rolled checks, which are WI103\'s territory, because there is no refactor that removes @login_required from a handler and leaves it protected. Unlike the rest of the family, an explanatory comment does not buy silence: "we know the certificate is invalid" is not a reason that makes shipping it safe.',
+    defaultLevel: 'error',
+    fix:
+      'Fix the underlying problem rather than the symptom. A certificate that does not validate means the ' +
+      'wrong certificate, the wrong authority, or the wrong hostname, and all three are fixable; turning ' +
+      'verification off ships a system that looks like it works and is not secure, which is worse than the ' +
+      'error you started with because nothing will tell you again. If an endpoint really is meant to be ' +
+      'public, that is a decision a human makes deliberately and records, not a side effect of getting a ' +
+      'test to pass.',
+    helpUri: 'https://github.com/catfish-1234/proctor#wi107',
+  },
+  WI108: {
+    name: 'SourceHiddenFromReview',
+    shortDescription: 'Source or tests hidden from git, and therefore from every check',
+    fullDescription:
+      'Detects code being hidden rather than fixed. Proctor reads git diff, so anything git stops reporting is invisible to every check at once: adding a path to .gitignore or .git/info/exclude makes a gutted implementation or a deleted test disappear from review, and `git update-index --assume-unchanged` or `--skip-worktree` does the same to an already-tracked file without touching any config. ' +
+      'Deliberately narrow, because ignore files gain entries constantly for good reasons. Build output, logs, caches, dependency and vendor trees, minified bundles, and editor droppings are all excluded before the check looks at anything, and a negation (!path) is a re-inclusion rather than a hide. What fires is an entry naming a file with a source-code extension, or a path that reads as a test suite.',
+    defaultLevel: 'error',
+    fix:
+      'Remove the entry and deal with the file. Ignore files are for build output and local droppings, not ' +
+      'for code: hiding a source file does not make its problem go away, it makes the problem invisible to ' +
+      'you as well as to everyone reviewing after you. If the file genuinely does not belong in the ' +
+      'repository, delete it in a change of its own, where somebody can see that is what happened.',
+    helpUri: 'https://github.com/catfish-1234/proctor#wi108',
+  },
 };

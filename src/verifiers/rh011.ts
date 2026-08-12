@@ -145,16 +145,17 @@ const FILEWIDE_HLINT_RE = /\{-#\s*(?:ANN\s+module\s+"HLint:\s*ignore"|HLINT\s+ig
 const FILEWIDE_CREDO_FILE_RE = /#\s*credo:disable-for-this-file\b/;
 
 // File-wide mechanisms deliberately not detected, grouped by why. A verifier reads one diff line
-// at a time, which is what rules most of these out.
+// at a time, which is what rules most of these out. Directive names are spelled without their
+// leading comment syntax on purpose: written literally, this paragraph trips RH011 itself.
 //
 // Needs forward-scanning the whole file for a missing closer, which a diff line cannot do:
-//   Ruby `# rubocop:disable`, C# `#pragma warning disable`, VB.NET `#Disable Warning`,
-//   Perl `## no critic`, C/C++ `#pragma clang diagnostic push`.
+//   Ruby rubocop:disable, C# pragma warning disable, VB.NET Disable Warning, Perl no critic,
+//   C/C++ pragma clang diagnostic push.
 // Lives in a separate config file, not an inline directive: R (`.lintr` exclusions),
 //   Clojure (`.clj-kondo/config.edn`), Shell (`.shellcheckrc`).
 // No such mechanism exists: Java (no file-wide annotation target), cppcheck, Shell inline.
-// Too ambiguous to match without false positives: Go `//nolint` above the `package` clause
-//   (non-standard and not honored uniformly), Lua's own-line `-- luacheck: ignore` (scoped to the
+// Too ambiguous to match without false positives: Go nolint above the `package` clause
+//   (non-standard and not honored uniformly), Lua's own-line luacheck ignore (scoped to the
 //   enclosing closure, indistinguishable from a nested-function top by regex).
 // Julia is a whole-category gap: no dominant linter with a standard inline suppress-comment
 //   convention was found, so nothing is detected for it at all rather than a guessed detector.

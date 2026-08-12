@@ -157,13 +157,13 @@ describe('proctor badge', () => {
     try {
       writeFileSync(
         join(dir, 'a.test.ts'),
-        "describe('a', () => {\n  it('one', () => { expect(1).toBe(1); });\n  it('two', () => { expect(2).toBe(2); });\n});\n",
+        "describe('slugify', () => {\n  it('lowercases', () => { expect(slugify('A')).toBe('a'); });\n  it('trims', () => { expect(slugify(' a ')).toBe('a'); });\n});\n",
         'utf8'
       );
       execSync('git add . && git -c user.email=t@e.com -c user.name=T commit -m seed', { cwd: dir });
       writeFileSync(
         join(dir, 'a.test.ts'),
-        "describe('a', () => {\n  it('one', () => { expect(1).toBe(1); });\n});\n",
+        "describe('slugify', () => {\n  it('lowercases', () => { expect(slugify('A')).toBe('a'); });\n});\n",
         'utf8'
       );
       const result = run(dir, 'badge');

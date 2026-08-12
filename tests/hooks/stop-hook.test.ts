@@ -58,7 +58,7 @@ describe('runStopHookCheck', () => {
       git('config', 'user.name', 'Test');
       writeFileSync(
         join(tmpDir, 'a.test.ts'),
-        "describe('a', () => {\n  it('keeps', () => { expect(1).toBe(1); });\n  it('removes', () => { expect(2).toBe(2); });\n});\n",
+        "describe('slugify', () => {\n  it('lowercases', () => { expect(slugify('A')).toBe('a'); });\n  it('trims', () => { expect(slugify(' a ')).toBe('a'); });\n});\n",
         'utf8'
       );
       git('add', '.');
@@ -67,7 +67,7 @@ describe('runStopHookCheck', () => {
       // Delete a test in the working tree only, no `git add`.
       writeFileSync(
         join(tmpDir, 'a.test.ts'),
-        "describe('a', () => {\n  it('keeps', () => { expect(1).toBe(1); });\n});\n",
+        "describe('slugify', () => {\n  it('lowercases', () => { expect(slugify('A')).toBe('a'); });\n});\n",
         'utf8'
       );
 

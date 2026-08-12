@@ -1,7 +1,11 @@
 {
   "name": "@kavishdua/proctor",
-  "version": "1.0.0",
-  "description": "Catch AI agents gaming their test suites",
+  "version": "1.1.0",
+  "description": "Catch AI agents gaming their test suites: deleted tests, skipped tests, weakened assertions, hardcoded outputs",
+  "homepage": "https://github.com/catfish-1234/proctor#readme",
+  "bugs": {
+    "url": "https://github.com/catfish-1234/proctor/issues"
+  },
   "type": "module",
   "bin": {
     "proctor": "./dist/cli.js"
@@ -28,8 +32,19 @@
     "proctor",
     "ai",
     "testing",
+    "test-tampering",
+    "reward-hacking",
+    "guardrails",
+    "code-review",
     "git-hook",
-    "claude"
+    "pre-commit",
+    "static-analysis",
+    "sarif",
+    "agent-skills",
+    "claude",
+    "claude-code",
+    "cursor",
+    "copilot"
   ],
   "scripts": {
     "build": "tsup",

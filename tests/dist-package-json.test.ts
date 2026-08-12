@@ -5,8 +5,14 @@ import { resolve } from 'node:path';
 const pkg = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8'));
 
 describe('package.json (publishable metadata)', () => {
-  it('version is 1.0.0', () => {
-    expect(pkg.version).toBe('1.0.0');
+  // Deliberately a shape check, not a literal. Pinning the version here would mean editing this
+  // test on every release, which makes it a chore rather than a guard, and it would still not
+  // catch the failure that matters: a version that disagrees with the git tag being published.
+  // .github/workflows/release.yml checks tag-vs-package.json, and tests/distribution.test.ts
+  // checks that every distribution manifest tracks this number. What is left for this test is that
+  // the field is present and is a real semver.
+  it('version is valid semver', () => {
+    expect(pkg.version).toMatch(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/);
   });
 
   it('bin.proctor points to ./dist/cli.js', () => {

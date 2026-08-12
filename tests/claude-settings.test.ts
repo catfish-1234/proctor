@@ -63,6 +63,36 @@ describe('installStopHook', () => {
     expect((await installStopHook(dir)).status).toBe('invalid-json');
     expect(await read()).toBe('{ not json');
   });
+
+  // The Stop array is hand-editable, so its elements can be anything. Reaching into them without
+  // checking threw a raw TypeError out of the middle of `setup`, after the ruleset and the
+  // pre-commit hook had already been written.
+  it.each([
+    ['a null element', '{"hooks":{"Stop":[null]}}'],
+    ['a string element', '{"hooks":{"Stop":["nope"]}}'],
+    ['a number element', '{"hooks":{"Stop":[7]}}'],
+    ['a group whose hooks is a string', '{"hooks":{"Stop":[{"hooks":"nope"}]}}'],
+    ['a group whose hooks is a number', '{"hooks":{"Stop":[{"hooks":7}]}}'],
+    ['a group whose hooks holds null', '{"hooks":{"Stop":[{"hooks":[null]}]}}'],
+    ['a command that is not a string', '{"hooks":{"Stop":[{"hooks":[{"command":5}]}]}}'],
+  ])('installs alongside %s instead of throwing', async (_label, content) => {
+    await write(content);
+    const result = await installStopHook(dir);
+    expect(result.status).toBe('installed');
+    // Whatever was there is still there, with proctor's entry appended.
+    const stop = JSON.parse(await read()).hooks.Stop;
+    expect(stop.length).toBe(2);
+  });
+
+  it('accepts a settings file written with a UTF-8 byte order mark', async () => {
+    // PowerShell's `Out-File -Encoding utf8` writes one by default on Windows, and JSON.parse
+    // rejects it, so this read as "not valid JSON" on a perfectly good file.
+    await write('﻿{"model":"opus"}');
+    expect((await installStopHook(dir)).status).toBe('installed');
+    const settings = JSON.parse((await read()).replace(/^﻿/, ''));
+    expect(settings.model).toBe('opus');
+    expect(settings.hooks.Stop).toHaveLength(1);
+  });
 });
 
 describe('removeStopHook', () => {

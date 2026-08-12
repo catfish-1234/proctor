@@ -1,8 +1,8 @@
 import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { join, dirname, relative } from 'node:path';
 import { AGENT_ADAPTERS, type AgentAdapter } from './registry.js';
-import { upsertBlock, extractBlock, removeBlock } from './block.js';
-import { recordWritten, MANIFEST_FILENAME } from './manifest.js';
+import { upsertBlock, extractBlock, removeBlock, countBlocks } from './block.js';
+import { recordWritten, readManifest, MANIFEST_FILENAME } from './manifest.js';
 import { removePreCommitHook } from '../hooks/pre-commit.js';
 import { removeStopHook } from '../hooks/claude-settings.js';
 
@@ -27,6 +27,7 @@ import { removeStopHook } from '../hooks/claude-settings.js';
  */
 export async function deploySkill(cwd: string, adapters: AgentAdapter[], canonical: string): Promise<number> {
   let failed = 0;
+  const manifest = await readManifest(cwd);
 
   for (const adapter of adapters) {
     const dest = join(cwd, adapter.relativePath);
@@ -45,11 +46,15 @@ export async function deploySkill(cwd: string, adapters: AgentAdapter[], canonic
         } catch (err: unknown) {
           if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
         }
+        // Whether any marker pair already in the file is proctor's own. On a first install it is
+        // not, so upsertBlock appends rather than replacing whatever it found.
+        const ours = manifest.written[adapter.id] === true;
         await mkdir(dirname(dest), { recursive: true });
-        await writeFile(dest, upsertBlock(existing, content), 'utf8');
+        await writeFile(dest, upsertBlock(existing, content, ours), 'utf8');
         // Record that proctor wrote a block here, so drift-check can tell a block that was
-        // deleted after install apart from a file proctor never touched.
-        await recordWritten(cwd, adapter.id);
+        // deleted after install apart from a file proctor never touched, and so uninstall knows
+        // whether the file itself is proctor's to delete.
+        await recordWritten(cwd, adapter.id, existing === undefined);
         process.stdout.write((existing === undefined ? 'Installed: ' : 'Merged: ') + dest + '\n');
         continue;
       }
@@ -71,6 +76,8 @@ export interface UninstallResult {
   done: string[];
   /** Items that could not be removed, with the reason. Non-empty means an incomplete uninstall. */
   failed: string[];
+  /** Things that were done but the user should know about, rather than failures. */
+  note: string[];
 }
 
 /**
@@ -86,6 +93,7 @@ export interface UninstallResult {
 export async function uninstallProctor(cwd: string, dryRun: boolean): Promise<UninstallResult> {
   const done: string[] = [];
   const failed: string[] = [];
+  const note: string[] = [];
   const rel = (p: string): string => relative(cwd, p).replace(/\\/g, '/');
 
   // One unremovable path must not abort the rest. Aborting mid-roster would leave files already
@@ -100,20 +108,46 @@ export async function uninstallProctor(cwd: string, dryRun: boolean): Promise<Un
     }
   };
 
+  const manifest = await readManifest(cwd);
+
   for (const adapter of AGENT_ADAPTERS) {
     const dest = join(cwd, adapter.relativePath);
     let existing: string;
     try {
       existing = await readFile(dest, 'utf8');
-    } catch {
+    } catch (err: unknown) {
+      // ENOENT means nothing of proctor's is here. Anything else means there IS something here
+      // and proctor could not look at it, which is a failure to report, not a file to skip
+      // silently: reporting success while leaving an installed file behind is the worst outcome.
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        failed.push(`${adapter.relativePath} (${(err as NodeJS.ErrnoException).code ?? 'unreadable'})`);
+      }
       continue;
     }
 
     if (adapter.shared) {
       if (extractBlock(existing) === undefined) continue;
+      const blocks = countBlocks(existing);
+      // More than one marker pair, and no record that proctor wrote here, means proctor cannot
+      // prove any of them is its own. Guessing would delete the user's prose, so it says so and
+      // leaves the file alone rather than removing something it did not write.
+      if (blocks > 1 && manifest.written[adapter.id] !== true) {
+        failed.push(
+          `${adapter.relativePath} (it holds ${blocks} proctor blocks and none is on record as proctor's; remove the one you want gone by hand)`
+        );
+        continue;
+      }
       const stripped = removeBlock(existing);
-      if (stripped.trim() === '') {
-        // Nothing but proctor's own block was in the file, so the file is proctor's too.
+      if (blocks > 1) {
+        // proctor appends, so the last block is the one it wrote; the others are the user's own
+        // prose quoting the format. Worth saying out loud, since the file keeps a marker pair.
+        note.push(
+          `${adapter.relativePath} holds ${blocks} proctor blocks; removed the last one, which is the one proctor wrote`
+        );
+      }
+      // The file is only proctor's to delete when proctor created it. A pre-existing file that
+      // happens to strip to nothing is still the user's, and is left as an empty file.
+      if (stripped.trim() === '' && manifest.created?.[adapter.id] === true) {
         await attempt(`Removed: ${adapter.relativePath}`, async () => {
           if (!dryRun) await rm(dest, { force: true });
         });
@@ -130,11 +164,11 @@ export async function uninstallProctor(cwd: string, dryRun: boolean): Promise<Un
     });
   }
 
-  const manifest = join(cwd, MANIFEST_FILENAME);
+  const manifestPath = join(cwd, MANIFEST_FILENAME);
   try {
-    await readFile(manifest, 'utf8');
+    await readFile(manifestPath, 'utf8');
     await attempt(`Removed: ${MANIFEST_FILENAME}`, async () => {
-      if (!dryRun) await rm(manifest, { force: true });
+      if (!dryRun) await rm(manifestPath, { force: true });
     });
   } catch { /* never installed a shared adapter here */ }
 
@@ -152,5 +186,5 @@ export async function uninstallProctor(cwd: string, dryRun: boolean): Promise<Un
     failed.push(`the Stop hook entry (${(err as NodeJS.ErrnoException).code ?? 'unknown error'})`);
   }
 
-  return { done, failed };
+  return { done, failed, note };
 }

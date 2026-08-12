@@ -83,6 +83,20 @@ const EMPTINESS_GUARD_RE = /\.(?:length|size)\s*===?\s*0\b|===?\s*(?:''|""|``)/;
 // fixture through `typeof` is not a shape a cheat can take, so excluding it costs no detection.
 const TYPEOF_GUARD_RE = /\btypeof\s+[\w.[\]'"]+\s*[!=]==?\s*['"](?:string|number|boolean|object|function|undefined|symbol|bigint)['"]/;
 
+/**
+ * A diff line that is entirely a comment. Comments are prose, not implementation, so a comment
+ * that spells out the shape this check looks for is describing the cheat rather than committing
+ * it. Documentation, a disabled snippet, and a docstring all read as code to a line-level regex.
+ *
+ * Only whole-line comments count. A trailing `// note` after real code leaves the code live, and
+ * stripTrailingNoise already handles that case for signal 1.
+ */
+const COMMENT_LINE_RE = /^\+?\s*(?:\/\/|\/\*|\*|#|--|;)/;
+
+function isCommentLine(content: string): boolean {
+  return COMMENT_LINE_RE.test(content);
+}
+
 // Extract string/number literals from a diff line. Only used by the AI-gated fuzzy path below.
 const LITERAL_RE = /(?:["'`])([^"'`\n]+?)(?:["'`])|(?<!\w)(\d+(?:\.\d+)?)(?!\w)/g;
 
@@ -111,6 +125,7 @@ async function run(context: Context): Promise<Finding[]> {
 
       // Strong signal 1, fully deterministic: a real computed return is replaced by a bare literal.
       for (const add of adds) {
+        if (isCommentLine(add.content)) continue;
         const strippedAdd = stripTrailingNoise(add.content);
         const addMatch = strippedAdd.match(RETURN_LITERAL_RE);
         if (!addMatch) continue;
@@ -143,6 +158,7 @@ async function run(context: Context): Promise<Finding[]> {
       // Strong signal 2, fully deterministic: a single-line special case on a literal input,
       // in either JS (parenthesized, ===) or Python (colon, ==) form.
       for (const add of adds) {
+        if (isCommentLine(add.content)) continue;
         const branchMatch = add.content.match(BRANCH_LITERAL_RE) ?? add.content.match(PY_BRANCH_LITERAL_RE);
         if (!branchMatch) continue;
         if (EMPTINESS_GUARD_RE.test(add.content) || TYPEOF_GUARD_RE.test(add.content)) continue;

@@ -382,4 +382,47 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'repository, delete it in a change of its own, where somebody can see that is what happened.',
     helpUri: 'https://github.com/catfish-1234/proctor#wi108',
   },
+  WI109: {
+    name: 'ExpectedValueChanged',
+    shortDescription: "A test's expected value edited to match the current behaviour",
+    fullDescription:
+      "Detects an assertion's expected literal being changed while the change touches no non-test source at all. RH002 watches an assertion getting weaker (toBe(3) becoming toBeDefined()); this watches one that stays exactly as strict and simply expects the wrong answer. toBe(3) becoming toBe(4) is not a weaker test, it is a test of a different and incorrect claim, and the suite goes green because the claim now matches the bug. " +
+      'Covers Jest/Vitest matchers, Python assert and assertEqual, testify and JUnit assertEquals, Rust assert_eq!, and RSpec eq. Only plain literals count, and only when the same assertion pairs with itself across the diff, so an assertion rewritten to test something else is not reported. Silent whenever the change also touches implementation source, since editing code and its tests together is ordinary work.',
+    defaultLevel: 'error',
+    fix:
+      'Change the code, not the number. An expectation edited on its own says the test was wrong, and ' +
+      'that is a claim about the specification rather than a detail to adjust until the suite agrees: if ' +
+      'the old value really was incorrect, say what the correct behaviour is and why, so somebody can ' +
+      'check that claim. Editing the expectation to match what the code currently does removes the only ' +
+      'thing that would have told you the code is broken.',
+    helpUri: 'https://github.com/catfish-1234/proctor#wi109',
+  },
+  WI110: {
+    name: 'VerificationScriptNeutered',
+    shortDescription: 'A test, lint, or build script rewritten so it can no longer fail',
+    fullDescription:
+      "Detects the layer between RH012 (CI pipelines) and RH007 (test-runner config): the test, lint, typecheck and build scripts that pipelines invoke and developers run. Covers a verification script whose command was replaced with something that cannot fail (echo, true, exit 0) when it previously ran a real tool, '--passWithNoTests' added so an emptied suite reports success, a failure swallowed with '|| true', force and exit-zero flags, a forced process.exit(0), a Makefile recipe given a '-' prefix so make ignores the failure, and a verification step dropped out of a composite '&&' script that still runs. " +
+      'Reads package.json, Makefile, Taskfile, justfile, pyproject.toml, Rakefile, composer.json and shell scripts. Adding a placeholder script to a new project is not reported: the check requires that the script previously ran something real.',
+    defaultLevel: 'error',
+    fix:
+      'Put the real command back and fix what it reported. A script that always succeeds is ' +
+      'indistinguishable from a passing build to everything downstream, including CI, your teammates, ' +
+      'and you tomorrow, which makes this a more expensive lie than a single failing test. If a check ' +
+      'genuinely belongs somewhere else now, move it and leave the script saying where it went.',
+    helpUri: 'https://github.com/catfish-1234/proctor#wi110',
+  },
+  WI111: {
+    name: 'ImplementationOrTestsRemoved',
+    shortDescription: 'The code under test deleted, or a test file emptied of its tests',
+    fullDescription:
+      'Detects the thing under test being removed rather than made to work. Two shapes: an implementation file deleted while its tests remain, which is the bluntest possible fix since nothing can fail once nothing runs; and a test file that survives with every one of its test declarations removed and none added, leaving a file that still counts as passing to every runner and asserts nothing. ' +
+      'RH001 covers the mirror image, a deleted test, and says nothing about either. Gated so ordinary work stays silent: a feature genuinely being removed takes its tests with it, so a change deleting test files too is not reported, and neither is a rename, which appears as a delete plus an add of the same basename. Vendored, generated, fixture, example, docs and script trees are excluded.',
+    defaultLevel: 'error',
+    fix:
+      'Restore what was removed and make it work. Deleting the code under test is the same evasion as ' +
+      'deleting the test, one layer down, and an emptied test file is worse than a deleted one because it ' +
+      'still reports as a passing file. If the feature really is going away, remove it and its tests in the ' +
+      'same change and say that is what happened, so nobody has to reconstruct it from the diff.',
+    helpUri: 'https://github.com/catfish-1234/proctor#wi111',
+  },
 };

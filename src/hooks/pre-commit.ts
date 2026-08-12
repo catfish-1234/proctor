@@ -7,18 +7,51 @@ import pkg from '../../package.json' with { type: 'json' };
 /**
  * Pure: the git pre-commit hook script content. No I/O, unit-testable in isolation.
  *
- * Uses the fully-scoped package spec (`npx @kavishdua/proctor ...`), not the bare bin name
- * (`npx proctor`), a bare command only resolves via npx when the package has already been
- * installed globally or locally (npx checks node_modules/.bin and PATH first). The README's own
- * "zero-install, run directly via npx" flow means a user's first-ever invocation may be exactly
- * that: never installed. `npx proctor` alone fails there with "could not determine executable to
- * run" (verified), since bare "proctor" isn't a registry package name npx can resolve on its own.
- * The scoped form works either way, local/global install or a fresh one-shot npx fetch.
+ * Three things this script has to get right, in order of how badly each one bites.
+ *
+ * **It fails closed.** The first version ran `npx @kavishdua/proctor check --staged` and mapped
+ * exit 1 to "allow", because exit 1 is proctor's warning-only code. But npx also exits 1 when it
+ * cannot resolve the package at all: offline, registry down, private registry not configured, name
+ * not published yet. A guard that cannot run then looked exactly like a guard that ran and found
+ * nothing, and the commit landed unchecked. That is the worst failure mode a tool like this can
+ * have, because it is silent and it is the one an agent would find first. So the hook now probes
+ * with `--version` before trusting any exit code, and blocks when proctor could not run.
+ *
+ * **It prefers a local install.** A commit should not depend on the network. node_modules/.bin
+ * first, then a global proctor on PATH, and only then npx as the last resort.
+ *
+ * **It still uses the fully-scoped package spec for the npx path.** A bare `npx proctor` only
+ * resolves when the package is already installed, since "proctor" is not a registry name npx can
+ * fetch on its own; the scoped form works either way.
  */
 export function preCommitHookContent(): string {
   // Exit 1 means warning-only findings. Warnings are printed but do not block the commit,
   // the same warn→allow mapping the Claude Code stop hook applies. Only errors (exit 2) block.
-  return `#!/bin/sh\nnpx ${pkg.name} check --staged\nstatus=$?\nif [ "$status" -eq 1 ]; then exit 0; fi\nexit $status\n`;
+  return [
+    '#!/bin/sh',
+    '# Installed by proctor. Prefers a local install so a commit does not depend on the network.',
+    'if [ -x "./node_modules/.bin/proctor" ]; then',
+    '  proctor_run() { ./node_modules/.bin/proctor "$@"; }',
+    'elif command -v proctor >/dev/null 2>&1; then',
+    '  proctor_run() { command proctor "$@"; }',
+    'else',
+    `  proctor_run() { npx --yes ${pkg.name} "$@"; }`,
+    'fi',
+    '',
+    '# Fail closed: "could not run" and "ran and found nothing" are indistinguishable from an exit',
+    '# code alone, and treating the first as the second is how a guard quietly stops guarding.',
+    'if ! proctor_run --version >/dev/null 2>&1; then',
+    '  echo "proctor: could not run, so this commit was NOT checked. Blocking." >&2',
+    `  echo "proctor: install it with 'npm install --save-dev ${pkg.name}', or bypass deliberately with 'git commit --no-verify'." >&2`,
+    '  exit 1',
+    'fi',
+    '',
+    'proctor_run check --staged',
+    'status=$?',
+    'if [ "$status" -eq 1 ]; then exit 0; fi',
+    'exit $status',
+    '',
+  ].join('\n');
 }
 
 async function hasHusky(cwd: string): Promise<boolean> {

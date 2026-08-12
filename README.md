@@ -84,6 +84,7 @@ fixture corpus in [`fixtures/`](fixtures):
 |---|---|
 | **131 of 131** | planted cheats caught. One fixture per check per language, each asserted against the exact finding proctor has to produce, not just "something fired" |
 | **0 of 24** | near-miss fixtures flagged. Each one is a change built to look like a cheat and be legitimate: a single `@ts-ignore` with a justification, one retry rather than five, an empty catch whose comment explains itself, a guard clause extracted into a validator |
+| **21 of 21** | recorded cheats caught in the benchmark corpus, across 7 signatures. Whole-repo task diffs rather than minimal fixtures. The 22nd task is a control that plants no cheat, and proctor stays silent on it. Reproduce with `proctor bench --mock` |
 | **19** | checks in two families, across **25+** languages, installable into **30** agents |
 | **under 1s** | to check a commit, offline. Measured here at roughly 0.25s on a 3-file diff and 0.55s on a 79-file one, cold Node start included |
 
@@ -126,10 +127,19 @@ qwen extensions install https://github.com/catfish-1234/proctor
 **Anything else** (30 agents supported, or none at all)
 
 ```bash
-npx @kavishdua/proctor setup
+npm install --save-dev @kavishdua/proctor
 ```
 
-### What `setup` does
+That is the whole install. Proctor sets itself up as it installs: it works out which agents this
+repo uses, writes the ruleset to those, installs the git pre-commit hook, and installs the Claude
+Code Stop hook if this repo uses Claude Code. There is no second command.
+
+It stays out of the way where setting itself up would be wrong: in CI, in a global install, when
+pulled in as somebody else's dependency, outside a git repository, or under `npx`. In each case it
+says which one applied and stops. `PROCTOR_NO_POSTINSTALL=1` turns it off entirely, and
+`npx @kavishdua/proctor setup` runs it by hand whenever you want.
+
+### What that setup does
 
 Three things, and then it tells you what it did:
 
@@ -176,6 +186,32 @@ proctor uninstall
 It removes only what it installed. Your own content in a shared file like `AGENTS.md` stays, a
 pre-commit hook that isn't proctor's is left alone, and `proctor.config.json` is left for you to
 keep or delete. To skip the hook once without uninstalling: `git commit --no-verify`.
+
+## Can the agent get around it?
+
+That is the question the design answers, so it is worth being concrete about.
+
+**The commit hook fails closed.** If proctor cannot run at all, the commit is blocked rather than
+allowed. This used to be the other way round and it was the worst bug in the tool: the hook ran
+`npx @kavishdua/proctor check --staged` and treated exit 1 as "clean with warnings", but `npx` also
+exits 1 when it cannot resolve the package, so an unreachable registry looked identical to a clean
+run and the commit landed unchecked. The hook now probes with `--version` first, prefers a local
+install over the network, and refuses the commit when it cannot check it.
+
+**Config is read from the committed baseline, not your working tree.** An agent that edits
+`proctor.config.json` in the same change it is trying to land has changed nothing about the run:
+enforcement uses the version at the diff baseline. The same goes for approvals and for inline
+`proctor-ignore` markers, which only count when they were committed *before* the change they
+excuse. Self-approval is not a matter of policy here, it does not work.
+
+**Switching the guard off is itself a finding.** WI104 fires on a check removed from `enabled`, a
+severity downgraded, an ignore pattern or approval added, a ruleset file deleted, a `--no-verify`
+added to a script, or TypeScript strictness turned off. Since the config edit was already inert,
+the point of the check is to make the attempt visible rather than to stop it.
+
+**It reads the diff, never the explanation.** Nothing the agent says about its change is an input.
+The remaining honest gap is a human running `git commit --no-verify`, which is deliberate: that is a
+person overriding their own tooling, and it is caught at the next turn by the Stop hook and in CI.
 
 ## What happens when it blocks
 

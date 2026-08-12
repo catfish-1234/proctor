@@ -1,4 +1,6 @@
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { recordCaught } from '../session.js';
 
 export interface StopHookInput {
@@ -45,6 +47,13 @@ export function runStopHookCheck(cwd: string, cliPath: string): StopHookResult {
   const inRepo = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd, stdio: 'ignore' });
   if (inRepo.error || inRepo.status !== 0) return { exitCode: 0, output: '' };
 
+  // Mid-merge, `git diff HEAD` reports the conflicted working tree, which carries the incoming
+  // branch's lines as additions. A test the other branch deleted would read as this turn deleting
+  // it, and blocking the turn would be blaming the agent for someone else's commit. The
+  // pre-commit hook still guards the resolution, which is the point where it becomes this
+  // repository's change.
+  if (isMidMerge(cwd)) return { exitCode: 0, output: '' };
+
   // 60s timeout so a pathological check can never wedge the agent's turn forever. On timeout
   // spawnSync sets status=null and error, which the fail-open below maps to "allow".
   const result = spawnSync(process.execPath, [cliPath, 'check', '--uncommitted', '--ci'], {
@@ -61,6 +70,19 @@ export function runStopHookCheck(cwd: string, cliPath: string): StopHookResult {
   // recordCaught swallows its own errors, so counting can never change whether a turn is blocked.
   if (blocked) recordCaught(cwd, rulesIn(output));
   return { exitCode: blocked ? 2 : 0, output };
+}
+
+/**
+ * True during a merge, rebase, cherry-pick, or revert, when the working tree holds someone else's
+ * changes alongside the agent's. Reads the marker files git writes into the git directory.
+ */
+function isMidMerge(cwd: string): boolean {
+  const gitDir = spawnSync('git', ['rev-parse', '--absolute-git-dir'], { cwd, encoding: 'utf8' });
+  if (gitDir.status !== 0) return false;
+  const dir = (gitDir.stdout ?? '').trim();
+  if (dir === '') return false;
+  return ['MERGE_HEAD', 'REBASE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'rebase-merge', 'rebase-apply']
+    .some(marker => existsSync(join(dir, marker)));
 }
 
 /** Rule IDs mentioned in check output, for the statusline's recent-rules list. */

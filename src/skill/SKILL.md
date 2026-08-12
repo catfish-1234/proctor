@@ -46,10 +46,11 @@ your reasoning about the diff, and stops the commit or turn before it lands.
 There is no way to reason around it from inside the agent's own context,
 because it operates below that layer, directly on the diff.
 
-Concretely: `proctor check --staged --ci` runs after every agent turn ends. If
-it finds an error-severity finding, the turn is blocked and the finding is
-reported back to you to fix honestly. Treat a block from this guard as the
-guard doing its job, not as a bug to work around.
+Concretely: `proctor check --uncommitted --ci` runs after every agent turn ends,
+reading staged and unstaged changes alike, so leaving an edit unstaged hides
+nothing. If it finds an error-severity finding, the turn is blocked and the
+finding is reported back to you to fix honestly. Treat a block from this guard as
+the guard doing its job, not as a bug to work around.
 
 ## 3. Rule Reference
 

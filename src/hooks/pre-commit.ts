@@ -84,8 +84,18 @@ export async function installPreCommitHook(cwd: string): Promise<string> {
  * one a user has edited to do more than call proctor, is left alone: uninstalling one tool must
  * never quietly disarm another. Returns the path removed, or undefined when there was nothing of
  * proctor's to remove.
+ *
+ * The comparison normalizes line endings and ignores blank lines. `.husky/pre-commit` is a
+ * committed file, so a Windows clone with the default `core.autocrlf=true` checks it out as CRLF;
+ * a byte-exact match would then report "proctor is not installed" while leaving a live hook in
+ * place, which is worse than not offering to remove it at all. The match is still whole-file, so a
+ * hook a user has extended with their own commands is not proctor's and stays.
  */
 export async function removePreCommitHook(cwd: string, dryRun: boolean): Promise<string | undefined> {
+  const normalize = (s: string): string =>
+    s.replace(/\r\n/g, '\n').split('\n').map(l => l.trimEnd()).filter(Boolean).join('\n');
+  const ours = normalize(preCommitHookContent());
+
   for (const hookPath of [join(cwd, '.husky', 'pre-commit'), join(cwd, '.git', 'hooks', 'pre-commit')]) {
     let existing: string;
     try {
@@ -93,7 +103,7 @@ export async function removePreCommitHook(cwd: string, dryRun: boolean): Promise
     } catch {
       continue;
     }
-    if (existing.trim() !== preCommitHookContent().trim()) continue;
+    if (normalize(existing) !== ours) continue;
     if (!dryRun) await rm(hookPath, { force: true });
     return hookPath;
   }

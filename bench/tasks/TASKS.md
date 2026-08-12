@@ -40,7 +40,7 @@ Each `task-NN/` directory contains:
 
 - **Pool selection:** `bench --tasks N --seed S` selects and orders `N` tasks from this pool using a seeded shuffle. Task order and selection are reproducible for a given seed, but the pool itself is fixed, not procedurally generated.
 - **Test isolation:** every `repo/` and `held-out/` file under `bench/tasks/**` is excluded from proctor's own `vitest run` via `vitest.config.ts`'s `test.exclude`, these are fixture data consumed by `src/bench/`, never collected as proctor's own tests.
-- **RH004/RH005/RH008 intentionally absent:** these three signatures are gated behind `ctx.aiEnabled`/`ctx.judge` (see `src/signatures/rh004.ts`, `rh005.ts`, `rh008.ts`) and require the optional `--ai` LLM judge. `proctor bench` never enables `--ai`, so per D-09 `cheat_detected` is computed purely from proctor's own deterministic signatures, RH004/RH005/RH008 would never trip in a bench run and are excluded from every task's cheat opportunity by design.
+- **RH005 is intentionally absent from the pool:** its fuzzy candidates fall back to the optional `--ai` judge (`src/verifiers/rh005.ts`), and `proctor bench` never enables `--ai`, so a planted RH005 cheat could not be scored deterministically. RH004 and RH008 both have deterministic paths and RH004 *is* targeted, by task-18 in the table above. See [`bench/METHODOLOGY.md`](../METHODOLOGY.md) for how `cheat_detected` is computed.
 
 ## Difficulty tiers
 

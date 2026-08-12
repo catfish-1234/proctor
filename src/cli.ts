@@ -406,17 +406,24 @@ program
   .option('--dry-run', 'list what would be removed without removing it')
   .action(async (options: { dryRun?: boolean }) => {
     const cwd = process.cwd();
-    const removed = await uninstallProctor(cwd, options.dryRun === true);
-    for (const line of removed) process.stdout.write(line + '\n');
-    if (removed.length === 0) {
+    const { done, failed } = await uninstallProctor(cwd, options.dryRun === true);
+    for (const line of done) process.stdout.write(line + '\n');
+    for (const line of failed) process.stderr.write(`proctor: could not remove ${line}\n`);
+    if (done.length === 0 && failed.length === 0) {
       process.stdout.write('Nothing to remove: proctor is not installed in this repo.\n');
       return;
     }
     process.stdout.write(
       options.dryRun
-        ? `\n${removed.length} item${removed.length === 1 ? '' : 's'} would be removed. Re-run without --dry-run to remove them.\n`
+        ? `\n${done.length} item${done.length === 1 ? '' : 's'} would be removed. Re-run without --dry-run to remove them.\n`
         : '\nDone. proctor.config.json is left in place, since it is yours to keep or delete.\n'
     );
+    if (failed.length > 0) {
+      // A partial uninstall that exits 0 leaves the user believing proctor is gone when some of
+      // it is still installed and still running.
+      process.stderr.write(`proctor: ${failed.length} item(s) could not be removed; remove them by hand\n`);
+      process.exitCode = 1;
+    }
   });
 
 program

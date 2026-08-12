@@ -6,8 +6,9 @@ body:
     attributes:
       value: |
         Before filing: the Stop hook checks uncommitted changes and fails open (it allows the turn
-        if proctor errors, times out, or runs outside a git repository). See
-        [docs/TROUBLESHOOTING.md](../blob/main/docs/TROUBLESHOOTING.md) first.
+        if proctor errors, times out, runs mid-merge, or runs outside a git repository). See
+        [the troubleshooting guide](https://github.com/catfish-1234/proctor/blob/main/docs/TROUBLESHOOTING.md)
+        first.
   - type: textarea
     id: diff
     attributes:

@@ -45,14 +45,15 @@ and since deleted", which is the tampering case worth catching.
 
 ### `proctor check [path]`
 
-Checks your current diff against every enabled check.
+Checks your current diff against every enabled check. The optional `path` runs the check in that
+directory instead of the current one, which is useful when proctor is driving another repository.
 
 | Flag | What it does |
 |------|--------------|
 | `--staged` | only look at staged changes |
 | `--uncommitted` | look at everything not yet committed, staged and unstaged together. This is what the Stop hook uses, since an agent finishing a turn has usually staged nothing |
 | `--base <ref>` | compare against a base ref (like `origin/main` or a commit SHA) instead of your working changes. Useful in CI, where nothing is staged in a fresh checkout |
-| `--ci` | quiet mode: only print errors, exit nonzero only on an error |
+| `--ci` | print only error-severity findings, suppress the honest-pass line, and exit nonzero only on an error |
 | `--json` | print findings as JSON |
 | `--sarif` | print SARIF 2.1.0 JSON, for tools that consume that format |
 | `--ai` | turn on the optional AI judge for ambiguous cases (needs `ANTHROPIC_API_KEY`). Everything else is offline: no network, no account |
@@ -129,7 +130,7 @@ detected  claude-code            .claude/skills/proctor/SKILL.md
        -  codex                  .agents/skills/proctor/SKILL.md
 detected  cursor                 .cursor/rules/proctor.mdc
 ...
-2 of 30 detected.
+2 of 30 detected. proctor setup installs to the detected ones; --all installs to every one.
 ```
 
 ### `proctor uninstall`
@@ -203,7 +204,7 @@ proctor score --last 50 --author "some-agent"
 There is no history file to keep. Every past commit is a diff, and proctor already knows how to
 judge a diff, so the score is recomputed from the repository each time. That means it is the same
 on any clone, and there is no state to corrupt. It costs one check per commit, which is why
-`--last` is bounded.
+`--last` defaults to a modest 20 rather than the whole history.
 
 Each commit is judged against the config that was committed *with it*, not today's config, so the
 score reflects the rules that were actually in force at the time. The first commit in a repository

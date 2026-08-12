@@ -15,8 +15,9 @@ assertions, or hardcoding outputs to fake a green build.
 - **The honest-completion skill.** The ruleset Claude reads before touching a test or the code a
   test covers. Claude loads it on its own when a change is in that territory, and you can pull it
   up directly with `/proctor:proctor`.
-- **A Stop hook.** Runs `proctor check --staged --ci` when a turn ends and blocks the turn on any
-  error-severity finding, with the finding fed back so it can be fixed honestly. This is the part
+- **A Stop hook.** Runs `proctor check --uncommitted --ci` when a turn ends and blocks the turn on
+  any error-severity finding, with the finding fed back so it can be fixed honestly. It reads
+  staged and unstaged changes alike, so an edit Claude never staged is still seen. This is the part
   the agent cannot talk its way around: it reads the diff, not the explanation of the diff.
 - **`/proctor:setup`.** Installs the git pre-commit hook and writes the ruleset out to every other
   agent your repo is set up for, so the same rules apply no matter which tool makes the next

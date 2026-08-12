@@ -11,8 +11,18 @@
 export const BLOCK_START = '<!-- proctor:start -->';
 export const BLOCK_END = '<!-- proctor:end -->';
 
-/** Matches one managed block plus its trailing newline. Non-greedy so adjacent blocks don't merge. */
-const BLOCK_RE = new RegExp(`${BLOCK_START}\\r?\\n?([\\s\\S]*?)\\r?\\n?${BLOCK_END}\\r?\\n?`);
+/**
+ * Matches one managed block plus its trailing newline. Non-greedy so adjacent blocks don't merge.
+ *
+ * The body is tempered so it cannot span another start marker. Without that, a file whose own
+ * prose mentions the literal start marker (a conventions file explaining how proctor works is the
+ * obvious case) would match from the user's line all the way to proctor's real end marker, and
+ * removing that "block" would take the user's content with it. Tempering makes the engine give up
+ * on the stray marker and match proctor's actual block instead.
+ */
+const BLOCK_RE = new RegExp(
+  `${BLOCK_START}\\r?\\n?((?:(?!${BLOCK_START})[\\s\\S])*?)\\r?\\n?${BLOCK_END}\\r?\\n?`
+);
 
 /**
  * Content carrying a literal end marker would close the block early, leaving the rest of the

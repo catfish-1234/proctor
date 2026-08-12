@@ -52,14 +52,19 @@ src/
   rules.ts              # RULE_METADATA: name, description, severity, fix text per check ID
   receipt.ts            # the honest-pass / caught verdict
   score.ts              # honesty history, recomputed from git
+  session.ts            # the per-checkout tally the statusline reads
+  watch.ts              # the file watcher behind `proctor watch`
+  brand.ts              # name and color tokens shared by CLI output and badges
   context/              # builds Context: test globs, language detection, config
   verifiers/            # one file per check, RH001 through RH013, pure functions
   reporters/            # pretty, json, sarif, markdown, score output
-  hooks/                # git pre-commit hook and Claude Code Stop hook
-  adapters/             # ruleset deployment, agent detection, drift-check
+  hooks/                # git pre-commit hook, Claude Code Stop hook, settings merge
+  adapters/             # ruleset deployment and removal, agent detection, drift-check
   badge/                # honest-pass badge generation
   ai/                   # the optional AI judge, only reached with --ai
-  bench/                # benchmark harness
+  bench/                # benchmark harness (the task corpus lives in bench/ at the repo root)
+  skill/SKILL.md        # the canonical ruleset, single source for every generated copy
+  scripts/              # sync-plugin, run via `npm run sync-plugin`
 fixtures/               # planted true positives and near misses, one set per check
 tests/                  # mirrors src/, one test file per module
 bench/tasks/            # the benchmark task corpus (not shipped in the npm package)
@@ -115,9 +120,11 @@ Agents live in one place: `AGENT_ADAPTERS` in `src/adapters/registry.ts`. Add an
   `WARP.md`, `.goosehints`). Shared files are merged into a delimited block, never overwritten.
 - `transform` if the format needs frontmatter (Cursor `.mdc`, Agent Skills, Copilot `applyTo`).
   A transform may only wrap static scaffolding around the canonical body; it must never alter it.
-- `detect`: the agent's own config file or directory, the thing that exists *before* proctor
-  installs anything. This is what `proctor setup` uses to decide whether the repo uses this agent.
-  Avoid markers that are near-universal (a bare `.github/` is not evidence of Copilot).
+- `detect`: optional. The agent's own config file or directory, the thing that exists *before*
+  proctor installs anything. This is what `proctor setup` uses to decide whether the repo uses this
+  agent. `relativePath` is always checked as well, so omit `detect` when the path proctor writes is
+  itself the agent's pre-existing file (`AGENTS.md`, `WARP.md`). Avoid markers that are
+  near-universal: a bare `.github/` is not evidence of Copilot.
 
 Cite your source for the path in a comment. Several of these conventions are undocumented or have
 moved, and the comment is how the next person checks whether it is still true.

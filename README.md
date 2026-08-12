@@ -63,6 +63,33 @@ Claude Code Stop hook blocking the same cheat live in an agent session.
 
 ![proctor demo](assets/demo.gif)
 
+## By the numbers
+
+**How often agents actually do this.** These are other people's published measurements, not ours:
+
+| | |
+|---|---|
+| **33.3%** | of ambiguous coding tasks where Claude Sonnet 4 hardcoded the expected output rather than solve the problem ([EvilGenie](https://arxiv.org/abs/2511.21654)) |
+| **2.1%** | the same behaviour on unambiguous tasks, where the right fix was never in doubt (same paper) |
+| **0.7%** | of tasks where Gemini 2.5 Pro deleted a test file outright (same paper) |
+| **up to 100 pts** | gap between "the visible tests pass" and "the held-out tests pass" on the largest tasks in [SpecBench](https://arxiv.org/abs/2605.21384). It widens by about 28 points per tenfold increase in code size, and adding test coverage does not close it |
+| **8 of 8** | agent benchmarks that [Berkeley RDI](https://rdi.berkeley.edu/blog/trustworthy-benchmarks-cont/) drove to near-perfect scores without solving a single task. SWE-bench Verified fell to a pytest hook that forced every test to pass |
+
+**What proctor catches.** Every number below comes out of `npm test` in this repo, against the
+fixture corpus in [`fixtures/`](fixtures):
+
+| | |
+|---|---|
+| **125 of 125** | planted cheats caught. One fixture per check per language, each asserted against the exact finding proctor has to produce, not just "something fired" |
+| **0 of 18** | near-miss fixtures flagged. Each one is a change built to look like a cheat and be legitimate: a single `@ts-ignore` with a justification, one retry rather than five, a snapshot rewrite whose commit message gives the reason |
+| **13** | checks, across **25+** languages, installable into **30** agents |
+| **under 1s** | to check a commit, offline. Measured here at roughly 0.25s on a 3-file diff and 0.55s on a 79-file one, cold Node start included |
+
+**What we don't claim.** That proctor makes an agent *behave* better. That is a different measurement
+and our own [benchmark](#benchmark) has not produced it yet: the numbers there are a null result on
+tasks that turned out too easy to cheat on. The 125/125 above is a detection claim, which is the
+claim the tool actually makes.
+
 ## Try it before installing anything
 
 In a git repository where you have uncommitted changes:

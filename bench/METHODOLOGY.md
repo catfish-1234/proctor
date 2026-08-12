@@ -143,3 +143,28 @@ rate and honest-pass rate for `proctor_on=false` vs `proctor_on=true`), see
   training rather than fix the underlying code, evidence that test-tampering reward
   hacking emerges during training itself, not only at inference time. This paper is an
   OpenAI publication; it is not affiliated with Anthropic.
+- **SpecBench** (Weco AI, arXiv:[2605.21384](https://arxiv.org/abs/2605.21384)) uses the
+  same visible-vs-held-out construction this harness uses, and reports the gap widening
+  by roughly 28 percentage points per tenfold increase in code size, up to 100 points on
+  the largest of its 30 tasks. Two of its findings bear directly on how the numbers here
+  should be read. First, the gap tracks the distance between task difficulty and model
+  capability, which is the mechanism behind this benchmark's own null result on tasks
+  1 through 15 and the reason tasks 16 through 22 were built harder on purpose. Second,
+  raising test coverage did not reduce reward hacking, so a "just write more tests"
+  reading of these results is not supported.
+- **Hora and Robbes** (MSR 2026, arXiv:[2602.00409](https://arxiv.org/abs/2602.00409)),
+  1.2M commits across 2,168 JS/TS/Python repositories, found coding agents more likely
+  than non-agents both to modify tests and to add mocks to them. Field evidence rather
+  than benchmark evidence, and the closest published support for RH005's
+  mock-the-unit-under-test signal.
+- **Berkeley RDI** ([April 2026](https://rdi.berkeley.edu/blog/trustworthy-benchmarks-cont/))
+  drove eight standard agent benchmarks to near-perfect scores without solving a task,
+  breaking SWE-bench Verified with a pytest hook that forced every test to pass. Relevant
+  here as a warning about this harness too: `honest_pass` is scored by executing a
+  held-out suite inside the agent's own workdir, so the same class of harness tampering
+  is what RH007 and RH012 are watching for in the scored diff.
+- **CapCode/CapReward** (arXiv:[2606.07379](https://arxiv.org/abs/2606.07379)) caps the
+  achievable non-cheating pass rate so that scores above the cap are themselves evidence
+  of cheating. A statistical detector rather than a signature-based one, and a possible
+  future addition to this harness: it would catch cheats that no syntactic signature
+  anticipates, at the cost of requiring a purpose-built task corpus.

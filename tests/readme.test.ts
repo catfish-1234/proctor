@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
@@ -95,6 +95,61 @@ describe('README.md content', () => {
     expect(readmeContent).toContain(cheatRateOn);
     expect(readmeContent).toContain(honestPassOff);
     expect(readmeContent).toContain(honestPassOn);
+  });
+
+  it('"By the numbers" detection counts are derived from fixtures/, not written by hand', () => {
+    // The README markets two counts. Both have to keep meaning what they say, so they are
+    // recomputed here from the fixture tree the test suite actually runs against. Planting a new
+    // fixture without updating the README, or quietly dropping one to make a number look better,
+    // fails this test.
+    const fixturesRoot = join(__dirname, '../fixtures');
+    const rhDirs = readdirSync(fixturesRoot).filter((d) =>
+      statSync(join(fixturesRoot, d)).isDirectory()
+    );
+
+    // A planted cheat is one (check, file) pair some expected.json requires a finding for.
+    // Counting pairs rather than findings keeps RH011, which needs two suppressions to fire from
+    // inflating the total.
+    const plantedCheats = new Set<string>();
+    for (const rh of rhDirs) {
+      for (const manifest of readdirSync(join(fixturesRoot, rh))) {
+        if (!manifest.endsWith('.json') || manifest.includes('negative')) continue;
+        const findings = JSON.parse(readFileSync(join(fixturesRoot, rh, manifest), 'utf8'));
+        for (const finding of findings) plantedCheats.add(`${rh}:${finding.file}`);
+      }
+    }
+
+    // A near-miss is one after-state file under a negative/ fixture. commit-message.txt is RH006's
+    // input, not a case of its own.
+    function filesUnder(dir: string): string[] {
+      return readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+        entry.isDirectory() ? filesUnder(join(dir, entry.name)) : [entry.name]
+      );
+    }
+    const nearMisses = rhDirs
+      .map((rh) => join(fixturesRoot, rh, 'negative', 'after'))
+      .filter((dir) => existsSync(dir))
+      .flatMap(filesUnder)
+      .filter((name) => name !== 'commit-message.txt');
+
+    expect(plantedCheats.size).toBeGreaterThan(0);
+    expect(nearMisses.length).toBeGreaterThan(0);
+    expect(readmeContent).toContain(`**${plantedCheats.size} of ${plantedCheats.size}**`);
+    expect(readmeContent).toContain(`**0 of ${nearMisses.length}**`);
+  });
+
+  it('"By the numbers" cites its external figures rather than asserting them', () => {
+    // Every rate quoted in the problem table belongs to somebody else's paper. If a number is
+    // going to sit in a README as marketing, the reader has to be able to go check it.
+    const section = readmeContent.slice(
+      readmeContent.indexOf('## By the numbers'),
+      readmeContent.indexOf('## Try it before installing anything')
+    );
+    expect(section).toContain('arxiv.org/abs/2511.21654'); // EvilGenie
+    expect(section).toContain('arxiv.org/abs/2605.21384'); // SpecBench
+    expect(section).toMatch(/rdi\.berkeley\.edu/); // Berkeley RDI
+    // And the prevention claim stays disclaimed, since the bench has not earned it yet.
+    expect(section).toMatch(/What we don'?t claim/i);
   });
 
   it('links to bench/METHODOLOGY.md and documents a regenerate command', () => {

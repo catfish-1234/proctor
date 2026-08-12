@@ -199,7 +199,7 @@ describe('drift-check CLI (smoke)', () => {
   it('exits 0 immediately after install-skill in a clean tmpDir', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
-      const install = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
+      const install = spawnSync('node', [CLI, 'install-skill', '--all'], { cwd: tmpDir, encoding: 'utf8' });
       expect(install.status).toBe(0);
       const drift = spawnSync('node', [CLI, 'drift-check'], { cwd: tmpDir, encoding: 'utf8' });
       expect(drift.status).toBe(0);
@@ -211,7 +211,7 @@ describe('drift-check CLI (smoke)', () => {
   it('exits 0 with zero drift for the two transformed adapters (Cursor .mdc, Copilot applyTo), AGENT-04 nyquist validation', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
-      const install = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
+      const install = spawnSync('node', [CLI, 'install-skill', '--all'], { cwd: tmpDir, encoding: 'utf8' });
       expect(install.status).toBe(0);
 
       const drift = spawnSync('node', [CLI, 'drift-check'], { cwd: tmpDir, encoding: 'utf8' });
@@ -236,7 +236,7 @@ describe('drift-check CLI (smoke)', () => {
   it('exits 1 and names the mutated path after a deployed adapter is edited', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
-      const install = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
+      const install = spawnSync('node', [CLI, 'install-skill', '--all'], { cwd: tmpDir, encoding: 'utf8' });
       expect(install.status).toBe(0);
 
       const skillPath = join(tmpDir, '.claude', 'skills', 'proctor', 'SKILL.md');

@@ -27,6 +27,13 @@ export const GENERATED: Array<{ path: string; transform: (canonical: string) => 
   // at the top level rather than under plugin/. Plain canonical content: those loaders read the
   // whole file as context and have no frontmatter convention of their own.
   { path: 'PROCTOR.md', transform: canonical => canonical },
+  // Agent Plugins 1.0.0 (agent-plugins.org) puts the plugin's skills under `skills/` next to the
+  // root plugin.json. One copy here is what makes proctor loadable by ChatGPT, Codex, Cursor,
+  // GitHub Copilot, Kiro and VS Code without a per-vendor submission.
+  { path: 'skills/proctor/SKILL.md', transform: skillFrontmatterTransform },
+  // The Agent Skills convention Codex and VS Code both scan for in a repository. Also means
+  // proctor's own checkout carries the ruleset it asks every other repo to carry.
+  { path: '.agents/skills/proctor/SKILL.md', transform: skillFrontmatterTransform },
 ];
 
 async function main(): Promise<void> {

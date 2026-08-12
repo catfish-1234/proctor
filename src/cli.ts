@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { resolve, join, dirname } from 'node:path';
+import { resolve, join, dirname, relative } from 'node:path';
 import { homedir } from 'node:os';
-import { readFile, writeFile, mkdir, appendFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, appendFile, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import pkg from '../package.json' with { type: 'json' };
 import { runGitDiff } from './diff.js';
@@ -13,17 +13,18 @@ import { prettyReport } from './reporters/pretty.js';
 import { jsonReport } from './reporters/json.js';
 import { sarifReport } from './reporters/sarif.js';
 import { markdownReport } from './reporters/markdown.js';
-import { AGENT_ADAPTERS } from './adapters/registry.js';
+import { AGENT_ADAPTERS, type AgentAdapter } from './adapters/registry.js';
+import { detectAgents, selectAgents } from './adapters/detect.js';
 import { checkAdapterDrift } from './adapters/drift-check.js';
-import { recordWritten } from './adapters/manifest.js';
-import { upsertBlock } from './adapters/block.js';
+import { recordWritten, MANIFEST_FILENAME } from './adapters/manifest.js';
+import { upsertBlock, extractBlock, removeBlock } from './adapters/block.js';
 import { loadTaskPool } from './bench/tasks.js';
 import { runBench } from './bench/index.js';
-import { installPreCommitHook } from './hooks/pre-commit.js';
+import { installPreCommitHook, removePreCommitHook } from './hooks/pre-commit.js';
 import { parseStopHookInput, runStopHookCheck } from './hooks/stop-hook.js';
 import { APPROVAL_GUIDANCE, RULE_METADATA } from './rules.js';
 import { buildReceipt } from './receipt.js';
-import { badgeLine } from './badge/index.js';
+import { badgeLine, badgeUrl, badgeMarkdown } from './badge/index.js';
 import type { ProctorConfig } from './types.js';
 import pc from 'picocolors';
 import { readTally, resetTally } from './session.js';
@@ -32,6 +33,11 @@ import { buildScoreReport } from './score.js';
 import { scoreReport } from './reporters/score.js';
 import { startWatch } from './watch.js';
 import { spawnSync } from 'node:child_process';
+
+/** True when the repository has at least one commit, so `HEAD` resolves. */
+function hasCommit(cwd: string): boolean {
+  return spawnSync('git', ['rev-parse', '--verify', 'HEAD'], { cwd, stdio: 'ignore' }).status === 0;
+}
 
 function canonicalSkillPath(): string {
   return fileURLToPath(new URL('../src/skill/SKILL.md', import.meta.url));
@@ -57,6 +63,7 @@ program
   .command('check [path]')
   .description('Analyze working diff against every enabled Verifier (test-tampering signatures are the first Verifier type)')
   .option('--staged', 'analyze only staged changes')
+  .option('--uncommitted', 'analyze everything not yet committed: staged and unstaged changes together')
   .option('--base <ref>', 'analyze changes against a base ref (e.g. origin/main or a commit SHA) instead of staged/working-tree changes, for CI, where nothing is staged in a fresh checkout')
   .option('--ci', 'suppress non-error output, exit nonzero on error only')
   .option('--json', 'output findings as JSON to stdout')
@@ -66,7 +73,7 @@ program
   .option('--explain <id>', 'print the full explanation for a verifier ID and exit, no diff analysis')
   .option('--fix', 'with --explain, print what an honest fix looks like instead of the rule description')
   .option('--markdown <file>', 'also write a Markdown summary to this file, e.g. --markdown "$GITHUB_STEP_SUMMARY"')
-  .action(async (pathArg: string | undefined, options: { staged?: boolean; base?: string; ci?: boolean; json?: boolean; ai?: boolean; sarif?: boolean; rules?: string; explain?: string; fix?: boolean; markdown?: string }) => {
+  .action(async (pathArg: string | undefined, options: { staged?: boolean; uncommitted?: boolean; base?: string; ci?: boolean; json?: boolean; ai?: boolean; sarif?: boolean; rules?: string; explain?: string; fix?: boolean; markdown?: string }) => {
     if (options.fix && !options.explain) {
       process.stderr.write('proctor: --fix only applies with --explain, e.g. proctor check --explain RH001 --fix\n');
       process.exit(2);
@@ -113,7 +120,13 @@ program
     const cwd = pathArg ? resolve(pathArg) : process.cwd();
     // --end-of-options stops git from parsing a ref that begins with '-' as a git option
     // (e.g. --base "--output=x" would otherwise write the diff to a file).
-    const diffArgs = options.base ? ['--end-of-options', `${options.base}...HEAD`] : options.staged ? ['--staged'] : [];
+    const diffArgs = options.base
+      ? ['--end-of-options', `${options.base}...HEAD`]
+      : options.uncommitted
+        // Staged and unstaged together. `git diff HEAD` needs a commit to compare against, so a
+        // repository with no commits yet falls back to the index, which is all there is to see.
+        ? hasCommit(cwd) ? ['HEAD'] : ['--staged']
+        : options.staged ? ['--staged'] : [];
     let raw: string, files: import('./diff.js').ParsedFile[];
     try {
       ({ raw, files } = runGitDiff(diffArgs, cwd));
@@ -286,17 +299,26 @@ async function installStopHook(dir: string): Promise<{ status: 'installed' | 'al
 program
   .command('setup')
   .description('One-command install: writes the ruleset to every agent this repo uses, and installs both hooks')
-  .action(async () => {
+  .option('--all', `write the ruleset to all ${AGENT_ADAPTERS.length} supported agents, not only the ones this repo uses`)
+  .option('--agents <ids>', 'comma-separated agent ids to install to (e.g. claude-code,cursor), instead of detecting')
+  .action(async (options: { all?: boolean; agents?: string }) => {
     // The whole product in one command. Three separate install steps is three chances to do one
     // of them and think you are covered, and the ruleset without the hooks is the configuration
     // this tool exists to argue against: rules an agent can decline to follow, with nothing
     // behind them.
     const cwd = process.cwd();
 
-    const failed = await deploySkill(cwd);
+    const targets = await resolveTargets(cwd, options);
+    const failed = await deploySkill(cwd, targets);
     process.stdout.write(
-      `Ruleset written to ${AGENT_ADAPTERS.length - failed} of ${AGENT_ADAPTERS.length} agent paths.\n`
+      `Ruleset written to ${targets.length - failed} of ${targets.length} agent path${targets.length === 1 ? '' : 's'}.\n`
     );
+    if (failed > 0) {
+      // A setup that wrote part of the ruleset and exited 0 is indistinguishable from one that
+      // worked, which is how a repo ends up believing it is guarded when it is not.
+      process.stderr.write(`proctor: ${failed} adapter${failed === 1 ? '' : 's'} could not be written\n`);
+      process.exitCode = 1;
+    }
 
     try {
       const hookPath = await installPreCommitHook(cwd);
@@ -309,14 +331,19 @@ program
       process.exitCode = 1;
     }
 
-    const stop = await installStopHook(join(cwd, '.claude'));
-    if (stop.status === 'invalid-json') {
-      process.stderr.write(`proctor: ${stop.path} is not valid JSON, so the Stop hook was not installed; fix it and re-run\n`);
-      process.exitCode = 1;
-    } else {
-      process.stdout.write(
-        stop.status === 'already' ? 'Stop hook already installed.\n' : `Stop hook installed: ${stop.path}\n`
-      );
+    // The Stop hook is Claude Code's own settings format, so it only goes in when Claude Code is
+    // one of the targets. Writing .claude/settings.json into a repo that does not use Claude Code
+    // is the same litter that detection exists to avoid.
+    if (targets.some(a => a.id === 'claude-code')) {
+      const stop = await installStopHook(join(cwd, '.claude'));
+      if (stop.status === 'invalid-json') {
+        process.stderr.write(`proctor: ${stop.path} is not valid JSON, so the Stop hook was not installed; fix it and re-run\n`);
+        process.exitCode = 1;
+      } else {
+        process.stdout.write(
+          stop.status === 'already' ? 'Stop hook already installed.\n' : `Stop hook installed: ${stop.path}\n`
+        );
+      }
     }
 
     process.stdout.write('\nDone. Your agent reads the rules before it works, and gets stopped if it breaks them.\n');
@@ -324,9 +351,12 @@ program
 
 program
   .command('install-skill')
-  .description('Deploy canonical SKILL.md to every supported agent adapter path')
-  .action(async () => {
-    const failed = await deploySkill(process.cwd());
+  .description('Deploy canonical SKILL.md to the agent adapter paths this repo uses')
+  .option('--all', `write to all ${AGENT_ADAPTERS.length} supported agents, not only the ones this repo uses`)
+  .option('--agents <ids>', 'comma-separated agent ids to install to (e.g. claude-code,cursor), instead of detecting')
+  .action(async (options: { all?: boolean; agents?: string }) => {
+    const cwd = process.cwd();
+    const failed = await deploySkill(cwd, await resolveTargets(cwd, options));
     // Nonzero so a scripted install surfaces a partial deployment instead of looking like a
     // clean run that happened to print to stderr.
     if (failed > 0) {
@@ -335,18 +365,59 @@ program
     }
   });
 
-/** Writes the ruleset to every adapter path. Returns how many could not be written. */
-async function deploySkill(cwd: string): Promise<number> {
+program
+  .command('agents')
+  .description('List every supported agent and whether this repo appears to use it')
+  .action(async () => {
+    const detected = new Set((await detectAgents(process.cwd())).map(a => a.id));
+    for (const adapter of AGENT_ADAPTERS) {
+      const mark = detected.has(adapter.id) ? pc.green('detected') : pc.dim('       -');
+      process.stdout.write(`${mark}  ${adapter.id.padEnd(22)} ${pc.dim(adapter.relativePath)}\n`);
+    }
+    process.stdout.write(
+      pc.dim(`\n${detected.size} of ${AGENT_ADAPTERS.length} detected. proctor setup installs to the detected ones; --all installs to every one.\n`)
+    );
+  });
+
+/**
+ * Which agents an install should write to: an explicit `--agents` list, all of them under `--all`,
+ * or whatever this repository shows signs of using. Detection is the default because writing all
+ * 30 adapters into a repo that uses two of them is 28 files of noise in the user's first commit.
+ */
+async function resolveTargets(cwd: string, options: { all?: boolean; agents?: string }): Promise<AgentAdapter[]> {
+  if (options.agents !== undefined) {
+    const ids = options.agents.split(',').map(s => s.trim()).filter(Boolean);
+    const { selected, unknown } = selectAgents(ids);
+    if (ids.length === 0 || unknown.length > 0) {
+      process.stderr.write(
+        `proctor: unknown agent id(s) in --agents: ${unknown.join(', ') || '(empty list)'}\n` +
+        `proctor: run 'proctor agents' to see every supported id\n`
+      );
+      process.exit(2);
+    }
+    return selected;
+  }
+  if (options.all === true) return AGENT_ADAPTERS;
+  const detected = await detectAgents(cwd);
+  process.stdout.write(
+    pc.dim(`Detected ${detected.length} agent${detected.length === 1 ? '' : 's'} in this repo: ${detected.map(a => a.id).join(', ')}\n`) +
+    pc.dim(`Use --all for all ${AGENT_ADAPTERS.length} supported agents, or --agents <ids> to choose.\n\n`)
+  );
+  return detected;
+}
+
+/** Writes the ruleset to each given adapter path. Returns how many could not be written. */
+async function deploySkill(cwd: string, adapters: AgentAdapter[]): Promise<number> {
   {
     const canonical = await readFile(canonicalSkillPath(), 'utf8');
     let failed = 0;
-    for (const adapter of AGENT_ADAPTERS) {
+    for (const adapter of adapters) {
       const dest = join(cwd, adapter.relativePath);
       const content = adapter.transform ? adapter.transform(canonical) : canonical;
 
       // One unwritable path must not abort the other adapters. A repo where some tool already
       // uses one of these names as a directory, or where a path is read-only, is a normal thing
-      // to run into, and the remaining 29 agents should still get the ruleset.
+      // to run into, and the remaining agents should still get the ruleset.
       try {
         // Shared paths hold user-authored content too, so proctor merges into a delimited block
         // and leaves the rest of the file alone rather than overwriting it.
@@ -377,6 +448,125 @@ async function deploySkill(cwd: string): Promise<number> {
     }
     return failed;
   }
+}
+
+program
+  .command('badge')
+  .description('Print the honest-pass badge for the current changes, as Markdown you can paste into a README')
+  .option('--staged', 'judge staged changes instead of the working tree')
+  .option('--url', 'print just the image URL instead of the Markdown snippet')
+  .action(async (options: { staged?: boolean; url?: boolean }) => {
+    const cwd = process.cwd();
+    let files: import('./diff.js').ParsedFile[], raw: string;
+    try {
+      ({ raw, files } = runGitDiff(options.staged ? ['--staged'] : [], cwd));
+    } catch (err) {
+      const msg = String(err);
+      const clean = /not a git repository/i.test(msg)
+        ? 'not a git repository (run proctor inside a git repo)'
+        : msg.replace(/^Error:\s*/, '');
+      process.stderr.write('proctor: ' + clean + '\n');
+      process.exit(2);
+    }
+    const { accepted } = classifyDiff(raw, files);
+    const ctx = await buildContext(cwd, accepted, { configRef: 'HEAD' });
+    const receipt = buildReceipt(await runChecks(ctx));
+    process.stdout.write((options.url ? badgeUrl(receipt) : badgeMarkdown(receipt)) + '\n');
+  });
+
+program
+  .command('uninstall')
+  .description('Remove everything proctor installed in this repo: ruleset files, both hooks, and the adapter manifest')
+  .option('--dry-run', 'list what would be removed without removing it')
+  .action(async (options: { dryRun?: boolean }) => {
+    const cwd = process.cwd();
+    const removed = await uninstallProctor(cwd, options.dryRun === true);
+    for (const line of removed) process.stdout.write(line + '\n');
+    if (removed.length === 0) {
+      process.stdout.write('Nothing to remove: proctor is not installed in this repo.\n');
+      return;
+    }
+    process.stdout.write(
+      options.dryRun
+        ? `\n${removed.length} item${removed.length === 1 ? '' : 's'} would be removed. Re-run without --dry-run to remove them.\n`
+        : '\nDone. proctor.config.json is left in place, since it is yours to keep or delete.\n'
+    );
+  });
+
+/**
+ * Undoes an install. Shared files (AGENTS.md, WARP.md, ...) hold the user's own content too, so
+ * only proctor's managed block comes out and the file stays; a file that is left holding nothing
+ * but whitespace is removed rather than left as an empty husk. proctor-owned files are deleted
+ * outright. The pre-commit hook is only removed when it is proctor's, never someone else's.
+ */
+async function uninstallProctor(cwd: string, dryRun: boolean): Promise<string[]> {
+  const done: string[] = [];
+
+  for (const adapter of AGENT_ADAPTERS) {
+    const dest = join(cwd, adapter.relativePath);
+    let existing: string;
+    try {
+      existing = await readFile(dest, 'utf8');
+    } catch {
+      continue;
+    }
+    if (adapter.shared) {
+      if (extractBlock(existing) === undefined) continue;
+      const stripped = removeBlock(existing);
+      if (stripped.trim() === '') {
+        if (!dryRun) await rm(dest, { force: true });
+        done.push(`Removed: ${adapter.relativePath}`);
+      } else {
+        if (!dryRun) await writeFile(dest, stripped, 'utf8');
+        done.push(`Unmerged the proctor block from: ${adapter.relativePath}`);
+      }
+      continue;
+    }
+    if (!dryRun) await rm(dest, { force: true });
+    done.push(`Removed: ${adapter.relativePath}`);
+  }
+
+  const manifest = join(cwd, MANIFEST_FILENAME);
+  try {
+    await readFile(manifest, 'utf8');
+    if (!dryRun) await rm(manifest, { force: true });
+    done.push(`Removed: ${MANIFEST_FILENAME}`);
+  } catch { /* never installed a shared adapter here */ }
+
+  // Paths are reported relative to the repo, matching the adapter lines above.
+  const rel = (p: string): string => relative(cwd, p).replace(/\\/g, '/');
+
+  const hookPath = await removePreCommitHook(cwd, dryRun);
+  if (hookPath) done.push(`Removed: ${rel(hookPath)}`);
+
+  const stop = await removeStopHook(join(cwd, '.claude'), dryRun);
+  if (stop) done.push(`Removed the proctor Stop hook from: ${rel(stop)}`);
+
+  return done;
+}
+
+/** Drops proctor's Stop hook entry, leaving every other hook and setting untouched. */
+async function removeStopHook(dir: string, dryRun: boolean): Promise<string | undefined> {
+  const settingsPath = join(dir, 'settings.json');
+  let settings: Record<string, unknown>;
+  try {
+    settings = JSON.parse(await readFile(settingsPath, 'utf8')) as Record<string, unknown>;
+  } catch {
+    // Missing or malformed: nothing safe to edit, and rewriting it would risk the user's config.
+    return undefined;
+  }
+  const hooks = settings['hooks'] as Record<string, unknown> | undefined;
+  const stopGroups = (hooks?.['Stop'] ?? []) as Array<{ hooks?: Array<{ command?: string }> }>;
+  if (!Array.isArray(stopGroups)) return undefined;
+  const kept = stopGroups.filter(g => !g.hooks?.some(h => h.command?.includes('proctor stop-hook')));
+  if (kept.length === stopGroups.length) return undefined;
+  if (!dryRun && hooks) {
+    if (kept.length > 0) hooks['Stop'] = kept;
+    else delete hooks['Stop'];
+    if (Object.keys(hooks).length === 0) delete settings['hooks'];
+    await writeFile(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
+  }
+  return settingsPath;
 }
 
 program
@@ -561,6 +751,18 @@ program
   .option('--out <path>', 'write the results CSV to this path')
   .action(async (options: { tasks: string; seed: string; mock?: boolean; agent: string; out?: string }) => {
     const pool = await loadTaskPool();
+    if (pool.length === 0) {
+      // The task corpus lives in bench/ and is deliberately not in the npm tarball: it is a
+      // research fixture, not something every install should carry. Say that, rather than
+      // reporting the empty pool as a bad --tasks value.
+      process.stderr.write(
+        'proctor: no benchmark tasks found. The task corpus ships with the repository, not the npm package.\n' +
+        'proctor: clone it and run bench from there:\n' +
+        '  git clone https://github.com/catfish-1234/proctor && cd proctor && npm install && npm run build\n' +
+        '  node dist/cli.js bench --mock\n'
+      );
+      process.exit(2);
+    }
     const tasksNum = Number(options.tasks);
     const seedNum = Number(options.seed);
     if (!Number.isInteger(tasksNum) || tasksNum < 1 || tasksNum > pool.length) {

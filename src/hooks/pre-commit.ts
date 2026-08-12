@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { chmodSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
@@ -31,11 +31,6 @@ async function hasHusky(cwd: string): Promise<boolean> {
 }
 
 /**
- * Installs the git pre-commit hook. Detects husky and writes to .husky/pre-commit when present,
- * otherwise falls back to .git/hooks/pre-commit directly. Returns the path the hook was
- * written to.
- */
-/**
  * If a pre-commit hook already exists at hookPath and isn't ours, copy it to
  * `<hookPath>.bak` before overwriting so the user's prior hook isn't silently lost.
  */
@@ -51,6 +46,11 @@ async function backupForeignHook(hookPath: string): Promise<void> {
   process.stderr.write(`proctor: existing pre-commit hook backed up to ${hookPath}.bak, merge it manually if you still need it\n`);
 }
 
+/**
+ * Installs the git pre-commit hook. Detects husky and writes to .husky/pre-commit when present,
+ * otherwise falls back to .git/hooks/pre-commit directly. Returns the path the hook was
+ * written to.
+ */
 export async function installPreCommitHook(cwd: string): Promise<string> {
   const hookContent = preCommitHookContent();
 
@@ -77,4 +77,25 @@ export async function installPreCommitHook(cwd: string): Promise<string> {
   await writeFile(hookPath, hookContent, 'utf8');
   try { chmodSync(hookPath, 0o755); } catch { /* Windows, acceptable */ }
   return hookPath;
+}
+
+/**
+ * Removes the pre-commit hook, but only when it is proctor's. A hook someone else installed, or
+ * one a user has edited to do more than call proctor, is left alone: uninstalling one tool must
+ * never quietly disarm another. Returns the path removed, or undefined when there was nothing of
+ * proctor's to remove.
+ */
+export async function removePreCommitHook(cwd: string, dryRun: boolean): Promise<string | undefined> {
+  for (const hookPath of [join(cwd, '.husky', 'pre-commit'), join(cwd, '.git', 'hooks', 'pre-commit')]) {
+    let existing: string;
+    try {
+      existing = await readFile(hookPath, 'utf8');
+    } catch {
+      continue;
+    }
+    if (existing.trim() !== preCommitHookContent().trim()) continue;
+    if (!dryRun) await rm(hookPath, { force: true });
+    return hookPath;
+  }
+  return undefined;
 }

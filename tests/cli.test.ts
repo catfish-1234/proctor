@@ -216,7 +216,7 @@ describe('CLI smoke tests', () => {
   it('install-skill deploys the canonical ruleset to a proctor-owned adapter path', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
-      const result = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
+      const result = spawnSync('node', [CLI, 'install-skill', '--all'], { cwd: tmpDir, encoding: 'utf8' });
       expect(result.status).toBe(0);
       const canonical = readFileSync(resolve(process.cwd(), 'src/skill/SKILL.md'), 'utf8');
 
@@ -241,10 +241,10 @@ describe('CLI smoke tests', () => {
     expect(result.status).toBe(0);
   });
 
-  it('install-skill writes every adapter path with the canonical ruleset, and drift-check exits 0', () => {
+  it('install-skill --all writes every adapter path with the canonical ruleset, and drift-check exits 0', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
-      const result = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
+      const result = spawnSync('node', [CLI, 'install-skill', '--all'], { cwd: tmpDir, encoding: 'utf8' });
       expect(result.status).toBe(0);
       const canonical = readFileSync(resolve(process.cwd(), 'src/skill/SKILL.md'), 'utf8');
 
@@ -294,7 +294,7 @@ describe('CLI smoke tests', () => {
       const result = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
       expect(result.status).toBe(0);
       const canonical = readFileSync(resolve(process.cwd(), 'src/skill/SKILL.md'), 'utf8');
-      const deployed = readFileSync(join(tmpDir, 'best_practices.md'), 'utf8');
+      const deployed = readFileSync(join(tmpDir, 'AGENTS.md'), 'utf8');
       expect(deployed).toBe(`<!-- proctor:start -->\n${canonical.trim()}\n<!-- proctor:end -->\n`);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
@@ -305,11 +305,11 @@ describe('CLI smoke tests', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
       writeFileSync(join(tmpDir, 'AGENTS.md'), '# House rules\n', 'utf8');
-      expect(spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' }).status).toBe(0);
+      expect(spawnSync('node', [CLI, 'install-skill', '--all'], { cwd: tmpDir, encoding: 'utf8' }).status).toBe(0);
       const afterFirst = readFileSync(join(tmpDir, 'AGENTS.md'), 'utf8');
       const ownedAfterFirst = readFileSync(join(tmpDir, '.claude/skills/proctor/SKILL.md'), 'utf8');
 
-      expect(spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' }).status).toBe(0);
+      expect(spawnSync('node', [CLI, 'install-skill', '--all'], { cwd: tmpDir, encoding: 'utf8' }).status).toBe(0);
       expect(readFileSync(join(tmpDir, 'AGENTS.md'), 'utf8')).toBe(afterFirst);
       expect(readFileSync(join(tmpDir, '.claude/skills/proctor/SKILL.md'), 'utf8')).toBe(ownedAfterFirst);
     } finally {
@@ -707,25 +707,72 @@ describe('check --sarif flag', () => {
 });
 
 describe('setup command', () => {
+  /** A git repo that uses Claude Code, the case where setup installs everything it can. */
+  function claudeRepo(): string {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    execSync('git init', { cwd: tmpDir });
+    mkdirSync(join(tmpDir, '.claude'), { recursive: true });
+    return tmpDir;
+  }
+
   it('installs the ruleset and both hooks in one run', () => {
+    const tmpDir = claudeRepo();
+    try {
+      const result = spawnSync('node', [CLI, 'setup'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(0);
+      expect(existsSync(join(tmpDir, '.git/hooks/pre-commit'))).toBe(true);
+      expect(existsSync(join(tmpDir, '.claude/settings.json'))).toBe(true);
+      expect(existsSync(join(tmpDir, '.claude/skills/proctor/SKILL.md'))).toBe(true);
+      expect(result.stdout).toContain('of 1 agent path');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('installs only the agents this repo uses, not all of them', () => {
+    // 30 files in a repo that uses one agent is a worse first commit than no guard at all.
+    const tmpDir = claudeRepo();
+    try {
+      const result = spawnSync('node', [CLI, 'setup'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('Detected 1 agent in this repo: claude-code');
+      for (const stranger of ['WARP.md', 'replit.md', 'CRUSH.md', 'AGENT.md', 'best_practices.md', '.goosehints']) {
+        expect(existsSync(join(tmpDir, stranger)), `${stranger} should not be created`).toBe(false);
+      }
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('--all still writes the full roster', () => {
+    const tmpDir = claudeRepo();
+    try {
+      const result = spawnSync('node', [CLI, 'setup', '--all'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain(`of ${AGENT_ADAPTERS.length} agent paths`);
+      expect(existsSync(join(tmpDir, 'WARP.md'))).toBe(true);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('falls back to AGENTS.md, and no Claude settings file, in a repo with no agent config', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
       execSync('git init', { cwd: tmpDir });
       const result = spawnSync('node', [CLI, 'setup'], { cwd: tmpDir, encoding: 'utf8' });
       expect(result.status).toBe(0);
-      expect(existsSync(join(tmpDir, '.git/hooks/pre-commit'))).toBe(true);
-      expect(existsSync(join(tmpDir, '.claude/settings.json'))).toBe(true);
       expect(existsSync(join(tmpDir, 'AGENTS.md'))).toBe(true);
-      expect(result.stdout).toContain(`of ${AGENT_ADAPTERS.length} agent paths`);
+      // Claude Code's own settings format has no business in a repo that does not use it.
+      expect(existsSync(join(tmpDir, '.claude/settings.json'))).toBe(false);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
   it('is safe to run twice', () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    const tmpDir = claudeRepo();
     try {
-      execSync('git init', { cwd: tmpDir });
       spawnSync('node', [CLI, 'setup'], { cwd: tmpDir, encoding: 'utf8' });
       const second = spawnSync('node', [CLI, 'setup'], { cwd: tmpDir, encoding: 'utf8' });
       expect(second.status).toBe(0);
@@ -742,11 +789,26 @@ describe('setup command', () => {
     // Half a setup that reports success is worse than one that says which half is missing.
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
+      mkdirSync(join(tmpDir, '.claude'), { recursive: true });
       const result = spawnSync('node', [CLI, 'setup'], { cwd: tmpDir, encoding: 'utf8' });
       expect(result.status).toBe(1);
       expect(result.stderr).toContain('pre-commit hook');
-      expect(existsSync(join(tmpDir, 'AGENTS.md'))).toBe(true);
+      expect(existsSync(join(tmpDir, '.claude/skills/proctor/SKILL.md'))).toBe(true);
       expect(existsSync(join(tmpDir, '.claude/settings.json'))).toBe(true);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('exits nonzero when an adapter path could not be written', () => {
+    // A setup that wrote some of the ruleset and exits 0 looks identical to one that worked.
+    const tmpDir = claudeRepo();
+    try {
+      // Occupy the adapter's file path with a directory so the write fails (EISDIR/EPERM).
+      mkdirSync(join(tmpDir, '.claude', 'skills', 'proctor', 'SKILL.md'), { recursive: true });
+      const result = spawnSync('node', [CLI, 'setup'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('could not be written');
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -1095,7 +1157,7 @@ describe('install-skill resilience', () => {
       // Zed's adapter path is `.rules`; make it a directory so writing the file cannot succeed.
       mkdirSync(join(tmpDir, '.rules'), { recursive: true });
 
-      const result = spawnSync('node', [CLI, 'install-skill'], { cwd: tmpDir, encoding: 'utf8' });
+      const result = spawnSync('node', [CLI, 'install-skill', '--all'], { cwd: tmpDir, encoding: 'utf8' });
 
       expect(result.status).toBe(1);
       expect(result.stderr).toContain('.rules');

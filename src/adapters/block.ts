@@ -40,6 +40,18 @@ export function extractBlock(file: string): string | undefined {
 }
 
 /**
+ * Strips every managed block from `file`, leaving the user's own content exactly as it was.
+ *
+ * The inverse of upsertBlock, used by `proctor uninstall`. A shared file belongs to the user, so
+ * uninstalling proctor takes out proctor's block and nothing else.
+ */
+export function removeBlock(file: string): string {
+  const stripped = file.replace(new RegExp(BLOCK_RE, 'g'), '');
+  // upsertBlock appends after a blank line, so removing the block can leave a trailing gap.
+  return stripped.trim() === '' ? '' : stripped.trimEnd() + '\n';
+}
+
+/**
  * Writes `content` into `existing` as the managed block, preserving all surrounding content.
  *
  * The first block is replaced in place so a user's ordering survives a reinstall. Any additional

@@ -1,5 +1,11 @@
 name: 'proctor'
 description: 'Catch AI agents gaming their test suites. SARIF + Code Scanning'
+author: 'Kavish Dua'
+# Required by GitHub Marketplace publish validation, not just decoration: a listing without both
+# an icon and a color is rejected. `icon` comes from the Feather v4.28.0 set.
+branding:
+  icon: 'shield'
+  color: 'green'
 runs:
   using: composite
   steps:

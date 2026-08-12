@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import parseDiff from 'parse-diff';
+import { runGitDiff } from './diff.js';
 import { classifyDiff } from './pre-classifier.js';
 import { buildContext } from './context/index.js';
 import { runChecks } from './engine.js';
@@ -75,15 +75,17 @@ async function scoreCommit(cwd: string, commit: CommitRef): Promise<CommitScore 
   const parent = spawnSync('git', ['rev-parse', '--verify', '--quiet', `${commit.sha}^`], { cwd, encoding: 'utf8' });
   if (parent.status !== 0) return undefined;
 
-  const diff = spawnSync('git', ['diff', '--end-of-options', `${commit.sha}^`, commit.sha], {
-    cwd,
-    encoding: 'utf8',
-    maxBuffer: 512 * 1024 * 1024,
-  });
-  if (diff.status !== 0) return undefined;
+  // Through runGitDiff, not a second inline `git diff`: that shared helper is where the
+  // per-line length cap lives, and it is the systemic ReDoS bound every verifier regex relies on.
+  // Scoring history over uncapped lines would run those same regexes without it.
+  let raw: string, files: import('./diff.js').ParsedFile[];
+  try {
+    ({ raw, files } = runGitDiff(['--end-of-options', `${commit.sha}^`, commit.sha], cwd));
+  } catch {
+    return undefined;
+  }
 
-  const raw = diff.stdout.replace(/\r\n/g, '\n');
-  const { accepted } = classifyDiff(raw, parseDiff(raw));
+  const { accepted } = classifyDiff(raw, files);
   // Config is read from the commit being scored, so each commit is judged by the rules that were
   // actually in force when it landed rather than by today's config.
   const ctx = await buildContext(cwd, accepted, { configRef: commit.sha, quiet: true });

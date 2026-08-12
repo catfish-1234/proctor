@@ -49,6 +49,16 @@ describe('action.yml', () => {
   it('does not use pull_request_target', () => {
     expect(actionYml).not.toContain('pull_request_target');
   });
+
+  it('carries the branding block GitHub Marketplace publishing requires', () => {
+    // Marketplace publish validation rejects a listing with no branding icon or color, so this is
+    // a release blocker rather than decoration.
+    expect(actionYml).toMatch(/^branding:$/m);
+    expect(actionYml).toMatch(/^ {2}icon: '.+'$/m);
+    expect(actionYml).toMatch(
+      /^ {2}color: '(white|black|yellow|blue|green|orange|red|purple|gray-dark)'$/m
+    );
+  });
 });
 
 describe('.github/workflows/proctor.yml', () => {

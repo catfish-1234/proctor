@@ -144,36 +144,20 @@ const FILEWIDE_HLINT_RE = /\{-#\s*(?:ANN\s+module\s+"HLint:\s*ignore"|HLINT\s+ig
 // SUPPRESSION_PATTERNS above (no shared match).
 const FILEWIDE_CREDO_FILE_RE = /#\s*credo:disable-for-this-file\b/;
 
-// The following file-wide mechanisms are real but deliberately NOT implemented this phase,
-// each for the reason given:
-// - Go `//nolint` placed above the `package` clause (non-standard/discouraged, not uniformly
-//   honored by every linter)
-// - Ruby `# rubocop:disable` with no matching `# rubocop:enable` before EOF (requires
-//   forward-scanning the file, not a single diff line)
-// - C# `#pragma warning disable` with no matching `restore` (same forward-scan limitation)
-// - Java has no standard file-wide annotation target at all
-// - C/C++/Objective-C clang-tidy `NOLINTBEGIN`/`NOLINTEND` is a bounded region pair, not an
-//   open-ended file-wide directive; `#pragma clang diagnostic push` with no matching `pop` running
-//   to EOF is the same forward-scan limitation as C#'s unrestored pragma above
-// - VB.NET's unclosed `#Disable Warning` with no matching `#Enable Warning` running to EOF is the
-//   same forward-scan limitation, mirrors C#'s existing documented gap
-// - cppcheck has no dedicated file-wide suppression form
-// - Perl's unclosed `## no critic` with no matching `## use critic` running to EOF is the same
-//   forward-scan limitation as Ruby/C#'s documented gaps
-// - R's whole-file exclusion is via a separate `.lintr` config file (exclusions field), not an
-//   inline directive, not detected as RH011
-// - Lua's own-line-at-file-top `-- luacheck: ignore` ("everything till end of current closure") is
-//   too fragile to reliably distinguish from an arbitrary nested-function top via diff-line regex
-//   alone, only the unambiguous same-line-as-code form is implemented
-// - Clojure's whole-file exclusion is via a separate `.clj-kondo/config.edn` file, not an inline
-//   comment, not detected as RH011
-// - Shell/Bash has no inline file-wide directive at all, a confirmed structural absence (not an
-//   unimplemented feature); whole-file exclusion requires a separate `.shellcheckrc` file
-// - Julia: RH011 is a WHOLE-CATEGORY documented gap, no dominant Julia linter with a
-//   standardized inline suppress-comment convention was found. No line-scoped or file-wide
-//   detector is implemented for Julia at all. This is a negative
-//   claim about tooling-ecosystem maturity, flagged for human sanity-check rather than a guessed
-//   detector forced into existence.
+// File-wide mechanisms deliberately not detected, grouped by why. A verifier reads one diff line
+// at a time, which is what rules most of these out.
+//
+// Needs forward-scanning the whole file for a missing closer, which a diff line cannot do:
+//   Ruby `# rubocop:disable`, C# `#pragma warning disable`, VB.NET `#Disable Warning`,
+//   Perl `## no critic`, C/C++ `#pragma clang diagnostic push`.
+// Lives in a separate config file, not an inline directive: R (`.lintr` exclusions),
+//   Clojure (`.clj-kondo/config.edn`), Shell (`.shellcheckrc`).
+// No such mechanism exists: Java (no file-wide annotation target), cppcheck, Shell inline.
+// Too ambiguous to match without false positives: Go `//nolint` above the `package` clause
+//   (non-standard and not honored uniformly), Lua's own-line `-- luacheck: ignore` (scoped to the
+//   enclosing closure, indistinguishable from a nested-function top by regex).
+// Julia is a whole-category gap: no dominant linter with a standard inline suppress-comment
+//   convention was found, so nothing is detected for it at all rather than a guessed detector.
 
 // A single suppression is often legitimate (third-party types with no stubs, a documented
 // exception). "Spam" means multiple added in the same change, and that's the actual signal.

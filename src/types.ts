@@ -4,6 +4,15 @@ import type { ParsedFile } from './diff.js';
 export type Severity = 'error' | 'warn' | 'info';
 
 /**
+ * Languages proctor can name from a file extension. `unknown` is a real member, not a failure:
+ * the language-specific checks simply do not apply to a file proctor cannot place.
+ */
+export type Language =
+  | 'ts' | 'js' | 'python' | 'go' | 'java' | 'rust' | 'ruby' | 'php' | 'csharp' | 'kotlin'
+  | 'cpp' | 'c' | 'swift' | 'objc' | 'dart' | 'scala' | 'perl' | 'r' | 'haskell' | 'elixir'
+  | 'lua' | 'groovy' | 'clojure' | 'shell' | 'julia' | 'vbnet' | 'unknown';
+
+/**
  * A Finding is the result of a Verifier checking a Claim against reality.
  * verifierId ties back to the Verifier that produced it (e.g. 'RH001').
  */
@@ -49,7 +58,9 @@ export interface Context {
   testFiles: string[];             // resolved from globs
   enabled: string[];                // enabled verifier IDs
   isTestFile: (path: string) => boolean;
-  getLanguage: (filePath: string) => 'ts' | 'js' | 'python' | 'go' | 'java' | 'rust' | 'ruby' | 'php' | 'csharp' | 'kotlin' | 'cpp' | 'c' | 'swift' | 'objc' | 'dart' | 'scala' | 'perl' | 'r' | 'haskell' | 'elixir' | 'lua' | 'groovy' | 'clojure' | 'shell' | 'julia' | 'vbnet' | 'unknown';
+  /** Extension-based language of a path. Part of the Verifier contract: third-party verifiers
+   *  use it to scope themselves to the languages they actually understand. */
+  getLanguage: (filePath: string) => Language;
   severity?: Record<string, Severity>;
   ignorePatterns?: string[];
   approvedTestChanges?: ApprovedTestChange[]; // from the committed config; downgrades, never hides

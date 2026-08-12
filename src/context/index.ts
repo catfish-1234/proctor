@@ -307,13 +307,12 @@ export async function buildContext(cwd: string, files: ParsedFile[], opts?: { co
     return 'unknown';
   };
 
-  // populate commitMessage from git log -1 --format=%s
-  // Uses async execFile to avoid blocking the event loop; catches all errors (empty repo exits 128)
+  // Catches everything: a repository with no commits yet exits 128 here, which is not an error.
   const commitMessage = await execFileAsync('git', ['log', '-1', '--format=%s'], { cwd })
     .then(({ stdout }) => stdout.trim() || undefined)
     .catch(() => undefined);
 
-  // snapshotGlobs / aiModel read from config only (no defaults here, rh006.ts owns DEFAULT_SNAPSHOT_GLOBS)
+  // No defaults applied here: rh006.ts owns DEFAULT_SNAPSHOT_GLOBS, and the CLI owns the model.
   const snapshotGlobs = config.snapshotGlobs;
   const aiModel = config.aiModel;
 

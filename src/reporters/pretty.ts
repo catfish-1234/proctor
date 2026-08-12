@@ -19,7 +19,6 @@ export function prettyReport(findings: Finding[], opts?: PrettyOptions): void {
   // that it stops blocking without becoming invisible, so hiding them here would defeat it.
   const visible = ci ? findings.filter(f => f.severity === 'error' || f.approved) : findings;
 
-  // Group visible findings by file
   const byFile = new Map<string, Finding[]>();
   for (const f of visible) {
     const group = byFile.get(f.file);

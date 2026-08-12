@@ -1,7 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import parseDiff from 'parse-diff';
 
-// Re-export parse-diff's File type as ParsedFile for consumers
 export type ParsedFile = ReturnType<typeof parseDiff>[number];
 
 // Verifiers run regexes over each change's `content`. A real source line (an assertion, a return)

@@ -49,7 +49,7 @@
   ],
   "scripts": {
     "build": "tsup",
-    "postinstall": "node dist/scripts/postinstall.js",
+    "postinstall": "node -e \"const f='dist/scripts/postinstall.js';if(require('fs').existsSync(f))require('child_process').spawnSync(process.execPath,[f],{stdio:'inherit'})\"",
     "pretest": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest",

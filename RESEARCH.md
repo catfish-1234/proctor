@@ -15,6 +15,60 @@ failure mode, measured it directly: Claude Sonnet 4 hardcoded outputs on 2.1% of
 tasks and 33.3% of ambiguous ones. Gemini 2.5 Pro deleted test files outright on 0.7% of tasks.
 Those numbers are why proctor exists.
 
+## Is the premise supported by published research?
+
+Yes, and by more of it every quarter. The question worth asking is which specific claim each paper
+supports, because they are not all the same claim.
+
+**That agents tamper with tests specifically.** This is the claim proctor's checks are built on,
+and it is the best supported.
+
+- **EvilGenie** (arXiv:[2511.21654](https://arxiv.org/abs/2511.21654)) measured hardcoding and test
+  file deletion directly, per agent, at the rates quoted above, and observed explicit reward hacking
+  from both Codex and Claude Code.
+- **Baker et al.** (OpenAI, arXiv:[2503.11926](https://arxiv.org/abs/2503.11926)) found o3-mini
+  learning to modify test cases during RL training rather than fix the code. Test tampering is not
+  only an inference-time slip, it is something training actively rewards.
+- **Hora and Robbes** (MSR 2026, arXiv:[2602.00409](https://arxiv.org/abs/2602.00409)) mined 1.2
+  million 2025 commits across 2,168 JS/TS/Python repositories and found coding agents measurably
+  more likely than human commits both to modify tests and to add mocks to them. That is direct
+  field evidence for RH005's mock-the-thing-under-test signal, at a scale no benchmark reaches.
+- **Berkeley RDI** ([April 2026](https://rdi.berkeley.edu/blog/trustworthy-benchmarks-cont/)) drove
+  eight standard agent benchmarks to near-perfect scores without solving any task. The SWE-bench
+  Verified break was a pytest hook forcing every test to pass, which is RH007 and RH012 territory
+  exactly.
+
+**That "the tests pass" is a weak signal of "the work is done."** This is the broader premise
+behind the Receipt abstraction rather than behind any single RH check.
+
+- **SpecBench** (arXiv:[2605.21384](https://arxiv.org/abs/2605.21384)) quantifies the gap between
+  visible-test pass rate and held-out-test pass rate on 30 systems-level tasks. The gap grows about
+  28 points per tenfold increase in code size and reaches 100 points on the largest tasks, and
+  raising test coverage did not shrink it. The driver is the distance between task difficulty and
+  model capability, which is the same reason proctor's own bench found nothing on single-line tasks.
+- **Building to the Test** (arXiv:[2606.28430](https://arxiv.org/abs/2606.28430)) put a hidden
+  222-test oracle behind a reimplementation task and found agents delivering whatever the oracle
+  checked instead of what the prompt requested.
+- **Cursor** ([June 2026](https://cursor.com/blog/reward-hacking-coding-benchmarks)) audited 731
+  trajectories and found 63% of successful Opus 4.8 Max runs on SWE-bench Pro had retrieved a known
+  fix rather than derived one, dropping the score from 87.1% to 73.0% under a strict harness. This
+  is leakage, not test tampering, so it is adjacent evidence rather than direct support: it says a
+  self-reported green is unreliable, not that the tests were edited.
+
+**What nobody has published, and what we therefore still owe.** Every paper above measures how
+often agents cheat. None measures whether a deterministic diff-level guard reduces it. That gap is
+ours to close, and it is the honest reason proctor's README claims a detection rate (125 of 125
+planted cheats caught, 0 of 18 near-misses flagged) rather than a prevention rate. The benchmark
+work needed for a prevention claim is scoped in
+[`bench/METHODOLOGY.md`](bench/METHODOLOGY.md): tasks 16 through 22 exist precisely because the
+first fifteen were too easy to produce a measurable cheat rate in either arm.
+
+One adjacent result is worth watching. **CapCode/CapReward**
+(arXiv:[2606.07379](https://arxiv.org/abs/2606.07379)) detects cheating statistically, by capping
+the achievable pass rate so that a score above the cap is itself evidence. That is a complementary
+detector to proctor's: it needs a controlled dataset and catches cheats proctor's syntactic
+signatures would miss, while proctor needs no dataset and runs on an ordinary repository's diff.
+
 ## How proctor is different from adjacent tools
 
 A few tools solve problems that sound similar but aren't the same problem:

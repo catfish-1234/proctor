@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { RULE_METADATA } from '../../src/rules.js';
 import { sarifReport } from '../../src/reporters/sarif.js';
 import type { Finding } from '../../src/types.js';
 
@@ -26,7 +27,7 @@ describe('sarifReport', () => {
     );
     expect(parsed.version).toBe('2.1.0');
     expect(parsed.runs[0].tool.driver.name).toBe('proctor');
-    expect(parsed.runs[0].tool.driver.rules).toHaveLength(13);
+    expect(parsed.runs[0].tool.driver.rules).toHaveLength(Object.keys(RULE_METADATA).length);
     expect(parsed.runs[0].results).toEqual([]);
   });
 

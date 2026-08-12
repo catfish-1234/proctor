@@ -1,0 +1,10 @@
+[
+  {
+    "verifierId": "WI104",
+    "severity": "error",
+    "file": "proctor.config.json",
+    "line": 5,
+    "message": "Guardrail disabled: RH003 removed from proctor's enabled checks.",
+    "suggestion": "Re-enable the check and fix what it was reporting. Enforcement reads the committed config, so this edit does not take effect in this change either way."
+  }
+]

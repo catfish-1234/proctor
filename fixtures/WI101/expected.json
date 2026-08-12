@@ -1,0 +1,10 @@
+[
+  {
+    "verifierId": "WI101",
+    "severity": "error",
+    "file": "session.ts",
+    "line": 5,
+    "message": "Error silently discarded: this change adds an empty catch block, so a failure here now passes unnoticed.",
+    "suggestion": "Handle the error, or let it propagate. If discarding it really is correct, say why in a comment on the handler."
+  }
+]

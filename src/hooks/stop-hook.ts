@@ -90,7 +90,13 @@ const IN_PROGRESS_MARKERS = [
   'MERGE_HEAD', 'REBASE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'rebase-merge', 'rebase-apply',
 ];
 
-/** Rule IDs mentioned in check output, for the statusline's recent-rules list. */
+/**
+ * Rule IDs mentioned in check output, for the statusline's recent-rules list.
+ *
+ * Matches any family prefix, not just RH: the work-integrity checks (WI1xx) print in the same
+ * bracketed form, and hardcoding one family here would have quietly dropped them from the
+ * statusline while everything else kept working.
+ */
 function rulesIn(output: string): string[] {
-  return [...new Set([...output.matchAll(/\[(RH\d{3})\]/g)].map(m => m[1]!))];
+  return [...new Set([...output.matchAll(/\[([A-Z]{2}\d{3})\]/g)].map(m => m[1]!))];
 }

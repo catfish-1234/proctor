@@ -94,6 +94,53 @@ Test tampering is the wedge, not the whole product. The real goal is broader: pr
 did what it claims instead of just trusting what it says. That's why the core abstraction (below)
 is built around a generic "claim vs. reality" check, not a test-specific one.
 
+## The taxonomy: what counts as cheating
+
+Deleting a test is the most legible way an agent fakes a finished job, and for a while it was the
+only thing proctor watched. It is not the only move available, and it is not even the most common
+one. The checks are organised by the claim they falsify:
+
+| The claim | How it gets faked | Covered by |
+|---|---|---|
+| The tests pass | Test deleted, skipped, renamed away, or excluded via config | RH001, RH003, RH007 |
+| The tests pass | Assertion weakened, made tautological, or swapped for a trivial one | RH002, RH008, RH009 |
+| The tests pass | Implementation hardcoded to the fixture, or gutted behind a stub | RH004, RH005 |
+| The tests pass | Snapshot rewritten, retries and timeouts abused, type/lint errors silenced | RH006, RH010, RH011 |
+| The build is green | Test step removed from CI, or coverage gate lowered | RH012, RH013 |
+| The code works | The error is caught and discarded, so the failure stops being reported | WI101 |
+| The work is done | An explicit not-implemented marker ships inside finished-looking work | WI102 |
+| The input is valid | The guard that rejected it is deleted rather than satisfied | WI103 |
+| The checks pass | The checks are switched off, ignored, self-approved, or bypassed | WI104 |
+| The integration works | Real IO is replaced with canned data that always looks right | WI105 |
+| It typechecks | The type is widened to `any` until the checker stops disagreeing | WI106 |
+
+### What is deliberately not covered
+
+Three categories are real and are not in the tool, listed here so their absence is a decision on
+the record rather than an oversight.
+
+**Requirement dropping, or spec drift.** An agent quietly narrows the task: implements three of the
+four cases asked for, and reports the work as complete. This is probably the single most common
+form of agent dishonesty in practice, and there is no deterministic diff-level signal for it, since
+detecting it requires knowing what was asked. A diff cannot contain that. It would need either a
+machine-readable spec to check against or the `--ai` judge, and a check that only works with a
+network call would violate the rule that the deterministic core needs none.
+
+**Retrieved rather than derived fixes.** Cursor's June 2026 audit found 63% of successful
+SWE-bench Pro runs had looked up a known fix instead of working one out. The finished diff of a
+looked-up fix and a derived one are the same diff, so nothing at the diff layer can separate them.
+Catching this needs trajectory data, which proctor deliberately does not read.
+
+**Claim inflation in prose.** A commit message, a PR description, or a README that overstates what
+the change does. Detecting it means comparing prose to code, which is an AI judgment call, not a
+signature. RH006 does something adjacent, requiring a stated reason for a snapshot rewrite, but it
+only checks that a reason exists, never whether the reason is true.
+
+The pattern across all three is the same: proctor reads the diff and only the diff. That constraint
+is what makes it deterministic, offline, and impossible to talk out of, and it is also precisely
+what puts these three out of reach. That trade is deliberate, and worth being explicit about rather
+than quietly implying the coverage is complete.
+
 ## Architecture
 
 Everything is built on one idea: an agent makes a **claim** ("the tests pass," "I fixed the bug"),
@@ -141,12 +188,22 @@ for any rule.
 
 ## Where this could go next
 
-Test tampering is only the first category of claim proctor checks. The `Verifier` interface was
-built so a future verifier for a different kind of dishonesty (an agent silently swallowing an
-error, quietly dropping a requirement, or claiming a spec is done when it isn't) can be added
-without touching the core. None of that is built yet. If you're interested in contributing one,
-start by reading a couple of the existing verifiers in `src/verifiers/` to see the pattern, then
-open an issue to talk through the design before writing code.
+The `Verifier` interface was built so a check for a different kind of dishonesty could be added
+without touching the core, and the WI1xx family is the proof that it worked: six checks covering
+error swallowing, unimplemented work, deleted validation, disabled guardrails, faked data, and
+eroded types, added by writing six pure functions and registering them. The engine, the reporters,
+the config, the approvals and the hooks were not modified. One line in the Stop hook changed,
+because it parsed rule IDs with a regex that assumed the `RH` prefix.
+
+What is left is the harder half, and it is listed under
+[what is deliberately not covered](#what-is-deliberately-not-covered) above: requirement dropping,
+retrieved rather than derived fixes, and claim inflation in prose. None of the three has a
+diff-level signal, so each would need either the `--ai` judge or a source of truth the diff does
+not contain. If you want to work on one, that is a design conversation before it is a code
+conversation, so open an issue first. For a new signature inside an existing category, read a
+couple of the verifiers in `src/verifiers/` and the shared scaffolding in `wi-common.ts`, and note
+that most of the code in each one is false-positive gating rather than detection. That ratio is the
+job.
 
 ## More detail
 

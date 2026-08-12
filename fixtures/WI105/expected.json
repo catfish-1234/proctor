@@ -1,0 +1,10 @@
+[
+  {
+    "verifierId": "WI105",
+    "severity": "error",
+    "file": "catalog.ts",
+    "line": 2,
+    "message": "Real work replaced with canned data: this change removed a network, database, or filesystem call and returns a fixed value in its place.",
+    "suggestion": "Restore the call and make it work. A function that returns a fixed value instead of fetching one is not an implementation of fetching."
+  }
+]

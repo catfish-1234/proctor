@@ -12,6 +12,10 @@ Shell/Bash, Julia, and VB.NET (25+ languages total) are covered by the five diff
 checks (RH001, RH002, RH003, RH007, RH011) that work off diff-line patterns. The two tables below are the per-language, per-check support matrix: the original 9
 languages, then the 16 added in the Language Expansion II round.
 
+The work-integrity family (WI101 to WI106) has its own scoping, described in
+[its own section](#the-work-integrity-family-wi1xx) below, since those checks read shipped code
+rather than test files and their coverage does not line up with the RH tables.
+
 | RH-ID | JS/TS | Python | Go | Java | Rust | Ruby | PHP | C# | Kotlin |
 |-------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | RH001 (test deletion) | ✅ | ✅ (file/rename path) | ✅ (file/rename path) | ✅ (file/rename path) | ✅ (file/rename path) | ✅ (file/rename path) | ✅ (file/rename path) | ✅ (file/rename path) | ✅ (file/rename path) |
@@ -244,6 +248,31 @@ To add support for another agent:
    invocation mode; it does not by itself wire up a `proctor bench` runner. To make the new
    adapter benchmarkable, add a separate entry to `AGENT_RUNNERS` in
    `src/bench/runners/registry.ts`.
+
+## The work-integrity family (WI1xx)
+
+These six read shipped code rather than the test suite, so their coverage is scoped differently
+from the tables above. Every one of them skips test files entirely: an empty catch is how you
+assert that something throws, canned data is what a fixture is for, and a loose cast is ordinary
+when building a partial mock, so firing there would make them unusable immediately.
+
+| WI-ID | Scope | Coverage and gaps |
+|-------|-------|-------------------|
+| WI101 (error swallowing) | Per-language signatures | JS/TS empty catch and discarded promise rejections, Python `except: pass` and default-returning handlers, Ruby `rescue nil` and empty rescue, Go empty `if err != nil` and `_ = err`, and the braced empty catch shared by Java, C#, Kotlin, Scala, PHP and Swift. Never fires when the handler carries an explanation |
+| WI102 (unimplemented work) | Per-language sentinels | `raise NotImplementedError`, `throw new NotImplementedException`, a not-implemented `throw new Error`, Rust `todo!()`/`unimplemented!()`, Kotlin `TODO()`, Go `panic("not implemented")`, Swift `fatalError`, and a Python `pass  # TODO`. Anchored to statement position, so the same tokens quoted in prose or metadata do not match. Abstract methods, interfaces, protocols and declaration files (`.d.ts`, `.pyi`) are exempt |
+| WI103 (validation removed) | Mostly language-agnostic | Deleted throws, raises, asserts, panics, Go error returns, and precondition helpers. Silent whenever the same change adds a named validator anywhere in the file, or rewrites a guard in the same hunk, because a false positive here lands on somebody extracting a validator |
+| WI104 (guardrail disabled) | Config files, every language | Proctor's own config and deployed rulesets, package.json, CI workflows, husky and pre-commit hooks, Makefiles, shell scripts, Claude Code settings, tsconfig strictness flags, ESLint rule config, and lint ignore files. Does not read prose, so a README that stops mentioning proctor is not a finding |
+| WI105 (fake data) | JS/TS, Python, Go, and any language whose IO calls appear in the pattern list | Fetch/axios/requests/httpx/HttpClient/URLSession, database and ORM calls, filesystem reads, and subprocess spawns, paired against a fixed value returned in their place. The canned-name signal (returning something called `mock*`, `fake*`, `stub*`, `placeholder*`) is language-agnostic |
+| WI106 (type erosion) | Typed languages only | TS, Python, Go, C#, Dart, Kotlin, Scala and Swift. Skips `.d.ts`. Fires on a specific type widened to the top type, or on two or more unexplained widenings in one change, never on a single explained cast |
+
+**Known gaps in this family.** WI101 does not follow a handler whose braces close outside the diff
+hunk, so an empty catch split across a very large unchanged region can be missed; the check stays
+quiet rather than guessing. WI103 reads deletions only, so a guard that is weakened rather than
+deleted (a bound loosened, a condition inverted) is not covered, and neither is validation that
+lived in a decorator or a framework annotation. WI105 recognises IO from a fixed list of calls, so a
+project wrapping all of its network access in an in-house client will not match it. WI106 has no
+signature for Rust or Haskell, whose escape hatches (`unsafe`, `unsafeCoerce`) mean something
+different enough that reusing the `any` framing would be misleading.
 
 ## Known limitations
 

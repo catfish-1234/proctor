@@ -279,3 +279,46 @@ describe('runChecks', () => {
   });
 });
 
+
+describe('glob matching covers dotfiles', () => {
+  // A .gitignore that gains a source path, which is what WI108 fires on.
+  const ignoreFile = () =>
+    makeFile('fixtures/WI108/after/.gitignore', [
+      {
+        content: '@@ -1,2 +1,3 @@',
+        changes: [
+          { type: 'add', add: true, ln: 3, content: '+src/paymentProcessor.ts' },
+        ],
+      },
+    ] as unknown as ParsedFile['chunks']);
+
+  it('fires on the dotfile when nothing is ignored', async () => {
+    const result = await runChecks(makeCtx({ files: [ignoreFile()], enabled: ['WI108'] }));
+    expect(result.length).toBe(1);
+  });
+
+  it('ignorePatterns matches a dotfile under a wildcard', async () => {
+    // micromatch does not match a leading dot with `*` unless told to, so `fixtures/**` silently
+    // failed to cover `fixtures/x/.gitignore`. This repository's own ignorePatterns did not do
+    // what it plainly says, and nothing noticed until a check first reported a dotfile.
+    const result = await runChecks(
+      makeCtx({ files: [ignoreFile()], enabled: ['WI108'], ignorePatterns: ['fixtures/**'] }),
+    );
+    expect(result).toEqual([]);
+  });
+
+  it('approvals match a dotfile under a wildcard too', async () => {
+    const result = await runChecks(
+      makeCtx({
+        files: [ignoreFile()],
+        enabled: ['WI108'],
+        approvedTestChanges: [
+          { rule: 'WI108', file: 'fixtures/**', reason: 'planted fixture corpus, not a real cheat' },
+        ],
+      }),
+    );
+    expect(result.length).toBe(1);
+    expect(result[0]!.severity).toBe('info');
+    expect(result[0]!.approved).toBe(true);
+  });
+});

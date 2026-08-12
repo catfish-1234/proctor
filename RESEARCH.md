@@ -113,6 +113,34 @@ one. The checks are organised by the claim they falsify:
 | The checks pass | The checks are switched off, ignored, self-approved, or bypassed | WI104 |
 | The integration works | Real IO is replaced with canned data that always looks right | WI105 |
 | It typechecks | The type is widened to `any` until the checker stops disagreeing | WI106 |
+| The request succeeds | Certificate verification, CSRF, or an authorization gate is switched off | WI107 |
+| The diff is clean | The file is hidden from git, so no check can see it at all | WI108 |
+
+### The self-reference hazard, for anyone adding a check
+
+A tool that detects a token necessarily contains that token. Proctor's verifiers list every pattern
+they look for, its rule metadata describes all of them in prose, and its tests exercise them, so
+three separate times a new check reported proctor's own source as a violation of itself: WI102 on
+the rule metadata describing its sentinels, WI106 and RH011 on twelve findings across the signature
+tables, and WI108 on its own documentation of `git update-index`.
+
+It is worth naming because it is not cosmetic. It looks exactly like a true positive, it appears
+only against a real base diff rather than a clean working tree, and the tempting fix (exclude our
+own files) hides real regressions in the same stroke. The discipline every new check follows:
+
+1. Skip documentation files. Prose naming a construct is describing it, not doing it.
+2. Skip comment-only lines, for the same reason one level down.
+3. Blank string and regex literal contents with `withoutLiterals()` before matching, so a pattern
+   table and a quoted mention both go quiet while real code does not.
+4. Anchor to statement position where the construct has one, as WI102 does.
+
+The exception that proves the shape of the rule is Haskell's HLint annotation, whose payload lives
+inside a string by design, so blanking literals erases the directive rather than a mention of it.
+That one pattern is matched raw, and the cost is that it stays self-referential.
+
+**Verify with `proctor check --base main`, not a working-tree run.** A clean tree diffs nothing, so
+a working-tree check reports an honest pass while CI, which diffs against the base, sees every new
+file as pure additions and finds all of it.
 
 ### What is deliberately not covered
 

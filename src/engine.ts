@@ -88,9 +88,21 @@ function applySuppression(findings: Finding[], files: ParsedFile[]): Finding[] {
   });
 }
 
+/**
+ * `dot: true` on every glob match in this file, and it is load-bearing.
+ *
+ * micromatch does not match a leading dot with `*` unless told to, so `fixtures/**` silently failed
+ * to cover `fixtures/x/.gitignore`, and this repository's own `ignorePatterns` did not do what it
+ * plainly says. Nobody noticed until a check started reporting dotfiles, because until then no
+ * finding had ever landed on one. The same applies to approvals: `src/**` should approve
+ * `src/.eslintrc` too, and an approval that silently does not apply is worse than one that is
+ * rejected, since the person who wrote it believes it took effect.
+ */
+const GLOB_OPTIONS = { dot: true } as const;
+
 function applyIgnorePatterns(findings: Finding[], patterns: string[]): Finding[] {
   if (patterns.length === 0) return findings;
-  return findings.filter(f => !micromatch.isMatch(f.file.replace(/\\/g, '/'), patterns));
+  return findings.filter(f => !micromatch.isMatch(f.file.replace(/\\/g, '/'), patterns, GLOB_OPTIONS));
 }
 
 /**
@@ -111,7 +123,7 @@ function applyApprovals(findings: Finding[], approvals: ApprovedTestChange[]): F
   return findings.map(f => {
     const path = norm(f.file);
     const match = approvals.find(
-      a => a.rule === f.verifierId && (norm(a.file) === path || micromatch.isMatch(path, norm(a.file))),
+      a => a.rule === f.verifierId && (norm(a.file) === path || micromatch.isMatch(path, norm(a.file), GLOB_OPTIONS)),
     );
     if (!match) return f;
     return { ...f, severity: 'info' as Severity, approved: true as const, approvalReason: match.reason };

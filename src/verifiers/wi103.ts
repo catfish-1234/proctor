@@ -1,5 +1,5 @@
 import type { Context, Finding, Verifier } from '../types.js';
-import { addedLines, deletedLines, isWatchedSource, pathOf, withoutTrailingComment } from './wi-common.js';
+import { addedLines, deletedLines, isCommentLine, isWatchedSource, pathOf, withoutLiterals, withoutTrailingComment } from './wi-common.js';
 
 /**
  * Validation removed from shipped code.
@@ -113,11 +113,16 @@ function run(context: Context): Finding[] {
       const chunkAdded = addedLines(chunk);
       const chunkDeleted = deletedLines(chunk);
       for (const line of chunkAdded) {
+        // Same discipline as the rest of the family: a guard quoted in a string is a payload, not
+        // a guard. Skipped before any signal runs.
+        if (isCommentLine(line.text)) continue;
+        const code = withoutLiterals(line.text);
+        if (code !== line.text && !GUARD_SIGNATURES.some(g => g.re.test(code))) continue;
         const guarded = GUARD_SIGNATURES.some(g => g.re.test(line.text)) ||
           chunkAdded.some(l => Math.abs(l.line - line.line) <= 2 && GUARD_SIGNATURES.some(g => g.re.test(l.text)));
         if (!guarded) continue;
 
-        if (ENV_ESCAPE_RE.test(line.text)) {
+        if (ENV_ESCAPE_RE.test(code)) {
           findings.push({
             verifierId: 'WI103',
             severity: 'error',

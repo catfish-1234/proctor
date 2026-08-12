@@ -480,3 +480,33 @@ describe('WI108, a mention is not an attempt', () => {
     expect(findings.length).toBe(1);
   });
 });
+
+describe('WI101/WI103, a payload inside a literal is not code', () => {
+  it('stays silent on an empty catch quoted on one line', async () => {
+    expect(await run(wi101, addedOf('src/probe.ts', "const payload = 'try { work(); } catch {}';"))).toEqual([]);
+  });
+
+  it('stays silent on an empty catch inside a multi-line template', async () => {
+    // withoutLiterals works a line at a time, so the interior lines of a backtick string carry no
+    // visible quote and read as ordinary code. proctor's own red-team corpus is one file of these,
+    // and every payload in it was reported as a real swallowed error.
+    const code = [
+      'const fixture = `import { it } from "vitest";',
+      'it("throws", () => {',
+      '  try { work(); } catch {}',
+      '});',
+      '`;',
+    ].join('\n');
+    expect(await run(wi101, addedOf('src/probe.ts', code))).toEqual([]);
+  });
+
+  it('still fires on a real empty catch after a template closes', async () => {
+    const code = ['const fixture = `a', 'b', '`;', 'try { work(); } catch {}'].join('\n');
+    expect((await run(wi101, addedOf('src/probe.ts', code))).length).toBe(1);
+  });
+
+  it('WI103 stays silent on an env escape quoted as a payload', async () => {
+    const code = "const cheat = 'if (!process.env.SKIP_VALIDATION && amt > bal) throw new RangeError(\"no\");';";
+    expect(await run(wi103, addedOf('src/probe.ts', code))).toEqual([]);
+  });
+});

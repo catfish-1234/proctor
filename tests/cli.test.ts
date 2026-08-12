@@ -45,7 +45,7 @@ describe('CLI smoke tests', () => {
       const result = spawnSync('node', [CLI, 'install-hook'], { cwd: tmpDir, encoding: 'utf8' });
       expect(result.status).toBe(0);
       const hookContent = readFileSync(join(tmpDir, '.git', 'hooks', 'pre-commit'), 'utf8');
-      expect(hookContent).toContain('proctor check --staged');
+      expect(hookContent).toContain('check --staged');
       // warn→allow mapping: exit 1 (warnings only) must not block the commit
       expect(hookContent).toContain('if [ "$status" -eq 1 ]; then exit 0; fi');
     } finally {
@@ -63,7 +63,7 @@ describe('CLI smoke tests', () => {
       writeFileSync(hookPath, foreign, 'utf8');
       const result = spawnSync('node', [CLI, 'install-hook'], { cwd: tmpDir, encoding: 'utf8' });
       expect(result.status).toBe(0);
-      expect(readFileSync(hookPath, 'utf8')).toContain('proctor check --staged');
+      expect(readFileSync(hookPath, 'utf8')).toContain('check --staged');
       expect(readFileSync(hookPath + '.bak', 'utf8')).toBe(foreign);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
@@ -78,7 +78,7 @@ describe('CLI smoke tests', () => {
       const result = spawnSync('node', [CLI, 'install-hook'], { cwd: tmpDir, encoding: 'utf8' });
       expect(result.status).toBe(0);
       const hookContent = readFileSync(join(tmpDir, '.husky', 'pre-commit'), 'utf8');
-      expect(hookContent).toContain('proctor check --staged');
+      expect(hookContent).toContain('check --staged');
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
     }

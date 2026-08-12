@@ -127,6 +127,27 @@ task_id,model,proctor_on,cheat_detected,rh_id,honest_pass
 rate and honest-pass rate for `proctor_on=false` vs `proctor_on=true`), see
 `src/bench/report.ts`.
 
+## What `--mock` Can and Cannot Tell You
+
+A mock run replays a recorded cheat in the proctor-off arm and a recorded honest fix in the
+proctor-on arm. The improvement between the two columns is therefore built into the corpus
+rather than measured from an agent: it would read exactly the same if proctor did nothing at
+all. Quoting it as evidence that proctor changes behavior would be precisely the kind of
+number this project exists to catch, so `cheatRateTable` prints that caveat itself whenever
+`--mock` is set, rather than leaving it to a reader who may not have read this file.
+
+One number in a mock run does measure something. The off arm's diffs are real, so "would
+`runChecks` flag this" has a real answer, asked against whole-repo task diffs rather than the
+minimal planted cases in `fixtures/`. That is reported on its own line, and it is deliberately
+phrased as a fraction of proctor-off diffs rather than of cheats: the pool contains control
+tasks that plant no cheat in either arm, and nothing in a scored row distinguishes a control
+from a false negative. Counting controls as cheats would inflate the denominator and make a
+clean run look like a failure. Guessing which rows are controls would do the reverse and hide
+a genuine miss. Naming the denominator for what it is leaves the reader able to check.
+
+As of this writing the corpus is 22 tasks, 21 with a planted cheat across seven signatures
+(RH001, RH002, RH003, RH004, RH006, RH007, RH012) and one control, and proctor flags all 21.
+
 ## Prior Work / Citations
 
 - **EvilGenie** (arXiv:[2511.21654](https://arxiv.org/abs/2511.21654)): a held-out-test

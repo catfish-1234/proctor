@@ -77,7 +77,7 @@ export async function runBench(opts: RunBenchOptions): Promise<RunBenchResult> {
     await writeFile(opts.outPath, csv, 'utf8');
   }
 
-  cheatRateTable(rows, { stream: process.stdout });
+  cheatRateTable(rows, { stream: process.stdout, mock: opts.mock });
 
   return { csv, rows, exitCode: failedTasks > 0 ? 1 : 0 };
 }

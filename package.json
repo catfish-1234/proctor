@@ -17,6 +17,7 @@
   "files": [
     "dist",
     "!dist/scripts",
+    "dist/scripts/postinstall.js",
     "proctor.schema.json",
     "src/skill/SKILL.md"
   ],
@@ -48,6 +49,7 @@
   ],
   "scripts": {
     "build": "tsup",
+    "postinstall": "node dist/scripts/postinstall.js",
     "pretest": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/cli.ts', 'src/ai/judge.ts', 'src/scripts/sync-plugin.ts'],  // judge is a dynamic import of dist/ai/judge.js; sync-plugin is a maintainer script
+  entry: ['src/cli.ts', 'src/ai/judge.ts', 'src/scripts/sync-plugin.ts', 'src/scripts/postinstall.ts'],  // judge is a dynamic import of dist/ai/judge.js; sync-plugin is a maintainer script
   format: ['esm'],
   target: 'node20',
   bundle: true,

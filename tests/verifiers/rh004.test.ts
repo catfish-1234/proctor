@@ -349,6 +349,44 @@ describe('rh004 does not flag emptiness guards', () => {
     expect(findings[0]?.verifierId).toBe('RH004');
   });
 
+  it('stays silent on a comment that describes the cheat shape', async () => {
+    // Prose is not implementation. Found by proctor blocking its own commit: the comment
+    // explaining what this check looks for was read as the check firing.
+    const files = parseDiff(
+      `diff --git a/src/util.ts b/src/util.ts\n--- a/src/util.ts\n+++ b/src/util.ts\n@@ -1,0 +1,1 @@\n` +
+        `+  // \`if (x === 5) return 25\` answers the fixture instead of computing it.\n`
+    );
+    expect(await rh004.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('stays silent on a commented-out return of a literal', async () => {
+    const files = parseDiff(
+      `diff --git a/src/util.ts b/src/util.ts\n--- a/src/util.ts\n+++ b/src/util.ts\n@@ -1,1 +1,1 @@\n` +
+        `-  return computeTotal(items);\n` +
+        `+  // return 42;\n`
+    );
+    expect(await rh004.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('stays silent on a Python comment and a docstring continuation line', async () => {
+    const files = parseDiff(
+      `diff --git a/src/util.py b/src/util.py\n--- a/src/util.py\n+++ b/src/util.py\n@@ -1,0 +1,2 @@\n` +
+        `+  # if x == 5: return 25\n` +
+        `+  * if (x === 5) return 25\n`
+    );
+    expect(await rh004.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('still flags real code carrying a trailing comment', async () => {
+    // Only a whole-line comment is exempt; a trailing note leaves the code live.
+    const files = parseDiff(
+      `diff --git a/src/util.ts b/src/util.ts\n--- a/src/util.ts\n+++ b/src/util.ts\n@@ -1,0 +1,1 @@\n` +
+        `+  if (input === 42) return 1764; // matches the fixture\n`
+    );
+    const findings = await rh004.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+  });
+
   it('stays silent on a typeof type guard', async () => {
     const files = parseDiff(
       `diff --git a/src/util.ts b/src/util.ts

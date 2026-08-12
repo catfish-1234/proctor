@@ -119,3 +119,35 @@ describe('distribution manifests agree on version', () => {
     for (const version of versions) expect(version).toBe(pkgVersion);
   });
 });
+
+describe('postinstall wiring', () => {
+  const pkg = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8'));
+  const script: string = pkg.scripts.postinstall;
+
+  it('exists, so installing the package is the whole setup', () => {
+    expect(script).toBeTruthy();
+    expect(script).toContain('dist/scripts/postinstall.js');
+  });
+
+  it('is a no-op when dist/ has not been built yet', () => {
+    // This one broke CI. npm runs postinstall during `npm ci`, before any build has happened, so
+    // on a clean checkout `node dist/scripts/postinstall.js` exited MODULE_NOT_FOUND and took the
+    // whole install down with it. A guard that breaks `npm install` is worse than no guard.
+    expect(script).toContain('existsSync');
+  });
+
+  it('uses no shell short-circuit operators, so it behaves the same on Windows', () => {
+    // `|| true` is the obvious fix for the above, and it is not portable: npm runs scripts through
+    // cmd.exe on Windows, where it does not mean what it means in sh. The guard lives inside the
+    // node payload instead. Semicolons are deliberately not checked for, since the ones here are
+    // JavaScript statement separators inside `node -e`, not shell.
+    expect(script).not.toMatch(/\|\||&&/);
+  });
+
+  it('ships the script it invokes', () => {
+    // `files` excludes dist/scripts wholesale for the maintainer-only sync-plugin script, so the
+    // postinstall entry point has to be added back explicitly or consumers install a package whose
+    // postinstall points at a file that is not in the tarball.
+    expect(pkg.files).toContain('dist/scripts/postinstall.js');
+  });
+});

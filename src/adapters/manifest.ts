@@ -16,6 +16,13 @@ export const MANIFEST_FILENAME = '.proctor-adapter-manifest.json';
  */
 export interface AdapterManifest {
   written: Record<string, true>;
+  /**
+   * Adapters whose file did not exist before proctor installed. Only these may be deleted on
+   * uninstall; a file that was already there is the user's, and proctor may only take its own
+   * block out of it. Absent for manifests written before this field existed, which reads as "we
+   * do not know", and not knowing means not deleting.
+   */
+  created?: Record<string, true>;
 }
 
 function isValidManifest(value: unknown): value is AdapterManifest {
@@ -37,9 +44,14 @@ export async function readManifest(cwd: string): Promise<AdapterManifest> {
 }
 
 /** Idempotent: recording an already-recorded adapter id is a no-op, no unnecessary write. */
-export async function recordWritten(cwd: string, adapterId: string): Promise<void> {
+export async function recordWritten(cwd: string, adapterId: string, created = false): Promise<void> {
   const manifest = await readManifest(cwd);
-  if (manifest.written[adapterId]) return;
+  const alreadyWritten = manifest.written[adapterId] === true;
+  const alreadyCreated = manifest.created?.[adapterId] === true;
+  if (alreadyWritten && (!created || alreadyCreated)) return;
   manifest.written[adapterId] = true;
+  if (created) {
+    manifest.created = { ...manifest.created, [adapterId]: true };
+  }
   await writeFile(join(cwd, MANIFEST_FILENAME), JSON.stringify(manifest, null, 2) + '\n', 'utf8');
 }

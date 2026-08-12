@@ -16,8 +16,17 @@ const STOP_HOOK_COMMAND = `npx ${pkg.name} stop-hook`;
 /** Marker used to recognize proctor's own entry among whatever else is registered. */
 const STOP_HOOK_MARKER = 'proctor stop-hook';
 
-interface StopHookGroup {
-  hooks?: Array<{ command?: string }>;
+/**
+ * Parses settings JSON, tolerating a UTF-8 byte order mark. PowerShell's `Out-File -Encoding utf8`
+ * writes one by default on Windows, and `JSON.parse` rejects it, so without this a perfectly valid
+ * settings file is reported as malformed. Returns undefined when the text is genuinely not JSON.
+ */
+function parseSettings(raw: string): unknown {
+  try {
+    return JSON.parse(raw.replace(/^﻿/, ''));
+  } catch {
+    return undefined;
+  }
 }
 
 export type InstallStopHookStatus = 'installed' | 'already' | 'invalid-json';
@@ -40,14 +49,9 @@ export async function installStopHook(dir: string): Promise<InstallStopHookResul
     rawSettings = await readFile(settingsPath, 'utf8');
   } catch { /* ENOENT, no settings yet, start fresh */ }
   if (rawSettings !== undefined) {
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(rawSettings);
-    } catch {
-      // A malformed settings file must not be silently replaced, that would destroy
-      // whatever configuration the user had in it.
-      return { status: 'invalid-json', path: settingsPath };
-    }
+    // A malformed settings file must not be silently replaced, that would destroy
+    // whatever configuration the user had in it.
+    const parsed = parseSettings(rawSettings);
     // Parseable is not the same as usable. A root that is an array, a string, or null, or a
     // `hooks` that is not an object, or a `Stop` that is not an array, would all either throw
     // while merging or be silently dropped by JSON.stringify and reported as a successful
@@ -86,13 +90,14 @@ export async function installStopHook(dir: string): Promise<InstallStopHookResul
  */
 export async function removeStopHook(dir: string, dryRun: boolean): Promise<string | undefined> {
   const settingsPath = join(dir, 'settings.json');
-  let parsed: unknown;
+  let raw: string;
   try {
-    parsed = JSON.parse(await readFile(settingsPath, 'utf8'));
+    raw = await readFile(settingsPath, 'utf8');
   } catch {
-    // Missing or malformed: nothing safe to edit, and rewriting it would risk the user's config.
+    // Missing or unreadable: nothing safe to edit, and rewriting it would risk the user's config.
     return undefined;
   }
+  const parsed = parseSettings(raw);
   // A root that is null, an array, or a primitive holds no hooks to remove, and reaching into it
   // would throw. Nothing of proctor's is there, so there is nothing to do.
   if (!isPlainObject(parsed)) return undefined;
@@ -118,13 +123,22 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 /** The `Stop` groups in a settings object, or an empty list for any shape that is not a list. */
-function readStopGroups(settings: Record<string, unknown>): StopHookGroup[] {
+function readStopGroups(settings: Record<string, unknown>): unknown[] {
   const hooks = settings['hooks'];
   if (!isPlainObject(hooks)) return [];
   const stop = hooks['Stop'];
-  return Array.isArray(stop) ? (stop as StopHookGroup[]) : [];
+  return Array.isArray(stop) ? stop : [];
 }
 
-function isProctorGroup(group: StopHookGroup): boolean {
-  return group.hooks?.some(h => h.command?.includes(STOP_HOOK_MARKER)) === true;
+/**
+ * Whether a `Stop` group is proctor's own. Every level is validated rather than assumed: this
+ * reads a hand-editable file, and a `Stop` array holding a null, a string, or a group whose
+ * `hooks` is not an array are all things a real settings file can contain. Reaching into them
+ * blind threw a raw TypeError out of the middle of `setup`.
+ */
+function isProctorGroup(group: unknown): boolean {
+  if (!isPlainObject(group)) return false;
+  const hooks = group['hooks'];
+  if (!Array.isArray(hooks)) return false;
+  return hooks.some(h => isPlainObject(h) && typeof h['command'] === 'string' && h['command'].includes(STOP_HOOK_MARKER));
 }

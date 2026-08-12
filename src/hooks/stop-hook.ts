@@ -77,13 +77,18 @@ export function runStopHookCheck(cwd: string, cliPath: string): StopHookResult {
  * changes alongside the agent's. Reads the marker files git writes into the git directory.
  */
 function isMidMerge(cwd: string): boolean {
-  const gitDir = spawnSync('git', ['rev-parse', '--absolute-git-dir'], { cwd, encoding: 'utf8' });
-  if (gitDir.status !== 0) return false;
-  const dir = (gitDir.stdout ?? '').trim();
-  if (dir === '') return false;
-  return ['MERGE_HEAD', 'REBASE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'rebase-merge', 'rebase-apply']
-    .some(marker => existsSync(join(dir, marker)));
+  const resolved = spawnSync('git', ['rev-parse', '--absolute-git-dir'], { cwd, encoding: 'utf8' });
+  const gitDir = resolved.status === 0 ? (resolved.stdout ?? '').trim() : '';
+  return IN_PROGRESS_MARKERS.some(marker => gitDir !== '' && existsSync(join(gitDir, marker)));
 }
+
+/**
+ * What git leaves in the git directory while an operation is half-finished. `rebase-merge` and
+ * `rebase-apply` are directories rather than files, which `existsSync` treats the same.
+ */
+const IN_PROGRESS_MARKERS = [
+  'MERGE_HEAD', 'REBASE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'rebase-merge', 'rebase-apply',
+];
 
 /** Rule IDs mentioned in check output, for the statusline's recent-rules list. */
 function rulesIn(output: string): string[] {

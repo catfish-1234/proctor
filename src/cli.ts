@@ -406,8 +406,9 @@ program
   .option('--dry-run', 'list what would be removed without removing it')
   .action(async (options: { dryRun?: boolean }) => {
     const cwd = process.cwd();
-    const { done, failed } = await uninstallProctor(cwd, options.dryRun === true);
+    const { done, failed, note } = await uninstallProctor(cwd, options.dryRun === true);
     for (const line of done) process.stdout.write(line + '\n');
+    for (const line of note) process.stdout.write(pc.dim(`note: ${line}\n`));
     for (const line of failed) process.stderr.write(`proctor: could not remove ${line}\n`);
     if (done.length === 0 && failed.length === 0) {
       process.stdout.write('Nothing to remove: proctor is not installed in this repo.\n');

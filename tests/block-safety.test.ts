@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { upsertBlock, removeBlock, extractBlock, renderBlock, BLOCK_START, BLOCK_END } from '../src/adapters/block.js';
+import { upsertBlock, removeBlock, extractBlock, renderBlock, countBlocks, BLOCK_START, BLOCK_END } from '../src/adapters/block.js';
 
 const RULESET = 'the honest-completion ruleset\n';
 
@@ -46,6 +46,56 @@ describe('a user file that mentions the marker in its own prose', () => {
   });
 });
 
+describe('a user file quoting a complete marker pair, e.g. a fenced example', () => {
+  // The hardest case: a complete stray pair is indistinguishable from proctor's own block by
+  // content alone. Install-provenance is the tiebreaker, so `ours: false` on a first install
+  // means proctor appends rather than overwriting whatever pair it found.
+  const fenced = [
+    '# Docs',
+    '',
+    '```md',
+    BLOCK_START,
+    'example block',
+    BLOCK_END,
+    '```',
+    '',
+    'trailing prose',
+    '',
+  ].join('\n');
+
+  it('does not overwrite the quoted example on a first install', () => {
+    const installed = upsertBlock(fenced, RULESET, false);
+    expect(installed).toContain('example block');
+    expect(installed).toContain('trailing prose');
+    expect(installed).toContain(RULESET.trim());
+    expect(countBlocks(installed)).toBe(2);
+  });
+
+  it('leaves the quoted example behind when the real block is removed', () => {
+    const stripped = removeBlock(upsertBlock(fenced, RULESET, false));
+    expect(stripped).toContain('example block');
+    expect(stripped).toContain('trailing prose');
+    expect(stripped).toContain('# Docs');
+    expect(stripped).not.toContain(RULESET.trim());
+  });
+
+  it('replaces in place on a reinstall, once proctor is on record as having written here', () => {
+    const installed = upsertBlock(fenced, RULESET, false);
+    const reinstalled = upsertBlock(installed, RULESET, true);
+    expect(reinstalled).toContain('trailing prose');
+    // The quoted example is still one of the two; a reinstall must not stack a third.
+    expect(countBlocks(reinstalled)).toBe(2);
+  });
+});
+
+describe('countBlocks', () => {
+  it('counts marker pairs, which is how uninstall knows when it cannot tell them apart', () => {
+    expect(countBlocks('nothing here')).toBe(0);
+    expect(countBlocks(renderBlock(RULESET))).toBe(1);
+    expect(countBlocks(`${renderBlock('a')}\n${renderBlock('b')}`)).toBe(2);
+  });
+});
+
 describe('a stray start marker on the first line', () => {
   const prose = `${BLOCK_START} is the marker proctor uses.\nOur real conventions:\n- never force push\n`;
 
@@ -71,12 +121,15 @@ describe('removeBlock round trips', () => {
     expect(removeBlock(renderBlock(RULESET)).trim()).toBe('');
   });
 
-  it('removes every block when a bad merge left more than one', () => {
-    const doubled = `${renderBlock(RULESET)}\nkeep me\n${renderBlock(RULESET)}`;
+  it('removes the last block only, since an earlier pair may be the user’s own prose', () => {
+    // proctor always appends, so the last pair is its own. Removing every pair, which this used
+    // to do, deleted a quoted example along with the real block.
+    const doubled = `${renderBlock('a quoted example')}\nkeep me\n${renderBlock(RULESET)}`;
     const stripped = removeBlock(doubled);
     expect(stripped).toContain('keep me');
-    expect(stripped).not.toContain(BLOCK_START);
-    expect(stripped).not.toContain(BLOCK_END);
+    expect(stripped).toContain('a quoted example');
+    expect(stripped).not.toContain(RULESET.trim());
+    expect(countBlocks(stripped)).toBe(1);
   });
 
   it('leaves a file with no block untouched apart from trailing whitespace', () => {

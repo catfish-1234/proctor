@@ -92,12 +92,16 @@ jobs:
           NPM_OTP: ${{ github.event.inputs.otp }}
 
       # The tag is what a human looks for; leaving it without a release means the changelog entry
-      # for this version is only findable by reading the repository.
+      # for this version is only findable by reading the repository. Idempotent, so re-running the
+      # workflow for a tag that already has a release does not turn the job red after a good
+      # publish.
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          NOTES: See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for what changed.
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
-            --notes "See [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/CHANGELOG.md) for what changed." \
-            --verify-tag
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" --notes "$NOTES"
+          else
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes "$NOTES" --verify-tag
+          fi

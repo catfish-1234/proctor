@@ -49,14 +49,27 @@ export function extractBlock(file: string): string | undefined {
   return match ? match[1] : undefined;
 }
 
+/** How many managed blocks the file holds. More than one means proctor cannot tell which is its own. */
+export function countBlocks(file: string): number {
+  return (file.match(new RegExp(BLOCK_RE, 'g')) ?? []).length;
+}
+
 /**
- * Strips every managed block from `file`, leaving the user's own content exactly as it was.
+ * Strips the managed block from `file`, leaving the user's own content exactly as it was.
  *
  * The inverse of upsertBlock, used by `proctor uninstall`. A shared file belongs to the user, so
  * uninstalling proctor takes out proctor's block and nothing else.
+ *
+ * Only the LAST block is removed. proctor always appends its block, so when a file holds more than
+ * one marker pair, the last is proctor's and any earlier one is the user's own prose quoting the
+ * format. Removing every pair, as this used to, deleted the quoted example along with the real
+ * block. Callers that cannot tolerate the ambiguity should check `countBlocks` first.
  */
 export function removeBlock(file: string): string {
-  const stripped = file.replace(new RegExp(BLOCK_RE, 'g'), '');
+  const matches = [...file.matchAll(new RegExp(BLOCK_RE, 'g'))];
+  const last = matches[matches.length - 1];
+  if (last === undefined) return file;
+  const stripped = file.slice(0, last.index) + file.slice(last.index + last[0].length);
   // upsertBlock appends after a blank line, so removing the block can leave a trailing gap.
   return stripped.trim() === '' ? '' : stripped.trimEnd() + '\n';
 }
@@ -64,21 +77,37 @@ export function removeBlock(file: string): string {
 /**
  * Writes `content` into `existing` as the managed block, preserving all surrounding content.
  *
- * The first block is replaced in place so a user's ordering survives a reinstall. Any additional
- * blocks (an agent duplicating the ruleset, a bad merge) are dropped, which keeps the result
- * idempotent: running this twice produces the same file.
+ * The LAST block is replaced in place, matching removeBlock, so a user's ordering survives a
+ * reinstall. Other blocks are dropped only when their body is the same content being written,
+ * which is what a bad merge or a duplicating agent produces; that keeps the result idempotent.
+ * A block whose body is something else is the user's own prose quoting the format, and is left
+ * exactly where it is.
  */
-export function upsertBlock(existing: string | undefined, content: string): string {
+export function upsertBlock(existing: string | undefined, content: string, ours = true): string {
   const block = renderBlock(content);
   if (existing === undefined || existing.trim() === '') return block;
 
-  if (BLOCK_RE.test(existing)) {
-    let seen = false;
-    return existing.replace(new RegExp(BLOCK_RE, 'g'), () => {
-      if (seen) return '';
-      seen = true;
-      return block;
+  // `ours` is the install-provenance answer to a question the file cannot answer itself: a marker
+  // pair in a file proctor has never written to belongs to the user, not to proctor. Prose that
+  // quotes both markers to explain the format (a conventions file describing proctor is the
+  // obvious case) would otherwise be replaced by the ruleset on first install. Append instead.
+  if (!ours) return `${existing.trimEnd()}\n\n${block}`;
+
+  const matches = [...existing.matchAll(new RegExp(BLOCK_RE, 'g'))];
+  if (matches.length > 0) {
+    const lastIndex = matches.length - 1;
+    const wanted = neutralizeMarkers(content.trim());
+    let out = '';
+    let cursor = 0;
+    matches.forEach((match, i) => {
+      out += existing.slice(cursor, match.index);
+      // The last block is proctor's, so it carries the new content. An earlier one is dropped
+      // only if it is a copy of what is being written; otherwise it is not proctor's to touch.
+      if (i === lastIndex) out += block;
+      else if ((match[1] ?? '').trim() !== wanted) out += match[0];
+      cursor = match.index + match[0].length;
     });
+    return out + existing.slice(cursor);
   }
 
   return `${existing.trimEnd()}\n\n${block}`;

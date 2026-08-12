@@ -57,8 +57,12 @@ function isNonTrivialExpr(expr: string): boolean {
 
 // Deterministic strong signal 2: a single-line special case, `if (x === <literal>) return <literal>;`,
 // branching on a fixture value instead of computing the general case.
+// The `(?<!!)` matters: without it `!==` matched too, via `[^)]*` absorbing the `!`. A negated
+// comparison is the opposite shape from hardcoding. `if (x === 5) return 25` answers the fixture;
+// `if (x !== 5) return false` refuses everything that is not it, which is a validation guard, and
+// no cheat can be written that way.
 const BRANCH_LITERAL_RE = new RegExp(
-  `if\\s*\\([^)]*===?\\s*(${LITERAL_TOKEN})[^)]*\\)\\s*return\\s+(${LITERAL_TOKEN})`
+  `if\\s*\\([^)]*(?<!!)===?\\s*(${LITERAL_TOKEN})[^)]*\\)\\s*return\\s+(${LITERAL_TOKEN})`
 );
 // Python form of signal 2: a colon-terminated conditional (no parens) that branches on an
 // equality with a literal and returns a literal, e.g. a one-line `if <var> equals N: return M`.
@@ -69,7 +73,10 @@ const PY_BRANCH_LITERAL_RE = new RegExp(
 // `if (set.size === 0) return null;` match signal 2's shape exactly while being the ordinary way
 // to say "nothing to work with here". Excluded by the collection property being tested, which is
 // narrower than loosening signal 2 for every zero literal.
-const EMPTINESS_GUARD_RE = /\.(?:length|size)\s*===?\s*0\b/;
+// The empty-string form of the same guard: `if (dir === '') return false` says "nothing to work
+// with here" exactly as `.length === 0` does, and an empty string is not a fixture value a test
+// could be hardcoded against.
+const EMPTINESS_GUARD_RE = /\.(?:length|size)\s*===?\s*0\b|===?\s*(?:''|""|``)/;
 // A `typeof` comparison is a type check, not a fixture special-case. `if (typeof v !== 'object')
 // return false` matches signal 2's shape because the compared value is a string literal, but the
 // literal names a JavaScript type rather than any value a test could have supplied. Hardcoding a

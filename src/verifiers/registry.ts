@@ -18,6 +18,8 @@ import { wi103 } from './wi103.js';
 import { wi104 } from './wi104.js';
 import { wi105 } from './wi105.js';
 import { wi106 } from './wi106.js';
+import { wi107 } from './wi107.js';
+import { wi108 } from './wi108.js';
 
 /**
  * The Verifier registry. Verifiers are discovered from a registry so proctor-plugin-* packages
@@ -31,5 +33,5 @@ import { wi106 } from './wi106.js';
  */
 export const VERIFIERS: Verifier[] = [
   rh001, rh002, rh003, rh004, rh005, rh006, rh007, rh008, rh009, rh010, rh011, rh012, rh013,
-  wi101, wi102, wi103, wi104, wi105, wi106,
+  wi101, wi102, wi103, wi104, wi105, wi106, wi107, wi108,
 ];

@@ -10,6 +10,8 @@ import { wi103 } from '../src/verifiers/wi103.js';
 import { wi104 } from '../src/verifiers/wi104.js';
 import { wi105 } from '../src/verifiers/wi105.js';
 import { wi106 } from '../src/verifiers/wi106.js';
+import { wi107 } from '../src/verifiers/wi107.js';
+import { wi108 } from '../src/verifiers/wi108.js';
 import type { Context, Finding, Language, Verifier } from '../src/types.js';
 import type { ParsedFile } from '../src/diff.js';
 
@@ -69,6 +71,8 @@ const CASES: Array<{ id: string; verifier: Verifier }> = [
   { id: 'WI104', verifier: wi104 },
   { id: 'WI105', verifier: wi105 },
   { id: 'WI106', verifier: wi106 },
+  { id: 'WI107', verifier: wi107 },
+  { id: 'WI108', verifier: wi108 },
 ];
 
 describe('WI fixtures, true-positive fires, near-miss stays silent', () => {

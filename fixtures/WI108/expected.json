@@ -1,0 +1,10 @@
+[
+  {
+    "verifierId": "WI108",
+    "severity": "error",
+    "file": ".gitignore",
+    "line": 3,
+    "message": "Source hidden from review: 'src/paymentProcessor.ts' added to .gitignore, so changes to it stop appearing in diffs.",
+    "suggestion": "Remove the entry. Ignore files are for build output and local droppings, not for code. If the file genuinely should not be in the repository, delete it in its own change rather than hiding it while it is still there."
+  }
+]

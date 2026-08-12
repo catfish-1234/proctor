@@ -12,7 +12,7 @@ Shell/Bash, Julia, and VB.NET (25+ languages total) are covered by the five diff
 checks (RH001, RH002, RH003, RH007, RH011) that work off diff-line patterns. The two tables below are the per-language, per-check support matrix: the original 9
 languages, then the 16 added in the Language Expansion II round.
 
-The work-integrity family (WI101 to WI106) has its own scoping, described in
+The work-integrity family (WI101 to WI108) has its own scoping, described in
 [its own section](#the-work-integrity-family-wi1xx) below, since those checks read shipped code
 rather than test files and their coverage does not line up with the RH tables.
 
@@ -264,6 +264,9 @@ when building a partial mock, so firing there would make them unusable immediate
 | WI104 (guardrail disabled) | Config files, every language | Proctor's own config and deployed rulesets, package.json, CI workflows, husky and pre-commit hooks, Makefiles, shell scripts, Claude Code settings, tsconfig strictness flags, ESLint rule config, and lint ignore files. Does not read prose, so a README that stops mentioning proctor is not a finding |
 | WI105 (fake data) | JS/TS, Python, Go, and any language whose IO calls appear in the pattern list | Fetch/axios/requests/httpx/HttpClient/URLSession, database and ORM calls, filesystem reads, and subprocess spawns, paired against a fixed value returned in their place. The canned-name signal (returning something called `mock*`, `fake*`, `stub*`, `placeholder*`) is language-agnostic |
 | WI106 (type erosion) | Typed languages only | TS, Python, Go, C#, Dart, Kotlin, Scala and Swift. Skips `.d.ts`. Fires on a specific type widened to the top type, or on two or more unexplained widenings in one change, never on a single explained cast |
+
+| WI107 (security control) | Language-agnostic tokens | Node/JS `rejectUnauthorized`/`strictSSL`, Python `verify=False`/unverified SSL contexts/`check_hostname`, Go `InsecureSkipVerify`, curl `-k`/`CURLOPT_SSL_VERIFY*`, .NET certificate callbacks, trust-all managers, CSRF switches, and framework authorization gates (`@login_required`, `@PreAuthorize`, `[Authorize]`, `@Secured`, `@RolesAllowed`). Unlike the rest of the family, an explanatory comment does not suppress it |
+| WI108 (source hidden) | Repository-level, every language | `.gitignore` and `.git/info/exclude` entries naming a source extension or a test path, plus `git update-index --assume-unchanged`/`--skip-worktree` in any tracked script. Build output, dependency and vendor trees, coverage, logs, minified bundles, env files and negations are all excluded first |
 
 **Known gaps in this family.** WI101 does not follow a handler whose braces close outside the diff
 hunk, so an empty catch split across a very large unchanged region can be missed; the check stays

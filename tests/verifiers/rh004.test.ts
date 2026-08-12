@@ -317,6 +317,38 @@ describe('rh004 does not flag emptiness guards', () => {
     expect(await rh004.run({ ...baseCtx, files })).toEqual([]);
   });
 
+  it('stays silent on an empty-string guard', async () => {
+    // The same "nothing to work with here" shape as `.length === 0`. An empty string is not a
+    // value a test fixture supplies for an implementation to be hardcoded against.
+    const files = parseDiff(
+      `diff --git a/src/util.ts b/src/util.ts\n--- a/src/util.ts\n+++ b/src/util.ts\n@@ -1,0 +1,1 @@\n` +
+        `+  if (dir === '') return false;\n`
+    );
+    expect(await rh004.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('stays silent on a negated comparison, which is a validation guard not a special case', async () => {
+    // `if (x === 5) return 25` answers the fixture. `if (x !== 0) return false` refuses everything
+    // that is not it, which is the opposite shape, and no cheat can be written that way. This
+    // matched before because the `!` was absorbed by the pre-operator character class.
+    const files = parseDiff(
+      `diff --git a/src/util.ts b/src/util.ts\n--- a/src/util.ts\n+++ b/src/util.ts\n@@ -1,0 +1,1 @@\n` +
+        `+  if (result.status !== 0) return false;\n`
+    );
+    expect(await rh004.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('still flags the positive form it was built to catch', async () => {
+    // The exclusions above must not have turned the check off. This is the real cheat shape.
+    const files = parseDiff(
+      `diff --git a/src/util.ts b/src/util.ts\n--- a/src/util.ts\n+++ b/src/util.ts\n@@ -1,0 +1,1 @@\n` +
+        `+  if (input === 42) return 1764;\n`
+    );
+    const findings = await rh004.run({ ...baseCtx, files });
+    expect(findings.length).toBe(1);
+    expect(findings[0]?.verifierId).toBe('RH004');
+  });
+
   it('stays silent on a typeof type guard', async () => {
     const files = parseDiff(
       `diff --git a/src/util.ts b/src/util.ts

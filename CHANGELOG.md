@@ -46,6 +46,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`uninstall` left `.husky/pre-commit` in place on a Windows clone** while reporting that proctor
   was not installed. The hook is a committed file, so `core.autocrlf` checks it out with CRLF and
   the byte-exact comparison failed. Line endings are normalized now.
+- **RH004 fired on ordinary guard clauses.** Its special-case pattern matched negated comparisons,
+  because the `!` was absorbed by the character class before the operator, so
+  `if (result.status !== 0) return false` read as hardcoding an answer for input `0`. A negated
+  comparison is the opposite shape: it refuses everything that is *not* the literal, which is a
+  validation guard, and no cheat can be written that way. `if (dir === '') return false` is now
+  excluded too, on the same grounds as the existing `.length === 0` exclusion. Both were found by
+  running proctor against its own diff. Error-severity false positives on shapes this common are
+  the worst kind, since they block a commit for honest code.
 - **The Stop hook no longer blocks a turn during a merge, rebase, cherry-pick, or revert**, where
   the working tree carries the incoming branch's changes and a test that branch deleted would read
   as this turn deleting it. The pre-commit hook still guards the resolution.

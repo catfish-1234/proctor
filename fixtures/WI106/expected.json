@@ -1,0 +1,10 @@
+[
+  {
+    "verifierId": "WI106",
+    "severity": "warn",
+    "file": "settings.ts",
+    "line": 2,
+    "message": "Type safety eroded: a declaration that had a specific type was widened to ': any' in this change.",
+    "suggestion": "Restore the specific type and fix the mismatch it reports. Widening the type does not make the values agree, it stops anyone being told they do not."
+  }
+]

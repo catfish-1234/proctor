@@ -560,3 +560,35 @@ describe('rh011, GROUP B new-language suppression-spam fixtures (LANG-12, LANG-1
     expect(expected.some(e => e.file.toLowerCase().includes('julia') || e.file.endsWith('.jl'))).toBe(false);
   });
 });
+
+describe('RH011 scope: documentation is not code', () => {
+  // Assembled rather than written out, for the same reason tests/prose.test.ts excludes itself
+  // from its own em-dash scan: a file that tests a checker necessarily contains the thing the
+  // checker looks for, and spelling it literally here would make this file trip RH011 on every
+  // run of proctor against its own repository.
+  const TOKEN = `@ts-${'ignore'}`;
+
+  /** Two suppression tokens in one change, which is exactly the spam threshold. */
+  function twoMentions(filePath: string): ParsedFile[] {
+    return parseDiff([
+      `diff --git a/${filePath} b/${filePath}`,
+      'index 1111111..2222222 100644',
+      `--- a/${filePath}`,
+      `+++ b/${filePath}`,
+      '@@ -1,1 +1,3 @@',
+      ' # Rules',
+      `+Do not add ${TOKEN} to make a type error go away.`,
+      `+A single ${TOKEN} with a written justification is fine.`,
+    ].join('\n'));
+  }
+
+  it('stays silent on a markdown file that describes the tokens it looks for', () => {
+    // Proctor's own ruleset, README and rule metadata all name these tokens, so without this
+    // scoping the tool reported its own instructions as a violation of them.
+    expect(rh011.run({ ...baseCtx, files: twoMentions('docs/RULES.md') })).toEqual([]);
+  });
+
+  it('still fires on the same two suppressions in real code', () => {
+    expect(rh011.run({ ...baseCtx, files: twoMentions('src/parser.ts') }).length).toBe(2);
+  });
+});

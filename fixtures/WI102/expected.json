@@ -1,0 +1,10 @@
+[
+  {
+    "verifierId": "WI102",
+    "severity": "error",
+    "file": "scheduler.ts",
+    "line": 6,
+    "message": "Unimplemented code path added: 'throw new Error('not implemented')' in shipped code says this work was not actually done.",
+    "suggestion": "Implement the code path, or leave it out of the change and say plainly that it is still missing. Do not report work as finished around a marker that says it is not."
+  }
+]

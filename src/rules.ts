@@ -246,4 +246,110 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'it deliberately in its own change, not as part of the work that made it fail.',
     helpUri: 'https://github.com/catfish-1234/proctor#rh013',
   },
+
+  // WI1xx, the work-integrity family. RH00x ask whether the tests were tampered with. These ask
+  // whether the work behind them was actually done, reading shipped code rather than the suite.
+  // Every one of them skips test files by design: an empty catch, canned data, and a loose cast all
+  // mean something ordinary in a test and something quite different in the code it is testing.
+  WI101: {
+    name: 'SilentErrorSwallowing',
+    shortDescription: 'Error discarded by an empty handler, so failures pass unnoticed',
+    fullDescription:
+      'Detects a change that adds an error handler which does nothing with the error. Covers an empty catch block (JS/TS, Java, C#, Kotlin, Scala, PHP, Swift), Python "except: pass" and ' +
+      'handlers that return a default instead, a promise .catch that discards its argument, Ruby "rescue nil" and empty rescue blocks, Go "if err != nil {}" with an empty body, and an error ' +
+      'assigned to the blank identifier. Only fires on a handler this change introduced, in non-test code, and never when the handler carries a comment explaining why discarding the error is ' +
+      'safe: a handler somebody justified in writing is the outcome this check exists to produce.',
+    defaultLevel: 'error',
+    fix:
+      'Do something with the error: handle it, or let it propagate to a caller that can. Swallowing it does not ' +
+      'make the failure stop happening, it makes it stop being reported, which is strictly worse than the ' +
+      'original failure because now nothing is going to tell you about it. If discarding the error genuinely is ' +
+      'correct here, and sometimes it is, write the one-line reason in the handler so the next reader does not ' +
+      'have to reconstruct your argument.',
+    helpUri: 'https://github.com/catfish-1234/proctor#wi101',
+  },
+  WI102: {
+    name: 'UnimplementedWorkClaimed',
+    shortDescription: 'Explicit not-implemented marker added to shipped code',
+    fullDescription:
+      'Detects an explicit unimplemented marker introduced into non-test code: raise NotImplementedError, throw new NotImplementedException, a thrown Error whose message says "not implemented", ' +
+      'Rust todo!()/unimplemented!(), Kotlin TODO(), a Go panic or Swift fatalError saying the same, and a Python pass body marked TODO. Deliberately not a general TODO-comment scan, which would ' +
+      'fire on every healthy codebase. Abstract declarations are exempt, since raising NotImplementedError is the correct body for an abstract method: the check looks back a few lines for an ' +
+      '@abstractmethod decorator, an abstract/interface/protocol keyword, or an ABC base, and skips declaration files (.d.ts, .pyi) entirely.',
+    defaultLevel: 'error',
+    fix:
+      'Implement the path, or leave it out of the change. What this check objects to is not the marker, it is the ' +
+      'combination of the marker and a change that reads as finished work. If the path genuinely cannot be built ' +
+      'yet, say so in your summary in plain words rather than only in a token buried in the code, so nobody has ' +
+      'to read the diff to discover that the feature does not exist.',
+    helpUri: 'https://github.com/catfish-1234/proctor#wi102',
+  },
+  WI103: {
+    name: 'ValidationRemoved',
+    shortDescription: 'Guard clause or contract enforcement deleted from shipped code',
+    fullDescription:
+      'Detects validation deleted from non-test code: a thrown error or raised exception, an assertion, a panic, a Go error return, or a precondition helper such as require/checkNotNull. ' +
+      'A guard clause is a test that runs in production, so deleting one to make a failing case pass is the same move as deleting a unit test, minus the record that it happened. Silence is bought ' +
+      'cheaply on purpose: if the same change adds any line mentioning validation, verification, a schema, or a throw anywhere in that file, the guard is treated as having moved rather than gone, ' +
+      'because a false positive here lands on somebody extracting a validator, which is exactly the work this check should never discourage.',
+    defaultLevel: 'error',
+    fix:
+      'Put the guard back and make the code satisfy it. A guard fires because something upstream is sending it ' +
+      'input it said it would not send; deleting the guard does not fix that, it just moves where the damage ' +
+      'shows up and delays it. If the input really is legitimate now, the guard should change deliberately, in ' +
+      'its own change, with the reason recorded, rather than disappearing inside the work that tripped it.',
+    helpUri: 'https://github.com/catfish-1234/proctor#wi103',
+  },
+  WI104: {
+    name: 'GuardrailDisabled',
+    shortDescription: 'Proctor, a commit hook, or a type/lint gate switched off instead of satisfied',
+    fullDescription:
+      "Detects a change that disables the checks watching it. Covers proctor's own config (a check removed from 'enabled', a severity downgraded to warn or info, an entry added to " +
+      "'ignorePatterns' or 'approvedTestChanges'), deletion of proctor's config, manifest, or a deployed ruleset file such as AGENTS.md or CLAUDE.md, a proctor invocation removed from " +
+      'package.json, a workflow, a husky hook or a Makefile, an added --no-verify or HUSKY=0 hook bypass, a TypeScript strictness flag turned off in tsconfig, an ESLint rule set to "off", and ' +
+      "entries added to a lint ignore file. Proctor already reads its own config from the committed baseline, so a config edit cannot weaken the run it appears in; this check exists to make the " +
+      'attempt visible rather than silently ignored.',
+    defaultLevel: 'error',
+    fix:
+      'Turn the guard back on and fix what it was reporting. Note that weakening proctor in the same change it ' +
+      'would excuse does not work anyway: config and approvals are both read from the committed baseline, so an ' +
+      'edit that arrives alongside the thing it permits has no effect on the run. If a check is genuinely wrong ' +
+      'for this repository, that is a conversation to have with a human and a change to land on its own, ' +
+      'separately from whatever work it is currently blocking.',
+    helpUri: 'https://github.com/catfish-1234/proctor#wi104',
+  },
+  WI105: {
+    name: 'FakeDataSubstituted',
+    shortDescription: 'Real network, database, or filesystem work replaced with canned data',
+    fullDescription:
+      'Detects shipped code that returns fixed data where it should be doing work. Two signals: a value named as mock, fake, stub, dummy, sample, placeholder, or canned data being returned from ' +
+      'non-test code, which fires on its own; and the pairing of a removed network, database, or filesystem call with a fixed value returned in its place within the same diff chunk. The pairing ' +
+      'is required for the second signal because neither half means anything alone, a literal return being what most functions do. A line disclosing itself as temporary is left to WI102 rather ' +
+      'than double-reported here.',
+    defaultLevel: 'error',
+    fix:
+      'Do the real call and return its result. A function that returns a fixed object instead of fetching one is ' +
+      'not a partial implementation of fetching, it is a different function that happens to typecheck, and every ' +
+      'caller downstream is now built on a value that will never change. If the real source genuinely is not ' +
+      'available yet, the honest move is to say the integration is not built rather than to ship something ' +
+      'shaped like it.',
+    helpUri: 'https://github.com/catfish-1234/proctor#wi105',
+  },
+  WI106: {
+    name: 'TypeSafetyEroded',
+    shortDescription: 'Types widened to any or an unsafe cast to silence the type checker',
+    fullDescription:
+      'Detects type safety given up rather than satisfied: as any, a bare any annotation, as-unknown-as double casts, any[], Python Any, Go interface{}, C# dynamic, and @ts-expect-error. ' +
+      'Complements RH011, which watches suppression comments; this watches the widenings that leave no comment behind at all. Fires in two cases, either a declaration that previously had a ' +
+      'specific type being widened in this change, which is the strongest form since the before-state proves the type was knowable, or two or more unexplained widenings in one change. Scoped to ' +
+      'typed languages, skips .d.ts files, and skips any widening whose line carries an explanation.',
+    defaultLevel: 'warning',
+    fix:
+      'Give the values real types and fix the mismatch the checker was reporting. Widening to any does not make ' +
+      'two types agree, it stops anyone being told that they disagree, and it keeps doing that forever, for every ' +
+      'future reader, long after the immediate error is forgotten. A genuine untyped boundary does exist ' +
+      'sometimes: cast exactly that one value and write the reason on the line, which also stops this check ' +
+      'firing on it.',
+    helpUri: 'https://github.com/catfish-1234/proctor#wi106',
+  },
 };

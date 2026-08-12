@@ -1,0 +1,10 @@
+[
+  {
+    "verifierId": "WI103",
+    "severity": "error",
+    "file": "account.ts",
+    "line": 6,
+    "message": "Validation removed: a thrown error guarding this code was deleted, so the case it rejected is now accepted silently.",
+    "suggestion": "Put the guard back and make the code satisfy it. If the input really is valid now, the guard should be changed deliberately and the reason recorded, not deleted."
+  }
+]

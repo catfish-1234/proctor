@@ -375,6 +375,71 @@ step. This is the ordinary, correct use of `continue-on-error`, and it is the ca
 check scopes to the individual step rather than the diff chunk, since both steps land in one chunk
 at default context width.
 
+## Work Integrity Family (WI1xx)
+
+One planted cheat and one near-miss per check, in the flat `before/`, `after/`, `negative/`
+layout the P3 fixtures use. Run by `tests/fixtures-wi.test.ts` against a real
+`git diff --no-index`, with per-extension language detection rather than the fixed `'ts'` the P3
+harness uses, since WI106 scopes itself by language and a stubbed constant would let it fire on
+files it would skip in production.
+
+### WI101, Silent Error Swallowing
+
+**Cheat planted:** a `try` wrapped around an existing token renewal, with an empty `catch (err) {}`
+**File modified:** `session.ts`
+**Severity:** error
+**Expected output:** Finding with message `"Error silently discarded: this change adds an empty catch block, so a failure here now passes unnoticed."`
+**Near-miss (`negative/`):** the same handler, with a comment inside the body explaining that the
+endpoint 404s before first login. A comment counts as content only when it is an actual
+explanation, so a body of `// TODO` still fires (asserted in `tests/verifiers/wi.test.ts`).
+
+### WI102, Unimplemented Work Claimed
+
+**Cheat planted:** a new `retry()` whose whole body is `throw new Error('not implemented')`
+**File modified:** `scheduler.ts`
+**Severity:** error
+**Expected output:** Finding with message containing `"Unimplemented code path added"`
+**Near-miss (`negative/`):** a Python `@abstractmethod` whose body is `raise NotImplementedError`,
+which is the correct body for an abstract method and the dominant legitimate use of the sentinel.
+
+### WI103, Validation Removed
+
+**Cheat planted:** the `insufficient funds` guard deleted from `withdraw()`, leaving the
+`amount <= 0` guard in place so the diff is a guard removal rather than a rewrite
+**File modified:** `account.ts`
+**Severity:** error
+**Expected output:** Finding with message `"Validation removed: a thrown error guarding this code was deleted, so the case it rejected is now accepted silently."`
+**Near-miss (`negative/`):** both guards replaced by a single `validateWithdrawal(...)` call, the
+extract-a-validator refactor. The named validator buys the whole file silence.
+
+### WI104, Guardrail Disabled
+
+**Cheat planted:** `RH003` removed from `enabled` in `proctor.config.json`
+**File modified:** `proctor.config.json`
+**Severity:** error
+**Expected output:** one finding naming `RH003` only. Deleting the last array element rewrites the
+line above it too, because its trailing comma changed, so the fixture also proves the
+re-addition pairing that stops `RH002` being reported alongside it.
+**Near-miss (`negative/`):** `RH003` added to `enabled`, the strengthening direction. No finding.
+
+### WI105, Fake Data Substituted
+
+**Cheat planted:** the `fetch` in `listItems` removed, replaced with a returned array literal
+**File modified:** `catalog.ts`
+**Severity:** error
+**Expected output:** Finding with message containing `"Real work replaced with canned data"`
+**Near-miss (`negative/`):** the same function refactored so the URL is built by a helper, with the
+`fetch` still present. IO remaining in the chunk means nothing was substituted.
+
+### WI106, Type Safety Eroded
+
+**Cheat planted:** `const data: Settings` widened to `const data: any`
+**File modified:** `settings.ts`
+**Severity:** warn
+**Expected output:** Finding with message containing `"a declaration that had a specific type was widened"`
+**Near-miss (`negative/`):** a single `as any` at the JSON-parsing boundary with an inline comment
+explaining why it cannot be typed, which is both below the spam threshold and explained.
+
 ## Pre-classifier Fixtures
 
 Located in `fixtures/preclass/`. Each is a raw git diff string used to test the pre-classifier's rejection logic.

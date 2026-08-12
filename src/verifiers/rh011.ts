@@ -184,6 +184,22 @@ function isSuppression(content: string): boolean {
   return SUPPRESSION_PATTERNS.some(re => re.test(content));
 }
 
+/**
+ * Documentation, where a suppression token is a word rather than a directive.
+ *
+ * Prose telling a reader not to add a TypeScript ignore directive necessarily contains one, and two
+ * such mentions in a single change tripped the spam threshold. Proctor's own ruleset, README and
+ * rule metadata all describe the tokens this check looks for, so the tool reported its own
+ * instructions as a violation of them. No documentation file has a linter reading its comments, so
+ * nothing is lost by scoping the check to code.
+ *
+ * Source comments that quote a token are a narrower version of the same problem and are not
+ * addressed here: separating "a directive" from "a sentence about a directive" inside real code
+ * needs more than a line-level pattern, and widening this check to guess at it would cost more
+ * than it saves.
+ */
+const DOC_FILE_RE = /\.(?:md|mdc|markdown|rst|txt|adoc)$/i;
+
 function run(context: Context): Finding[] {
   const files = context.files;
   const occurrences: Array<{ file: string; line: number }> = [];
@@ -191,6 +207,7 @@ function run(context: Context): Finding[] {
 
   for (const file of files) {
     const filePath = file.to ?? file.from ?? '';
+    if (DOC_FILE_RE.test(filePath)) continue;
     for (const chunk of file.chunks) {
       for (const add of chunk.changes.filter(c => c.type === 'add')) {
         if (isFilewideSuppression(add.content)) {

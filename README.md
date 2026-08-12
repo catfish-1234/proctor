@@ -9,8 +9,10 @@
 ## What this is
 
 proctor is a command-line tool that reads your git diff and blocks the changes an AI coding agent
-makes when it fakes a passing build: deleting a failing test, skipping it, weakening the assertion,
-hardcoding the answer the test expects.
+makes when it fakes a finished job: deleting a failing test, skipping it, weakening the assertion,
+hardcoding the answer the test expects, swallowing the error, deleting the validation that
+complained, returning canned data instead of doing the work, or switching off the checks that were
+about to catch any of it.
 
 It has two halves.
 
@@ -80,9 +82,9 @@ fixture corpus in [`fixtures/`](fixtures):
 
 | | |
 |---|---|
-| **125 of 125** | planted cheats caught. One fixture per check per language, each asserted against the exact finding proctor has to produce, not just "something fired" |
-| **0 of 18** | near-miss fixtures flagged. Each one is a change built to look like a cheat and be legitimate: a single `@ts-ignore` with a justification, one retry rather than five, a snapshot rewrite whose commit message gives the reason |
-| **13** | checks, across **25+** languages, installable into **30** agents |
+| **131 of 131** | planted cheats caught. One fixture per check per language, each asserted against the exact finding proctor has to produce, not just "something fired" |
+| **0 of 24** | near-miss fixtures flagged. Each one is a change built to look like a cheat and be legitimate: a single `@ts-ignore` with a justification, one retry rather than five, an empty catch whose comment explains itself, a guard clause extracted into a validator |
+| **19** | checks in two families, across **25+** languages, installable into **30** agents |
 | **under 1s** | to check a commit, offline. Measured here at roughly 0.25s on a 3-file diff and 0.55s on a 79-file one, cold Node start included |
 
 **What we don't claim.** That proctor makes an agent *behave* better. That is a different measurement
@@ -217,6 +219,10 @@ Every finding carries a short ID like `RH001`. They are just stable labels, the 
 ESLint rule name, so a check can be referenced without spelling out a whole sentence. Nothing to
 memorize: the plain-English name and full explanation print with every finding.
 
+There are two families, and the split is by the claim each one checks.
+
+**RH0xx checks "the tests pass."** These read the test suite and the code directly beneath it.
+
 | | Catches |
 |---|---|
 | RH001 | A test deleted or renamed away |
@@ -232,6 +238,27 @@ memorize: the plain-English name and full explanation print with every finding.
 | RH011 | Type and lint errors silenced instead of fixed |
 | RH012 | A test step removed from CI, or neutered so failures stop counting |
 | RH013 | A coverage threshold lowered or removed |
+
+**WI1xx checks "the work is done."** Deleting a test is only one way to fake a finished job. These
+read shipped code for the rest of them, and none of the cheats they catch touches a test file.
+
+| | Catches |
+|---|---|
+| WI101 | An error discarded by an empty handler, so failures pass unnoticed |
+| WI102 | An explicit "not implemented" marker shipped inside finished-looking work |
+| WI103 | Validation deleted so the case it rejected now goes through |
+| WI104 | Proctor, a commit hook, or a type/lint gate switched off instead of satisfied |
+| WI105 | Real network, database, or filesystem work replaced with canned data |
+| WI106 | Types widened to `any` to silence the type checker |
+
+Every WI check skips test files on purpose. An empty catch is how you assert that something throws,
+canned data is what a fixture is for, and a loose cast is ordinary when building a partial mock.
+They watch the code your tests are meant to be proving.
+
+Most of them also have the same escape hatch: a line whose comment explains why it is correct does
+not get flagged. That is not a loophole, it is the point. An agent racing to a green build does not
+stop to write the sentence, and if it does, the sentence is now in the diff for a human to read and
+disagree with.
 
 ## Badges
 
@@ -284,8 +311,10 @@ Everything above is the whole product for most people. These pages are for when 
 
 proctor supports 25+ languages and installs to 30 agents. Five diff-level checks (RH001, RH002,
 RH003, RH007, RH011) work across all of them; six (RH004, RH005, RH006, RH008, RH009, RH010) are
-JS/TS/Python-only; and RH012 and RH013 read CI and coverage config, so they apply everywhere.
-[Full matrix](docs/LANGUAGES.md).
+JS/TS/Python-only; and RH012 and RH013 read CI and coverage config, so they apply everywhere. Of the
+work-integrity family, WI101, WI102 and WI103 carry per-language signatures, WI104 reads config
+files so it applies everywhere, and WI105 and WI106 are scoped to the languages whose tokens are
+unambiguous. [Full matrix](docs/LANGUAGES.md).
 
 ## Benchmark
 

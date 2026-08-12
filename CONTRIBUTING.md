@@ -158,6 +158,11 @@ Edit `src/skill/SKILL.md`, then run `npm run sync-plugin`. The test suite fails 
 If you're proposing a new check or a design change, open an issue first so the design can be talked
 through before you write it.
 
+## Releasing
+
+Maintainer-only, and written down in [docs/RELEASING.md](docs/RELEASING.md): how a tag becomes an
+npm publish, the one-time npm authentication step, and which distribution channels need a browser.
+
 ## Reporting a bug
 
 [Open an issue](https://github.com/catfish-1234/proctor/issues/new/choose). For a false positive or

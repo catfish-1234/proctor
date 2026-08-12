@@ -34,8 +34,7 @@ export interface AgentAdapter {
 }
 
 // Cursor's `.mdc` convention supports `description`, `globs`, and `alwaysApply` YAML frontmatter
-// keys that materially affect whether the rule auto-attaches. This is a pure function of `canonical`, it only prepends static frontmatter
-// scaffolding; the canonical body passes through byte-for-byte, exactly once, unmodified.
+// keys that materially affect whether the rule auto-attaches.
 export function cursorMdcTransform(canonical: string): string {
   return `---
 description: proctor honest-completion ruleset, catches tests deleted, skipped, weakened, or gamed to fake a passing build
@@ -49,8 +48,7 @@ ${canonical}`;
 // Agent Skills frontmatter, the open format Claude Code and Cursor both read. An agent uses the
 // `description` to decide when to load a skill on its own. Without one it falls back to the
 // first paragraph of the body, which describes what the file is rather than when it applies, so
-// the skill loads less reliably at the moments that matter. Pure function of `canonical`: only
-// prepends frontmatter, the ruleset body passes through unchanged.
+// the skill loads less reliably at the moments that matter.
 export function skillFrontmatterTransform(canonical: string): string {
   return `---
 name: proctor
@@ -60,9 +58,8 @@ description: Honest-completion ruleset for changes that touch tests or the code 
 ${canonical}`;
 }
 
-// GitHub's `.github/instructions/*.instructions.md` convention requires an `applyTo` glob key to declare which files the instructions
-// scope to, without it, the instructions may not be applied at all. Pure function of `canonical`;
-// only prepends static frontmatter scaffolding, the canonical body passes through unmodified.
+// GitHub's `.github/instructions/*.instructions.md` convention requires an `applyTo` glob key to
+// declare which files the instructions scope to; without it they may not be applied at all.
 export function copilotApplyToTransform(canonical: string): string {
   return `---
 applyTo: '**'

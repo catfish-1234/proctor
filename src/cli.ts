@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { resolve, join, dirname, relative } from 'node:path';
+import { resolve, join } from 'node:path';
 import { homedir } from 'node:os';
-import { readFile, writeFile, mkdir, appendFile, rm } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 import pkg from '../package.json' with { type: 'json' };
+import { readFile, writeFile, appendFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { runGitDiff } from './diff.js';
 import { classifyDiff } from './pre-classifier.js';
 import { buildContext } from './context/index.js';
@@ -16,11 +16,11 @@ import { markdownReport } from './reporters/markdown.js';
 import { AGENT_ADAPTERS, type AgentAdapter } from './adapters/registry.js';
 import { detectAgents, selectAgents } from './adapters/detect.js';
 import { checkAdapterDrift } from './adapters/drift-check.js';
-import { recordWritten, MANIFEST_FILENAME } from './adapters/manifest.js';
-import { upsertBlock, extractBlock, removeBlock } from './adapters/block.js';
+import { deploySkill, uninstallProctor } from './adapters/deploy.js';
 import { loadTaskPool } from './bench/tasks.js';
 import { runBench } from './bench/index.js';
-import { installPreCommitHook, removePreCommitHook } from './hooks/pre-commit.js';
+import { installPreCommitHook } from './hooks/pre-commit.js';
+import { installStopHook } from './hooks/claude-settings.js';
 import { parseStopHookInput, runStopHookCheck } from './hooks/stop-hook.js';
 import { APPROVAL_GUIDANCE, RULE_METADATA } from './rules.js';
 import { buildReceipt } from './receipt.js';
@@ -39,6 +39,12 @@ function hasCommit(cwd: string): boolean {
   return spawnSync('git', ['rev-parse', '--verify', 'HEAD'], { cwd, stdio: 'ignore' }).status === 0;
 }
 
+/**
+ * The canonical ruleset, relative to this entrypoint. `../src/skill/SKILL.md` resolves correctly
+ * both from `src/cli.ts` in a source checkout and from the bundled `dist/cli.js`, since both sit
+ * one level under the package root. Keep it here: tsup bundles every module into this one file, so
+ * `import.meta.url` in any other source file would not survive the build.
+ */
 function canonicalSkillPath(): string {
   return fileURLToPath(new URL('../src/skill/SKILL.md', import.meta.url));
 }
@@ -255,47 +261,6 @@ program
     process.stdout.write(result.status === 'already' ? 'Already installed\n' : 'Installed: ' + result.path + '\n');
   });
 
-/**
- * Adds the Stop hook to a Claude Code settings file, merging into whatever is already there.
- * Reports rather than throws, so `setup` can carry on with the other installs when this one
- * cannot proceed.
- */
-async function installStopHook(dir: string): Promise<{ status: 'installed' | 'already' | 'invalid-json'; path: string }> {
-  {
-    const settingsPath = join(dir, 'settings.json');
-    let settings: Record<string, unknown> = {};
-    let rawSettings: string | undefined;
-    try {
-      rawSettings = await readFile(settingsPath, 'utf8');
-    } catch { /* ENOENT, no settings yet, start fresh */ }
-    if (rawSettings !== undefined) {
-      try {
-        settings = JSON.parse(rawSettings) as Record<string, unknown>;
-      } catch {
-        // A malformed settings file must not be silently replaced, that would destroy
-        // whatever configuration the user had in it.
-        return { status: 'invalid-json', path: settingsPath };
-      }
-    }
-    // Skip if the hook is already installed, so running this command twice is a no-op.
-    const stopGroups = ((settings['hooks'] as Record<string, unknown> | undefined)?.['Stop'] ?? []) as Array<{ hooks?: Array<{ command?: string }> }>;
-    const alreadyInstalled = stopGroups.some(g => g.hooks?.some(h => h.command?.includes('proctor stop-hook')));
-    if (alreadyInstalled) return { status: 'already', path: settingsPath };
-    // Merge into any existing settings rather than overwriting them.
-    const hooks = ((settings['hooks'] ?? {}) as Record<string, unknown>);
-    const stop = ((hooks['Stop'] ?? []) as unknown[]);
-    // Fully-scoped npx spec (not bare `npx proctor`). See preCommitHookContent()'s comment in
-    // src/hooks/pre-commit.ts for why: a bare bin name only resolves via npx after a persistent
-    // install, which the README's zero-install flow doesn't guarantee.
-    stop.push({ hooks: [{ type: 'command', command: `npx ${pkg.name} stop-hook` }] });
-    hooks['Stop'] = stop;
-    settings['hooks'] = hooks;
-    await mkdir(dir, { recursive: true });
-    await writeFile(settingsPath, JSON.stringify(settings, null, 2), 'utf8');
-    return { status: 'installed', path: settingsPath };
-  }
-}
-
 program
   .command('setup')
   .description('One-command install: writes the ruleset to every agent this repo uses, and installs both hooks')
@@ -309,7 +274,7 @@ program
     const cwd = process.cwd();
 
     const targets = await resolveTargets(cwd, options);
-    const failed = await deploySkill(cwd, targets);
+    const failed = await deploySkill(cwd, targets, await readFile(canonicalSkillPath(), 'utf8'));
     process.stdout.write(
       `Ruleset written to ${targets.length - failed} of ${targets.length} agent path${targets.length === 1 ? '' : 's'}.\n`
     );
@@ -356,7 +321,11 @@ program
   .option('--agents <ids>', 'comma-separated agent ids to install to (e.g. claude-code,cursor), instead of detecting')
   .action(async (options: { all?: boolean; agents?: string }) => {
     const cwd = process.cwd();
-    const failed = await deploySkill(cwd, await resolveTargets(cwd, options));
+    const failed = await deploySkill(
+      cwd,
+      await resolveTargets(cwd, options),
+      await readFile(canonicalSkillPath(), 'utf8')
+    );
     // Nonzero so a scripted install surfaces a partial deployment instead of looking like a
     // clean run that happened to print to stderr.
     if (failed > 0) {
@@ -406,49 +375,6 @@ async function resolveTargets(cwd: string, options: { all?: boolean; agents?: st
   return detected;
 }
 
-/** Writes the ruleset to each given adapter path. Returns how many could not be written. */
-async function deploySkill(cwd: string, adapters: AgentAdapter[]): Promise<number> {
-  {
-    const canonical = await readFile(canonicalSkillPath(), 'utf8');
-    let failed = 0;
-    for (const adapter of adapters) {
-      const dest = join(cwd, adapter.relativePath);
-      const content = adapter.transform ? adapter.transform(canonical) : canonical;
-
-      // One unwritable path must not abort the other adapters. A repo where some tool already
-      // uses one of these names as a directory, or where a path is read-only, is a normal thing
-      // to run into, and the remaining agents should still get the ruleset.
-      try {
-        // Shared paths hold user-authored content too, so proctor merges into a delimited block
-        // and leaves the rest of the file alone rather than overwriting it.
-        if (adapter.shared) {
-          let existing: string | undefined;
-          try {
-            existing = await readFile(dest, 'utf8');
-          } catch (err: unknown) {
-            if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
-          }
-          await mkdir(dirname(dest), { recursive: true });
-          await writeFile(dest, upsertBlock(existing, content), 'utf8');
-          // Record that proctor wrote a block here, so drift-check can tell a block that was
-          // deleted after install apart from a file proctor never touched.
-          await recordWritten(cwd, adapter.id);
-          process.stdout.write((existing === undefined ? 'Installed: ' : 'Merged: ') + dest + '\n');
-          continue;
-        }
-
-        await mkdir(dirname(dest), { recursive: true });
-        await writeFile(dest, content, 'utf8');
-        process.stdout.write('Installed: ' + dest + '\n');
-      } catch (err: unknown) {
-        failed++;
-        const code = (err as NodeJS.ErrnoException).code ?? 'unknown error';
-        process.stderr.write(`proctor: skipped ${adapter.displayName} at ${dest} (${code})\n`);
-      }
-    }
-    return failed;
-  }
-}
 
 program
   .command('badge')
@@ -492,82 +418,6 @@ program
         : '\nDone. proctor.config.json is left in place, since it is yours to keep or delete.\n'
     );
   });
-
-/**
- * Undoes an install. Shared files (AGENTS.md, WARP.md, ...) hold the user's own content too, so
- * only proctor's managed block comes out and the file stays; a file that is left holding nothing
- * but whitespace is removed rather than left as an empty husk. proctor-owned files are deleted
- * outright. The pre-commit hook is only removed when it is proctor's, never someone else's.
- */
-async function uninstallProctor(cwd: string, dryRun: boolean): Promise<string[]> {
-  const done: string[] = [];
-
-  for (const adapter of AGENT_ADAPTERS) {
-    const dest = join(cwd, adapter.relativePath);
-    let existing: string;
-    try {
-      existing = await readFile(dest, 'utf8');
-    } catch {
-      continue;
-    }
-    if (adapter.shared) {
-      if (extractBlock(existing) === undefined) continue;
-      const stripped = removeBlock(existing);
-      if (stripped.trim() === '') {
-        if (!dryRun) await rm(dest, { force: true });
-        done.push(`Removed: ${adapter.relativePath}`);
-      } else {
-        if (!dryRun) await writeFile(dest, stripped, 'utf8');
-        done.push(`Unmerged the proctor block from: ${adapter.relativePath}`);
-      }
-      continue;
-    }
-    if (!dryRun) await rm(dest, { force: true });
-    done.push(`Removed: ${adapter.relativePath}`);
-  }
-
-  const manifest = join(cwd, MANIFEST_FILENAME);
-  try {
-    await readFile(manifest, 'utf8');
-    if (!dryRun) await rm(manifest, { force: true });
-    done.push(`Removed: ${MANIFEST_FILENAME}`);
-  } catch { /* never installed a shared adapter here */ }
-
-  // Paths are reported relative to the repo, matching the adapter lines above.
-  const rel = (p: string): string => relative(cwd, p).replace(/\\/g, '/');
-
-  const hookPath = await removePreCommitHook(cwd, dryRun);
-  if (hookPath) done.push(`Removed: ${rel(hookPath)}`);
-
-  const stop = await removeStopHook(join(cwd, '.claude'), dryRun);
-  if (stop) done.push(`Removed the proctor Stop hook from: ${rel(stop)}`);
-
-  return done;
-}
-
-/** Drops proctor's Stop hook entry, leaving every other hook and setting untouched. */
-async function removeStopHook(dir: string, dryRun: boolean): Promise<string | undefined> {
-  const settingsPath = join(dir, 'settings.json');
-  let settings: Record<string, unknown>;
-  try {
-    settings = JSON.parse(await readFile(settingsPath, 'utf8')) as Record<string, unknown>;
-  } catch {
-    // Missing or malformed: nothing safe to edit, and rewriting it would risk the user's config.
-    return undefined;
-  }
-  const hooks = settings['hooks'] as Record<string, unknown> | undefined;
-  const stopGroups = (hooks?.['Stop'] ?? []) as Array<{ hooks?: Array<{ command?: string }> }>;
-  if (!Array.isArray(stopGroups)) return undefined;
-  const kept = stopGroups.filter(g => !g.hooks?.some(h => h.command?.includes('proctor stop-hook')));
-  if (kept.length === stopGroups.length) return undefined;
-  if (!dryRun && hooks) {
-    if (kept.length > 0) hooks['Stop'] = kept;
-    else delete hooks['Stop'];
-    if (Object.keys(hooks).length === 0) delete settings['hooks'];
-    await writeFile(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf8');
-  }
-  return settingsPath;
-}
 
 program
   .command('drift-check')

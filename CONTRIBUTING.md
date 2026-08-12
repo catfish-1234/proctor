@@ -129,11 +129,11 @@ moved, and the comment is how the next person checks whether it is still true.
 `src/skill/SKILL.md` is the single source of the ruleset. These are generated copies and must never
 be hand-edited:
 
-- `PROCTOR.md` (repo root) — the Gemini CLI and Qwen Code extensions need a bare root-level filename
-- `plugin/skills/proctor/SKILL.md` and `plugin/rules/proctor.mdc` — a plugin cannot reference files
+- `PROCTOR.md` (repo root): the Gemini CLI and Qwen Code extensions need a bare root-level filename
+- `plugin/skills/proctor/SKILL.md` and `plugin/rules/proctor.mdc`: a plugin cannot reference files
   outside its own directory
-- `skills/proctor/SKILL.md` — the Agent Plugins 1.0.0 layout
-- `.agents/skills/proctor/SKILL.md` — the Agent Skills convention Codex and VS Code scan for
+- `skills/proctor/SKILL.md`: the Agent Plugins 1.0.0 layout
+- `.agents/skills/proctor/SKILL.md`: the Agent Skills convention Codex and VS Code scan for
 
 Edit `src/skill/SKILL.md`, then run `npm run sync-plugin`. The test suite fails if they drift.
 

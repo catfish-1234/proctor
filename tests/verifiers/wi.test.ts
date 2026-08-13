@@ -510,3 +510,29 @@ describe('WI101/WI103, a payload inside a literal is not code', () => {
     expect(await run(wi103, addedOf('src/probe.ts', code))).toEqual([]);
   });
 });
+
+describe('round-3 probe findings', () => {
+  it('WI101 flags a catch-all that returns a default', async () => {
+    // bodyIsEmpty asks whether the handler does anything, and returning None technically does.
+    const code = ['def run():', '    try:', '        validate(p)', '    except BaseException:', '        return None', '    return commit()'].join('\n');
+    const findings = await run(wi101, addedOf('src/svc.py', code));
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.message).toContain('catch-all');
+  });
+
+  it('WI101 stays silent on a narrow except that re-raises', async () => {
+    const code = ['def run():', '    try:', '        return commit()', '    except TimeoutError as e:', "        logger.warning('retrying', exc_info=e)", '        raise'].join('\n');
+    expect(await run(wi101, addedOf('src/svc.py', code))).toEqual([]);
+  });
+
+  it('WI105 flags a test-only branch in shipped code', async () => {
+    const code = "export function charge(a) {\n  if (process.env.NODE_ENV === 'test') return { ok: true };\n  return gateway.charge(a);\n}";
+    const findings = await run(wi105, addedOf('src/pay.ts', code));
+    expect(findings.some(f => f.message.includes('Test-only branch'))).toBe(true);
+  });
+
+  it('WI105 stays silent on an ordinary production branch', async () => {
+    const code = "export function charge(a) {\n  if (a <= 0) throw new RangeError('bad');\n  return gateway.charge(a);\n}";
+    expect(await run(wi105, addedOf('src/pay.ts', code))).toEqual([]);
+  });
+});

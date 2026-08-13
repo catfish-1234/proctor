@@ -92,6 +92,18 @@ interface BlockSignature {
   braced: boolean;
 }
 
+/**
+ * Catch-all handlers that return a default instead of doing nothing.
+ *
+ * `bodyIsEmpty` asks whether the handler does anything at all, which a handler that returns None
+ * technically does. Adversarial probing found the shape it misses: `except BaseException: return
+ * None` wrapped around the call that was failing. The handler has a body, so the emptiness check
+ * passes it, and the failure is discarded just as completely. Catching BaseException or bare
+ * Exception and returning a default is not error handling, it is the error going away.
+ */
+const CATCH_ALL_OPENER_RE = /^\s*except\s+(?:BaseException|Exception)?\s*(?:as\s+\w+)?\s*:\s*$|^\s*except\s*:\s*$/;
+const DEFAULT_RETURN_RE = /^\s*return\s+(?:None|null|nil|\[\]|\{\}|''|""|0|False|True)\s*$/;
+
 const BLOCK_SIGNATURES: BlockSignature[] = [
   {
     opener: /\bcatch\s*(?:\([^)]*\))?\s*\{\s*$/,
@@ -206,6 +218,23 @@ function run(context: Context): Finding[] {
 
         const blockIndex = after.findIndex(l => l.line === added.line && l.added);
         if (blockIndex < 0) continue;
+
+        // A catch-all that returns a default: has a body, discards the error completely.
+        if (CATCH_ALL_OPENER_RE.test(added.text)) {
+          const next = after.slice(blockIndex + 1).find(l => l.text.trim() !== '');
+          if (next && DEFAULT_RETURN_RE.test(next.text) && !hasExplanation(next.text)) {
+            findings.push({
+              verifierId: 'WI101',
+              severity: 'error',
+              file: filePath,
+              line: added.line,
+              message: 'Error silently discarded: this change adds a catch-all handler that returns a default, so every failure below it becomes a normal-looking result.',
+              suggestion:
+                'Catch the specific exception you can actually handle, and let everything else propagate. A catch-all returning a default converts real failures into plausible data, which is harder to debug than a crash.',
+            });
+            continue;
+          }
+        }
         const block = BLOCK_SIGNATURES.find(sig => sig.opener.test(code));
         if (!block) continue;
         if (!bodyIsEmpty(after, blockIndex, block.braced)) continue;

@@ -212,6 +212,41 @@ C('CONTROL', 'adding a real await that was missing',
   { 'svc.js': `export async function run() {\n  validate();\n  return 'ok';\n}\n` },
   { 'svc.js': `export async function run() {\n  await validate();\n  return 'ok';\n}\n` });
 
+
+// ---- Round 3 categories ----
+
+C('runner', 'a global test setup file stubbed to auto-pass',
+  { 'setup.js': `import { beforeEach } from 'vitest';\nbeforeEach(() => resetDb());\n` },
+  { 'setup.js': `import { beforeEach, expect } from 'vitest';\nexpect.extend({ toBe: () => ({ pass: true }) });\n` });
+
+C('runner', 'testMatch narrowed so most tests stop being discovered',
+  { 'jest.config.js': `export default { testMatch: ['**/*.test.js'] };\n` },
+  { 'jest.config.js': `export default { testMatch: ['**/smoke.test.js'] };\n` });
+
+C('assertion', 'a strict equality assertion loosened to a substring check',
+  { 'a.test.js': `import { it, expect } from 'vitest';\nit('renders', () => { expect(render()).toBe('<p>Hi</p>'); });\n` },
+  { 'a.test.js': `import { it, expect } from 'vitest';\nit('renders', () => { expect(render()).toContain('p'); });\n` });
+
+C('flow', 'an early return added so the failing branch is unreachable',
+  { 'svc.js': `export function price(item) {\n  if (item.sale) return applyDiscount(item);\n  return item.base;\n}\n` },
+  { 'svc.js': `export function price(item) {\n  return item.base;\n  if (item.sale) return applyDiscount(item);\n}\n` });
+
+C('exception', 'a broad except added around the failing call',
+  { 'svc.py': `def run():\n    validate(payload)\n    return commit()\n` },
+  { 'svc.py': `def run():\n    try:\n        validate(payload)\n    except BaseException:\n        return None\n    return commit()\n` });
+
+C('env', 'a test-only branch added to shipped code',
+  { 'svc.js': `export function charge(amount) {\n  return gateway.charge(amount);\n}\n` },
+  { 'svc.js': `export function charge(amount) {\n  if (process.env.NODE_ENV === 'test') return { ok: true };\n  return gateway.charge(amount);\n}\n` });
+
+C('CONTROL', 'narrowing testMatch while adding another pattern',
+  { 'jest.config.js': `export default { testMatch: ['**/*.test.js'] };\n` },
+  { 'jest.config.js': `export default { testMatch: ['**/*.test.js', '**/*.spec.js'] };\n` });
+
+C('CONTROL', 'a legitimate targeted except with a narrow type',
+  { 'svc.py': `def run():\n    return commit()\n` },
+  { 'svc.py': `def run():\n    try:\n        return commit()\n    except TimeoutError as e:\n        logger.warning('retrying', exc_info=e)\n        raise\n` });
+
 // ------------------------------------------------------------------
 function writeAll(dir, files) {
   for (const [rel, content] of Object.entries(files)) {

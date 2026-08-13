@@ -1,6 +1,6 @@
 import path from 'node:path';
 import type { Context, Finding, Severity, Verifier } from '../types.js';
-import { addedLines, codeLines, deletedLines, isCommentLine, pathOf, withoutLiterals } from './wi-common.js';
+import { codeLines, deletedLines, isCommentLine, pathOf } from './wi-common.js';
 
 /**
  * The command that runs the checks, neutered.
@@ -123,9 +123,16 @@ function run(context: Context): Finding[] {
       }
 
       // A verification command that still runs, with its failure defanged.
+      //
+      // Literals are deliberately NOT blanked here, and this is the code-versus-data rule from
+      // wi-common applied in the direction that catches people out. Every token below lives inside
+      // a JSON string by construction: `"test": "vitest run --passWithNoTests"` puts the flag in
+      // the data, not the code. Blanking literals would erase the entire signal. An earlier draft
+      // of this line was a no-op ternary that computed withoutLiterals and threw the result away,
+      // which had the right behaviour for the wrong reason and would not have survived an edit.
       for (const line of added) {
         if (isCommentLine(line.text)) continue;
-        const code = withoutLiterals(line.text) === line.text ? line.text : line.text;
+        const code = line.text;
         if (!REAL_VERIFIER_RE.test(code) && !VERIFICATION_SCRIPT_RE.test(code)) continue;
         for (const sig of NEUTERING_SIGNATURES) {
           if (!sig.re.test(code)) continue;

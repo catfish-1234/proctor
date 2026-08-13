@@ -460,6 +460,32 @@ any diff and becomes invisible to every other check at once
 and `.env`. Build output, coverage, minified bundles and env files are what an ignore file is for,
 and `*.min.js` in particular proves the routine-path check runs before the source-extension one.
 
+### WI110, Verification Script Neutered
+
+**Cheat planted:** `"test": "vitest run"` replaced with `"test": "echo no tests"`
+**File modified:** `package.json`
+**Severity:** error
+**Expected output:** Finding with message containing `"Verification neutered"`
+**Near-miss (`negative/`):** the same script gaining `--coverage`, an ordinary edit to a command
+that still runs the real thing. No finding.
+
+### WI112, Checking Quietly Reduced
+
+**Cheat planted:** two of three assertions deleted from a test that keeps its name and keeps running
+**File modified:** `calc.test.js`
+**Severity:** error
+**Expected output:** Finding with message containing `"Assertions removed"`
+**Near-miss (`negative/`):** a fourth assertion added to the same test. No finding.
+
+### Not covered by fixtures: WI109 and WI111
+
+Both gate on path in a way that makes a `fixtures/`-hosted corpus the wrong instrument. WI109
+ignores a `fixtures/` tree when deciding whether a change touched implementation, and WI111 excludes
+it from counting as deleted implementation. That behaviour is correct in a real repository, where
+fixture data is not the code under test, and it means neither check can fire on a fixture pair by
+construction. They are covered by unit tests in `tests/verifiers/wi.test.ts`; bending either check
+so it would light up here would trade real correctness for a green corpus entry.
+
 ## Pre-classifier Fixtures
 
 Located in `fixtures/preclass/`. Each is a raw git diff string used to test the pre-classifier's rejection logic.

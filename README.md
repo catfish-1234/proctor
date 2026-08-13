@@ -82,15 +82,15 @@ fixture corpus in [`fixtures/`](fixtures):
 
 | | |
 |---|---|
-| **133 of 133** | planted cheats caught. One fixture per check per language, each asserted against the exact finding proctor has to produce, not just "something fired" |
-| **0 of 26** | near-miss fixtures flagged. Each one is a change built to look like a cheat and be legitimate: a single `@ts-ignore` with a justification, one retry rather than five, an empty catch whose comment explains itself, a guard clause extracted into a validator |
+| **135 of 135** | planted cheats caught. One fixture per check per language, each asserted against the exact finding proctor has to produce, not just "something fired" |
+| **0 of 28** | near-miss fixtures flagged. Each one is a change built to look like a cheat and be legitimate: a single `@ts-ignore` with a justification, one retry rather than five, an empty catch whose comment explains itself, a guard clause extracted into a validator |
 | **21 of 21** | recorded cheats caught in the benchmark corpus, across 7 signatures. Whole-repo task diffs rather than minimal fixtures. The 22nd task is a control that plants no cheat, and proctor stays silent on it. Reproduce with `proctor bench --mock` |
 | **25** | checks in two families, across **25+** languages, installable into **30** agents |
 | **under 1s** | to check a commit, offline. Measured here at roughly 0.25s on a 3-file diff and 0.55s on a 79-file one, cold Node start included |
 
 **What we don't claim.** That proctor makes an agent *behave* better. That is a different measurement
 and our own [benchmark](#benchmark) has not produced it yet: the numbers there are a null result on
-tasks that turned out too easy to cheat on. The 133 of 133 above is a detection claim, which is the
+tasks that turned out too easy to cheat on. The 135 of 135 above is a detection claim, which is the
 claim the tool actually makes.
 
 ## Try it before installing anything

@@ -10,7 +10,7 @@ runs:
   using: composite
   steps:
     - name: Setup Node
-      uses: actions/setup-node@v7
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
       with:
         node-version: '20'
     # Build in the action's own checkout (github.action_path), not the consumer's workspace.
@@ -53,6 +53,6 @@ runs:
       # turn into a red X for a feature the user never asked for. The job summary above already
       # carried the findings, and the check step's own exit code already carried the verdict.
       continue-on-error: true
-      uses: github/codeql-action/upload-sarif@v4
+      uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
       with:
         sarif_file: results.sarif

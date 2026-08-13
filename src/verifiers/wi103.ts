@@ -1,5 +1,5 @@
 import type { Context, Finding, Verifier } from '../types.js';
-import { addedLines, deletedLines, isCommentLine, isWatchedSource, pathOf, withoutLiterals, withoutTrailingComment } from './wi-common.js';
+import { addedLines, afterLines, deletedLines, hasExplanation, isCommentLine, isWatchedSource, pathOf, withoutLiterals, withoutTrailingComment } from './wi-common.js';
 
 /**
  * Validation removed from shipped code.
@@ -91,7 +91,67 @@ function loosened(before: string, after: string): boolean {
   const rhsAfter = b[3]!.trim();
   if (rhsBefore === rhsAfter) return false;
   // The bound gained arithmetic that can only widen it, e.g. `bal` becoming `bal * 1000`.
-  return new RegExp(`^${rhsBefore.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*[*+]`).test(rhsAfter);
+  // Diff content is untrusted input. Compare the fixed prefix directly, then use a static regex
+  // for the newly appended operator instead of compiling the changed source as a pattern.
+  if (!rhsAfter.startsWith(rhsBefore)) return false;
+  return /^\s*[*+]/.test(rhsAfter.slice(rhsBefore.length));
+}
+
+const indentOf = (text: string): number => /^[ \t]*/.exec(text)![0].length;
+
+/** A change that leaves executable same-scope code after an unconditional return. */
+function unreachableAfterReturn(chunk: Context['files'][number]['chunks'][number]): { line: number }[] {
+  const after = afterLines(chunk);
+  const results: { line: number }[] = [];
+  for (const added of addedLines(chunk)) {
+    if (hasExplanation(added.text) || isCommentLine(added.text)) continue;
+    const code = withoutTrailingComment(added.text);
+    const indent = indentOf(code);
+    // Requiring indentation keeps this inside a function/method and avoids top-level language
+    // constructs. Conditional one-line returns start with `if`, so they are not matched.
+    if (indent === 0 || !/^\s*return\b/.test(code)) continue;
+    const index = after.findIndex(line => line.line === added.line && line.added);
+    if (index < 0) continue;
+    const next = after.slice(index + 1).find(line => {
+      const text = line.text.trim();
+      return text !== '' && !isCommentLine(line.text) && !/^(?:}|\);?|end\b)/.test(text);
+    });
+    if (!next || indentOf(next.text) !== indent) continue;
+    results.push({ line: added.line });
+  }
+
+  // Git represents a branch moved below an existing return as "delete branch, add branch"; the
+  // return itself is an unchanged context line. Look at newly-added executable lines too, and ask
+  // whether the preceding statement at the same indentation is an unconditional return.
+  for (let index = 0; index < after.length; index++) {
+    const added = after[index]!;
+    if (!added.added || hasExplanation(added.text) || isCommentLine(added.text)) continue;
+    const text = added.text.trim();
+    const indent = indentOf(added.text);
+    if (
+      indent === 0 ||
+      text === '' ||
+      /^return\b/.test(text) ||
+      /^(?:}|\);?|end\b|else\b|catch\b|except\b|finally\b|rescue\b|case\b|when\b)/.test(text)
+    ) continue;
+    let prior: (typeof after)[number] | undefined;
+    for (let cursor = index - 1; cursor >= 0; cursor--) {
+      const candidate = after[cursor]!;
+      const trimmed = candidate.text.trim();
+      if (trimmed === '' || isCommentLine(candidate.text)) continue;
+      const candidateIndent = indentOf(candidate.text);
+      // A dedent starts a different clause/scope. Code under an `except` is not made unreachable
+      // by a return under the preceding `try`, even though both bodies use the same indentation.
+      if (candidateIndent < indent) break;
+      if (candidateIndent === indent) {
+        prior = candidate;
+        break;
+      }
+    }
+    if (!prior || !/^\s*return\b/.test(withoutTrailingComment(prior.text))) continue;
+    results.push({ line: added.line });
+  }
+  return results;
 }
 
 function run(context: Context): Finding[] {
@@ -105,6 +165,21 @@ function run(context: Context): Finding[] {
     // another, or replaced by a call to an extracted validator anywhere in the file, is a move.
     const added = file.chunks.flatMap(addedLines);
     const addedKeys = new Set(added.map(l => guardKey(l.text)));
+
+    for (const chunk of file.chunks) {
+      for (const unreachable of unreachableAfterReturn(chunk)) {
+        findings.push({
+          verifierId: 'WI103',
+          severity: 'error',
+          file: filePath,
+          line: unreachable.line,
+          message: 'Control flow bypassed: an unconditional return was added before a surviving statement in the same scope, so the code below can no longer run.',
+          suggestion:
+            'Remove the early return and fix the branch it bypasses. If the lower branch is genuinely obsolete, remove it deliberately in a separate, reviewable change rather than leaving dead code behind.',
+        });
+      }
+    }
+
     if (added.some(l => EXTRACTED_VALIDATOR_RE.test(l.text))) continue;
 
     // A guard left standing but made untrippable. Checked before the rewritten-in-place gate

@@ -9,6 +9,7 @@ export type ParsedFile = ReturnType<typeof parseDiff>[number];
 // independent of any single regex's complexity. Detection patterns anchor near the line start, so
 // truncation doesn't lose real signal.
 const MAX_LINE_LENGTH = 4000;
+const MAX_DIFF_BUFFER = 512 * 1024 * 1024;
 
 function capLineLengths(files: ParsedFile[]): void {
   for (const file of files) {
@@ -28,14 +29,49 @@ function capLineLengths(files: ParsedFile[]): void {
  * nothing in a file path or ref can be interpreted as shell syntax.
  * Normalizes CRLF to LF in stdout before passing it to parseDiff.
  */
-export function runGitDiff(args: string[], cwd: string): { raw: string; files: ParsedFile[] } {
+export interface RunGitDiffOptions {
+  /** Include untracked, non-ignored files without modifying the repository's index. */
+  includeUntracked?: boolean;
+}
+
+function runGit(args: string[], cwd: string, acceptedStatuses: number[] = [0]): string {
+  const result = spawnSync('git', args, { cwd, encoding: 'utf8', maxBuffer: MAX_DIFF_BUFFER });
+  if (!acceptedStatuses.includes(result.status ?? -1)) {
+    throw new Error((result.stderr as string) || result.error?.message || `git ${args[0] ?? 'command'} failed`);
+  }
+  return (result.stdout as string).replace(/\r\n/g, '\n');
+}
+
+/**
+ * Builds ordinary unified diffs for untracked files via `git diff --no-index`.
+ *
+ * `git diff HEAD` does not include untracked files. That made `check --uncommitted` blind to a
+ * brand-new test, config, or source file. `--no-index` produces the same patch format as a staged
+ * new file without the invasive alternative of changing the user's index with intent-to-add.
+ */
+function untrackedDiff(cwd: string): string {
+  const listed = runGit(['ls-files', '--others', '--exclude-standard', '-z'], cwd);
+  const paths = listed.split('\0').filter(Boolean);
+  let raw = '';
+  for (const filePath of paths) {
+    // Exit 1 means "different" for --no-index. Exit 0 is possible for an empty file.
+    raw += runGit(['diff', '--no-index', '--', '/dev/null', filePath], cwd, [0, 1]);
+    if (raw.length > MAX_DIFF_BUFFER) {
+      throw new Error(`git diff exceeded the ${MAX_DIFF_BUFFER / (1024 * 1024)} MiB safety limit`);
+    }
+  }
+  return raw;
+}
+
+export function runGitDiff(
+  args: string[],
+  cwd: string,
+  options: RunGitDiffOptions = {},
+): { raw: string; files: ParsedFile[] } {
   // Default maxBuffer is 1 MiB, which large diffs (lockfile churn, generated files) exceed,
   // spawnSync then reports ENOBUFS with status null and the diff is never analyzed.
-  const result = spawnSync('git', ['diff', ...args], { cwd, encoding: 'utf8', maxBuffer: 512 * 1024 * 1024 });
-  if (result.status !== 0) {
-    throw new Error((result.stderr as string) || result.error?.message || 'git diff failed');
-  }
-  const raw = (result.stdout as string).replace(/\r\n/g, '\n');
+  const tracked = runGit(['diff', ...args], cwd);
+  const raw = tracked + (options.includeUntracked ? untrackedDiff(cwd) : '');
   const files = parseDiff(raw);
   capLineLengths(files);
   return { raw, files };

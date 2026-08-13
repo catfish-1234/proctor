@@ -125,7 +125,7 @@ attribute-based. `.h` deliberately resolves to C, not C++, C headers vastly outn
 using the bare `.h` extension, a documented judgment call (RESEARCH Pitfall 4) rather than a
 missed case; `.mm` resolves to Objective-C since XCTest macro usage there is identical to `.m`.
 
-**Agents:** running `npx @kavishdua/proctor install-skill` deploys the honest-completion skill to
+**Agents:** running `proctor install-skill` from a local install deploys the honest-completion skill to
 every agent below from one source file (see
 [`src/adapters/registry.ts`](../src/adapters/registry.ts)). The Claude Code Stop hook only works with
 Claude Code specifically. The git pre-commit hook works no matter which agent (or human) is making
@@ -242,7 +242,7 @@ To add support for another agent:
    whenever the agent's convention allows one, since an owned path needs neither the block nor
    the manifest. `shared` and `transform` are mutually exclusive: a merged block sits inside a
    larger file and cannot carry file-level frontmatter.
-4. Run `npx @kavishdua/proctor install-skill` then `npx @kavishdua/proctor drift-check` in a
+4. Run `proctor install-skill` then `proctor drift-check` in a
    scratch repo and confirm it exits `0` (zero drift).
 5. Setting `scriptable: true` only documents that the agent has a headless/non-interactive
    invocation mode; it does not by itself wire up a `proctor bench` runner. To make the new

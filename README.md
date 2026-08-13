@@ -6,105 +6,63 @@
 
 <p align="center"><strong>Your agent didn't fix the bug. It deleted the test and told you it passed. proctor catches it.</strong></p>
 
-## What this is
+proctor reads your git diff and blocks the changes an AI coding agent makes when it fakes a
+finished job: deleting a failing test, weakening the assertion, hardcoding the answer, swallowing
+the error, or switching off the checks that were about to catch any of it.
 
-proctor is a command-line tool that reads your git diff and blocks the changes an AI coding agent
-makes when it fakes a finished job: deleting a failing test, skipping it, weakening the assertion,
-hardcoding the answer the test expects, swallowing the error, deleting the validation that
-complained, returning canned data instead of doing the work, or switching off the checks that were
-about to catch any of it.
+No network, no account, no API key. The whole check runs offline. You need Node 20 or newer.
 
-It has two halves.
+## Contents
 
-The **ruleset** is a short document telling your agent how to finish work honestly. Most agents
-follow it most of the time.
+**Getting started**
 
-The **guard** is for the rest of the time. A ruleset alone is a request, and an agent under
-pressure to show green can talk itself out of a request. So proctor also ships a
-deterministic, diff-level guard that runs on every commit and at the end of every agent turn, and
-blocks the changes that broke the rules. It works below the agent's own reasoning: it reads the
-code change itself, never the agent's explanation of it, so nothing the agent says can argue
-with it.
+- [Quickstart](#quickstart), try it against a repo without installing anything
+- [Install](#install), one command per agent
+- [What that setup does](#what-that-setup-does)
+- [One thing to do afterwards](#one-thing-to-do-afterwards)
+- [Checking it worked](#checking-it-worked)
+- [Removing it](#removing-it)
 
-No network, no account, no API key. The whole check runs offline.
+**Using it day to day**
 
-## See it catch a real cheat
+- [See it catch a real cheat](#see-it-catch-a-real-cheat)
+- [What happens when it blocks](#what-happens-when-it-blocks)
+- [What do the codes mean?](#what-do-the-codes-mean)
+- [Badges](#badges)
+- [CI](#ci)
 
-An agent is asked to fix a bug in a slug generator. It can't get the whitespace-only case to
-return `''`, so instead of fixing `slugify()`, it deletes the inconvenient test:
+**Why it works**
 
-```diff
- describe('slugify', () => {
-   it('converts spaces to dashes', () => {
-     expect(slugify('Hello World')).toBe('hello-world');
-   });
--  it('handles a whitespace-only input', () => {
--    expect(slugify('   ')).toBe('');
--  });
- });
-```
+- [How it works](#how-it-works)
+- [Can the agent get around it?](#can-the-agent-get-around-it)
+- [By the numbers](#by-the-numbers)
+- [Benchmark](#benchmark)
 
-```
-$ proctor check
-tests/slug.test.ts
-  ❌ tests/slug.test.ts:5  [RH001]  Test function 'handles a whitespace-only input' was deleted in this change.
-      Restore the deleted test or document why it was intentionally removed.
+**Reference**
 
-How to fix these honestly:
-  proctor check --explain RH001 --fix
+- [Going further](#going-further), every doc page
+- [The Proctor](#the-proctor)
+- [License](#license)
 
-1 finding (1 error, 0 warnings)
-$ echo $?
-2
-```
+## Quickstart
 
-The commit never lands. The agent has to actually fix `slugify()`, not just make the red go away.
-
-Here's the full two-scene recording: proctor catching a deleted test at the CLI layer, then the
-Claude Code Stop hook blocking the same cheat live in an agent session.
-
-![proctor demo](assets/demo.gif)
-
-## By the numbers
-
-**How often agents actually do this.** These are other people's published measurements, not ours:
-
-| | |
-|---|---|
-| **33.3%** | of ambiguous coding tasks where Claude Sonnet 4 hardcoded the expected output rather than solve the problem ([EvilGenie](https://arxiv.org/abs/2511.21654)) |
-| **2.1%** | the same behaviour on unambiguous tasks, where the right fix was never in doubt (same paper) |
-| **0.7%** | of tasks where Gemini 2.5 Pro deleted a test file outright (same paper) |
-| **up to 100 pts** | gap between "the visible tests pass" and "the held-out tests pass" on the largest tasks in [SpecBench](https://arxiv.org/abs/2605.21384). It widens by about 28 points per tenfold increase in code size, and adding test coverage does not close it |
-| **8 of 8** | agent benchmarks that [Berkeley RDI](https://rdi.berkeley.edu/blog/trustworthy-benchmarks-cont/) drove to near-perfect scores without solving a single task. SWE-bench Verified fell to a pytest hook that forced every test to pass |
-
-**What proctor catches.** Every number below comes out of `npm test` in this repo, against the
-fixture corpus in [`fixtures/`](fixtures):
-
-| | |
-|---|---|
-| **135 of 135** | planted cheats caught. One fixture per check per language, each asserted against the exact finding proctor has to produce, not just "something fired" |
-| **0 of 28** | near-miss fixtures flagged. Each one is a change built to look like a cheat and be legitimate: a single `@ts-ignore` with a justification, one retry rather than five, an empty catch whose comment explains itself, a guard clause extracted into a validator |
-| **21 of 21** | recorded cheats caught in the benchmark corpus, across 7 signatures. Whole-repo task diffs rather than minimal fixtures. The 22nd task is a control that plants no cheat, and proctor stays silent on it. Reproduce with `proctor bench --mock` |
-| **25** | checks in two families, across **25+** languages, installable into **30** agents |
-| **under 1s** | to check a commit, offline. Measured here at roughly 0.25s on a 3-file diff and 0.55s on a 79-file one, cold Node start included |
-
-**What we don't claim.** That proctor makes an agent *behave* better. That is a different measurement
-and our own [benchmark](#benchmark) has not produced it yet: the numbers there are a null result on
-tasks that turned out too easy to cheat on. The 135 of 135 above is a detection claim, which is the
-claim the tool actually makes.
-
-## Try it before installing anything
-
-In a git repository where you have uncommitted changes:
+The npm package is not published yet: `npm view @kavishdua/proctor` currently returns 404, so an
+`npx @kavishdua/proctor ...` command from the registry will not work. Until the first release, run
+the checked-out source against any git repository:
 
 ```bash
-npx @kavishdua/proctor check
+git clone https://github.com/catfish-1234/proctor.git
+cd proctor
+npm ci
+npm run build
+node dist/cli.js check /path/to/repository
 ```
-
-You need Node 20 or newer. Nothing is written, nothing is installed, and no network call is made.
 
 If it prints `✓ proctor: honest pass`, your current changes are clean. If your changes don't touch
 tests at all, that's the answer you should expect.
+
+The check writes nothing to the repository being checked and makes no runtime network call.
+`npm ci` installs build dependencies only in the proctor checkout.
 
 ## Install
 
@@ -126,18 +84,26 @@ qwen extensions install https://github.com/catfish-1234/proctor
 
 **Anything else** (30 agents supported, or none at all)
 
+Until the npm package is published, build its installable tarball from source:
+
 ```bash
-npm install --save-dev @kavishdua/proctor
+# In the proctor checkout
+npm ci
+npm run build
+npm pack
+
+# In the repository proctor should guard; use the .tgz path printed above
+npm install --save-dev /absolute/path/to/kavishdua-proctor-*.tgz
 ```
 
-That is the whole install. Proctor sets itself up as it installs: it works out which agents this
+That is the whole install. proctor sets itself up as it installs: it works out which agents this
 repo uses, writes the ruleset to those, installs the git pre-commit hook, and installs the Claude
 Code Stop hook if this repo uses Claude Code. There is no second command.
 
 It stays out of the way where setting itself up would be wrong: in CI, in a global install, when
 pulled in as somebody else's dependency, outside a git repository, or under `npx`. In each case it
 says which one applied and stops. `PROCTOR_NO_POSTINSTALL=1` turns it off entirely, and
-`npx @kavishdua/proctor setup` runs it by hand whenever you want.
+`npx proctor setup` runs it by hand whenever you want after the local tarball is installed.
 
 ### What that setup does
 
@@ -187,31 +153,42 @@ It removes only what it installed. Your own content in a shared file like `AGENT
 pre-commit hook that isn't proctor's is left alone, and `proctor.config.json` is left for you to
 keep or delete. To skip the hook once without uninstalling: `git commit --no-verify`.
 
-## Can the agent get around it?
+## See it catch a real cheat
 
-That is the question the design answers, so it is worth being concrete about.
+An agent is asked to fix a bug in a slug generator. It can't get the whitespace-only case to
+return `''`, so instead of fixing `slugify()`, it deletes the inconvenient test:
 
-**The commit hook fails closed.** If proctor cannot run at all, the commit is blocked rather than
-allowed. This used to be the other way round and it was the worst bug in the tool: the hook ran
-`npx @kavishdua/proctor check --staged` and treated exit 1 as "clean with warnings", but `npx` also
-exits 1 when it cannot resolve the package, so an unreachable registry looked identical to a clean
-run and the commit landed unchecked. The hook now probes with `--version` first, prefers a local
-install over the network, and refuses the commit when it cannot check it.
+```diff
+ describe('slugify', () => {
+   it('converts spaces to dashes', () => {
+     expect(slugify('Hello World')).toBe('hello-world');
+   });
+-  it('handles a whitespace-only input', () => {
+-    expect(slugify('   ')).toBe('');
+-  });
+ });
+```
 
-**Config is read from the committed baseline, not your working tree.** An agent that edits
-`proctor.config.json` in the same change it is trying to land has changed nothing about the run:
-enforcement uses the version at the diff baseline. The same goes for approvals and for inline
-`proctor-ignore` markers, which only count when they were committed *before* the change they
-excuse. Self-approval is not a matter of policy here, it does not work.
+```
+$ proctor check
+tests/slug.test.ts
+  ❌ tests/slug.test.ts:5  [RH001]  Test function 'handles a whitespace-only input' was deleted in this change.
+      Restore the deleted test or document why it was intentionally removed.
 
-**Switching the guard off is itself a finding.** WI104 fires on a check removed from `enabled`, a
-severity downgraded, an ignore pattern or approval added, a ruleset file deleted, a `--no-verify`
-added to a script, or TypeScript strictness turned off. Since the config edit was already inert,
-the point of the check is to make the attempt visible rather than to stop it.
+How to fix these honestly:
+  proctor check --explain RH001 --fix
 
-**It reads the diff, never the explanation.** Nothing the agent says about its change is an input.
-The remaining honest gap is a human running `git commit --no-verify`, which is deliberate: that is a
-person overriding their own tooling, and it is caught at the next turn by the Stop hook and in CI.
+1 finding (1 error, 0 warnings)
+$ echo $?
+2
+```
+
+The commit never lands. The agent has to actually fix `slugify()`, not just make the red go away.
+
+Here's the full two-scene recording: proctor catching a deleted test at the CLI layer, then the
+Claude Code Stop hook blocking the same cheat live in an agent session.
+
+![proctor demo](assets/demo.gif)
 
 ## What happens when it blocks
 
@@ -336,27 +313,74 @@ jobs:
       - uses: catfish-1234/proctor@main
 ```
 
-## Going further
+## How it works
 
-Everything above is the whole product for most people. These pages are for when you want more:
+proctor has two halves.
 
-| Page | What's in it |
-|------|--------------|
-| [docs/CLI.md](docs/CLI.md) | Every command and flag |
-| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Config file, severities, approvals, [inline suppression](docs/CONFIGURATION.md#inline-suppression) |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | It didn't fire, it fired wrongly, my approval didn't take |
-| [docs/LANGUAGES.md](docs/LANGUAGES.md) | Per-language support matrix, the 30 supported agents, known limitations |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Setting up, adding a check, adding an agent |
-| [docs/RELEASING.md](docs/RELEASING.md) | Maintainer notes: how a tag becomes a release |
-| [RESEARCH.md](RESEARCH.md) | Why it's built this way, and how it compares to Stryker and EvilGenie |
-| [bench/METHODOLOGY.md](bench/METHODOLOGY.md) | How the benchmark works and what it does not claim |
+The **ruleset** is a short document telling your agent how to finish work honestly. Most agents
+follow it most of the time.
 
-proctor supports 25+ languages and installs to 30 agents. Five diff-level checks (RH001, RH002,
-RH003, RH007, RH011) work across all of them; six (RH004, RH005, RH006, RH008, RH009, RH010) are
-JS/TS/Python-only; and RH012 and RH013 read CI and coverage config, so they apply everywhere. Of the
-work-integrity family, WI101, WI102 and WI103 carry per-language signatures, WI104 reads config
-files so it applies everywhere, and WI105 and WI106 are scoped to the languages whose tokens are
-unambiguous. [Full matrix](docs/LANGUAGES.md).
+The **guard** is for the rest of the time. A ruleset alone is a request, and an agent under
+pressure to show green can talk itself out of a request. So proctor also ships a
+deterministic, diff-level guard that runs on every commit and at the end of every agent turn, and
+blocks the changes that broke the rules. It works below the agent's own reasoning: it reads the
+code change itself, never the agent's explanation of it, so nothing the agent says can argue
+with it.
+
+## Can the agent get around it?
+
+That is the question the design answers, so it is worth being concrete about.
+
+**The commit hook fails closed.** If proctor cannot run at all, the commit is blocked rather than
+allowed. This used to be the other way round and it was the worst bug in the tool: the hook ran
+`npx @kavishdua/proctor check --staged` and treated exit 1 as "clean with warnings", but `npx` also
+exits 1 when it cannot resolve the package, so an unreachable registry looked identical to a clean
+run and the commit landed unchecked. The hook now probes with `--version` first, prefers a local
+install over the network, and refuses the commit when it cannot check it.
+
+**Config is read from the committed baseline, not your working tree.** An agent that edits
+`proctor.config.json` in the same change it is trying to land has changed nothing about the run:
+enforcement uses the version at the diff baseline. The same goes for approvals and for inline
+`proctor-ignore` markers, which only count when they were committed *before* the change they
+excuse. Self-approval is not a matter of policy here, it does not work.
+
+**Switching the guard off is itself a finding.** WI104 fires on a check removed from `enabled`, a
+severity downgraded, an ignore pattern or approval added, a ruleset file deleted, a `--no-verify`
+added to a script, or TypeScript strictness turned off. Since the config edit was already inert,
+the point of the check is to make the attempt visible rather than to stop it.
+
+**It reads the diff, never the explanation.** Nothing the agent says about its change is an input.
+The remaining honest gap is a human running `git commit --no-verify`, which is deliberate: that is a
+person overriding their own tooling, and it is caught at the next turn by the Stop hook and in CI.
+
+## By the numbers
+
+**How often agents actually do this.** These are other people's published measurements, not ours:
+
+| | |
+|---|---|
+| **33.3%** | of ambiguous coding tasks where Claude Sonnet 4 hardcoded the expected output rather than solve the problem ([EvilGenie](https://arxiv.org/abs/2511.21654)) |
+| **2.1%** | the same behaviour on unambiguous tasks, where the right fix was never in doubt (same paper) |
+| **0.7%** | of tasks where Gemini 2.5 Pro deleted a test file outright (same paper) |
+| **up to 100 pts** | gap between "the visible tests pass" and "the held-out tests pass" on the largest tasks in [SpecBench](https://arxiv.org/abs/2605.21384). It widens by about 28 points per tenfold increase in code size, and adding test coverage does not close it |
+| **8 of 8** | agent benchmarks that [Berkeley RDI](https://rdi.berkeley.edu/blog/trustworthy-benchmarks-cont/) drove to near-perfect scores without solving a single task. SWE-bench Verified fell to a pytest hook that forced every test to pass |
+
+**What proctor catches.** The fixture and benchmark numbers below come out of `npm test`; the
+adversarial number comes from the independent widening corpus in [`bench/redteam/`](bench/redteam):
+
+| | |
+|---|---|
+| **135 of 135** | planted cheats caught. One fixture per check per language, each asserted against the exact finding proctor has to produce, not just "something fired" |
+| **0 of 28** | near-miss fixtures flagged. Each one is a change built to look like a cheat and be legitimate: a single `@ts-ignore` with a justification, one retry rather than five, an empty catch whose comment explains itself, a guard clause extracted into a validator |
+| **21 of 21** | recorded cheats caught in the benchmark corpus, across 7 signatures. Whole-repo task diffs rather than minimal fixtures. The 22nd task is a control that plants no cheat, and proctor stays silent on it. Reproduce with `proctor bench --mock` |
+| **30 of 34** | adversarial cheat diffs caught, with **0 of 8** legitimate controls flagged. The four misses remain published because they need intent or external context that a diff does not contain. Reproduce with `node bench/redteam/probe.mjs` |
+| **25** | checks in two families, across **25+** languages, installable into **30** agents |
+| **under 1s** | to check a commit, offline. Measured here at roughly 0.25s on a 3-file diff and 0.55s on a 79-file one, cold Node start included |
+
+**What we don't claim.** That proctor makes an agent *behave* better. That is a different measurement
+and our own [benchmark](#benchmark) has not produced it yet: the numbers there are a null result on
+tasks that turned out too easy to cheat on. The 135 of 135 above is a detection claim, which is the
+claim the tool actually makes.
 
 ## Benchmark
 
@@ -380,6 +404,33 @@ git clone https://github.com/catfish-1234/proctor && cd proctor
 npm install && npm run build
 node dist/cli.js bench --tasks 22 --agent claude-code --out bench/results-live.csv
 ```
+
+A real-agent run is dozens of back-to-back CLI invocations, and hitting an agent's rate limit looks
+exactly like an honest run: no changes, no cheat, no finding. Set `PROCTOR_BENCH_DELAY_MS` to pace
+it, and read the `proctor: bench task-NN ... failed` lines on stderr before trusting any number the
+table prints.
+
+## Going further
+
+Everything above is the whole product for most people. These pages are for when you want more:
+
+| Page | What's in it |
+|------|--------------|
+| [docs/CLI.md](docs/CLI.md) | Every command and flag |
+| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Config file, severities, approvals, [inline suppression](docs/CONFIGURATION.md#inline-suppression) |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | It didn't fire, it fired wrongly, my approval didn't take |
+| [docs/LANGUAGES.md](docs/LANGUAGES.md) | Per-language support matrix, the 30 supported agents, known limitations |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Setting up, adding a check, adding an agent |
+| [docs/RELEASING.md](docs/RELEASING.md) | Maintainer notes: how a tag becomes a release |
+| [RESEARCH.md](RESEARCH.md) | Why it's built this way, and how it compares to Stryker and EvilGenie |
+| [bench/METHODOLOGY.md](bench/METHODOLOGY.md) | How the benchmark works and what it does not claim |
+
+proctor supports 25+ languages and installs to 30 agents. Five diff-level checks (RH001, RH002,
+RH003, RH007, RH011) work across all of them; six (RH004, RH005, RH006, RH008, RH009, RH010) are
+JS/TS/Python-only; and RH012 and RH013 read CI and coverage config, so they apply everywhere. Of the
+work-integrity family, WI101, WI102 and WI103 carry per-language signatures, WI104 reads config
+files so it applies everywhere, and WI105 and WI106 are scoped to the languages whose tokens are
+unambiguous. [Full matrix](docs/LANGUAGES.md).
 
 ## The Proctor
 

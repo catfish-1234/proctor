@@ -4,8 +4,15 @@ import { mkdtempSync, writeFileSync, mkdirSync, rmSync, existsSync, unlinkSync }
 import { execFileSync, spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 
-const CLI = '/home/user/proctor/dist/cli.js';
+// Resolve relative to this file, not an absolute path: a wrong CLI path makes every case
+// report "not caught" rather than erroring, i.e. a silent 0/34 that reads like a regression.
+const CLI = fileURLToPath(new URL('../../dist/cli.js', import.meta.url));
+if (!existsSync(CLI)) {
+  console.error(`probe: ${CLI} not found. Run npm run build first.`);
+  process.exit(2);
+}
 
 /**
  * Each case: { name, category, before: {path: content}, after: {path: content|null} }

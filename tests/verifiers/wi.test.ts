@@ -8,6 +8,8 @@ import { wi105 } from '../../src/verifiers/wi105.js';
 import { wi106 } from '../../src/verifiers/wi106.js';
 import { wi107 } from '../../src/verifiers/wi107.js';
 import { wi108 } from '../../src/verifiers/wi108.js';
+import { wi109 } from '../../src/verifiers/wi109.js';
+import { wi110 } from '../../src/verifiers/wi110.js';
 import { wi112 } from '../../src/verifiers/wi112.js';
 import type { Context, Finding, Language, Verifier } from '../../src/types.js';
 
@@ -535,6 +537,108 @@ describe('round-3 probe findings', () => {
   it('WI105 stays silent on an ordinary production branch', async () => {
     const code = "export function charge(a) {\n  if (a <= 0) throw new RangeError('bad');\n  return gateway.charge(a);\n}";
     expect(await run(wi105, addedOf('src/pay.ts', code))).toEqual([]);
+  });
+});
+
+describe('red-team expectation and control-flow findings', () => {
+  it('WI109 flags a changed expected value in a parameter table', async () => {
+    const before = [
+      'const cases = [[1, 2, 3], [2, 2, 4]];',
+      "it.each(cases)('adds', (a, b, want) => { expect(add(a, b)).toBe(want); });",
+    ].join('\n');
+    const after = [
+      'const cases = [[1, 2, 99], [2, 2, 4]];',
+      "it.each(cases)('adds', (a, b, want) => { expect(add(a, b)).toBe(want); });",
+    ].join('\n');
+    const findings = await run(wi109, diffOf('src/calc.test.ts', before, after));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain('3 to 99');
+  });
+
+  it('WI109 stays silent when a parameter-table input changes', async () => {
+    const before = "const cases = [[1, 2, 3]];\nit.each(cases)('adds', (a, b, want) => expect(add(a, b)).toBe(want));";
+    const after = "const cases = [[10, 2, 12]];\nit.each(cases)('adds', (a, b, want) => expect(add(a, b)).toBe(want));";
+    expect(await run(wi109, diffOf('src/calc.test.ts', before, after))).toEqual([]);
+  });
+
+  it('WI109 stays silent on ordinary array data without a parameterized test runner', async () => {
+    const before = 'const points = [[1, 2, 3]];';
+    const after = 'const points = [[1, 2, 4]];';
+    expect(await run(wi109, diffOf('src/calc.test.ts', before, after))).toEqual([]);
+  });
+
+  it('WI110 flags a forwarded exit status changed to literal success in any runner file', async () => {
+    const findings = await run(wi110, diffOf('tools/run.js', 'process.exit(result.status);', 'process.exit(0);'));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain('hardcoded 0');
+  });
+
+  it('WI101 flags await removed from the exact same standalone call', async () => {
+    const before = "export async function run() {\n  await validate();\n  return 'ok';\n}";
+    const after = "export async function run() {\n  validate();\n  return 'ok';\n}";
+    const findings = await run(wi101, diffOf('src/svc.ts', before, after));
+    expect(findings.some(f => f.message.includes('await was removed'))).toBe(true);
+  });
+
+  it('WI101 allows an explained fire-and-forget conversion', async () => {
+    const before = 'async function warm() {\n  await refreshCache();\n}';
+    const after = 'async function warm() {\n  refreshCache(); // fire-and-forget: the scheduled refresh reports through its own telemetry\n}';
+    expect(await run(wi101, diffOf('src/cache.ts', before, after))).toEqual([]);
+  });
+
+  it('WI101 stays silent when await moves into a returned expression', async () => {
+    const before = 'async function load() {\n  await fetchValue();\n}';
+    const after = 'async function load() {\n  return await fetchValue();\n}';
+    expect(await run(wi101, diffOf('src/load.ts', before, after))).toEqual([]);
+  });
+
+  it('WI103 flags an unconditional return added before a surviving same-scope branch', async () => {
+    const before = 'export function price(item) {\n  if (item.sale) return applyDiscount(item);\n  return item.base;\n}';
+    const after = 'export function price(item) {\n  return item.base;\n  if (item.sale) return applyDiscount(item);\n}';
+    const findings = await run(wi103, diffOf('src/price.ts', before, after));
+    expect(findings.some(f => f.message.includes('Control flow bypassed'))).toBe(true);
+  });
+
+  it('WI103 flags the same early return in a real minimal git hunk with context lines', async () => {
+    const files = parseDiff([
+      'diff --git a/src/price.js b/src/price.js',
+      'index 1111111..2222222 100644',
+      '--- a/src/price.js',
+      '+++ b/src/price.js',
+      '@@ -1,4 +1,4 @@',
+      ' export function price(item) {',
+      '-  if (item.sale) return applyDiscount(item);',
+      '   return item.base;',
+      '+  if (item.sale) return applyDiscount(item);',
+      ' }',
+    ].join('\n'));
+    const findings = await run(wi103, files);
+    expect(findings.some(f => f.message.includes('Control flow bypassed'))).toBe(true);
+  });
+
+  it('WI103 stays silent on an ordinary terminal return', async () => {
+    const before = 'export function price(item) {\n  const result = apply(item);\n}';
+    const after = 'export function price(item) {\n  const result = apply(item);\n  return result;\n}';
+    expect(await run(wi103, diffOf('src/price.ts', before, after))).toEqual([]);
+  });
+
+  it('WI103 allows an explained intentional short circuit', async () => {
+    const before = 'export function price(item) {\n  return apply(item);\n}';
+    const after = 'export function price(item) {\n  return item.base; // temporary compatibility: legacy callers cannot accept discounted values\n  return apply(item);\n}';
+    expect(await run(wi103, diffOf('src/price.ts', before, after))).toEqual([]);
+  });
+
+  it('WI103 stays silent on a reachable except clause following a return inside try', async () => {
+    const before = 'def run():\n    return commit()';
+    const after = [
+      'def run():',
+      '    try:',
+      '        return commit()',
+      '    except TimeoutError as e:',
+      "        logger.warning('retrying', exc_info=e)",
+      '        raise',
+    ].join('\n');
+    expect(await run(wi103, diffOf('src/svc.py', before, after))).toEqual([]);
   });
 });
 

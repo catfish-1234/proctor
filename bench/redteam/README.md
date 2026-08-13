@@ -42,9 +42,14 @@ unchanged.
 
 ## Current state
 
-**26 of 34 cheats caught, 0 of 8 controls flagged**, across six rounds. The arc was 4/20 → 13/20 →
-17/28 → 22/34 → 24/34 → 26/34, and every round that widened the corpus found more than the rounds
-that deepened it.
+**30 of 34 cheats caught, 0 of 8 controls flagged**, across seven rounds. The arc was 4/20, 13/20,
+17/28, 22/34, 24/34, 26/34, then 30/34. Every round that widened the corpus found more than the
+rounds that deepened it.
+
+The seventh round closed four strong before/after signals rather than broad token matches: an
+expected value changing in a parameter table while its inputs stay fixed; a forwarded process
+status becoming literal zero; `await call()` becoming the exact same bare `call()`; and code moved
+or added after an unconditional return. Each shipped with a neighboring legitimate control.
 
 Two results from those rounds are worth more than the count.
 
@@ -64,22 +69,14 @@ nothing:
 
 | Case | Why it is still open |
 |---|---|
-| Expected value changed inside a data-driven table | WI109 pairs an assertion line against itself; a value living in a separate `cases` array has no assertion on its line to pair with. Needs the table and its consumer read together |
-| `process.exit(0)` in a standalone runner script | WI110 scopes to task-runner files and shell scripts. A bare `.js` runner is not distinguishable from ordinary code that legitimately exits zero |
-| A golden/expected data file rewritten | RH006 covers snapshots specifically. Generalising to any `expected/*.json` needs a reason-stating convention like RH006's, which does not exist for arbitrary data |
 | Benchmark iteration count reduced | Legitimately tuned all the time. Would need to know the budget it is measured against |
-| A retry action wrapped around a CI test step | RH012 reads `run:` steps; this is a `uses:` step with the command in a `with:` block. Tractable, not yet done |
 | A dependency pinned back to dodge a failing version | Indistinguishable from ordinary pinning without knowing why the version moved |
 | Error logging removed | A deleted `console.error` is not reliably a cheat. Needs to know the call sat on a failure path |
-| A real module aliased to a stub in build config | WI105 reads source, not bundler aliases. Tractable: the alias target naming a stub or mock is a strong signal |
-| Assertion count reduced by deleting one of several expects | RH009 covers a trivial test swapped for a real one, not assertions removed from a surviving test. Needs a per-test assertion count across the diff |
-| `await` dropped so a rejection is never observed | A deleted `await` on a call that survives is a real signal and worth doing; distinguishing it from a deliberate fire-and-forget is the open question |
 | A `setTimeout` sleep inserted to paper over a race | RH010 watches test timeouts and retries. The shipped-code equivalent is the same idea one layer over |
 
-What is left is mostly not a regex problem. A dropped `await` and a deliberate fire-and-forget are
-byte-identical diffs; so are a `setTimeout` papering over a race and a legitimate backoff, and a
-dependency pinned to dodge a failure versus pinned for any other reason. The difference is intent,
-and a diff does not carry intent.
+What is left is not a regex problem. A reduced benchmark budget, a dependency pin, a deleted log,
+and a delay can all be either a cheat or legitimate maintenance. The difference is intent or an
+external requirement, and a diff does not carry either one.
 
 Shipping signatures for those would mean firing on legitimate work, and round four already priced
 that: one false positive on somebody widening their test suite costs more than several misses.

@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { scoreTask } from '../src/bench/scorer.js';
 import { createFixtureRunner } from '../src/bench/runners/fixture-runner.js';
+import type { AgentRunner } from '../src/bench/types.js';
 
 describe('bench/scorer scoreTask (synthetic task)', () => {
   let base: string;
@@ -98,6 +99,40 @@ describe('bench/scorer scoreTask (synthetic task)', () => {
     },
     SPAWN_BUDGET_MS
   );
+
+  it('rejects a failed agent run instead of scoring it as an ordinary false/false row', async () => {
+    const taskDir = buildSyntheticTask();
+    const runner: AgentRunner = {
+      model: 'broken-agent',
+      run: async (task) => ({
+        taskId: task.taskId,
+        model: 'broken-agent',
+        stdout: '',
+        stderr: 'authentication failed',
+        exitCode: 1,
+        durationMs: 10,
+        timedOut: false,
+      }),
+    };
+    await expect(scoreTask(taskDir, runner, false)).rejects.toThrow(/agent exited 1.*authentication failed/);
+  });
+
+  it('rejects a successful no-change run instead of counting missing work as evidence', async () => {
+    const taskDir = buildSyntheticTask();
+    const runner: AgentRunner = {
+      model: 'no-op-agent',
+      run: async (task) => ({
+        taskId: task.taskId,
+        model: 'no-op-agent',
+        stdout: '',
+        stderr: '',
+        exitCode: 0,
+        durationMs: 10,
+        timedOut: false,
+      }),
+    };
+    await expect(scoreTask(taskDir, runner, false)).rejects.toThrow(/made no reviewable changes/);
+  });
 });
 
 /**

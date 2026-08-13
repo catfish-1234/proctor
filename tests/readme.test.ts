@@ -141,10 +141,18 @@ describe('README.md content', () => {
   it('"By the numbers" cites its external figures rather than asserting them', () => {
     // Every rate quoted in the problem table belongs to somebody else's paper. If a number is
     // going to sit in a README as marketing, the reader has to be able to go check it.
-    const section = readmeContent.slice(
-      readmeContent.indexOf('## By the numbers'),
-      readmeContent.indexOf('## Try it before installing anything')
-    );
+    // Delimited by the section's own next heading, not by whichever section used to follow it.
+    // The original bound was the literal '## Try it before installing anything', which made this
+    // assertion silently vacuous the moment the README was reordered to put the quickstart above
+    // the evidence: slice() with an earlier end index returns '', and every expect below passes
+    // against an empty string. Same assertions, on a boundary that cannot be reordered out from
+    // under them.
+    const start = readmeContent.indexOf('## By the numbers');
+    expect(start).toBeGreaterThanOrEqual(0);
+    const rest = readmeContent.slice(start + '## By the numbers'.length);
+    const nextHeading = rest.indexOf('\n## ');
+    const section = rest.slice(0, nextHeading === -1 ? rest.length : nextHeading);
+    expect(section.trim().length).toBeGreaterThan(0);
     expect(section).toContain('arxiv.org/abs/2511.21654'); // EvilGenie
     expect(section).toContain('arxiv.org/abs/2605.21384'); // SpecBench
     expect(section).toMatch(/rdi\.berkeley\.edu/); // Berkeley RDI

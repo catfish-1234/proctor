@@ -90,15 +90,21 @@ honest-pass badge. Approving makes a finding non-blocking and visible, not invis
 npm error could not determine executable to run
 ```
 
-Use the fully-scoped name. `npx proctor` only resolves after a global or local install; `npx
-@kavishdua/proctor` always works:
+The package has not been published to npm yet, so registry-based `npx @kavishdua/proctor` commands
+currently return 404. Build a tarball from a Proctor checkout and install it in the guarded
+repository first:
 
 ```bash
-npx @kavishdua/proctor check
+npm ci
+npm run build
+npm pack
+# Then, in the guarded repository:
+npm install --save-dev /absolute/path/to/kavishdua-proctor-*.tgz
+npx proctor check
 ```
 
-If npm reports a 404 for the package, check your registry configuration
-(`npm config get registry`) and that you are not behind a proxy that blocks it.
+After the first public release, a 404 should instead prompt a registry check with
+`npm config get registry` and a check for a proxy that blocks npm.
 
 ## `proctor bench` says there are no tasks
 

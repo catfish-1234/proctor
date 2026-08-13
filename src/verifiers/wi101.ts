@@ -1,5 +1,5 @@
 import type { Context, Finding, Verifier } from '../types.js';
-import { addedLines, afterLines, hasExplanation, insideTemplateLiteral, isCommentLine, isWatchedSource, pathOf, withoutLiterals } from './wi-common.js';
+import { addedLines, afterLines, deletedLines, hasExplanation, insideTemplateLiteral, isCommentLine, isWatchedSource, pathOf, withoutLiterals, withoutTrailingComment } from './wi-common.js';
 
 /**
  * Silent error swallowing.
@@ -181,6 +181,22 @@ function bodyIsEmpty(lines: { text: string }[], startIndex: number, braced: bool
   return braced ? false : !sawContent;
 }
 
+/** A standalone awaited call, excluding `return await` and assignments where dropping await can be a refactor. */
+function awaitedCall(text: string): string | undefined {
+  const match = /^\s*await\s+([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\s*\([^;]*\))\s*;?\s*$/.exec(
+    withoutTrailingComment(text),
+  );
+  return match?.[1]?.replace(/\s+/g, '');
+}
+
+/** The same standalone call without await. */
+function bareCall(text: string): string | undefined {
+  const match = /^\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\s*\([^;]*\))\s*;?\s*$/.exec(
+    withoutTrailingComment(text),
+  );
+  return match?.[1]?.replace(/\s+/g, '');
+}
+
 function run(context: Context): Finding[] {
   const findings: Finding[] = [];
 
@@ -192,6 +208,28 @@ function run(context: Context): Finding[] {
       const after = afterLines(chunk);
       const addedInOrder = addedLines(chunk);
       const templated = insideTemplateLiteral(addedInOrder);
+
+      // `await validate()` becoming `validate()` leaves the call in place but makes a rejection
+      // invisible to this function and lets the function report success before validation ends.
+      // Pairing the exact call across the diff keeps this narrower than a general "floating
+      // promise" lint rule. A comment can document deliberate fire-and-forget behavior.
+      const removedAwaited = deletedLines(chunk)
+        .map(line => ({ line, call: awaitedCall(line.text) }))
+        .filter(item => item.call !== undefined);
+      for (const added of addedInOrder) {
+        if (hasExplanation(added.text) || isCommentLine(added.text)) continue;
+        const call = bareCall(added.text);
+        if (!call || !removedAwaited.some(prior => prior.call === call)) continue;
+        findings.push({
+          verifierId: 'WI101',
+          severity: 'error',
+          file: filePath,
+          line: added.line,
+          message: 'Error no longer observed: await was removed from a call that still runs, so its rejection can escape after this function has already reported success.',
+          suggestion:
+            'Restore await. If this call is deliberately fire-and-forget, attach explicit rejection handling and explain why the caller does not need its result.',
+        });
+      }
 
       for (const [index, added] of addedInOrder.entries()) {
         if (templated.has(index)) continue;

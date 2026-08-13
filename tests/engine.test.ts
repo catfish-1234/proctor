@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { runChecks } from '../src/engine.js';
+import { VERIFIERS } from '../src/verifiers/registry.js';
 import type { ParsedFile } from '../src/diff.js';
 import type { Context } from '../src/types.js';
 
@@ -24,6 +25,16 @@ function makeFile(to: string, chunks: ParsedFile['chunks'] = []): ParsedFile {
 }
 
 describe('runChecks', () => {
+  it('propagates a verifier failure instead of minting an honest pass', async () => {
+    const broken = { id: 'ZZ999', severity: 'error' as const, run: () => { throw new Error('broken verifier'); } };
+    VERIFIERS.push(broken);
+    try {
+      await expect(runChecks(makeCtx({ enabled: ['ZZ999'] }))).rejects.toThrow('broken verifier');
+    } finally {
+      VERIFIERS.pop();
+    }
+  });
+
   it('returns findings from all enabled verifiers', async () => {
     const skipFile = makeFile('src/calc.test.ts', [
       {

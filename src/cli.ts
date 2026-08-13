@@ -135,7 +135,7 @@ program
         : options.staged ? ['--staged'] : [];
     let raw: string, files: import('./diff.js').ParsedFile[];
     try {
-      ({ raw, files } = runGitDiff(diffArgs, cwd));
+      ({ raw, files } = runGitDiff(diffArgs, cwd, { includeUntracked: options.uncommitted === true }));
     } catch (err) {
       const msg = String(err);
       // Give the common "not in a git repo" case a clean one-line message instead of git's raw
@@ -183,7 +183,11 @@ program
       findings = await runChecks(ctx);
     } catch (err) {
       process.stderr.write('proctor: check failed: ' + String(err) + '\n');
-      process.exit(0); // fail open: never block a commit because proctor itself errored
+      // Distinct from a finding (2) and a warning (1). The pre-commit hook propagates this and
+      // therefore fails closed; the Claude Stop hook deliberately blocks only on 2 and retains
+      // its documented fail-open policy for infrastructure failures.
+      process.exitCode = 3;
+      return;
     }
     if (options.markdown) {
       // Appended, not overwritten: $GITHUB_STEP_SUMMARY is shared by every step in the job, so
@@ -641,4 +645,12 @@ program
     process.exit(result.exitCode);
   });
 
-await program.parseAsync(process.argv);
+try {
+  await program.parseAsync(process.argv);
+} catch (err) {
+  // Node's default for an uncaught exception is exit 1, but check uses 1 for warning-only
+  // findings and the pre-commit hook deliberately allows that code. Normalize unexpected command
+  // failures to the infrastructure code so a crash can never masquerade as an allowed warning.
+  process.stderr.write(`proctor: command failed: ${String(err)}\n`);
+  process.exitCode = 3;
+}

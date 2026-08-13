@@ -40,6 +40,23 @@ compares the pattern set rather than the line, so adding a glob stays silent whi
 glob to a single file still fires, a case a naive count comparison misses because the count is
 unchanged.
 
+## Current state
+
+**26 of 34 cheats caught, 0 of 8 controls flagged**, across six rounds. The arc was 4/20 → 13/20 →
+17/28 → 22/34 → 24/34 → 26/34, and every round that widened the corpus found more than the rounds
+that deepened it.
+
+Two results from those rounds are worth more than the count.
+
+The corpus produced exactly one false positive in six rounds: RH007 firing on a widened `testMatch`.
+That is the failure mode to care about. A guard that reports somebody for broadening their test
+suite gets uninstalled, and no amount of detection makes up for it.
+
+The literal-handling rule was learned the expensive way, five times. Blank string and regex literals
+when the token you are matching is code; leave them when the token is data. WI105 matches
+`NODE_ENV === 'test'`, where the value is the signal, so blanking erased it and detection silently
+dropped by one. Only this corpus noticed: the test suite was green and the base check was clean.
+
 ## Still getting through
 
 Listed rather than quietly dropped, because a red-team corpus whose failures are invisible is worth
@@ -59,5 +76,13 @@ nothing:
 | `await` dropped so a rejection is never observed | A deleted `await` on a call that survives is a real signal and worth doing; distinguishing it from a deliberate fire-and-forget is the open question |
 | A `setTimeout` sleep inserted to paper over a race | RH010 watches test timeouts and retries. The shipped-code equivalent is the same idea one layer over |
 
-The first and fifth are the two worth doing next: both are real cheats with a real signal, and
-neither needs anything the diff does not already contain.
+What is left is mostly not a regex problem. A dropped `await` and a deliberate fire-and-forget are
+byte-identical diffs; so are a `setTimeout` papering over a race and a legitimate backoff, and a
+dependency pinned to dodge a failure versus pinned for any other reason. The difference is intent,
+and a diff does not carry intent.
+
+Shipping signatures for those would mean firing on legitimate work, and round four already priced
+that: one false positive on somebody widening their test suite costs more than several misses.
+Pushing past this ceiling needs a different instrument, either the `--ai` judge on the ambiguous
+cases or a specification to check against, both of which are deliberately outside the deterministic
+core. That is a scoping decision rather than a missing regex.

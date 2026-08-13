@@ -105,6 +105,16 @@ const WEAK_PATTERNS = [
 // inside an object is a normal idiom and is deliberately NOT treated as weak.
 const ORDERING_WEAK = /\.toBe(?:GreaterThan|LessThan)(?:OrEqual)?\(/;
 const SOLE_ANYTHING = /\.(?:toBe|toEqual|toStrictEqual)\(\s*expect\.anything\(\)\s*\)/;
+/**
+ * Containment and pattern matchers, weak in exactly the same contextual sense as ordering.
+ *
+ * `expect(html).toContain('<p>')` is a perfectly good assertion on its own and fires on nothing
+ * here. What it cannot do is stand in for `expect(html).toBe('<p>Hi</p>')` on the same subject: the
+ * exact assertion pins the whole value, and the containment one passes for any output that happens
+ * to include a fragment of it. Found by adversarial probing, where exactly that substitution walked
+ * past every existing pattern because `toContain` is not weak in absolute terms.
+ */
+const CONTAINMENT_WEAK = /\.(?:toContain|toContainEqual|toMatch|toHaveProperty)\(/;
 
 function isStrongAssertion(content: string): boolean {
   // `.toEqual(expect.anything())` matches a STRONG shape but asserts nothing, exclude it.
@@ -117,7 +127,7 @@ function isWeakAssertion(content: string): boolean {
 }
 
 function isContextualWeak(content: string): boolean {
-  return ORDERING_WEAK.test(content) || SOLE_ANYTHING.test(content);
+  return ORDERING_WEAK.test(content) || SOLE_ANYTHING.test(content) || CONTAINMENT_WEAK.test(content);
 }
 
 /**

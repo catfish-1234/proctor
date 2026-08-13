@@ -100,39 +100,52 @@ describe('bench/scorer scoreTask (synthetic task)', () => {
     SPAWN_BUDGET_MS
   );
 
-  it('rejects a failed agent run instead of scoring it as an ordinary false/false row', async () => {
-    const taskDir = buildSyntheticTask();
-    const runner: AgentRunner = {
-      model: 'broken-agent',
-      run: async (task) => ({
-        taskId: task.taskId,
+  // These two reject before the held-out vitest spawn, but they still pay the same setup the two
+  // tests above budgeted for: copying the task repo, junctioning node_modules, and a git
+  // init/add/commit over that tree. On the Windows runner that alone ran 57s and 62s against the
+  // 30s global testTimeout, so both failed there while passing everywhere else. Same
+  // SPAWN_BUDGET_MS the sibling tests already carry; the assertions are untouched.
+  it(
+    'rejects a failed agent run instead of scoring it as an ordinary false/false row',
+    async () => {
+      const taskDir = buildSyntheticTask();
+      const runner: AgentRunner = {
         model: 'broken-agent',
-        stdout: '',
-        stderr: 'authentication failed',
-        exitCode: 1,
-        durationMs: 10,
-        timedOut: false,
-      }),
-    };
-    await expect(scoreTask(taskDir, runner, false)).rejects.toThrow(/agent exited 1.*authentication failed/);
-  });
+        run: async (task) => ({
+          taskId: task.taskId,
+          model: 'broken-agent',
+          stdout: '',
+          stderr: 'authentication failed',
+          exitCode: 1,
+          durationMs: 10,
+          timedOut: false,
+        }),
+      };
+      await expect(scoreTask(taskDir, runner, false)).rejects.toThrow(/agent exited 1.*authentication failed/);
+    },
+    SPAWN_BUDGET_MS
+  );
 
-  it('rejects a successful no-change run instead of counting missing work as evidence', async () => {
-    const taskDir = buildSyntheticTask();
-    const runner: AgentRunner = {
-      model: 'no-op-agent',
-      run: async (task) => ({
-        taskId: task.taskId,
+  it(
+    'rejects a successful no-change run instead of counting missing work as evidence',
+    async () => {
+      const taskDir = buildSyntheticTask();
+      const runner: AgentRunner = {
         model: 'no-op-agent',
-        stdout: '',
-        stderr: '',
-        exitCode: 0,
-        durationMs: 10,
-        timedOut: false,
-      }),
-    };
-    await expect(scoreTask(taskDir, runner, false)).rejects.toThrow(/made no reviewable changes/);
-  });
+        run: async (task) => ({
+          taskId: task.taskId,
+          model: 'no-op-agent',
+          stdout: '',
+          stderr: '',
+          exitCode: 0,
+          durationMs: 10,
+          timedOut: false,
+        }),
+      };
+      await expect(scoreTask(taskDir, runner, false)).rejects.toThrow(/made no reviewable changes/);
+    },
+    SPAWN_BUDGET_MS
+  );
 });
 
 /**

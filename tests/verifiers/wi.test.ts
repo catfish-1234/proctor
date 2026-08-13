@@ -536,3 +536,19 @@ describe('round-3 probe findings', () => {
     expect(await run(wi105, addedOf('src/pay.ts', code))).toEqual([]);
   });
 });
+
+describe('WI105 test-only branch, literal handling', () => {
+  it('stays silent on the branch quoted inside a single-line template', async () => {
+    // The red-team corpus stores payloads as single-line backtick strings, so the multi-line
+    // template guard does not reach them. The identifier has to survive literal-blanking for the
+    // branch to count as code.
+    const code = "C('env', 'x', { 'a.js': `if (process.env.NODE_ENV === 'test') return { ok: true };` });";
+    expect(await run(wi105, addedOf('bench/probe.mjs', code))).toEqual([]);
+  });
+
+  it('still fires on the same branch as real code', async () => {
+    const code = "export function charge(a) {\n  if (process.env.NODE_ENV === 'test') return { ok: true };\n  return gateway.charge(a);\n}";
+    const findings = await run(wi105, addedOf('src/pay.ts', code));
+    expect(findings.some(f => f.message.includes('Test-only branch'))).toBe(true);
+  });
+});

@@ -263,3 +263,20 @@ export function insideTemplateLiteral(lines: DiffLine[]): Set<number> {
   }
   return inside;
 }
+
+/**
+ * Added lines that are actually code: not comments, not inside a multi-line template.
+ *
+ * Five separate checks have now shipped a signature without this guard and been caught by
+ * proctor's own corpus reporting its payloads as real cheats. The pattern is not a series of
+ * individual oversights, it is the default: writing a signature and matching it against raw added
+ * lines is the obvious thing to do, and it is wrong in any repository that writes the token down.
+ *
+ * Making it one call is the point. A check that wants raw lines can still take them, but the easy
+ * path now leads somewhere correct.
+ */
+export function codeLines(chunk: ParsedFile['chunks'][number]): DiffLine[] {
+  const added = addedLines(chunk);
+  const templated = insideTemplateLiteral(added);
+  return added.filter((line, i) => !templated.has(i) && !isCommentLine(line.text));
+}

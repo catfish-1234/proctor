@@ -1,5 +1,5 @@
 import type { Context, Finding, Verifier } from '../types.js';
-import { addedLines, deletedLines, isWatchedSource, pathOf, withoutTrailingComment } from './wi-common.js';
+import { addedLines, codeLines, deletedLines, isWatchedSource, pathOf, withoutLiterals, withoutTrailingComment } from './wi-common.js';
 
 /**
  * Real work replaced with canned data.
@@ -61,6 +61,9 @@ const DISCLOSED_RE = /\b(?:for now|temporar|placeholder until|until the api|not 
  * test passes against a path that will never run in production. Whatever the tests prove, it is not
  * that the shipped behaviour works.
  */
+/** The environment identifier, which is code rather than data and so survives literal-blanking. */
+const ENV_IDENTIFIER_RE = /\b(?:NODE_ENV|APP_ENV|RAILS_ENV|ENVIRONMENT|PYTEST_CURRENT_TEST|JEST_WORKER_ID|VITEST|CI)\b|\bos\.environ\b/;
+
 const TEST_ONLY_BRANCH_RE =
   /\bif\s*\(?[^\n]*\b(?:NODE_ENV|APP_ENV|RAILS_ENV|ENVIRONMENT|PYTEST_CURRENT_TEST|JEST_WORKER_ID|VITEST|CI)\b[^\n]*(?:===?|==|!=)\s*['"`]?(?:test|testing)['"`]?|\bprocess\.env\.(?:NODE_ENV|APP_ENV)\s*===?\s*['"`]test['"`]|\bif\s+os\.environ\.get\(['"]PYTEST/i;
 
@@ -76,8 +79,21 @@ function run(context: Context): Finding[] {
       const deleted = deletedLines(chunk);
 
       // Signal zero: a test-only branch that short-circuits the real work.
-      for (const line of added) {
+      //
+      // codeLines guards templates and comments, but withoutLiterals must NOT be applied here, and
+      // the reason generalises: this signal matches a literal *value*, `NODE_ENV === 'test'`, so
+      // blanking literals erases the thing being detected rather than a mention of it. Adding it
+      // "for consistency" silently cost this signal its only case. Blank literals when the token
+      // is code; leave them when the token is data. Haskell's HLint annotation is the same
+      // exception in RH011.
+      for (const line of codeLines(chunk)) {
         const text = withoutTrailingComment(line.text);
+        // Two-part test, because the two halves live in different places. The identifier is code,
+        // so it must survive literal-blanking: that is what proves this is a real branch and not a
+        // payload quoted inside a fixture string. The compared value is a literal, so it can only
+        // be read from the raw line. Testing the whole pattern against blanked text erases the
+        // signal; testing it against raw text fires on every quoted example.
+        if (!ENV_IDENTIFIER_RE.test(withoutLiterals(text))) continue;
         if (!TEST_ONLY_BRANCH_RE.test(text)) continue;
         findings.push({
           verifierId: 'WI105',

@@ -93,7 +93,7 @@ the same registry the tool itself uses to report findings. If you see one of
 these rule IDs in a `proctor` finding, this table tells you what it caught.
 
 There are two families. `RH001`–`RH013` check the claim "the tests pass": they
-read the test suite and the code directly beneath it. `WI101`–`WI111` check the
+read the test suite and the code directly beneath it. `WI101`–`WI112` check the
 claim "the work is done": they read shipped code for the ways a change can fake
 completion without touching a test at all.
 
@@ -130,6 +130,7 @@ completion without touching a test at all.
 | WI109 | ExpectedValueChanged | A test's expected value edited to match the current behaviour |
 | WI110 | VerificationScriptNeutered | A test, lint, or build script rewritten so it can no longer fail |
 | WI111 | ImplementationOrTestsRemoved | The code under test deleted, or a test file emptied of its tests |
+| WI112 | CheckingQuietlyReduced | Assertions deleted from a surviving test, a golden file rewritten, or a module aliased to a stub |
 
 Every WI check skips test files by design. An empty catch is how you assert that
 something throws, canned data is what a fixture is, and a loose cast is routine

@@ -149,6 +149,17 @@ function commandKey(content: string): string {
     .toLowerCase();
 }
 
+/**
+ * A retry action wrapping a test step.
+ *
+ * RH012's signatures all read `run:` lines. A retry action puts the command inside a `with:` block
+ * under a `uses:` step, so the whole cheat lives in a shape none of them looked at. Re-running a
+ * failing suite until it passes is RH010's abuse one layer up, and at pipeline level it hides a
+ * genuine failure behind an intermittent green.
+ */
+const RETRY_ACTION_RE = /uses\s*:\s*[\w-]+\/(?:retry|action-retry|retry-action)@/i;
+const RETRY_ATTEMPTS_RE = /max_attempts\s*:\s*([2-9]|\d{2,})/;
+
 function run(context: Context): Finding[] {
   const findings: Finding[] = [];
 
@@ -168,6 +179,25 @@ function run(context: Context): Finding[] {
     }
 
     for (const chunk of file.chunks) {
+      // Retry-action steps: matched across the whole step, since the action name and the command
+      // it retries sit on different lines.
+      for (const segment of stepSegments(chunk.changes)) {
+        const addedText = segment.filter(c => c.type === 'add').map(c => diffBody(c.content)).join('\n');
+        if (!RETRY_ACTION_RE.test(addedText)) continue;
+        if (!TEST_COMMAND_RE.test(addedText)) continue;
+        const attempts = RETRY_ATTEMPTS_RE.exec(addedText);
+        const firstAdd = segment.find(c => c.type === 'add');
+        if (!firstAdd) continue;
+        findings.push({
+          verifierId: 'RH012',
+          severity: 'error',
+          file: filePath,
+          line: (firstAdd as { ln: number }).ln,
+          message: `Test step wrapped in a retry action${attempts ? ` with ${attempts[1]} attempts` : ''}, so a failing suite passes as soon as one run happens to succeed.`,
+          suggestion: 'Remove the retry and fix what is failing. Re-running until green hides a real failure behind an intermittent pass, which is harder to diagnose than the original.',
+        });
+      }
+
       for (const segment of stepSegments(chunk.changes)) {
         // The signatures above are only meaningful on a step that runs tests. `continue-on-error:
         // true` on an artifact upload or a coverage report is routine and correct, so without this

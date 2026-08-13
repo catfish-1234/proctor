@@ -2,6 +2,7 @@
 // change with anything else in the diff. That's a deliberate simplification, not an oversight.
 import path from 'node:path';
 import type { Context, Finding, Severity, Verifier } from '../types.js';
+import type { ParsedFile } from '../diff.js';
 
 // Covers jest/vitest config in .{m,c}{j,t}s AND jest.config.json (a supported Jest format), plus
 // vite.config.* (where Vitest config commonly lives), tsconfig, and the Python config files, plus
@@ -154,6 +155,43 @@ interface ExclusionPattern {
   requiresTestLikeValue?: boolean;
   // Human-readable label used in the suggestion text in place of the raw internal key.
   suggestionLabel?: string;
+}
+
+
+/**
+ * Keys that name which tests to run, as opposed to which to leave out.
+ *
+ * The distinction matters because the same edit means opposite things: adding an entry to
+ * `testPathIgnorePatterns` hides tests, while adding one to `testMatch` reveals more of them.
+ */
+const SELECTION_KEYS = new Set(['testMatch', 'testRegex', 'testpaths']);
+
+/** The glob or regex patterns a selection line lists. */
+function patternsIn(text: string): string[] {
+  return (text.match(/['"`][^'"`\r\n]+['"`]/g) ?? []).map(p => p.slice(1, -1));
+}
+
+/**
+ * True when a selection key stops matching something it used to match.
+ *
+ * Set difference rather than a count, and the difference matters in both directions. Narrowing a
+ * broad glob to one naming a single file keeps the count at one while dropping almost every test,
+ * so counting misses it. Adding a second glob alongside the first keeps every pattern that was
+ * already there, so a set difference correctly reads that as widening.
+ *
+ * Compared against the deleted line in the same chunk naming the same key, so a reformatted list is
+ * not read as a narrowing. With no prior line, the key is being introduced rather than narrowed.
+ */
+function narrowsSelection(
+  changes: ParsedFile['chunks'][number]['changes'],
+  added: { content: string },
+): boolean {
+  const key = /(testMatch|testRegex|testpaths)/.exec(added.content)?.[1];
+  if (!key) return false;
+  const prior = changes.find(c => c.type === 'del' && c.content.includes(key));
+  if (!prior) return false;
+  const kept = new Set(patternsIn(added.content));
+  return patternsIn(prior.content).some(p => !kept.has(p));
 }
 
 const EXCLUSION_PATTERNS: ExclusionPattern[] = [
@@ -382,6 +420,12 @@ function run(context: Context): Finding[] {
         if (!matched) continue;
 
         const { pattern, afterMatch } = matched;
+
+        // testMatch/testRegex select which tests run rather than excluding any, so a change to
+        // one is only a cheat when it narrows. Adding a second pattern alongside the first widens
+        // discovery, and firing on that made proctor report somebody broadening their test suite
+        // as an evasion, which is the one false positive the red-team corpus has produced.
+        if (SELECTION_KEYS.has(pattern.key) && !narrowsSelection(chunk.changes, change)) continue;
 
         if (pattern.key === 'cargoTestFalse' && !chunkMentionsTestTarget) continue;
         if (pattern.key === 'xctestplanSkippedTest' && !chunkMentionsSkippedTests) continue;

@@ -392,3 +392,31 @@ describe('rh007, GROUP B config exclusion (LANG-10, LANG-13)', () => {
     expect(rh007.run({ ...baseCtx, files })).toEqual([]);
   });
 });
+
+describe('RH007 selection keys narrow rather than change', () => {
+  function cfg(before: string, after: string) {
+    return parseDiff([
+      'diff --git a/jest.config.js b/jest.config.js',
+      'index 1111111..2222222 100644',
+      '--- a/jest.config.js',
+      '+++ b/jest.config.js',
+      '@@ -1,1 +1,1 @@',
+      `-${before}`,
+      `+${after}`,
+    ].join('\n'));
+  }
+
+  it('stays silent when a pattern is added alongside the existing one', () => {
+    // The only false positive the red-team corpus has produced. testMatch selects which tests run,
+    // so adding a pattern reveals more of them, and reporting that told somebody broadening their
+    // suite that they were evading the guard.
+    const files = cfg("  testMatch: ['**/*.test.js'],", "  testMatch: ['**/*.test.js', '**/*.spec.js'],");
+    expect(rh007.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('still fires when a broad pattern is narrowed to a specific file', () => {
+    // Same pattern count on both sides, so a count comparison misses this; a set difference does not.
+    const files = cfg("  testMatch: ['**/*.test.js'],", "  testMatch: ['**/smoke.test.js'],");
+    expect(rh007.run({ ...baseCtx, files }).length).toBeGreaterThan(0);
+  });
+});

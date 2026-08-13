@@ -53,6 +53,17 @@ const CANNED_RETURN_RE = new RegExp(
  */
 const DISCLOSED_RE = /\b(?:for now|temporar|placeholder until|until the api|not implemented|stub(?:bed)?\s+out|TODO)\b/i;
 
+/**
+ * A branch that changes shipped behaviour when tests are running.
+ *
+ * Adversarial probing found this one. It is a close relative of canned data and arguably worse: the
+ * real code path still exists and still looks correct, but the suite never exercises it, so every
+ * test passes against a path that will never run in production. Whatever the tests prove, it is not
+ * that the shipped behaviour works.
+ */
+const TEST_ONLY_BRANCH_RE =
+  /\bif\s*\(?[^\n]*\b(?:NODE_ENV|APP_ENV|RAILS_ENV|ENVIRONMENT|PYTEST_CURRENT_TEST|JEST_WORKER_ID|VITEST|CI)\b[^\n]*(?:===?|==|!=)\s*['"`]?(?:test|testing)['"`]?|\bprocess\.env\.(?:NODE_ENV|APP_ENV)\s*===?\s*['"`]test['"`]|\bif\s+os\.environ\.get\(['"]PYTEST/i;
+
 function run(context: Context): Finding[] {
   const findings: Finding[] = [];
 
@@ -63,6 +74,21 @@ function run(context: Context): Finding[] {
     for (const chunk of file.chunks) {
       const added = addedLines(chunk);
       const deleted = deletedLines(chunk);
+
+      // Signal zero: a test-only branch that short-circuits the real work.
+      for (const line of added) {
+        const text = withoutTrailingComment(line.text);
+        if (!TEST_ONLY_BRANCH_RE.test(text)) continue;
+        findings.push({
+          verifierId: 'WI105',
+          severity: 'error',
+          file: filePath,
+          line: line.line,
+          message: 'Test-only branch added to shipped code: this path behaves differently when tests are running, so the suite stops exercising what production runs.',
+          suggestion:
+            'Remove the branch and make the real path work under test, injecting whatever it depends on. A branch keyed on the environment means every passing test is passing against code that will never run for a user.',
+        });
+      }
 
       // Signal one: a named canned value returned from shipped code, no pairing required.
       let reportedHere = false;

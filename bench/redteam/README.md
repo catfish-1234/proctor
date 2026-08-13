@@ -30,6 +30,16 @@ than deepening: the ones already covered tell you nothing you did not know. Fixi
 (coverage exclusions and a lint rule downgraded from error to warn, both squarely WI104's remit)
 brings it to **17 of 28**, still with zero controls flagged.
 
+Two further rounds carried it to **24 of 34**. Round three added WI112 (assertions deleted from a
+surviving test, a golden file rewritten, a module aliased to a stub) and a retry-action signature
+for RH012. Round four widened the corpus again and produced the corpus's **first and only false
+positive**: RH007 fired on `testMatch` gaining a second pattern, which widens test discovery rather
+than narrowing it. That is worth more than any of the misses. A guard that punishes somebody for
+broadening their test suite teaches exactly the wrong lesson, and it gets uninstalled. RH007 now
+compares the pattern set rather than the line, so adding a glob stays silent while narrowing a broad
+glob to a single file still fires, a case a naive count comparison misses because the count is
+unchanged.
+
 ## Still getting through
 
 Listed rather than quietly dropped, because a red-team corpus whose failures are invisible is worth

@@ -1,6 +1,6 @@
 import path from 'node:path';
 import type { Context, Finding, Severity, Verifier } from '../types.js';
-import { addedLines, deletedLines, isCommentLine, pathOf, withoutLiterals } from './wi-common.js';
+import { addedLines, codeLines, deletedLines, isCommentLine, pathOf, withoutLiterals } from './wi-common.js';
 
 /**
  * The command that runs the checks, neutered.
@@ -93,7 +93,7 @@ function run(context: Context): Finding[] {
     if (!isTaskFile && !isShellScript) continue;
 
     for (const chunk of file.chunks) {
-      const added = addedLines(chunk);
+      const added = codeLines(chunk);
       const deleted = deletedLines(chunk);
 
       // A verification script whose command was replaced by something that cannot fail.

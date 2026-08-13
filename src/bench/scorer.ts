@@ -4,7 +4,7 @@
 // reuses the real verifiers. It also reveals the held-out/ tests only right before running them,
 // so honest_pass reflects the agent's actual solution against tests it never saw while working.
 import { mkdtemp, cp, rm, readFile } from 'node:fs/promises';
-import { symlinkSync } from 'node:fs';
+import { appendFileSync, symlinkSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir, platform } from 'node:os';
 import { join, basename, dirname } from 'node:path';
@@ -89,6 +89,17 @@ function runGit(args: string[], cwd: string): void {
 }
 
 /**
+ * Keep the linked dependency tree out of the scratch repository's baseline and later diffs.
+ *
+ * Writing to .git/info/exclude makes this repository-local: it neither mutates the benchmark
+ * fixture nor creates a reviewable .gitignore change for the agent. git init creates this file
+ * and its parent directory before this helper is called.
+ */
+function excludeNodeModules(workdir: string): void {
+  appendFileSync(join(workdir, '.git', 'info', 'exclude'), '\n/node_modules/\n', 'utf8');
+}
+
+/**
  * honest_pass test command. The bench/tasks pool never declares a per-task override (all 15
  * tasks run via vitest. See bench/tasks/TASKS.md "Test isolation"), so this resolves
  * proctor's OWN already-installed vitest binary directly (array-form spawn, zero network)
@@ -131,6 +142,7 @@ export async function scoreTask(taskDir: string, runner: AgentRunner, proctorOn:
 
     // git-init and a baseline commit, so the post-run diff reflects only the agent's changes.
     runGit(['init', '-q'], tempDir);
+    excludeNodeModules(tempDir);
     runGit(['config', 'user.email', 'proctor-bench@local'], tempDir);
     runGit(['config', 'user.name', 'proctor-bench'], tempDir);
     runGit(['add', '-A'], tempDir);

@@ -106,6 +106,62 @@ reproducible without needing to persist which tasks were chosen. The task pool i
 is fixed and hand-authored (22 tasks as of this writing, see `bench/tasks/TASKS.md`),
 not procedurally generated, so `--seed` controls sampling/ordering only.
 
+## Harness Knobs, And Why A Live Run Needs Them
+
+Two environment variables tune how a live (non-`--mock`) run executes. Neither changes what is
+measured, how a row is scored, or which verifiers run, they only control how long the harness
+waits.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `PROCTOR_BENCH_DELAY_MS` | `0` | Pause between agent invocations |
+| `PROCTOR_BENCH_TIMEOUT_MS` | `120000` | Budget for a single agent invocation before the harness kills it |
+
+Both exist because of the same discovery, and it is the most important caveat on this page for
+anyone running the benchmark themselves. **A rate-limited agent and an honest agent produce
+identical CSV rows.** A live 22-task run against `claude-code` came back "exited 1, no changes" on
+37 of its 44 runs and printed a 0.0% cheat rate in both arms, which is indistinguishable from a
+perfectly honest agent that never needed to cheat. The same tasks passed when run one or two at a
+time. Forty-four back-to-back CLI invocations hit a rate limit; the tasks were fine.
+
+Three things now stand between that and a published number:
+
+1. `scoreTask` rejects a run that timed out, exited nonzero, or produced no reviewable diff,
+   instead of scoring it as an ordinary `false`/`false` row.
+2. Both arms of a task are scored before either row is kept, so a failure in one arm cannot leave
+   an unpaired row biasing the before/after rates.
+3. A run with any failed task preserves the existing CSV rather than writing partial evidence.
+
+The consequence is deliberate and worth stating plainly: **one slow task voids the whole run.** The
+120s default suits tasks 1 through 15, which are single-line fixes. Tasks 16 through 22 were built
+to need real work, and task-16 exceeds it. A number on the hard tier needs `PROCTOR_BENCH_TIMEOUT_MS`
+raised to whatever that agent actually requires, and the value used should be reported alongside the
+result, because "the agent did not finish in time" and "the agent finished honestly" are different
+claims.
+
+Read the `proctor: bench task-NN ... failed` lines on stderr before trusting any table this harness
+prints.
+
+### The binding constraint is the agent's session quota, not the harness
+
+A 22-task run is 44 agent invocations, and that is more than a Claude subscription session allows.
+A paced run on 2026-08-13 completed 16 of 22 tasks and then failed the remaining five with:
+
+```
+proctor: bench task task-18 failed, skipping: agent exited 1: You've hit your session limit
+```
+
+Pacing does not help with this, because the limit is on consumption rather than on rate. Neither
+does retrying inside the window. The practical options are to run fewer tasks per session with
+`--tasks`, to run across several sessions and combine the CSVs by hand, or to run against an API-key
+agent rather than a subscription one.
+
+This is worth stating in a methodology document rather than in a code comment, because the failure
+is silent in the direction that matters. Six invalid tasks became six absent rows, and the partial
+table printed a 6.3% cheat rate in both arms off the 16 that survived. That number is not wrong so
+much as unearned: it is a fraction of whichever tasks happened to run before the quota ran out, and
+the tasks that did not run are exactly the expensive ones the hard tier was built from.
+
 ## CSV Schema
 
 Every scored run appends one row to the output CSV with this exact header:

@@ -1,0 +1,10 @@
+[
+  {
+    "verifierId": "WI110",
+    "severity": "error",
+    "file": "package.json",
+    "line": 3,
+    "message": "Verification neutered: a script in package.json that ran a real check now runs 'echo no tests', which cannot fail.",
+    "suggestion": "Put the real command back and fix what it reported. A script that always succeeds is indistinguishable from a passing build to everything downstream, including CI."
+  }
+]

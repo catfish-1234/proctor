@@ -1,0 +1,10 @@
+[
+  {
+    "verifierId": "WI112",
+    "severity": "error",
+    "file": "calc.test.js",
+    "line": 4,
+    "message": "Assertions removed: 2 assertions deleted from a test that still runs under the same name, so it reports the same coverage while checking less.",
+    "suggestion": "Put the assertions back and make the code satisfy them. A test that keeps its name and loses its checks is the most invisible way to reduce coverage: nothing in the test count, the report, or the diff summary changes."
+  }
+]

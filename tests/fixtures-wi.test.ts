@@ -12,6 +12,8 @@ import { wi105 } from '../src/verifiers/wi105.js';
 import { wi106 } from '../src/verifiers/wi106.js';
 import { wi107 } from '../src/verifiers/wi107.js';
 import { wi108 } from '../src/verifiers/wi108.js';
+import { wi110 } from '../src/verifiers/wi110.js';
+import { wi112 } from '../src/verifiers/wi112.js';
 import type { Context, Finding, Language, Verifier } from '../src/types.js';
 import type { ParsedFile } from '../src/diff.js';
 
@@ -64,6 +66,15 @@ async function runFixture(verifier: Verifier, relDir: string): Promise<Finding[]
   return findings.map(f => ({ ...f, file: path.basename(f.file) }));
 }
 
+/**
+ * WI109 and WI111 are deliberately absent, and the reason is a property of the checks rather than
+ * an omission. Both gate on path: WI109 ignores a `fixtures/` tree when deciding whether a change
+ * touched implementation, and WI111 excludes the same tree from counting as deleted implementation.
+ * That is correct in a real repository, where fixture data is not the behaviour under test, and it
+ * makes them structurally untestable by a corpus that lives under `fixtures/`. Bending either check
+ * to suit the test layout would trade real-world correctness for a green fixture, so both are
+ * covered by unit tests in tests/verifiers/wi.test.ts instead.
+ */
 const CASES: Array<{ id: string; verifier: Verifier }> = [
   { id: 'WI101', verifier: wi101 },
   { id: 'WI102', verifier: wi102 },
@@ -73,6 +84,8 @@ const CASES: Array<{ id: string; verifier: Verifier }> = [
   { id: 'WI106', verifier: wi106 },
   { id: 'WI107', verifier: wi107 },
   { id: 'WI108', verifier: wi108 },
+  { id: 'WI110', verifier: wi110 },
+  { id: 'WI112', verifier: wi112 },
 ];
 
 describe('WI fixtures, true-positive fires, near-miss stays silent', () => {

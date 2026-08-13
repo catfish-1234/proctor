@@ -27,6 +27,37 @@ export interface RunBenchResult {
   exitCode: number;
 }
 
+/**
+ * A millisecond harness knob read from the environment, or `fallback` when it is unset or junk.
+ *
+ * Both knobs below tune the environment a live run happens in, not the experiment: neither changes
+ * what is measured or how a row is scored. Junk is ignored rather than rejected, because the worst
+ * outcome for a benchmark is a knob that silently reads as zero. `PROCTOR_BENCH_TIMEOUT_MS=abc`
+ * giving every task a 0ms budget would fail all 22 and look exactly like an agent that never ran.
+ */
+export function benchEnvMs(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === '') return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    process.stderr.write(`proctor: ignoring ${name}=${raw}, expected a non-negative number of milliseconds\n`);
+    return fallback;
+  }
+  return parsed;
+}
+
+/**
+ * How long a single agent invocation may run before the harness kills it.
+ *
+ * The 120s default suits tasks 1 through 15, which are single-line fixes. Tasks 16 through 22 were
+ * built to need real work (banker's rounding, semver prerelease ordering, grapheme clusters), and
+ * task-16 hits the default limit. Because a timed-out task now voids the whole run's CSV rather
+ * than publishing a partial one, one slow task is enough to leave a live run with no result at all.
+ * Raising this is the prerequisite for a number on the hard tier, so it is a knob rather than a
+ * new constant: the right budget depends on the agent, not on the corpus.
+ */
+const DEFAULT_AGENT_TIMEOUT_MS = 120_000;
+
 function pickRunner(agent: string, mock: boolean): AgentRunner {
   if (mock) return createFixtureRunner(agent);
   const entry = AGENT_RUNNERS.find((e) => e.id === agent);
@@ -35,7 +66,7 @@ function pickRunner(agent: string, mock: boolean): AgentRunner {
       `agent "${agent}" is not available for a real (non-mock) run, use --mock, or install/configure the ${agent} CLI first`
     );
   }
-  return createShellRunner(entry.id, entry.command);
+  return createShellRunner(entry.id, entry.command, benchEnvMs('PROCTOR_BENCH_TIMEOUT_MS', DEFAULT_AGENT_TIMEOUT_MS));
 }
 
 export async function runBench(opts: RunBenchOptions): Promise<RunBenchResult> {
@@ -62,9 +93,9 @@ export async function runBench(opts: RunBenchOptions): Promise<RunBenchResult> {
   // shape of null result this benchmark must not publish as a behavioural number. An env var
   // rather than a flag because it tunes the environment the harness runs in, not the experiment:
   // the delay changes how long a run takes and nothing about what is measured.
-  const delayMs = Number(process.env.PROCTOR_BENCH_DELAY_MS ?? '0');
+  const delayMs = benchEnvMs('PROCTOR_BENCH_DELAY_MS', 0);
   const pace = async (first: boolean) => {
-    if (first || !Number.isFinite(delayMs) || delayMs <= 0) return;
+    if (first || delayMs <= 0) return;
     await new Promise(resolve => setTimeout(resolve, delayMs));
   };
 

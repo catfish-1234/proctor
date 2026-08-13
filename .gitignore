@@ -13,3 +13,4 @@ SPEC.md
 .gradle/
 __pycache__/
 *.pyc
+bench/results-live.partial.csv

@@ -12,8 +12,11 @@ ruleset to those, installs the git pre-commit hook, and installs the Claude Code
 Claude Code is one of them, then reports what it did.
 
 ```bash
-npx @kavishdua/proctor setup
+proctor setup
 ```
+
+This assumes a local install. The scoped npm package is not published yet; the README documents
+the temporary source-tarball installation path.
 
 It is the three `install-*` commands below in one step, and it exists because doing two of the
 three is easy to mistake for being covered. The ruleset without the hooks is exactly the
@@ -62,7 +65,10 @@ directory instead of the current one, which is useful when proctor is driving an
 | `--fix` | with `--explain`, print what an honest fix for that check looks like |
 | `--markdown <file>` | also append a Markdown summary to this file, e.g. `--markdown "$GITHUB_STEP_SUMMARY"` |
 
-Exit codes: `0` means clean, `1` means warnings only, `2` means at least one error was found.
+Exit codes: `0` means clean, `1` means warnings only, `2` means at least one error was found, and
+`3` means Proctor itself failed before it could complete the check. The pre-commit hook propagates
+`3` and blocks; the Claude Stop hook deliberately allows infrastructure failures as documented
+below.
 
 ```bash
 $ proctor check --explain RH001

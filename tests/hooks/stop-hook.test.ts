@@ -78,4 +78,27 @@ describe('runStopHookCheck', () => {
       rmSync(tmpDir, { recursive: true, force: true });
     }
   });
+
+  it('blocks a cheat in a brand-new untracked test file', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-untracked-'));
+    try {
+      const git = (...args: string[]): void => {
+        const r = spawnSync('git', args, { cwd: tmpDir, encoding: 'utf8' });
+        if (r.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${r.stderr}`);
+      };
+      git('init');
+      git('config', 'user.email', 'test@example.com');
+      git('config', 'user.name', 'Test');
+      writeFileSync(join(tmpDir, 'seed.js'), 'export const seed = 1;\n', 'utf8');
+      git('add', '.');
+      git('commit', '-m', 'seed');
+
+      writeFileSync(join(tmpDir, 'new.test.ts'), "it.skip('hidden failure', () => {});\n", 'utf8');
+      const result = runStopHookCheck(tmpDir, resolve(process.cwd(), 'dist/cli.js'));
+      expect(result.exitCode).toBe(2);
+      expect(result.output).toContain('RH003');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 });

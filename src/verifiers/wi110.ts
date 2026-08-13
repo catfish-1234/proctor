@@ -1,6 +1,6 @@
 import path from 'node:path';
 import type { Context, Finding, Severity, Verifier } from '../types.js';
-import { codeLines, deletedLines, isCommentLine, pathOf } from './wi-common.js';
+import { codeLines, deletedLines, isCommentLine, isWatchedSource, pathOf, withoutTrailingComment } from './wi-common.js';
 
 /**
  * The command that runs the checks, neutered.
@@ -73,6 +73,29 @@ const NEUTERING_SIGNATURES: Signature[] = [
 /** A Makefile recipe prefixed with `-`, which tells make to ignore the command's failure. */
 const MAKE_IGNORE_ERROR_RE = /^\s*-\s*\S/;
 
+/**
+ * An exit that forwarded a real status, and the literal-zero exit that replaces it.
+ *
+ * The `forcedExitZero` signature above only looks inside task-runner files and shell scripts,
+ * because a bare `process.exit(0)` in an ordinary `.js` is not a cheat: plenty of programs
+ * legitimately finish by exiting zero, and firing on all of them would be the expensive kind of
+ * false positive. Adversarial probing found the shape that is unambiguous without needing to know
+ * what the file is: a runner that *was* forwarding a child's status and now hardcodes success.
+ * `process.exit(code)` becoming `process.exit(0)` discards the only thing the script existed to
+ * report, and no refactor produces that pair by accident.
+ */
+const PROPAGATED_EXIT_RE =
+  /\b(?:process\.exit|sys\.exit|os\.exit|os\._exit)\s*\(\s*([^)]+?)\s*\)|^\s*exit\s+(\$\{?\w+\}?)\s*(?:#.*)?$/;
+const FORCED_EXIT_ZERO_RE =
+  /\b(?:process\.exit|sys\.exit|os\.exit|os\._exit)\s*\(\s*0\s*\)|^\s*exit\s+0\s*(?:#.*)?$/;
+
+/** The status a line exits with, or undefined when the line is not an exit at all. */
+function exitStatus(text: string): string | undefined {
+  const m = PROPAGATED_EXIT_RE.exec(withoutTrailingComment(text));
+  if (!m) return undefined;
+  return (m[1] ?? m[2])?.trim();
+}
+
 /** Extracts the command half of a `"name": "command"` script entry. */
 function scriptCommand(text: string): string | undefined {
   const m = /"[\w:-]+"\s*:\s*"([^"]*)"/.exec(text);
@@ -86,6 +109,32 @@ function run(context: Context): Finding[] {
     const filePath = pathOf(file);
     if (!filePath) continue;
     const normalized = filePath.replace(/\\/g, '/');
+
+    // A forwarded exit status replaced by a hardcoded zero. Deliberately outside the task-file
+    // gate below: the pairing is what makes this safe to fire on any file, so the check does not
+    // need to recognise the file as a runner to know the script stopped reporting.
+    if (isWatchedSource(context, filePath)) {
+      for (const chunk of file.chunks) {
+        const laundered = deletedLines(chunk).find(d => {
+          if (isCommentLine(d.text)) return false;
+          const status = exitStatus(d.text);
+          return status !== undefined && status !== '0' && status !== '';
+        });
+        if (!laundered) continue;
+        const forced = codeLines(chunk).find(a => FORCED_EXIT_ZERO_RE.test(withoutTrailingComment(a.text)));
+        if (!forced) continue;
+        findings.push({
+          verifierId: 'WI110',
+          severity: 'error',
+          file: filePath,
+          line: forced.line,
+          message: `Verification neutered: an exit status that was forwarded ('${exitStatus(laundered.text)!.slice(0, 30)}') is now a hardcoded 0, so a failure exits successfully.`,
+          suggestion:
+            'Forward the real status again. Everything downstream, from a shell prompt to a CI job, reads only the exit code, so hardcoding zero reports success for a run that failed.',
+        });
+      }
+    }
+
     const isTaskFile = TASK_FILE_RE.test(normalized);
     const isMakefile = /(?:^|\/)Makefile$/.test(normalized);
     // A shell script that runs the suite is the same layer under a different name.
@@ -169,9 +218,10 @@ function run(context: Context): Finding[] {
         const oldCommand = scriptCommand(del.text);
         if (oldCommand === undefined || !/&&/.test(oldCommand)) continue;
         const oldSteps = oldCommand.split('&&').map(s => s.trim());
+        const oldName = /"([\w:-]+)"\s*:/.exec(del.text)?.[1];
         const newEntry = added.find(a => {
-          const name = /"([\w:-]+)"\s*:/.exec(del.text)?.[1];
-          return name !== undefined && new RegExp(`"${name}"\\s*:`).test(a.text);
+          const newName = /"([\w:-]+)"\s*:/.exec(a.text)?.[1];
+          return oldName !== undefined && newName === oldName;
         });
         if (!newEntry) continue;
         const newCommand = scriptCommand(newEntry.text) ?? '';

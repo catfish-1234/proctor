@@ -22,27 +22,27 @@ import { addedLines, afterLines, isWatchedSource, pathOf } from './wi-common.js'
  * inside a week. Each pattern below is a construct whose entire meaning is "this code path does not
  * work yet", which is a much narrower and much more damning thing to write.
  */
-const SENTINEL_SOURCES: { pattern: string; what: string }[] = [
-  { pattern: String.raw`raise\s+NotImplementedError\b`, what: 'raise NotImplementedError' },
-  { pattern: String.raw`throw\s+new\s+NotImplementedException\b`, what: 'throw new NotImplementedException' },
+const SENTINELS: { re: RegExp; what: string }[] = [
+  { re: /^\s*(?:(?:return|=>|=|\{|\}|:)\s*)?raise\s+NotImplementedError\b/i, what: 'raise NotImplementedError' },
+  { re: /^\s*(?:(?:return|=>|=|\{|\}|:)\s*)?throw\s+new\s+NotImplementedException\b/i, what: 'throw new NotImplementedException' },
   {
     // JS/TS: the message is the signal, since `throw new Error(...)` is otherwise ordinary.
-    pattern: String.raw`throw\s+new\s+\w*Error\s*\(\s*['"\`][^'"\`]*\b(?:not\s+implemented|unimplemented|not\s+yet\s+supported)\b`,
+    re: /^\s*(?:(?:return|=>|=|\{|\}|:)\s*)?throw\s+new\s+\w*Error\s*\(\s*['"`][^'"`]*\b(?:not\s+implemented|unimplemented|not\s+yet\s+supported)\b/i,
     what: "throw new Error('not implemented')",
   },
-  { pattern: String.raw`(?:todo|unimplemented)!\s*\(`, what: 'todo!()' },
-  { pattern: String.raw`TODO\s*\(\s*(?:"[^"]*")?\s*\)`, what: 'TODO()' },
+  { re: /^\s*(?:(?:return|=>|=|\{|\}|:)\s*)?(?:todo|unimplemented)!\s*\(/i, what: 'todo!()' },
+  { re: /^\s*(?:(?:return|=>|=|\{|\}|:)\s*)?TODO\s*\(\s*(?:"[^"]*")?\s*\)/i, what: 'TODO()' },
   {
-    pattern: String.raw`panic\s*\(\s*['"\`][^'"\`]*\b(?:not\s+implemented|unimplemented|todo)\b`,
+    re: /^\s*(?:(?:return|=>|=|\{|\}|:)\s*)?panic\s*\(\s*['"`][^'"`]*\b(?:not\s+implemented|unimplemented|todo)\b/i,
     what: 'panic("not implemented")',
   },
   {
-    pattern: String.raw`fatalError\s*\(\s*['"\`][^'"\`]*\b(?:not\s+implemented|unimplemented)\b`,
+    re: /^\s*(?:(?:return|=>|=|\{|\}|:)\s*)?fatalError\s*\(\s*['"`][^'"`]*\b(?:not\s+implemented|unimplemented)\b/i,
     what: 'fatalError("unimplemented")',
   },
   {
     // Python's other shape: a body that is nothing but a TODO note.
-    pattern: String.raw`pass\s*#\s*TODO\b`,
+    re: /^\s*(?:(?:return|=>|=|\{|\}|:)\s*)?pass\s*#\s*TODO\b/i,
     what: 'a pass body marked TODO',
   },
 ];
@@ -57,13 +57,6 @@ const SENTINEL_SOURCES: { pattern: string; what: string }[] = [
  * really a statement sits at the start of its line, or directly behind a return, an arrow, an
  * assignment, or a brace.
  */
-const STATEMENT_PREFIX = String.raw`^\s*(?:(?:return|=>|=|\{|\}|:)\s*)?`;
-
-const SENTINELS = SENTINEL_SOURCES.map(s => ({
-  re: new RegExp(STATEMENT_PREFIX + s.pattern, 'i'),
-  what: s.what,
-}));
-
 /**
  * Contexts where an unimplemented marker is the correct thing to write.
  *

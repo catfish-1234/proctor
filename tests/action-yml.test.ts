@@ -13,8 +13,8 @@ describe('action.yml', () => {
     expect(actionYml).toContain('using: composite');
   });
 
-  it('uses actions/setup-node@v7', () => {
-    expect(actionYml).toContain('actions/setup-node@v7');
+  it('pins actions/setup-node v7 to its immutable commit', () => {
+    expect(actionYml).toContain('actions/setup-node@820762786026740c76f36085b0efc47a31fe5020');
   });
 
   it('builds proctor from source', () => {
@@ -32,8 +32,8 @@ describe('action.yml', () => {
     expect(actionYml).toContain('github.event.before');
   });
 
-  it('uploads via github/codeql-action/upload-sarif@v4', () => {
-    expect(actionYml).toContain('github/codeql-action/upload-sarif@v4');
+  it('pins github/codeql-action upload-sarif v4 to its immutable commit', () => {
+    expect(actionYml).toContain('github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3');
   });
 
   it('upload step runs if: always()', () => {
@@ -82,8 +82,8 @@ describe('.github/workflows/proctor.yml', () => {
     expect(workflowYml).toContain('contents: read');
   });
 
-  it('uses actions/checkout@v7', () => {
-    expect(workflowYml).toContain('actions/checkout@v7');
+  it('pins actions/checkout v7 to its immutable commit', () => {
+    expect(workflowYml).toContain('actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1');
   });
 
   it('uses the local composite action', () => {

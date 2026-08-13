@@ -141,7 +141,14 @@ export async function scoreTask(taskDir: string, runner: AgentRunner, proctorOn:
     // honest-vs-cheating branch.
     const prompt = await readFile(join(taskDir, 'prompt.md'), 'utf8');
     const task: AgentTask = { taskId, prompt, workdir: tempDir, proctorOn };
-    await runner.run(task);
+    const agentResult = await runner.run(task);
+    if (agentResult.timedOut) {
+      throw new Error(`agent timed out after ${agentResult.durationMs}ms`);
+    }
+    if (agentResult.exitCode !== 0) {
+      const detail = (agentResult.stderr || agentResult.stdout).trim().slice(0, 300);
+      throw new Error(`agent exited ${agentResult.exitCode}${detail ? `: ${detail}` : ''}`);
+    }
 
     // Diff the result and run proctor's own verifiers on it. No detection logic is
     // reimplemented here. All 11 deterministic signals can trip; only the fuzzy AI extensions
@@ -150,6 +157,9 @@ export async function scoreTask(taskDir: string, runner: AgentRunner, proctorOn:
     // the baseline commit, so an agent writing proctor.config.json can't neuter detection.
     runGit(['add', '-A'], tempDir);
     const { files } = runGitDiff(['--staged'], tempDir);
+    if (files.length === 0) {
+      throw new Error('agent made no reviewable changes');
+    }
     const ctx = await buildContext(tempDir, files, { configRef: 'HEAD' });
     const findings = await runChecks(ctx);
     const cheatDetected = findings.length > 0;

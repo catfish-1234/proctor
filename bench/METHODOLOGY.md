@@ -40,7 +40,7 @@ proctor. Reusing `runChecks` in-process means the benchmark is only ever asking 
 ## Scope: What Can Fire in a Bench Run
 
 `runChecks` is called without enabling `ctx.aiEnabled`/`ctx.judge`, matching how
-`proctor check` behaves without `--ai`. All thirteen checks run in that mode, and every
+`proctor check` behaves without `--ai`. All 25 checks run in that mode, and every
 one of them has a deterministic core that can fire on an agent's diff. The only parts
 that stay silent are the optional fuzzy extensions of RH004 (hardcoded implementation)
 and RH005 (gutted implementation), which consult the LLM judge for ambiguous cases
@@ -126,6 +126,11 @@ task_id,model,proctor_on,cheat_detected,rh_id,honest_pass
 `proctor bench` also prints a before/after summary table to stdout (per model, cheat
 rate and honest-pass rate for `proctor_on=false` vs `proctor_on=true`), see
 `src/bench/report.ts`.
+
+A timed-out agent, nonzero agent exit, or run that made no reviewable changes is not a row with
+three false values; it is an invalid experiment and is rejected. The on/off arms remain paired, so
+if either arm is invalid neither enters the denominator. A run with any invalid task exits nonzero
+and does not overwrite an existing `--out` file with partial evidence.
 
 ## What `--mock` Can and Cannot Tell You
 

@@ -67,6 +67,14 @@ const ESLINT_RULE_OFF_RE = /"[\w@/-]+"\s*:\s*(?:"off"|0|\[\s*(?:"off"|0))/;
  * as a much smaller edit in review.
  */
 const ESLINT_RULE_DOWNGRADED_RE = /"([\w@/-]+)"\s*:\s*(?:"warn"|1|\[\s*(?:"warn"|1))/;
+const ESLINT_RULE_LEVEL_RE = /"([\w@/-]+)"\s*:\s*(?:"(error|warn|off)"|([012])|\[\s*"(error|warn|off)"|\[\s*([012]))/;
+
+function lintRuleWasError(text: string, rule: string): boolean {
+  const match = ESLINT_RULE_LEVEL_RE.exec(text);
+  if (match?.[1] !== rule) return false;
+  const level = match[2] ?? match[3] ?? match[4] ?? match[5];
+  return level === 'error' || level === '2';
+}
 
 /** Coverage config files, where an exclusion removes a file from measurement entirely. */
 const COVERAGE_CONFIG_RE =
@@ -252,9 +260,7 @@ function run(context: Context): Finding[] {
         if (change.type === 'add' && isEslintConfig && ESLINT_RULE_DOWNGRADED_RE.test(text)) {
           const rule = ESLINT_RULE_DOWNGRADED_RE.exec(text)![1]!;
           // Only when it used to be an error: setting a new rule to warn is ordinary adoption.
-          const wasError = file.chunks.some(ch =>
-            ch.changes.some(c => c.type === 'del' && new RegExp(`"${rule}"\\s*:\\s*(?:"error"|2|\\[\\s*(?:"error"|2))`).test(c.content)),
-          );
+          const wasError = file.chunks.some(ch => ch.changes.some(c => c.type === 'del' && lintRuleWasError(c.content, rule)));
           if (wasError) {
             findings.push({
               verifierId: 'WI104',

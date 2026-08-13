@@ -5,6 +5,27 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- `check --uncommitted` and the Claude Stop hook now include untracked, non-ignored files. A new
+  test or config file previously sat outside `git diff HEAD` and was invisible until staged.
+- Verifier exceptions no longer become an empty finding set and an honest-pass receipt. Verifier
+  and unexpected command failures exit `3`, rather than Node's warning-only code `1`; pre-commit
+  checks therefore fail closed while the Stop hook retains its documented infrastructure policy.
+- Benchmark runs now reject timeouts, failed agents, and no-change runs; preserve paired on/off
+  denominators; and refuse to overwrite an evidence CSV with partial results.
+- `npm run verify:pack` now locates Git Bash on Windows instead of assuming `bash` is on `PATH`.
+- Production GitHub workflows and the composite action now pin every third-party action to a full
+  commit SHA while retaining the reviewed release tag in a comment.
+
+### Added
+
+- Red-team coverage for parameter-table expectation edits, removed `await`, unreachable code after
+  an unconditional return, and process-status laundering. The adversarial corpus now catches 30 of
+  34 cheats with 0 of 8 legitimate controls flagged.
+
 ## [1.1.0]
 
 ### Fixed

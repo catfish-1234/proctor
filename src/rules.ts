@@ -425,4 +425,19 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'same change and say that is what happened, so nobody has to reconstruct it from the diff.',
     helpUri: 'https://github.com/catfish-1234/proctor#wi111',
   },
+  WI112: {
+    name: 'CheckingQuietlyReduced',
+    shortDescription: 'Assertions deleted from a surviving test, a golden file rewritten, or a module aliased to a stub',
+    fullDescription:
+      'Detects checking removed while the thing that appeared to do it survives. Three shapes, all found by adversarial probing. Assertions deleted from a test that keeps its name and keeps running, which RH009 (a real test swapped for a trivial one) and RH001 (a deleted test) both miss, and which changes nothing in the test count or the report. A recorded expectation rewritten with no stated reason: RH006 requires one before a snapshot may change, and every other kind of golden file (expected/, testdata/, approvals/, .approved and .golden files) had no such requirement. And a real module aliased to a stub or mock in bundler or resolver config, which substitutes it everywhere without touching its source, one layer further from a reader than the canned data WI105 watches for. ' +
+      'Assertion counting only fires when the test declarations themselves survive, so a removed test stays with RH001 and an emptied file stays with WI111.',
+    defaultLevel: 'error',
+    fix:
+      'Put the checking back. Of the three, the first is the most invisible reduction in coverage there ' +
+      'is: the test count is unchanged, the names are unchanged, the report is unchanged, and the suite ' +
+      'now proves less than it says it does. A golden file exists to fail when behaviour drifts, so ' +
+      'rewriting it to match the drift removes the only thing that would have noticed, and if the new ' +
+      'output really is correct then saying so in the commit message costs one sentence.',
+    helpUri: 'https://github.com/catfish-1234/proctor#wi112',
+  },
 };

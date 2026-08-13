@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { benchEnvMs } from '../src/bench/index.js';
+import { benchEnvMs, partialOutPath } from '../src/bench/index.js';
 
 /**
  * The harness knobs that pace a live run and bound a single agent invocation.
@@ -48,5 +48,29 @@ describe('benchEnvMs', () => {
     vi.spyOn(process.stderr, 'write').mockReturnValue(true);
     process.env[VAR] = '-1';
     expect(benchEnvMs(VAR, 120_000)).toBe(120_000);
+  });
+});
+
+/**
+ * A partial run's rows are real, so where they land matters. They must sit beside the published
+ * CSV under a name that cannot be read as the result, and must never overwrite it.
+ */
+describe('partialOutPath', () => {
+  it('replaces the .csv suffix rather than appending to it', () => {
+    expect(partialOutPath('bench/results-live.csv')).toBe('bench/results-live.partial.csv');
+  });
+
+  it('is case-insensitive about the suffix', () => {
+    expect(partialOutPath('out/RESULTS.CSV')).toBe('out/RESULTS.partial.csv');
+  });
+
+  it('still produces a distinct path when the output has no .csv suffix', () => {
+    expect(partialOutPath('bench/results-live')).toBe('bench/results-live.partial.csv');
+  });
+
+  it('never collides with the published output', () => {
+    for (const path of ['bench/results-live.csv', 'a.csv', 'nested/dir/run.CSV', 'noext']) {
+      expect(partialOutPath(path)).not.toBe(path);
+    }
   });
 });

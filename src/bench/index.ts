@@ -58,6 +58,17 @@ export function benchEnvMs(name: string, fallback: number): number {
  */
 const DEFAULT_AGENT_TIMEOUT_MS = 120_000;
 
+/**
+ * Where a partial run's surviving rows go: alongside the requested output, never over it.
+ *
+ * The `.csv` suffix is replaced rather than appended so the result reads as one name and not as
+ * `results-live.csv.partial.csv`. Getting this wrong writes real rows to an unexpected path, which
+ * is the one way a "this is not a result" file could still be mistaken for one.
+ */
+export function partialOutPath(outPath: string): string {
+  return `${outPath.replace(/\.csv$/i, '')}.partial.csv`;
+}
+
 function pickRunner(agent: string, mock: boolean): AgentRunner {
   if (mock) return createFixtureRunner(agent);
   const entry = AGENT_RUNNERS.find((e) => e.id === agent);
@@ -126,8 +137,18 @@ export async function runBench(opts: RunBenchOptions): Promise<RunBenchResult> {
     await mkdir(dirname(opts.outPath), { recursive: true });
     await writeFile(opts.outPath, csv, 'utf8');
   } else if (opts.outPath && failedTasks > 0) {
+    // The published CSV stays untouched, which is the point: a partial run is not evidence and
+    // must not be quoted as any. But discarding the surviving rows entirely was throwing away the
+    // expensive half of the failure. A live 22-task run is 44 agent invocations and can consume a
+    // whole session quota, and two consecutive runs cost exactly that and left nothing behind to
+    // look at. The rows go to a sibling `.partial.csv` instead: named so it cannot be mistaken for
+    // the result, kept so the next attempt starts from something.
+    const partialPath = partialOutPath(opts.outPath);
+    await mkdir(dirname(partialPath), { recursive: true });
+    await writeFile(partialPath, csv, 'utf8');
     process.stderr.write(
-      `proctor: benchmark had ${failedTasks} invalid task${failedTasks === 1 ? '' : 's'}; preserving the existing output file instead of publishing partial evidence\n`
+      `proctor: benchmark had ${failedTasks} invalid task${failedTasks === 1 ? '' : 's'}; preserving the existing output file instead of publishing partial evidence\n` +
+      `proctor: the ${rows.length / 2} task${rows.length === 2 ? '' : 's'} that did complete were written to ${partialPath}, which is not a result\n`
     );
   }
 

@@ -8,6 +8,7 @@ import { wi105 } from '../../src/verifiers/wi105.js';
 import { wi106 } from '../../src/verifiers/wi106.js';
 import { wi107 } from '../../src/verifiers/wi107.js';
 import { wi108 } from '../../src/verifiers/wi108.js';
+import { wi112 } from '../../src/verifiers/wi112.js';
 import type { Context, Finding, Language, Verifier } from '../../src/types.js';
 
 /**
@@ -550,5 +551,21 @@ describe('WI105 test-only branch, literal handling', () => {
     const code = "export function charge(a) {\n  if (process.env.NODE_ENV === 'test') return { ok: true };\n  return gateway.charge(a);\n}";
     const findings = await run(wi105, addedOf('src/pay.ts', code));
     expect(findings.some(f => f.message.includes('Test-only branch'))).toBe(true);
+  });
+});
+
+describe('WI112 matcher override', () => {
+  it('flags a matcher redefined to always pass', async () => {
+    // One line in a setup file makes every assertion in the project succeed, including tests
+    // nobody in the change wrote, and no test file is touched so nothing else sees a diff.
+    const code = "import { expect } from 'vitest';\nexpect.extend({ toBe: () => ({ pass: true }) });";
+    const findings = await run(wi112, addedOf('setup.js', code));
+    expect(findings.length).toBe(1);
+    expect(findings[0]!.message).toContain('always pass');
+  });
+
+  it('stays silent on a real custom matcher that computes its result', async () => {
+    const code = "expect.extend({ toBeEven: (n) => ({ pass: n % 2 === 0, message: () => 'not even' }) });";
+    expect(await run(wi112, addedOf('setup.js', code))).toEqual([]);
   });
 });

@@ -41,6 +41,21 @@ const BUNDLER_CONFIG_RE =
 const STUB_TARGET_RE = /['"][^'"]*\b(?:stub|mock|fake|dummy|noop|no-op|shim)\b[^'"]*['"]/i;
 const ALIAS_KEY_RE = /\balias\b|\bmoduleNameMapper\b|\bresolve\b|\bpaths\b/i;
 
+/**
+ * A matcher redefined so it can no longer fail.
+ *
+ * The most leveraged cheat in the corpus, and it needs one line. `expect.extend({ toBe: () => ({
+ * pass: true }) })` in a setup file makes every assertion in the entire suite pass, including ones
+ * written years ago by people who are not doing this. Nothing in any test file changes, so every
+ * other check in both families sees a clean diff.
+ *
+ * Distinguished from a legitimate custom matcher by what the implementation does: a real one
+ * computes `pass` from its arguments, and this fires only on a body that returns a constant true.
+ */
+const MATCHER_OVERRIDE_RE =
+  /\b(?:expect\.extend|addMatchers|registerMatcher)\s*\(/;
+const ALWAYS_PASS_BODY_RE = /pass\s*:\s*true\b|=>\s*\(?\s*\{\s*pass\s*:\s*true/;
+
 function run(context: Context): Finding[] {
   const findings: Finding[] = [];
 
@@ -80,6 +95,33 @@ function run(context: Context): Finding[] {
           message: `Assertions removed: ${lost} assertion${lost === 1 ? '' : 's'} deleted from a test that still runs under the same name, so it reports the same coverage while checking less.`,
           suggestion:
             'Put the assertions back and make the code satisfy them. A test that keeps its name and loses its checks is the most invisible way to reduce coverage: nothing in the test count, the report, or the diff summary changes.',
+        });
+      }
+    }
+
+    // Shape one-and-a-half: an assertion matcher redefined to always pass. Checked on every file,
+    // since a setup file is not a test file by any glob and is exactly where this is written.
+    for (const chunk of file.chunks) {
+      const added = addedLines(chunk);
+      const templated = insideTemplateLiteral(added);
+      for (const [index, line] of added.entries()) {
+        if (templated.has(index) || isCommentLine(line.text)) continue;
+        const code = withoutLiterals(line.text);
+        if (!MATCHER_OVERRIDE_RE.test(code)) continue;
+        // The always-pass body may sit on this line or the next few.
+        const window = added
+          .slice(index, index + 5)
+          .map(l => withoutLiterals(l.text))
+          .join('\n');
+        if (!ALWAYS_PASS_BODY_RE.test(window)) continue;
+        findings.push({
+          verifierId: 'WI112',
+          severity: 'error',
+          file: filePath,
+          line: line.line,
+          message: 'Assertion matcher redefined to always pass, which makes every assertion in the suite succeed regardless of what the code does.',
+          suggestion:
+            'Remove the override. A custom matcher has to compute its result from its arguments; one that returns pass: true unconditionally disables every test in the project at once, including tests nobody in this change wrote.',
         });
       }
     }

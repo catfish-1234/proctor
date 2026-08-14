@@ -14,3 +14,4 @@ SPEC.md
 __pycache__/
 *.pyc
 bench/results-live.partial.csv
+verify-head/

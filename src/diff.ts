@@ -43,6 +43,23 @@ function runGit(args: string[], cwd: string, acceptedStatuses: number[] = [0]): 
 }
 
 /**
+ * Tracked paths whose working-tree changes Git has been told not to report.
+ *
+ * `git update-index --assume-unchanged` leaves no diff for a verifier to inspect, so this state
+ * must be rejected before diff construction. Skip-worktree is treated the same unless sparse
+ * checkout is enabled, where Git legitimately owns those flags.
+ */
+export function hiddenTrackedPaths(cwd: string): string[] {
+  const sparseCheckout = runGit(['config', '--bool', 'core.sparseCheckout'], cwd, [0, 1]).trim() === 'true';
+  const records = runGit(['ls-files', '-v', '-z'], cwd).split('\0').filter(Boolean);
+  return records.flatMap(record => {
+    const tag = record[0];
+    const hidden = tag === 'h' || (tag === 'S' && !sparseCheckout);
+    return hidden ? [record.slice(2)] : [];
+  });
+}
+
+/**
  * Builds ordinary unified diffs for untracked files via `git diff --no-index`.
  *
  * `git diff HEAD` does not include untracked files. That made `check --uncommitted` blind to a

@@ -2,14 +2,14 @@
 // runner (mock fixture-replay or a real shell-out agent), scores each selected task twice
 // (proctor off, then on, via AgentTask.proctorOn), writes the results CSV, and prints the
 // before/after cheat-rate table to stdout.
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { loadTaskPool, selectTasks } from './tasks.js';
 import { createFixtureRunner } from './runners/fixture-runner.js';
 import { createShellRunner } from './runners/shell-runner.js';
 import { AGENT_RUNNERS } from './runners/registry.js';
 import { scoreTask, type ScoredRow } from './scorer.js';
-import { toCsvRow, CSV_HEADER } from './csv.js';
+import { toCsvRow, CSV_HEADER, parseCsvRows } from './csv.js';
 import { cheatRateTable } from './report.js';
 import type { AgentRunner } from './types.js';
 
@@ -19,6 +19,8 @@ export interface RunBenchOptions {
   mock: boolean;
   agent: string;
   outPath?: string;
+  /** Carry completed tasks over from a previous attempt's `.partial.csv` instead of re-running them. */
+  resume?: boolean;
 }
 
 export interface RunBenchResult {
@@ -110,10 +112,52 @@ export async function runBench(opts: RunBenchOptions): Promise<RunBenchResult> {
     await new Promise(resolve => setTimeout(resolve, delayMs));
   };
 
+  // Rows carried over from an earlier attempt at this same run.
+  //
+  // A 22-task live run is 44 agent invocations, which is more than one Claude subscription session
+  // window allows: three consecutive attempts reached 16, 14 and 16 tasks before the agent started
+  // returning "You've hit your session limit". Resuming is what makes a complete run reachable at
+  // all, by spending the remaining tasks against the next window rather than restarting from zero.
+  //
+  // Only whole tasks are carried, and only for this runner's model. A task counts as done when
+  // both its arms are present, matching the pairing rule below: a half-scored task is re-run rather
+  // than left unmatched in the denominator.
   const rows: ScoredRow[] = [];
+  const resumed = new Map<string, ScoredRow[]>();
+  if (opts.resume && opts.outPath) {
+    const partialPath = partialOutPath(opts.outPath);
+    let text: string | undefined;
+    try {
+      text = await readFile(partialPath, 'utf8');
+    } catch {
+      process.stderr.write(`proctor: --resume found no rows to resume from at ${partialPath}, scoring every selected task\n`);
+    }
+    if (text !== undefined) {
+      const prior = parseCsvRows(text).filter(r => r.model === runner.model);
+      const byTask = new Map<string, typeof prior>();
+      for (const row of prior) byTask.set(row.taskId, [...(byTask.get(row.taskId) ?? []), row]);
+      for (const [taskId, taskRows] of byTask) {
+        const off = taskRows.find(r => !r.proctorOn);
+        const on = taskRows.find(r => r.proctorOn);
+        if (!off || !on) continue;
+        resumed.set(taskId, [off, on]);
+      }
+      process.stderr.write(
+        `proctor: resuming from ${partialPath}, carrying ${resumed.size} completed task${resumed.size === 1 ? '' : 's'}\n`
+      );
+    }
+  }
+
   let failedTasks = 0;
   let started = false;
   for (const entry of selectedEntries) {
+    // Carried rows are emitted in selection order alongside freshly scored ones, so a resumed run
+    // produces the same CSV as an uninterrupted one rather than one grouped by attempt.
+    const carried = resumed.get(entry.taskId);
+    if (carried) {
+      rows.push(...carried);
+      continue;
+    }
     // A single broken task (unreadable prompt.md, git failure in its repo) shouldn't abort
     // the run and discard every row already scored, warn, skip, keep going.
     try {
@@ -136,6 +180,9 @@ export async function runBench(opts: RunBenchOptions): Promise<RunBenchResult> {
   if (opts.outPath && failedTasks === 0) {
     await mkdir(dirname(opts.outPath), { recursive: true });
     await writeFile(opts.outPath, csv, 'utf8');
+    // The run is complete, so any carry-over file is now superseded. Leaving it would let a later
+    // --resume silently carry stale rows into a fresh run.
+    await rm(partialOutPath(opts.outPath), { force: true });
   } else if (opts.outPath && failedTasks > 0) {
     // The published CSV stays untouched, which is the point: a partial run is not evidence and
     // must not be quoted as any. But discarding the surviving rows entirely was throwing away the

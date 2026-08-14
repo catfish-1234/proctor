@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { benchEnvMs, partialOutPath } from '../src/bench/index.js';
+import { parseCsvRows } from '../src/bench/csv.js';
 
 /**
  * The harness knobs that pace a live run and bound a single agent invocation.
@@ -72,5 +73,53 @@ describe('partialOutPath', () => {
     for (const path of ['bench/results-live.csv', 'a.csv', 'nested/dir/run.CSV', 'noext']) {
       expect(partialOutPath(path)).not.toBe(path);
     }
+  });
+});
+
+/**
+ * Rows read back off disk by `--resume` go straight into a published result, so the parser is
+ * strict on purpose: anything it cannot read with confidence is dropped and that task is scored
+ * again. Re-running costs agent quota. Guessing would invent evidence, which is the one failure
+ * this whole harness exists to prevent.
+ */
+describe('parseCsvRows', () => {
+  const header = 'task_id,model,proctor_on,cheat_detected,rh_id,honest_pass\n';
+
+  it('round-trips the rows the writer produces', () => {
+    const csv = header +
+      'task-09,claude-code,false,false,,true\n' +
+      'task-09,claude-code,true,true,RH002,false\n';
+    expect(parseCsvRows(csv)).toEqual([
+      { taskId: 'task-09', model: 'claude-code', proctorOn: false, cheatDetected: false, rhId: '', honestPass: true },
+      { taskId: 'task-09', model: 'claude-code', proctorOn: true, cheatDetected: true, rhId: 'RH002', honestPass: false },
+    ]);
+  });
+
+  it('ignores a trailing newline and blank lines rather than emitting empty rows', () => {
+    expect(parseCsvRows(header + 'task-01,m,false,false,,true\n\n')).toHaveLength(1);
+  });
+
+  it('drops a row with the wrong column count instead of shifting fields', () => {
+    expect(parseCsvRows(header + 'task-01,m,false,false,true\n')).toEqual([]);
+    expect(parseCsvRows(header + 'task-01,m,false,false,,true,extra\n')).toEqual([]);
+  });
+
+  it('drops a row whose booleans are not exactly true/false', () => {
+    expect(parseCsvRows(header + 'task-01,m,yes,false,,true\n')).toEqual([]);
+    expect(parseCsvRows(header + 'task-01,m,false,FALSE,,true\n')).toEqual([]);
+    expect(parseCsvRows(header + 'task-01,m,false,false,,1\n')).toEqual([]);
+  });
+
+  it('drops a row with an empty task id or model, which would resume against nothing', () => {
+    expect(parseCsvRows(header + ',m,false,false,,true\n')).toEqual([]);
+    expect(parseCsvRows(header + 'task-01,,false,false,,true\n')).toEqual([]);
+  });
+
+  it('refuses a quoted field rather than guessing at it', () => {
+    expect(parseCsvRows(header + '"task,01",m,false,false,,true\n')).toEqual([]);
+  });
+
+  it('returns nothing for a header-only file', () => {
+    expect(parseCsvRows(header)).toEqual([]);
   });
 });

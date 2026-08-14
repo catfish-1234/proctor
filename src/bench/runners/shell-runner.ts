@@ -75,10 +75,23 @@ export function createShellRunner(model: string, command: string[], timeoutMs = 
           } else {
             child.kill('SIGKILL');
           }
+          // Do not wait indefinitely for a broken process wrapper to emit `close` after the kill.
+          // The benchmark scorer rejects timed-out runs, so no output after this point is evidence.
+          settle({
+            taskId: task.taskId,
+            model,
+            stdout,
+            stderr,
+            exitCode: -1,
+            durationMs: Date.now() - started,
+            timedOut: true,
+          });
         }, timeoutMs);
         // Cap captured output so a runaway agent can't exhaust memory.
-        const append = (buf: string, d: Buffer) =>
-          buf.length < MAX_CAPTURED_OUTPUT ? buf + d.toString() : buf;
+        const append = (buf: string, d: Buffer) => {
+          const remaining = MAX_CAPTURED_OUTPUT - buf.length;
+          return remaining > 0 ? buf + d.toString().slice(0, remaining) : buf;
+        };
         child.stdout.on('data', (d: Buffer) => (stdout = append(stdout, d)));
         child.stderr.on('data', (d: Buffer) => (stderr = append(stderr, d)));
         // A missing/unlaunchable binary emits 'error' instead of 'close'; without this

@@ -45,7 +45,7 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     shortDescription: 'Assertion weakened or precision reduced',
     fullDescription:
       'Detects a specific-value assertion softened into a vague check (e.g. toBe(x) to toBeDefined()), an exact value replaced by an ordering comparison on the same subject, ' +
-      'or numeric comparison precision/tolerance widened. Also covers the Python forms: a `assert x == y` reduced to a bare `assert x` (the expected value dropped), and an assertEqual ' +
+      'or numeric comparison precision/tolerance widened. Also detects `toThrow(SpecificError)` weakened to `toThrow()` and `pytest.raises(SpecificError)` broadened to Exception. Also covers the Python forms: a `assert x == y` reduced to a bare `assert x` (the expected value dropped), and an assertEqual ' +
       'swapped for a vaguer matcher (assertIsNotNone/assertGreater/...) on the same value. Also covers Go (testify), Java/Kotlin (JUnit/kotlin.test/AssertJ/Kotest), Rust (assert_eq!/assert!), ' +
       'Ruby (RSpec/Minitest), PHP (PHPUnit), and C# (xUnit/NUnit/MSTest). Go coverage is testify-only; stdlib comparison-weakening is not pattern-matched. ' +
       'Also covers C++ (Google Test, Boost.Test, Catch2), C (Unity, CMocka, Check), Swift/Objective-C (a shared XCTest pattern, plus Swift Testing), Dart (expect()), ' +
@@ -66,7 +66,7 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     name: 'TestSkippedOrDisabled',
     shortDescription: 'Test disabled, skipped, or commented out',
     fullDescription:
-      'Detects a test removed from the run without deleting its source. JS/TS: .skip/.only, xit/xdescribe, fit/fdescribe/xtest, .todo, a bracket-notation skip, or a commented-out test. ' +
+      'Detects a test removed from the run without deleting its source. JS/TS: .skip/.only, xit/xdescribe, fit/fdescribe/xtest, .todo, runIf(false), skipIf(true), test.fails/test.failing, a bracket-notation skip, or a commented-out test. ' +
       'Python: @pytest.mark.skip/skipif/xfail, a module-level pytestmark, __test__ = False, @unittest.skip, a commented-out test, and imperative runtime skips (pytest.skip/self.skipTest/SkipTest ' +
       'inside a named test module). Also covers Go (t.Skip/b.Skip), Java/Kotlin (@Disabled/@Ignore), Rust (#[ignore]), Ruby (xit/xdescribe, skip/pending), PHP (markTestSkipped/markTestIncomplete), ' +
       'and C# (Fact(Skip=...)/[Ignore]). Kotest\'s `enabled = false` skip form is not covered. ' +
@@ -178,14 +178,15 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
   },
   RH010: {
     name: 'FailureMasking',
-    shortDescription: 'Timeout/retry abuse, or a network mock manufacturing the expected answer',
+    shortDescription: 'Async checks detached, timeout/retry abuse, or a mock manufacturing the expected answer',
     fullDescription:
-      'Detects three independent failure-masking patterns: (1) jest.retryTimes/@pytest.mark.flaky reruns added to paper over a flaky or failing test, (2) an unusually large ' +
-      'jest.setTimeout/@pytest.mark.timeout added to hide a hanging operation, or (3) a network response mocked to return literally the same value the test then asserts against.',
+      'Detects four independent failure-masking patterns: (1) await removed from an otherwise unchanged test expression so rejection is no longer observed, (2) jest.retryTimes/@pytest.mark.flaky reruns added to paper over a flaky or failing test, (3) an unusually large ' +
+      'jest.setTimeout/@pytest.mark.timeout added to hide a hanging operation, or (4) a network response mocked to return literally the same value the test then asserts against.',
     defaultLevel: 'warning',
     fix:
       'Fix the underlying failure rather than giving it more room. Retries and long timeouts make an ' +
-      'unreliable test report as green while staying unreliable, and a network mock returning exactly the ' +
+      'unreliable test report as green while staying unreliable, a removed await lets the test finish before ' +
+      'an asynchronous failure arrives, and a network mock returning exactly the ' +
       'value the test asserts means the test is checking the mock rather than the code. Find why it fails ' +
       'or hangs. If it is genuinely slow, say so in a comment next to the raised timeout so the number has ' +
       'a reason attached.',
@@ -218,7 +219,7 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     fullDescription:
       'Detects a change to a CI pipeline definition that stops the test suite from running or stops its failures from counting. Covers a removed test command, ' +
       "'continue-on-error: true' (GitHub Actions, Azure Pipelines), 'allow_failure: true' (GitLab), a step disabled with 'if: false' or 'when: never', a test command with its exit code " +
-      "swallowed by '|| true', and 'set +e' next to a test command. Reads .github/workflows/*.yml, .gitlab-ci.yml, .circleci/config.yml, azure-pipelines.yml, .travis.yml, Jenkinsfile, and " +
+      "swallowed by '|| true', 'set +e' next to a test command, a contracted environment matrix, and source paths added to paths-ignore. Reads .github/workflows/*.yml, .gitlab-ci.yml, .circleci/config.yml, azure-pipelines.yml, .travis.yml, Jenkinsfile, and " +
       'bitbucket-pipelines.yml. Every signature except a removed command only fires when a test command is visible in the same diff chunk, since each of them is routine and correct on a ' +
       'step that does something else, an artifact upload set to continue-on-error being the obvious case. A test command that merely moved within the same file is not reported as removed.',
     defaultLevel: 'error',
@@ -246,6 +247,17 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'it deliberately in its own change, not as part of the work that made it fail.',
     helpUri: 'https://github.com/catfish-1234/proctor#rh013',
   },
+  RH014: {
+    name: 'TestWorkloadReduced',
+    shortDescription: 'A surviving test is changed to exercise fewer generated or table-driven cases',
+    fullDescription:
+      'Detects a property/fuzz workload count or loop bound reduced, a collection changed to slice/filter away inputs, or rows removed from multiline and inline parameter tables. The test name and assertions survive, but the suite now exercises fewer inputs. Exact before/after pairing and inline explanations keep intentional sampling changes visible and quiet.',
+    defaultLevel: 'error',
+    fix:
+      'Restore the original case count or full collection and fix the input that exposed the failure. ' +
+      'If the sampling strategy genuinely changed, explain how equivalent coverage is retained rather than silently shrinking the workload.',
+    helpUri: 'https://github.com/catfish-1234/proctor#rh014',
+  },
 
   // WI1xx, the work-integrity family. RH00x ask whether the tests were tampered with. These ask
   // whether the work behind them was actually done, reading shipped code rather than the suite.
@@ -257,7 +269,7 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     fullDescription:
       'Detects a change that adds an error handler which does nothing with the error. Covers an empty catch block (JS/TS, Java, C#, Kotlin, Scala, PHP, Swift), Python "except: pass" and ' +
       'handlers that return a default instead, a promise .catch that discards its argument, Ruby "rescue nil" and empty rescue blocks, Go "if err != nil {}" with an empty body, and an error ' +
-      'assigned to the blank identifier. Only fires on a handler this change introduced, in non-test code, and never when the handler carries a comment explaining why discarding the error is ' +
+      'assigned to the blank identifier. Also catches error-level reporting removed without replacement or downgraded to debug/trace. Only fires on a handler or diagnostic this change altered, in non-test code, and never when the handler carries a comment explaining why discarding the error is ' +
       'safe: a handler somebody justified in writing is the outcome this check exists to produce.',
     defaultLevel: 'error',
     fix:
@@ -306,7 +318,7 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     fullDescription:
       "Detects a change that disables the checks watching it. Covers proctor's own config (a check removed from 'enabled', a severity downgraded to warn or info, an entry added to " +
       "'ignorePatterns' or 'approvedTestChanges'), deletion of proctor's config, manifest, or a deployed ruleset file such as AGENTS.md or CLAUDE.md, a proctor invocation removed from " +
-      'package.json, a workflow, a husky hook or a Makefile, an added --no-verify or HUSKY=0 hook bypass, a TypeScript strictness flag turned off in tsconfig, an ESLint rule set to "off", and ' +
+      'package.json, a workflow, a husky hook or a Makefile, an added --no-verify or HUSKY=0 hook bypass, a TypeScript strictness/noEmitOnError flag turned off in tsconfig, coverage collection disabled, an ESLint rule set to "off", and ' +
       "entries added to a lint ignore file. Proctor already reads its own config from the committed baseline, so a config edit cannot weaken the run it appears in; this check exists to make the " +
       'attempt visible rather than silently ignored.',
     defaultLevel: 'error',
@@ -324,7 +336,7 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     fullDescription:
       'Detects shipped code that returns fixed data where it should be doing work. Two signals: a value named as mock, fake, stub, dummy, sample, placeholder, or canned data being returned from ' +
       'non-test code, which fires on its own; and the pairing of a removed network, database, or filesystem call with a fixed value returned in its place within the same diff chunk. The pairing ' +
-      'is required for the second signal because neither half means anything alone, a literal return being what most functions do. A line disclosing itself as temporary is left to WI102 rather ' +
+      'is required for the second signal because neither half means anything alone, a literal return being what most functions do. Also catches branches keyed directly on NODE_ENV, VITEST, JEST_WORKER_ID, or PYTEST_CURRENT_TEST so tests exercise canned behavior instead of production. A line disclosing itself as temporary is left to WI102 rather ' +
       'than double-reported here.',
     defaultLevel: 'error',
     fix:
@@ -401,7 +413,7 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     name: 'VerificationScriptNeutered',
     shortDescription: 'A test, lint, or build script rewritten so it can no longer fail',
     fullDescription:
-      "Detects the layer between RH012 (CI pipelines) and RH007 (test-runner config): the test, lint, typecheck and build scripts that pipelines invoke and developers run. Covers a verification script whose command was replaced with something that cannot fail (echo, true, exit 0) when it previously ran a real tool, '--passWithNoTests' added so an emptied suite reports success, a failure swallowed with '|| true', force and exit-zero flags, a forced process.exit(0), a Makefile recipe given a '-' prefix so make ignores the failure, and a verification step dropped out of a composite '&&' script that still runs. " +
+      "Detects the layer between RH012 (CI pipelines) and RH007 (test-runner config): the test, lint, typecheck and build scripts that pipelines invoke and developers run. Covers commands replaced or followed by echo/true/exit 0, swallowed or expression-laundered exit statuses, removed pipefail, un-awaited background test processes, focused selectors replacing the general suite, snapshot-update mode added to the normal test command, '--passWithNoTests', force/exit-zero flags, Makefile ignored failures, and checks dropped from composite scripts. " +
       'Reads package.json, Makefile, Taskfile, justfile, pyproject.toml, Rakefile, composer.json and shell scripts. Adding a placeholder script to a new project is not reported: the check requires that the script previously ran something real.',
     defaultLevel: 'error',
     fix:
@@ -439,5 +451,16 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'rewriting it to match the drift removes the only thing that would have noticed, and if the new ' +
       'output really is correct then saying so in the commit message costs one sentence.',
     helpUri: 'https://github.com/catfish-1234/proctor#wi112',
+  },
+  WI113: {
+    name: 'FailureAvoidanceWorkaround',
+    shortDescription: 'Benchmark workload reduced, dependency downgraded, or fixed delay added instead of fixing a failure',
+    fullDescription:
+      'Detects three high-signal workarounds: named benchmark/performance workloads reduced, concrete semantic dependency versions or minimum range floors moved backwards, and unexplained fixed sleeps added to shipped code. Each can make a failure disappear without correcting its cause. Workload and version checks compare the exact before/after value; delays accept an inline protocol or operational explanation.',
+    defaultLevel: 'error',
+    fix:
+      'Keep the original workload and supported dependency version, then repair the behavior they exposed. ' +
+      'Replace fixed sleeps with a wait for the actual event or state. When a rollback or protocol delay is genuinely required, record the human-approved operational reason.',
+    helpUri: 'https://github.com/catfish-1234/proctor#wi113',
   },
 };

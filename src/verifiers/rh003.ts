@@ -15,6 +15,8 @@ const XDESCRIBE = /\bxdescribe\s*\(/;
 const FOCUS_ALIAS = /(?<![.\w])(?:xtest|fit|fdescribe)\s*\(/;
 // Bracket notation: it['skip'](...) / test["only"](...) reaches the same modifier past the regex.
 const BRACKET_SKIP = /\b(?:it|test|describe)\s*\[\s*['"`](?:skip|only)['"`]\s*\]/;
+const CONDITIONAL_DISABLE = /\b(?:it|test|describe)\.(?:runIf\(\s*false\s*\)|skipIf\(\s*true\s*\))/;
+const EXPECTED_FAILURE = /\b(?:it|test)\.(?:fails|failing)\b/;
 const PYTEST_SKIP = /@pytest\.mark\.skip/;
 const PYTEST_SKIPIF = /@pytest\.mark\.skipif\b/;
 // @pytest.mark.xfail marks a test as an expected failure, so a currently-failing test decorated
@@ -246,6 +248,8 @@ function buildSkipMessage(content: string, ext?: string): string {
   if (XDESCRIBE.test(content)) return 'Suite was disabled with xdescribe.';
   if (FOCUS_ALIAS.test(content)) return 'Test was disabled or focused with xtest/fit/fdescribe.';
   if (BRACKET_SKIP.test(content)) return 'Test was disabled with a bracket-notation skip/only.';
+  if (CONDITIONAL_DISABLE.test(content)) return 'Test was disabled with a constant runIf(false)/skipIf(true) condition.';
+  if (EXPECTED_FAILURE.test(content)) return 'Test was marked as an expected failure, so its current failure now passes the suite.';
   if (PYTEST_SKIP.test(content)) return 'Test was disabled with @pytest.mark.skip.';
   if (PYTEST_SKIPIF.test(content)) return 'Test was conditionally disabled with @pytest.mark.skipif.';
   if (PYTEST_XFAIL.test(content)) return 'Test was marked @pytest.mark.xfail (a failure now passes the suite).';
@@ -311,7 +315,7 @@ function buildSuggestion(content: string): string {
 
 // Language-scoped so JS constructs (fit/xtest/it.skip) never run against Python code and Python
 // constructs (pytest.skip/SkipTest) never run against JS, cross-language matches were pure noise.
-const JS_PATTERNS = [SKIP_ONLY, TODO_RE, XIT, XDESCRIBE, FOCUS_ALIAS, BRACKET_SKIP, COMMENTED_JS_TEST];
+const JS_PATTERNS = [SKIP_ONLY, TODO_RE, XIT, XDESCRIBE, FOCUS_ALIAS, BRACKET_SKIP, CONDITIONAL_DISABLE, EXPECTED_FAILURE, COMMENTED_JS_TEST];
 // Decorator/module-level Python disables: unambiguous and safe to flag on any changed .py file.
 const PY_DECORATOR_PATTERNS = [PYTEST_SKIP, PYTEST_SKIPIF, PYTEST_XFAIL, PYTESTMARK, DUNDER_TEST_FALSE, UNITTEST_SKIP, BARE_SKIP, COMMENTED_PY_TEST];
 // Imperative runtime skips (`pytest.skip(...)`, `self.skipTest(...)`) are legitimate in fixtures
@@ -475,6 +479,7 @@ function isBatsFile(filePath: string): boolean {
  * line-level model does not carry.
  */
 const QUOTED_SKIP_CONSTRUCT = /['"`][+\-\s]*(?:(?:it|test|describe)(?:\.\w+)*\.(?:skip|only)|xit|xdescribe|xtest|fit|fdescribe)\b/;
+const QUOTED_CONDITIONAL_DISABLE = /['"`][+\-\s]*(?:(?:it|test|describe)\.(?:runIf\(\s*false\s*\)|skipIf\(\s*true\s*\))|(?:it|test)\.(?:fails|failing)\b)/;
 
 function isSkipPattern(content: string, flags: {
   ext: string | undefined;
@@ -493,7 +498,7 @@ function isSkipPattern(content: string, flags: {
     ext, pyTestModule, goTestFile, rubyTestFile, kotlinTestFile, cTestFile, scalaTestFile,
     rTestFile, haskellTestFile, luaTestFile, batsFile,
   } = flags;
-  if (QUOTED_SKIP_CONSTRUCT.test(content)) return false;
+  if (QUOTED_SKIP_CONSTRUCT.test(content) || QUOTED_CONDITIONAL_DISABLE.test(content)) return false;
   switch (ext) {
     case 'py':
       if (PY_DECORATOR_PATTERNS.some(re => re.test(content))) return true;

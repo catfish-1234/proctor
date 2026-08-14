@@ -38,6 +38,33 @@ describe('CLI smoke tests', () => {
     }
   });
 
+  it('rejects conflicting diff scopes instead of silently choosing one', () => {
+    const result = spawnSync('node', [CLI, 'check', '--staged', '--uncommitted'], { encoding: 'utf8' });
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('choose only one diff scope');
+  });
+
+  it('refuses an assume-unchanged tracked file that Git would hide from the diff', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      execSync('git config user.email x@x', { cwd: tmpDir });
+      execSync('git config user.name x', { cwd: tmpDir });
+      writeFileSync(join(tmpDir, 'auth.ts'), 'export const allowed = false;\n');
+      execSync('git add auth.ts', { cwd: tmpDir });
+      execSync('git commit -m init', { cwd: tmpDir });
+      execSync('git update-index --assume-unchanged auth.ts', { cwd: tmpDir });
+      writeFileSync(join(tmpDir, 'auth.ts'), 'export const allowed = true;\n');
+
+      const result = spawnSync('node', [CLI, 'check'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('hidden by assume-unchanged/skip-worktree');
+      expect(result.stderr).toContain('auth.ts');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it('install-hook creates .git/hooks/pre-commit', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
@@ -494,6 +521,27 @@ describe('check --ci exit semantics', () => {
 });
 
 describe('check honest-pass badge', () => {
+  it('checks staged and untracked changes by default instead of minting a partial honest pass', () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
+    try {
+      execSync('git init', { cwd: tmpDir });
+      execSync('git config user.email x@x', { cwd: tmpDir });
+      execSync('git config user.name x', { cwd: tmpDir });
+      writeFileSync(join(tmpDir, 'baseline.txt'), 'baseline');
+      execSync('git add . && git commit -m init', { cwd: tmpDir });
+      writeFileSync(join(tmpDir, 'staged.test.ts'), 'it.skip("staged cheat", () => {});');
+      execSync('git add staged.test.ts', { cwd: tmpDir });
+      writeFileSync(join(tmpDir, 'untracked.test.ts'), 'it.skip("untracked cheat", () => {});');
+      const result = spawnSync('node', [CLI, 'check'], { cwd: tmpDir, encoding: 'utf8' });
+      expect(result.status).toBe(2);
+      expect(result.stdout).toContain('staged.test.ts');
+      expect(result.stdout).toContain('untracked.test.ts');
+      expect(result.stdout).not.toContain('honest pass');
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it('prints the honest-pass badge line on a clean non-ci run', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {

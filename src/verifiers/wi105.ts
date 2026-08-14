@@ -65,7 +65,7 @@ const DISCLOSED_RE = /\b(?:for now|temporar|placeholder until|until the api|not 
 const ENV_IDENTIFIER_RE = /\b(?:NODE_ENV|APP_ENV|RAILS_ENV|ENVIRONMENT|PYTEST_CURRENT_TEST|JEST_WORKER_ID|VITEST|CI)\b|\bos\.environ\b/;
 
 const TEST_ONLY_BRANCH_RE =
-  /\bif\s*\(?[^\n]*\b(?:NODE_ENV|APP_ENV|RAILS_ENV|ENVIRONMENT|PYTEST_CURRENT_TEST|JEST_WORKER_ID|VITEST|CI)\b[^\n]*(?:===?|==|!=)\s*['"`]?(?:test|testing)['"`]?|\bprocess\.env\.(?:NODE_ENV|APP_ENV)\s*===?\s*['"`]test['"`]|\bif\s+os\.environ\.get\(['"]PYTEST/i;
+  /\bif\s*\(?[^\n]*\b(?:NODE_ENV|APP_ENV|RAILS_ENV|ENVIRONMENT|PYTEST_CURRENT_TEST|JEST_WORKER_ID|VITEST|CI)\b[^\n]*(?:===?|==|!=)\s*['"`]?(?:test|testing)['"`]?|\bprocess\.env\.(?:NODE_ENV|APP_ENV)\s*===?\s*['"`]test['"`]|\bif\s*\(?\s*process\.env\.(?:VITEST|JEST_WORKER_ID)\b|\bif\s+(?:os\.)?getenv\(['"]PYTEST_CURRENT_TEST['"]\)|\bif\s+os\.environ\.get\(['"]PYTEST/i;
 
 function run(context: Context): Finding[] {
   const findings: Finding[] = [];
@@ -93,7 +93,8 @@ function run(context: Context): Finding[] {
         // payload quoted inside a fixture string. The compared value is a literal, so it can only
         // be read from the raw line. Testing the whole pattern against blanked text erases the
         // signal; testing it against raw text fires on every quoted example.
-        if (!ENV_IDENTIFIER_RE.test(withoutLiterals(text))) continue;
+        const pythonTestEnvCall = /^\s*if\s+(?:os\.)?getenv\(['"]PYTEST_CURRENT_TEST['"]\)/.test(text);
+        if (!pythonTestEnvCall && !ENV_IDENTIFIER_RE.test(withoutLiterals(text))) continue;
         if (!TEST_ONLY_BRANCH_RE.test(text)) continue;
         findings.push({
           verifierId: 'WI105',

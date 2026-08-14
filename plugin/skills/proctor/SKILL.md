@@ -92,8 +92,8 @@ Each row below is sourced verbatim from `RULE_METADATA` in `src/rules.ts`,
 the same registry the tool itself uses to report findings. If you see one of
 these rule IDs in a `proctor` finding, this table tells you what it caught.
 
-There are two families. `RH001`–`RH013` check the claim "the tests pass": they
-read the test suite and the code directly beneath it. `WI101`–`WI112` check the
+There are two families. `RH001`–`RH014` check the claim "the tests pass": they
+read the test suite and the code directly beneath it. `WI101`–`WI113` check the
 claim "the work is done": they read shipped code for the ways a change can fake
 completion without touching a test at all.
 
@@ -110,10 +110,11 @@ completion without touching a test at all.
 | RH007 | TestExcludedViaConfig | Test excluded from run path via config change |
 | RH008 | TautologicalAssertion | Assertion always passes regardless of behavior |
 | RH009 | CoverageGaming | Trivial test added while real assertions removed |
-| RH010 | FailureMasking | Timeout/retry abuse, or a network mock manufacturing the expected answer |
+| RH010 | FailureMasking | Async checks detached, timeout/retry abuse, or a mock manufacturing the expected answer |
 | RH011 | TypeLintSilencingSpam | Type/lint suppression comments added to pass (spam, or one file-wide directive) |
 | RH012 | CIPipelineTampering | Test step removed from CI, or neutered so a failing suite still passes |
 | RH013 | CoverageGateWeakened | Coverage threshold lowered or removed so less coverage now passes |
+| RH014 | TestWorkloadReduced | A surviving test is changed to exercise fewer generated or table-driven cases |
 
 ### WI1xx, work integrity
 
@@ -131,6 +132,7 @@ completion without touching a test at all.
 | WI110 | VerificationScriptNeutered | A test, lint, or build script rewritten so it can no longer fail |
 | WI111 | ImplementationOrTestsRemoved | The code under test deleted, or a test file emptied of its tests |
 | WI112 | CheckingQuietlyReduced | Assertions deleted from a surviving test, a golden file rewritten, or a module aliased to a stub |
+| WI113 | FailureAvoidanceWorkaround | Benchmark workload reduced, dependency downgraded, or fixed delay added instead of fixing a failure |
 
 Every WI check skips test files by design. An empty catch is how you assert that
 something throws, canned data is what a fixture is, and a loose cast is routine

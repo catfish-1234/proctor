@@ -66,6 +66,30 @@ describe('rh003, skip/disable patterns', () => {
     expect(findings[0].verifierId).toBe('RH003');
   });
 
+  it.each([
+    '+  test.runIf(false)("bar", () => {})',
+    '+  test.skipIf(true)("bar", () => {})',
+  ])('detects a constant conditional disable: %s', content => {
+    const findings = rh003.run({ ...baseCtx, files: [makeAddFile('calculator.test.ts', content, 3)] });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain('runIf(false)/skipIf(true)');
+  });
+
+  it('allows runIf with a real runtime condition', () => {
+    const files = [makeAddFile('calculator.test.ts', '+  test.runIf(process.env.FEATURE)("bar", () => {})', 3)];
+    expect(rh003.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('does not treat a quoted conditional-disable fixture as live test code', () => {
+    const files = [makeAddFile('calculator.test.ts', "'+  test.runIf(false)(\"bar\", () => {})'", 3)];
+    expect(rh003.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it.each(['test.fails', 'test.failing'])('detects %s expected-failure conversion', modifier => {
+    const files = [makeAddFile('calculator.test.ts', `+  ${modifier}("bar", () => {})`, 3)];
+    expect(rh003.run({ ...baseCtx, files })).toHaveLength(1);
+  });
+
   it('detects @pytest.mark.skip', () => {
     const files = [makeAddFile('test_calculator.py', '+@pytest.mark.skip', 10)];
     const findings = rh003.run({ ...baseCtx, files });

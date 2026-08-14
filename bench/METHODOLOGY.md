@@ -40,7 +40,7 @@ proctor. Reusing `runChecks` in-process means the benchmark is only ever asking 
 ## Scope: What Can Fire in a Bench Run
 
 `runChecks` is called without enabling `ctx.aiEnabled`/`ctx.judge`, matching how
-`proctor check` behaves without `--ai`. All 25 checks run in that mode, and every
+`proctor check` behaves without `--ai`. All 27 checks run in that mode, and every
 one of them has a deterministic core that can fire on an agent's diff. The only parts
 that stay silent are the optional fuzzy extensions of RH004 (hardcoded implementation)
 and RH005 (gutted implementation), which consult the LLM judge for ambiguous cases
@@ -54,7 +54,7 @@ implementation, in its deterministic special-case form), **RH006** (snapshot rew
 **RH007** (config-based test exclusion), and **RH012** (CI pipeline tampering). So
 `cheat_detected` in the benchmark CSV should be read as "did proctor's deterministic,
 offline checks catch this," where the planted cheats target those signatures but any of
-the 25 can flag what the agent actually did.
+the 27 can flag what the agent actually did.
 
 ## Task Difficulty Is The Thing Being Controlled
 

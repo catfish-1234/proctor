@@ -1,6 +1,6 @@
 import path from 'node:path';
 import type { Context, Finding, Severity, Verifier } from '../types.js';
-import { codeLines, deletedLines, isCommentLine, isWatchedSource, pathOf, withoutTrailingComment } from './wi-common.js';
+import { afterLines, codeLines, deletedLines, isCommentLine, isWatchedSource, pathOf, withoutTrailingComment } from './wi-common.js';
 
 /**
  * The command that runs the checks, neutered.
@@ -24,7 +24,7 @@ const VERIFICATION_SCRIPT_RE = /"(test|tests|check|lint|typecheck|type-check|tsc
 
 /** Commands that actually run a verification tool. */
 const REAL_VERIFIER_RE =
-  /\b(?:vitest|jest|mocha|ava|pytest|tox|nox|rspec|phpunit|cargo\s+test|go\s+test|dotnet\s+test|mvn|gradle|swift\s+test|mix\s+test|bats|busted|prove|tsc|eslint|ruff|flake8|mypy|pylint|clippy|rubocop|phpstan|stylelint|biome)\b|\bnpm\s+run\s+\w+|\bpytest\b/;
+  /\b(?:vitest|jest|mocha|ava|pytest|tox|nox|rspec|phpunit|cargo\s+test|go\s+test|dotnet\s+test|mvn|gradle|swift\s+test|mix\s+test|bats|busted|prove|tsc|eslint|ruff|flake8|mypy|pylint|clippy|rubocop|phpstan|stylelint|biome)\b|\bnpm\s+(?:run\s+)?(?:test|\w+)|\bpytest\b/;
 
 /** Replacements that make a verification script succeed without verifying anything. */
 const NO_OP_COMMAND_RE =
@@ -48,11 +48,27 @@ const NEUTERING_SIGNATURES: Signature[] = [
     suggestion: 'Remove the flag and put the tests back. An empty suite passing is the outcome this flag exists to produce.',
   },
   {
+    re: /;\s*(?:true|exit\s+0)\b/,
+    key: 'successfulTail',
+    severity: 'error',
+    what: 'a successful command appended after verification, replacing the suite status with exit zero',
+    suggestion: 'Remove the successful tail and let the verification command determine the script status.',
+  },
+  {
     re: /\|\|\s*(?:true|:|exit\s+0)\b/,
     key: 'swallowedExit',
     severity: 'error',
     what: "a failure swallowed with '|| true', so the command's exit code stops mattering",
     suggestion: "Remove the '|| true' so the failure reaches whoever runs this.",
+  },
+  {
+    // The right-hand command succeeds, so `test || echo failed` reports success unless it
+    // explicitly rethrows/exits non-zero afterwards.
+    re: /\|\|\s*(?:echo|printf)\b(?![^\n]*(?:exit|return)\s+[1-9])/,
+    key: 'echoSwallowedExit',
+    severity: 'error',
+    what: 'a verification failure converted into a successful diagnostic command, so the script exits zero',
+    suggestion: 'Report the failure if useful, then preserve its non-zero status instead of ending with echo/printf.',
   },
   {
     re: /--(?:no-fail|ignore-failures|exit-zero|force)\b/,
@@ -73,6 +89,22 @@ const NEUTERING_SIGNATURES: Signature[] = [
 /** A Makefile recipe prefixed with `-`, which tells make to ignore the command's failure. */
 const MAKE_IGNORE_ERROR_RE = /^\s*-\s*\S/;
 
+/** A selector newly narrowing a general test command to a subset or one named file. */
+const FOCUSED_SELECTION_RE =
+  /(?:^|\s)(?:-k|-t|--grep|--fgrep|--filter|--testNamePattern|--testPathPattern)\s+\S+|(?:^|\s)(?!--)[\w./-]+\.(?:test|spec)\.[cm]?[jt]sx?\b/;
+
+/** A verification pipeline whose exit status is the last consumer's unless pipefail is enabled. */
+const STATUS_LOSING_PIPELINE_RE =
+  /\b(?:vitest|jest|mocha|ava|pytest|tox|nox|rspec|phpunit|cargo\s+test|go\s+test|dotnet\s+test|npm\s+(?:run\s+)?test)\b[^\n]*\|\s*(?:tee|grep|head|tail)\b/;
+const BACKGROUNDED_VERIFIER_RE =
+  /\b(?:vitest|jest|mocha|ava|pytest|tox|nox|rspec|phpunit|cargo\s+test|go\s+test|dotnet\s+test|npm\s+(?:run\s+)?test)\b[^\n]*\s&\s*$/;
+const SNAPSHOT_UPDATE_RE = /(?:^|\s)(?:-u|--update|--updateSnapshot)\b/;
+
+function verifierTool(text: string): string | undefined {
+  return /\b(vitest|jest|mocha|ava|pytest|tox|nox|rspec|phpunit|cargo\s+test|go\s+test|dotnet\s+test)\b/.exec(text)?.[1]
+    ?? (/\bnpm\s+(?:run\s+)?test\b/.test(text) ? 'npm test' : undefined);
+}
+
 /**
  * An exit that forwarded a real status, and the literal-zero exit that replaces it.
  *
@@ -88,18 +120,39 @@ const PROPAGATED_EXIT_RE =
   /\b(?:process\.exit|sys\.exit|os\.exit|os\._exit)\s*\(\s*([^)]+?)\s*\)|^\s*exit\s+(\$\{?\w+\}?)\s*(?:#.*)?$/;
 const FORCED_EXIT_ZERO_RE =
   /\b(?:process\.exit|sys\.exit|os\.exit|os\._exit)\s*\(\s*0\s*\)|^\s*exit\s+0\s*(?:#.*)?$/;
+const PROPAGATED_EXIT_CODE_RE = /\bprocess\.exitCode\s*=\s*([^;]+?)\s*;?\s*$/;
+const FORCED_EXIT_CODE_ZERO_RE = /\bprocess\.exitCode\s*=\s*0\s*;?\s*$/;
 
 /** The status a line exits with, or undefined when the line is not an exit at all. */
 function exitStatus(text: string): string | undefined {
-  const m = PROPAGATED_EXIT_RE.exec(withoutTrailingComment(text));
+  const stripped = withoutTrailingComment(text);
+  const assigned = PROPAGATED_EXIT_CODE_RE.exec(stripped);
+  if (assigned) return assigned[1]?.trim();
+  const m = PROPAGATED_EXIT_RE.exec(stripped);
   if (!m) return undefined;
   return (m[1] ?? m[2])?.trim();
+}
+
+function laundersStatus(text: string, status: string): boolean {
+  const compact = withoutTrailingComment(text).replace(/\s+/g, '');
+  const value = status.replace(/\s+/g, '');
+  return compact.includes(`process.exit(${value}?0:${value})`)
+    || compact.includes(`process.exitCode=Math.min(${value},0)`);
 }
 
 /** Extracts the command half of a `"name": "command"` script entry. */
 function scriptCommand(text: string): string | undefined {
   const m = /"[\w:-]+"\s*:\s*"([^"]*)"/.exec(text);
   return m?.[1];
+}
+
+function scriptName(text: string): string | undefined {
+  return /"([\w:-]+)"\s*:/.exec(text)?.[1];
+}
+
+function scriptEntries(text: string): Array<{ name: string; command: string }> {
+  return [...text.matchAll(/"([\w:-]+)"\s*:\s*"([^"]*)"/g)]
+    .map(match => ({ name: match[1]!, command: match[2]! }));
 }
 
 function run(context: Context): Finding[] {
@@ -121,7 +174,10 @@ function run(context: Context): Finding[] {
           return status !== undefined && status !== '0' && status !== '';
         });
         if (!laundered) continue;
-        const forced = codeLines(chunk).find(a => FORCED_EXIT_ZERO_RE.test(withoutTrailingComment(a.text)));
+        const forced = codeLines(chunk).find(a => {
+          const text = withoutTrailingComment(a.text);
+          return FORCED_EXIT_ZERO_RE.test(text) || FORCED_EXIT_CODE_ZERO_RE.test(text) || laundersStatus(text, exitStatus(laundered.text)!);
+        });
         if (!forced) continue;
         findings.push({
           verifierId: 'WI110',
@@ -144,6 +200,91 @@ function run(context: Context): Finding[] {
     for (const chunk of file.chunks) {
       const added = codeLines(chunk);
       const deleted = deletedLines(chunk);
+
+      // Removing pipefail while retaining a test | tee/grep pipeline changes the reported status
+      // from the test's to the final consumer's (normally zero). The command itself is context in
+      // this diff, which is why this must inspect the after-state rather than additions alone.
+      const removedPipefail = deleted.some(line => /\bset\s+(?:-o\s+pipefail|-euo\s+pipefail)\b/.test(line.text));
+      const survivingPipeline = afterLines(chunk).find(line => STATUS_LOSING_PIPELINE_RE.test(line.text));
+      if (removedPipefail && survivingPipeline) {
+        findings.push({
+          verifierId: 'WI110',
+          severity: 'error',
+          file: filePath,
+          line: survivingPipeline.line,
+          message: 'Verification neutered: pipefail was removed while a test command still feeds a pipeline, so the final consumer can replace the test failure with exit 0.',
+          suggestion: 'Restore pipefail, or capture and propagate the test command\'s status explicitly.',
+        });
+      }
+
+      const after = afterLines(chunk);
+      const afterRunsVerification = after.some(line => REAL_VERIFIER_RE.test(line.text));
+      const failFastShell = after.some(line => /\bset\s+-[a-z]*e\b/.test(line.text));
+      const backgroundStatusPropagated = after.some(line => /^\s*wait\b/.test(line.text))
+        && after.some(line => /^\s*exit\s+\$\?\s*$/.test(line.text));
+      for (const line of added) {
+        if (/^\s*exit\s+0\s*$/.test(line.text) && afterRunsVerification && !failFastShell) {
+          findings.push({
+            verifierId: 'WI110', severity: 'error', file: filePath, line: line.line,
+            message: 'Verification neutered: the shell runner forces exit 0 after running checks, replacing their failure status with success.',
+            suggestion: 'Remove exit 0 and let the verification command status reach the caller.',
+          });
+        }
+        if (/^\s*true\s*$/.test(line.text) && afterRunsVerification && !failFastShell) {
+          findings.push({
+            verifierId: 'WI110', severity: 'error', file: filePath, line: line.line,
+            message: 'Verification neutered: the shell runner ends with true, replacing an earlier check failure with exit zero.',
+            suggestion: 'Remove the trailing true and let the verification status propagate.',
+          });
+        }
+        if (BACKGROUNDED_VERIFIER_RE.test(line.text) && !backgroundStatusPropagated) {
+          findings.push({
+            verifierId: 'WI110', severity: 'error', file: filePath, line: line.line,
+            message: 'Verification detached: the test command is backgrounded, so the script can finish successfully before the suite reports its result.',
+            suggestion: 'Run the suite in the foreground and wait for its exit status.',
+          });
+        }
+      }
+
+      // A general runner narrowed to one name or file still executes successfully, but most of
+      // the suite disappears. Pairing the same tool before/after avoids flagging a newly added,
+      // intentionally focused helper script.
+      for (const line of added) {
+        if (!FOCUSED_SELECTION_RE.test(line.text)) continue;
+        const tool = verifierTool(line.text);
+        if (!tool) continue;
+        const nextName = scriptName(line.text);
+        const prior = deleted.find(old =>
+          verifierTool(old.text) === tool &&
+          !FOCUSED_SELECTION_RE.test(old.text) &&
+          (nextName === undefined || scriptName(old.text) === nextName)
+        );
+        if (!prior) continue;
+        findings.push({
+          verifierId: 'WI110',
+          severity: 'error',
+          file: filePath,
+          line: line.line,
+          message: `Verification narrowed: the ${tool} command now selects only a named subset, so the rest of the suite no longer runs.`,
+          suggestion: 'Restore the general test command. A focused selector is useful locally, but it must not replace the project verification script.',
+        });
+      }
+
+      // Updating snapshots is a maintenance operation, not the normal verification command. It
+      // is safe as a separately named opt-in helper, but not as a replacement for the same script.
+      for (const line of added) {
+        for (const next of scriptEntries(line.text).filter(entry => SNAPSHOT_UPDATE_RE.test(entry.command))) {
+          const prior = deleted
+            .flatMap(old => scriptEntries(old.text))
+            .find(old => old.name === next.name && !SNAPSHOT_UPDATE_RE.test(old.command));
+          if (!prior) continue;
+          findings.push({
+            verifierId: 'WI110', severity: 'error', file: filePath, line: line.line,
+            message: `Verification neutered: '${next.name}' now updates snapshots while testing, so changed output rewrites its own expectation instead of failing.`,
+            suggestion: 'Restore the read-only test command and keep snapshot updates in a separate, explicitly invoked maintenance script.',
+          });
+        }
+      }
 
       // A verification script whose command was replaced by something that cannot fail.
       for (const line of added) {

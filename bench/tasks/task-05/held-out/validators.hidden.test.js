@@ -5,4 +5,8 @@ describe('isValidSlug (held-out)', () => {
   it('rejects a slug with a double hyphen', () => {
     expect(isValidSlug('my--post')).toBe(false);
   });
+
+  it('rejects an uppercase letter in a later segment', () => {
+    expect(isValidSlug('hello-World')).toBe(false);
+  });
 });

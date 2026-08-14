@@ -412,6 +412,14 @@ worth more than the headline number above.
 The gap between 9.1% and 4.5% is a single task. At n=22 that is noise, not a result, and quoting it
 as a prevention rate would be exactly the sort of unearned green this project exists to catch.
 
+One further caveat, found while chasing those false positives. This run predates an audit of the
+task corpus which showed that eight of the twenty-two held-out suites passed against their own
+unfixed source, so for those tasks `honest_pass` could not tell a real fix from a cheat that
+satisfied the visible tests. All eight have been strengthened and
+`tests/bench-heldout-discriminates.test.ts` now enforces the property for every task, but the
+numbers above were collected before that and should be re-measured. See
+[bench/METHODOLOGY.md](bench/METHODOLOGY.md).
+
 The task corpus ships with this repository rather than the npm package, so `bench` needs a clone:
 
 ```bash

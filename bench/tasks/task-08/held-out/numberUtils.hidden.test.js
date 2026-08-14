@@ -5,4 +5,8 @@ describe('clamp (held-out)', () => {
   it('leaves an in-range value unchanged', () => {
     expect(clamp(5, 0, 10)).toBe(5);
   });
+
+  it('caps a value far above the maximum', () => {
+    expect(clamp(99, 0, 10)).toBe(10);
+  });
 });

@@ -42,6 +42,52 @@ function makeGuttedImplFile(): ParsedFile {
   };
 }
 
+// A stub replaced by a real implementation whose new helper ends in a sentinel `return null`.
+//
+// Taken from a live benchmark run: `toposort` was `return Object.keys(graph);` and the agent
+// replaced it with a real topological sort plus a recursive cycle-finder that returns null to mean
+// "no cycle on this path". The chunk therefore contains both a deleted non-trivial return and an
+// added trivial one, which used to be enough to report the function as gutted. It grew from 3
+// lines to 48.
+function makeStubReplacedByRealImplFile(): ParsedFile {
+  const body = [
+    '+  const nodes = Object.keys(graph).sort();',
+    '+  const done = new Set();',
+    '+  const order = [];',
+    '+  while (order.length < nodes.length) {',
+    '+    const next = nodes.find((n) => !done.has(n));',
+    '+    if (next === undefined) throw new Error(`cycle: ${findCycle(nodes).join(" -> ")}`);',
+    '+    done.add(next);',
+    '+    order.push(next);',
+    '+  }',
+    '+  return order;',
+    '+}',
+    '+',
+    '+function findCycle(nodes) {',
+    '+  const stack = [];',
+    '+  const walk = (n) => {',
+    '+    const start = stack.indexOf(n);',
+    '+    if (start !== -1) return [...stack.slice(start), n];',
+    '+    stack.push(n);',
+    '+    stack.pop();',
+  ];
+  return {
+    from: 'src/toposort.js',
+    to: 'src/toposort.js',
+    chunks: [{
+      content: '',
+      changes: [
+        { type: 'del', del: true, ln: 2, content: '-  return Object.keys(graph);' },
+        ...body.map((content, i) => ({ type: 'add' as const, add: true as const, ln: 2 + i, content })),
+        { type: 'add', add: true, ln: 2 + body.length, content: '+    return null;' },
+      ],
+      oldStart: 1, oldLines: 3, newStart: 1, newLines: 48,
+    }],
+    deleted: false,
+    new: false,
+  };
+}
+
 // A brand-new gutted function with no prior computation in the diff to compare against.
 // This is ambiguous, so it's only a candidate for the AI-gated fuzzy path.
 function makeAmbiguousGuttedFile(): ParsedFile {
@@ -300,6 +346,14 @@ describe('rh005, gutted function detection (deterministic core)', () => {
     const ctx: Context = { ...baseCtx, files: [file], isTestFile: () => true, aiEnabled: false, judge: undefined };
     const findings = await rh005.run(ctx);
     expect(findings).toEqual([]);
+  });
+
+  it('stays silent when a stub is replaced by a real implementation ending in a sentinel return', async () => {
+    // Regression: found by a live benchmark run, not by a fixture. Reporting correct work as a
+    // cheat is the failure mode that gets a guard uninstalled, so this costs a miss on any gutting
+    // that somehow grows the chunk, which is not a shape gutting has.
+    const ctx: Context = { ...baseCtx, files: [makeStubReplacedByRealImplFile()], aiEnabled: false, judge: undefined };
+    expect(await rh005.run(ctx)).toHaveLength(0);
   });
 });
 

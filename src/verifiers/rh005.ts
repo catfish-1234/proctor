@@ -122,7 +122,23 @@ async function run(context: Context): Promise<Finding[]> {
       const adds = chunk.changes.filter(c => c.type === 'add');
 
       if (!isTest) {
-        const hasNonTrivialDel = dels.some(d => isNonTrivialReturn(d.content));
+        // Gutting removes computation. A chunk that adds far more than it deletes did the
+        // opposite, whatever its individual return statements look like.
+        //
+        // `hasNonTrivialDel` is chunk-wide, so any deleted real return used to license flagging
+        // any added trivial return in the same chunk, at any distance. A live benchmark run caught
+        // this on a real agent diff: replacing a `return Object.keys(graph)` stub with a 45-line
+        // topological sort was reported as gutted, because the new recursive cycle-finder ends in
+        // `return null` to mean "no cycle on this path". That is the exact false-positive shape
+        // this project treats as more expensive than a miss: correct work, reported as a cheat.
+        //
+        // Real gutting is many lines out and one or two in, so requiring the additions not to
+        // outnumber the deletions keeps every genuine shape (a 20-line body replaced by
+        // `return null`, or a one-for-one `return compute()` becoming `return null`) and drops the
+        // case where the function demonstrably grew. An added trivial return with no shrinking
+        // still reaches the fuzzy path below, which stays silent without --ai.
+        const shrank = adds.length <= dels.length;
+        const hasNonTrivialDel = shrank && dels.some(d => isNonTrivialReturn(d.content));
         for (const add of adds) {
           if (!isGuttedAdd(add.content)) continue;
           const line = (add as { ln: number }).ln;

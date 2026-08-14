@@ -5,7 +5,7 @@ import { homedir } from 'node:os';
 import pkg from '../package.json' with { type: 'json' };
 import { readFile, writeFile, appendFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { runGitDiff } from './diff.js';
+import { hiddenTrackedPaths, runGitDiff } from './diff.js';
 import { classifyDiff } from './pre-classifier.js';
 import { buildContext } from './context/index.js';
 import { runChecks } from './engine.js';
@@ -67,9 +67,9 @@ program
 
 program
   .command('check [path]')
-  .description('Analyze working diff against every enabled Verifier (test-tampering signatures are the first Verifier type)')
+  .description('Analyze all uncommitted changes against every enabled Verifier (test-tampering signatures are the first Verifier type)')
   .option('--staged', 'analyze only staged changes')
-  .option('--uncommitted', 'analyze everything not yet committed: staged and unstaged changes together')
+  .option('--uncommitted', 'explicitly analyze the default scope: staged, unstaged, and untracked changes together')
   .option('--base <ref>', 'analyze changes against a base ref (e.g. origin/main or a commit SHA) instead of staged/working-tree changes, for CI, where nothing is staged in a fresh checkout')
   .option('--ci', 'suppress non-error output, exit nonzero on error only')
   .option('--json', 'output findings as JSON to stdout')
@@ -123,19 +123,32 @@ program
       process.stdout.write(`${options.explain}: ${meta.name}\n\n${meta.fullDescription}\n\nDefault severity: ${meta.defaultLevel}\nMore info: ${meta.helpUri}\nHonest fix: proctor check --explain ${options.explain} --fix\n`);
       process.exit(0);
     }
+    const selectedScopes = [options.base !== undefined, options.staged === true, options.uncommitted === true]
+      .filter(Boolean).length;
+    if (selectedScopes > 1) {
+      process.stderr.write('proctor: choose only one diff scope: --staged, --uncommitted, or --base <ref>\n');
+      process.exit(2);
+    }
     const cwd = pathArg ? resolve(pathArg) : process.cwd();
     // --end-of-options stops git from parsing a ref that begins with '-' as a git option
     // (e.g. --base "--output=x" would otherwise write the diff to a file).
+    const allUncommitted = options.uncommitted === true || (!options.base && !options.staged);
     const diffArgs = options.base
       ? ['--end-of-options', `${options.base}...HEAD`]
-      : options.uncommitted
+      : allUncommitted
         // Staged and unstaged together. `git diff HEAD` needs a commit to compare against, so a
         // repository with no commits yet falls back to the index, which is all there is to see.
         ? hasCommit(cwd) ? ['HEAD'] : ['--staged']
-        : options.staged ? ['--staged'] : [];
+        : ['--staged'];
     let raw: string, files: import('./diff.js').ParsedFile[];
     try {
-      ({ raw, files } = runGitDiff(diffArgs, cwd, { includeUntracked: options.uncommitted === true }));
+      if (!options.base) {
+        const hidden = hiddenTrackedPaths(cwd);
+        if (hidden.length > 0) {
+          throw new Error(`tracked path(s) hidden by assume-unchanged/skip-worktree: ${hidden.slice(0, 5).join(', ')}${hidden.length > 5 ? ` (+${hidden.length - 5} more)` : ''}`);
+        }
+      }
+      ({ raw, files } = runGitDiff(diffArgs, cwd, { includeUntracked: allUncommitted }));
     } catch (err) {
       const msg = String(err);
       // Give the common "not in a git repo" case a clean one-line message instead of git's raw
@@ -611,7 +624,8 @@ program
   .option('--mock', 'use the mock fixture runner (no real agent CLI, no network)')
   .option('--agent <id>', 'agent id to run (e.g. claude-code, codex)', 'claude-code')
   .option('--out <path>', 'write the results CSV to this path')
-  .action(async (options: { tasks: string; seed: string; mock?: boolean; agent: string; out?: string }) => {
+  .option('--resume', "carry completed tasks over from a previous attempt's <out>.partial.csv instead of re-running them")
+  .action(async (options: { tasks: string; seed: string; mock?: boolean; agent: string; out?: string; resume?: boolean }) => {
     const pool = await loadTaskPool();
     if (pool.length === 0) {
       // The task corpus lives in bench/ and is deliberately not in the npm tarball: it is a
@@ -641,6 +655,7 @@ program
       mock: options.mock === true,
       agent: options.agent,
       outPath: options.out,
+      resume: options.resume === true,
     });
     process.exit(result.exitCode);
   });

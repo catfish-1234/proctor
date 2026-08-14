@@ -20,7 +20,7 @@ Drop a `proctor.config.json` in your repo root (it's validated against
 
 | Field | Type | What it does |
 |-------|------|---------|
-| `enabled` | `string[]` | which checks to run. Defaults to all of them, `RH001` through `RH013` |
+| `enabled` | `string[]` | which checks to run. Defaults to all of them: `RH001` through `RH014` and `WI101` through `WI113` |
 | `severity` | `object` | override how serious a check is, per check ID (e.g. `"RH006": "warn"`) |
 | `testPathGlobs` | `string[]` | glob patterns that identify your test files |
 | `ignorePatterns` | `string[]` | glob patterns for files to ignore entirely |

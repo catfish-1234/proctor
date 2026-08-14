@@ -9,12 +9,17 @@ if (!script) {
   process.exit(2);
 }
 
+const programFiles = process.env.ProgramFiles ?? 'C:\\Program Files';
+const localAppData = process.env.LOCALAPPDATA;
 const windowsCandidates = [
-  'C:\\Program Files\\Git\\bin\\bash.exe',
-  'C:\\Program Files\\Git\\usr\\bin\\bash.exe',
+  `${programFiles}\\Git\\bin\\bash.exe`,
+  `${programFiles}\\Git\\usr\\bin\\bash.exe`,
+  ...(localAppData ? [`${localAppData}\\Programs\\Git\\bin\\bash.exe`] : []),
 ];
 const candidates = process.platform === 'win32'
-  ? ['bash', ...windowsCandidates.filter(candidate => existsSync(candidate))]
+  // Prefer Git Bash. A `bash.exe` shim on PATH may launch WSL, which cannot consume a Windows
+  // absolute script path and would prevent the known-good Git Bash fallback from being tried.
+  ? [...windowsCandidates.filter(candidate => existsSync(candidate)), 'bash']
   : ['bash'];
 
 let lastError;

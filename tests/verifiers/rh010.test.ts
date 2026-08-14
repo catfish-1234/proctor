@@ -27,6 +27,23 @@ function fileWith(content: string, ln = 5): ParsedFile[] {
   }];
 }
 
+function changedLine(before: string, after: string): ParsedFile[] {
+  return [{
+    from: 'network.test.ts',
+    to: 'network.test.ts',
+    chunks: [{
+      content: '',
+      changes: [
+        { type: 'del', del: true, ln: 5, content: before },
+        { type: 'add', add: true, ln: 5, content: after },
+      ],
+      oldStart: 5, oldLines: 1, newStart: 5, newLines: 1,
+    }],
+    deleted: false,
+    new: false,
+  }];
+}
+
 describe('rh010, failure masking detection', () => {
   it('flags jest.retryTimes(5), retry abuse', () => {
     const findings = rh010.run({ ...baseCtx, files: fileWith('+  jest.retryTimes(5);') });
@@ -147,5 +164,23 @@ describe('rh010, failure masking detection', () => {
       files: [{ ...fileWith('+  jest.retryTimes(5);')[0]!, from: 'src/network.ts', to: 'src/network.ts' }],
     });
     expect(findings).toEqual([]);
+  });
+
+  it('flags await removed from the same asynchronous test expression', () => {
+    const files = changedLine(
+      "  await expect(load('bad')).rejects.toThrow('invalid');",
+      "  expect(load('bad')).rejects.toThrow('invalid');",
+    );
+    const findings = rh010.run({ ...baseCtx, files });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.severity).toBe('error');
+  });
+
+  it('allows an explained conversion to a detached test task', () => {
+    const files = changedLine(
+      '  await startTelemetry();',
+      '  startTelemetry(); // deliberately detached: failures are collected by the global harness',
+    );
+    expect(rh010.run({ ...baseCtx, files })).toEqual([]);
   });
 });

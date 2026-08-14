@@ -43,12 +43,21 @@ cd "$TMPDIR_VERIFY"
 npm init -y --silent >/dev/null
 npm install "$REPO_ROOT/$TARBALL" --no-save --force >/dev/null
 
+# Run in a real, clean repository and require an honest-pass exit. The old smoke test ran outside
+# git and ignored every nonzero status, so a missing bin shim or a crashing CLI completed quickly
+# and was incorrectly reported as a successful package verification.
+git init -q
+git config user.email "verify-pack@proctor.invalid"
+git config user.name "proctor verify-pack"
+printf '# packed smoke repository\n' > README.md
+printf 'node_modules/\n' > .gitignore
+git add README.md .gitignore package.json
+if [ -f package-lock.json ]; then git add package-lock.json; fi
+git commit -qm "baseline"
+
 echo "==> Timing 'proctor check' from the isolated install..."
-# `proctor check` may legitimately exit nonzero here (this temp dir is not a
-# git repo) -- that's fine, we're only measuring cold-start invocation time,
-# not asserting a clean result. `|| true` prevents `set -e` from aborting.
 START_EPOCH=$(date +%s)
-time ./node_modules/.bin/proctor check >/dev/null 2>&1 || true
+time ./node_modules/.bin/proctor check --ci >/dev/null
 END_EPOCH=$(date +%s)
 ELAPSED=$((END_EPOCH - START_EPOCH))
 

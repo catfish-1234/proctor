@@ -28,6 +28,18 @@ interface Signature {
   what: string;
 }
 
+/** Error-reporting calls whose removal can make a real failure invisible without swallowing it. */
+const ERROR_DIAGNOSTIC_RE =
+  /\b(?:console|logger|log)\.(?:error|fatal)\s*\(|\b(?:captureException|reportError|notifyException)\s*\(/;
+const QUIET_DIAGNOSTIC_RE = /\b(?:console|logger|log)\.(?:debug|trace)\s*\(/;
+
+function diagnosticShape(text: string): string {
+  return withoutTrailingComment(text)
+    .replace(/\.(?:error|fatal|debug|trace)\s*\(/, '.level(')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /**
  * One-line swallows: the handler and its empty body are the same line, so no block scan is needed.
  * These are the highest-confidence shapes in the check, because there is nowhere for a comment or a
@@ -204,10 +216,47 @@ function run(context: Context): Finding[] {
     const filePath = pathOf(file);
     if (!isWatchedSource(context, filePath)) continue;
 
+    const replacementReported = context.files.some(candidate => candidate.chunks.some(chunk =>
+      addedLines(chunk).some(line => ERROR_DIAGNOSTIC_RE.test(line.text))
+    ));
+    const removedDiagnostic = file.chunks
+      .flatMap(deletedLines)
+      .find(line => !isCommentLine(line.text) && ERROR_DIAGNOSTIC_RE.test(line.text));
+    const changeExplainsRemoval = file.chunks
+      .flatMap(addedLines)
+      .some(line => isCommentLine(line.text) && hasExplanation(line.text));
+
+    if (removedDiagnostic && !replacementReported && !changeExplainsRemoval) {
+      findings.push({
+        verifierId: 'WI101',
+        severity: 'warn',
+        file: filePath,
+        line: removedDiagnostic.line,
+        message: 'Failure visibility reduced: the change removes error-level reporting without adding another reporting path, so the failure can become invisible even though execution continues.',
+        suggestion: 'Restore the diagnostic or replace it with structured error reporting. If silence is intentional, explain where this failure is observed instead.',
+      });
+    }
+
     for (const chunk of file.chunks) {
       const after = afterLines(chunk);
       const addedInOrder = addedLines(chunk);
       const templated = insideTemplateLiteral(addedInOrder);
+
+      // `logger.error(payload)` becoming the identical `logger.debug(payload)` retains a line
+      // that looks like reporting while moving it below ordinary production log thresholds.
+      const removedLoud = deletedLines(chunk).filter(line => ERROR_DIAGNOSTIC_RE.test(line.text));
+      for (const quiet of addedInOrder.filter(line => QUIET_DIAGNOSTIC_RE.test(line.text))) {
+        if (hasExplanation(quiet.text)) continue;
+        if (!removedLoud.some(loud => diagnosticShape(loud.text) === diagnosticShape(quiet.text))) continue;
+        findings.push({
+          verifierId: 'WI101',
+          severity: 'error',
+          file: filePath,
+          line: quiet.line,
+          message: 'Failure visibility reduced: an error-level diagnostic was downgraded to debug/trace, so normal production logging no longer reports it.',
+          suggestion: 'Keep failures at error level, or explain the replacement reporting path that makes the lower level safe.',
+        });
+      }
 
       // `await validate()` becoming `validate()` leaves the call in place but makes a rejection
       // invisible to this function and lets the function report success before validation ends.

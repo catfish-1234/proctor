@@ -29,6 +29,21 @@ const baseCtx: Context = {
 };
 
 describe('rh002, weakened assertion', () => {
+  it('detects a specific toThrow type broadened to any error', () => {
+    const files = parseDiff([
+      'diff --git a/svc.test.ts b/svc.test.ts', '--- a/svc.test.ts', '+++ b/svc.test.ts', '@@ -1 +1 @@',
+      '-expect(() => load()).toThrow(TypeError);', '+expect(() => load()).toThrow();',
+    ].join('\n'));
+    expect(rh002.run({ ...baseCtx, files })).toHaveLength(1);
+  });
+
+  it('detects pytest.raises broadened to Exception', () => {
+    const files = parseDiff([
+      'diff --git a/test_svc.py b/test_svc.py', '--- a/test_svc.py', '+++ b/test_svc.py', '@@ -1 +1 @@',
+      '-with pytest.raises(ValueError):', '+with pytest.raises(Exception):',
+    ].join('\n'));
+    expect(rh002.run({ ...baseCtx, files })).toHaveLength(1);
+  });
   it('detects weakened assertion from fixture diff', () => {
     const files = fixtureDiff('RH002', 'calculator.test.ts');
     const findings = rh002.run({ ...baseCtx, files });

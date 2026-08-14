@@ -4,7 +4,7 @@ import type { Context, Finding, Verifier } from '../types.js';
 const STRONG_PATTERNS = [
   /\.toBe\([^)]+\)/,
   /\.toStrictEqual\(/,
-  /\.toThrow\(['"`]/,
+  /\.toThrow\(\s*[^)\s][^)]*\)/,
   /\.toEqual\([^)]+\)/,
   /assertEqual\(.*,.*\)/,
   /assertIn\(/,
@@ -688,6 +688,26 @@ function run(context: Context): Finding[] {
 
       // Track reported add-line numbers to avoid duplicate findings within the same chunk
       const reported = new Set<number>();
+
+      // Python's `pytest.raises(ValueError)` to `pytest.raises(Exception)` keeps an exception
+      // assertion but discards the specific contract. It is the direct analogue of toThrow(Type)
+      // becoming toThrow().
+      for (const added of adds) {
+        const broad = /pytest\.raises\(\s*(?:Exception|BaseException)\s*\)/.exec(added.content);
+        if (!broad) continue;
+        const prior = dels.find(del => {
+          const match = /pytest\.raises\(\s*([A-Za-z_$][\w$.]*)\s*\)/.exec(del.content);
+          return match !== null && !/(?:^|\.)(?:Exception|BaseException)$/.test(match[1]!);
+        });
+        if (!prior) continue;
+        reported.add((added as { ln: number }).ln);
+        findings.push({
+          verifierId: 'RH002', severity: 'error', file: filePath,
+          line: (added as { ln: number }).ln,
+          message: 'Assertion weakened from a specific expected exception to any Exception.',
+          suggestion: 'Restore the specific exception type and fix the code path that throws something else.',
+        });
+      }
 
       for (const del of dels) {
         if (!isStrongAssertion(del.content)) continue;

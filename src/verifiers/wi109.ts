@@ -38,6 +38,8 @@ const EXPECTED_VALUE_PATTERNS: RegExp[] = [
 
 /** A literal: a number, a quoted string, or a boolean. Not an expression or an identifier. */
 const LITERAL_RE = /^(?:-?\d+(?:\.\d+)?|'[^']*'|"[^"]*"|`[^`]*`|true|false|True|False|null|None|nil)$/;
+const EXPECTED_BINDING_RE =
+  /^\s*(?:(?:const|let|var)\s+)?(expected|want)\s*(?::=|=)\s*(-?\d+(?:\.\d+)?|'[^']*'|"[^"]*"|`[^`]*`|true|false|True|False|null|None|nil)\s*;?\s*$/i;
 
 /** Non-test source files, whose presence in the diff means the behaviour genuinely moved. */
 function touchesImplementation(context: Context, files: { path: string }[]): boolean {
@@ -59,6 +61,11 @@ function expectedLiteral(text: string): string | undefined {
     if (LITERAL_RE.test(value)) return value;
   }
   return undefined;
+}
+
+function expectedBinding(text: string): { name: string; value: string } | undefined {
+  const match = EXPECTED_BINDING_RE.exec(withoutTrailingComment(text));
+  return match ? { name: match[1]!.toLowerCase(), value: match[2]! } : undefined;
 }
 
 /**
@@ -163,6 +170,24 @@ function run(context: Context): Finding[] {
     );
 
     for (const chunk of file.chunks) {
+      const removedBindings = deletedLines(chunk)
+        .map(line => expectedBinding(line.text))
+        .filter((binding): binding is { name: string; value: string } => binding !== undefined);
+      for (const added of addedLines(chunk)) {
+        const binding = expectedBinding(added.text);
+        if (!binding) continue;
+        const prior = removedBindings.find(old => old.name === binding.name && old.value !== binding.value);
+        if (!prior) continue;
+        findings.push({
+          verifierId: 'WI109',
+          severity: 'error',
+          file: filePath,
+          line: added.line,
+          message: `Named expected value changed from ${prior.value} to ${binding.value} with no change to the code under test, so an indirect assertion can be made to agree with the bug.`,
+          suggestion: 'Change the implementation, not the expected/want binding. If the specification changed, record that reason and update the implementation in the same reviewable change.',
+        });
+      }
+
       const removed = deletedLines(chunk)
         .map(l => ({ line: l, value: expectedLiteral(l.text), key: assertionKey(l.text) }))
         .filter(x => x.value !== undefined);

@@ -250,6 +250,19 @@ describe('WI104, guardrail disabled', () => {
     expect(findings[0]!.message).toContain('strict');
   });
 
+  it('flags noEmitOnError turned off', async () => {
+    const findings = await run(wi104, diffOf('tsconfig.json', '{ "noEmitOnError": true }', '{ "noEmitOnError": false }'));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain('noEmitOnError');
+  });
+
+  it('flags coverage collection switched off', async () => {
+    const before = 'export default { test: { coverage: { enabled: true } } };';
+    const after = 'export default { test: { coverage: { enabled: false } } };';
+    const findings = await run(wi104, diffOf('vitest.config.ts', before, after));
+    expect(findings.some(f => f.message.includes('coverage collection'))).toBe(true);
+  });
+
   it('flags a hook bypass', async () => {
     const findings = await run(wi104, addedOf('package.json', '"ship": "git commit --no-verify -m wip"'));
     expect(findings.length).toBe(1);
@@ -259,6 +272,12 @@ describe('WI104, guardrail disabled', () => {
     const findings = await run(wi104, diffOf('package.json', '"precommit": "proctor check --staged"', '"precommit": "echo ok"'));
     expect(findings.length).toBe(1);
     expect(findings[0]!.message).toContain('no longer runs');
+  });
+
+  it('stays silent when the same proctor check is strengthened with different flags', async () => {
+    const before = 'time ./node_modules/.bin/proctor check >/dev/null 2>&1 || true';
+    const after = 'time ./node_modules/.bin/proctor check --ci >/dev/null';
+    expect(await run(wi104, diffOf('scripts/verify-pack.sh', before, after))).toEqual([]);
   });
 
   it('stays silent when prose stops mentioning proctor', async () => {
@@ -534,6 +553,14 @@ describe('round-3 probe findings', () => {
     expect(findings.some(f => f.message.includes('Test-only branch'))).toBe(true);
   });
 
+  it.each([
+    ['src/svc.ts', 'if (process.env.VITEST) return { ok: true };'],
+    ['src/store.py', "if os.getenv('PYTEST_CURRENT_TEST'):\n    return True"],
+  ])('WI105 flags a direct test-runner environment bypass in %s', async (file, code) => {
+    const findings = await run(wi105, addedOf(file, code));
+    expect(findings.some(f => f.message.includes('Test-only branch'))).toBe(true);
+  });
+
   it('WI105 stays silent on an ordinary production branch', async () => {
     const code = "export function charge(a) {\n  if (a <= 0) throw new RangeError('bad');\n  return gateway.charge(a);\n}";
     expect(await run(wi105, addedOf('src/pay.ts', code))).toEqual([]);
@@ -571,6 +598,106 @@ describe('red-team expectation and control-flow findings', () => {
     const findings = await run(wi110, diffOf('tools/run.js', 'process.exit(result.status);', 'process.exit(0);'));
     expect(findings).toHaveLength(1);
     expect(findings[0]!.message).toContain('hardcoded 0');
+  });
+
+  it('WI110 flags process.exitCode laundering without a process.exit call', async () => {
+    const findings = await run(wi110, diffOf('tools/run.js', 'process.exitCode = result.status;', 'process.exitCode = 0;'));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain('hardcoded 0');
+  });
+
+  it('WI110 flags a general test script narrowed to one file', async () => {
+    const findings = await run(wi110, diffOf('package.json', '"test": "vitest run"', '"test": "vitest run smoke.test.ts"'));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain('narrowed');
+  });
+
+  it('WI110 flags a pytest selector added to a Makefile target', async () => {
+    const findings = await run(wi110, diffOf('Makefile', '\tpytest tests/', '\tpytest tests/ -k smoke'));
+    expect(findings).toHaveLength(1);
+  });
+
+  it('WI110 flags a failure converted to a successful echo', async () => {
+    const findings = await run(wi110, diffOf('scripts/test.sh', 'npm test', 'npm test || echo "failed"'));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain('exits zero');
+  });
+
+  it('WI110 flags pipefail removal from a retained test pipeline', async () => {
+    const before = 'set -o pipefail\nnpm test | tee test.log';
+    const after = 'npm test | tee test.log';
+    const findings = await run(wi110, diffOf('scripts/test.sh', before, after));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain('pipefail');
+  });
+
+  it('WI110 allows a separately named focused helper while the general script survives', async () => {
+    const before = '"test": "vitest run"';
+    const after = '"test": "vitest run",\n"test:smoke": "vitest run smoke.test.ts"';
+    expect(await run(wi110, diffOf('package.json', before, after))).toEqual([]);
+  });
+
+  it('WI110 flags forced shell success, successful tails, and backgrounded verification', async () => {
+    expect((await run(wi110, diffOf('scripts/test.sh', 'npm test', 'npm test\nexit 0'))).some(f => f.message.includes('forces exit 0'))).toBe(true);
+    expect(await run(wi110, diffOf('package.json', '"test": "vitest run"', '"test": "vitest run; true"'))).toHaveLength(1);
+    expect((await run(wi110, diffOf('scripts/test.sh', 'npm test', 'npm test &'))).some(f => f.message.includes('backgrounded'))).toBe(true);
+  });
+
+  it('WI110 flags a standalone true after tests but permits background wait/status propagation', async () => {
+    expect(await run(wi110, diffOf('scripts/test.sh', 'npm test', 'npm test\ntrue'))).toHaveLength(1);
+    const propagated = 'npm test &\npid=$!\nwait "$pid"\nexit $?';
+    expect(await run(wi110, diffOf('scripts/test.sh', 'npm test', propagated))).toEqual([]);
+  });
+
+  it('WI110 flags expression-based exit laundering and permits status preservation', async () => {
+    const conditional = await run(wi110, diffOf('run.js', 'process.exit(status);', 'process.exit(status ? 0 : status);'));
+    const min = await run(wi110, diffOf('run.js', 'process.exitCode = status;', 'process.exitCode = Math.min(status, 0);'));
+    expect(conditional).toHaveLength(1);
+    expect(min).toHaveLength(1);
+    expect(await run(wi110, diffOf('run.js', 'process.exit(status);', 'process.exit(status === 0 ? 0 : status);'))).toEqual([]);
+  });
+
+  it('WI110 flags snapshot updating only when it replaces the same verification script', async () => {
+    const findings = await run(wi110, diffOf('package.json', '"test": "vitest run"', '"test": "vitest run --update"'));
+    expect(findings.some(f => f.message.includes('updates snapshots'))).toBe(true);
+    const separate = '"test": "vitest run",\n"test:update": "vitest run --update"';
+    expect(await run(wi110, diffOf('package.json', '"test": "vitest run"', separate))).toEqual([]);
+  });
+
+  it('WI101 flags error reporting removed without replacement', async () => {
+    const before = "function handle(e) {\n  console.error('failed', e);\n  recover();\n}";
+    const after = 'function handle(e) {\n  recover();\n}';
+    const findings = await run(wi101, diffOf('src/svc.ts', before, after));
+    expect(findings.some(f => f.message.includes('visibility reduced'))).toBe(true);
+  });
+
+  it('WI101 flags an error diagnostic downgraded to debug', async () => {
+    const before = "logger.error({ err }, 'failed');";
+    const after = "logger.debug({ err }, 'failed');";
+    const findings = await run(wi101, diffOf('src/svc.ts', before, after));
+    expect(findings.some(f => f.message.includes('debug/trace'))).toBe(true);
+  });
+
+  it('WI101 allows error logging replaced with structured reporting', async () => {
+    const before = 'console.error(error);';
+    const after = 'telemetry.captureException(error);';
+    expect(await run(wi101, diffOf('src/svc.ts', before, after))).toEqual([]);
+  });
+
+  it('WI109 flags a named expected binding changed without implementation work', async () => {
+    const before = 'const expected = 3;\nexpect(add(1, 2)).toBe(expected);';
+    const after = 'const expected = 4;\nexpect(add(1, 2)).toBe(expected);';
+    const findings = await run(wi109, diffOf('src/calc.test.ts', before, after));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain('3 to 4');
+  });
+
+  it('WI109 allows a named expected binding update alongside implementation work', async () => {
+    const files = [
+      ...diffOf('src/calc.test.ts', 'const expected = 3;', 'const expected = 4;'),
+      ...diffOf('src/calc.ts', 'return a - b;', 'return a + b;'),
+    ];
+    expect(await run(wi109, files)).toEqual([]);
   });
 
   it('WI101 flags await removed from the exact same standalone call', async () => {

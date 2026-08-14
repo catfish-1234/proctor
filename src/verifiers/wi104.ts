@@ -45,13 +45,21 @@ const EXECUTABLE_CONFIG_RE =
 /** An invocation of proctor, in any of the shapes the installers write. */
 const PROCTOR_INVOCATION_RE = /\bproctor\b[^\n]*\b(?:check|stop-hook|drift-check)\b|@kavishdua\/proctor/;
 
+function proctorInvocationKind(text: string): 'check' | 'stop-hook' | 'drift-check' | 'package' | undefined {
+  if (!PROCTOR_INVOCATION_RE.test(text)) return undefined;
+  if (/\bstop-hook\b/.test(text)) return 'stop-hook';
+  if (/\bdrift-check\b/.test(text)) return 'drift-check';
+  if (/\bcheck\b/.test(text)) return 'check';
+  return 'package';
+}
+
 const TSCONFIG_RE = /(?:^|\/)tsconfig(?:\.\w+)?\.json$/;
 const ESLINT_CONFIG_RE = /(?:^|\/)\.eslintrc(?:\.\w+)?$|(?:^|\/)eslint\.config\.[cm]?[jt]s$/;
 const LINT_IGNORE_RE = /(?:^|\/)\.(?:eslint|prettier|stylelint)ignore$/;
 
 /** Strict-mode switches whose whole value is that they are on. */
 const STRICTNESS_OFF_RE =
-  /"(strict|strictNullChecks|noImplicitAny|strictFunctionTypes|noUnusedLocals|noImplicitReturns|alwaysStrict|strictBindCallApply|noUncheckedIndexedAccess)"\s*:\s*false/;
+  /"(strict|strictNullChecks|noImplicitAny|strictFunctionTypes|noUnusedLocals|noImplicitReturns|alwaysStrict|strictBindCallApply|noUncheckedIndexedAccess|noEmitOnError)"\s*:\s*false/;
 
 /** Bypasses that skip the hook layer entirely. */
 const HOOK_BYPASS_RE = /--no-verify\b|\bHUSKY\s*=\s*0\b|\bSKIP_HOOKS?\s*=|\bPRE_COMMIT_ALLOW_NO_CONFIG\b|\bgit\s+commit\b[^\n]*\s-n\b/;
@@ -149,6 +157,14 @@ function run(context: Context): Finding[] {
     const isLintIgnore = LINT_IGNORE_RE.test(normalized);
     const isExecutableConfig = EXECUTABLE_CONFIG_RE.test(normalized);
     const isCoverageConfig = COVERAGE_CONFIG_RE.test(normalized);
+    // A command whose flags or quoting change is a rewrite, not removal. Pair by purpose rather
+    // than exact text so `proctor check` cannot be mistaken for a surviving `drift-check`.
+    const readdedProctorKinds = new Set(
+      file.chunks.flatMap(chunk => chunk.changes)
+        .filter(change => change.type === 'add')
+        .map(change => proctorInvocationKind(change.content.replace(/^[+\- ]/, '')))
+        .filter((kind): kind is 'check' | 'stop-hook' | 'drift-check' | 'package' => kind !== undefined),
+    );
 
     // Rule IDs this change adds back under `enabled`.
     //
@@ -257,6 +273,19 @@ function run(context: Context): Finding[] {
           }
         }
 
+        if (change.type === 'add' && isCoverageConfig && /\benabled\s*:\s*false\b|"enabled"\s*:\s*false\b/.test(text)) {
+          const chunk = file.chunks.find(candidate => candidate.changes.includes(change));
+          const coverageContext = /coverage/i.test(text) || chunk?.changes.some(candidate => /coverage/i.test(candidate.content));
+          if (coverageContext) {
+            findings.push({
+              verifierId: 'WI104', severity: 'error', file: filePath, line,
+              message: 'Guardrail disabled: coverage collection was switched off, so the suite can pass without measuring what it exercises.',
+              suggestion: 'Leave coverage enabled and fix the missing coverage instead.',
+            });
+            continue;
+          }
+        }
+
         if (change.type === 'add' && isEslintConfig && ESLINT_RULE_DOWNGRADED_RE.test(text)) {
           const rule = ESLINT_RULE_DOWNGRADED_RE.exec(text)![1]!;
           // Only when it used to be an error: setting a new rule to warn is ordinary adoption.
@@ -315,7 +344,8 @@ function run(context: Context): Finding[] {
           continue;
         }
 
-        if (change.type === 'del' && isExecutableConfig && PROCTOR_INVOCATION_RE.test(text)) {
+        const removedProctorKind = change.type === 'del' ? proctorInvocationKind(text) : undefined;
+        if (removedProctorKind && isExecutableConfig && !readdedProctorKinds.has(removedProctorKind)) {
           findings.push({
             verifierId: 'WI104',
             severity: 'error',

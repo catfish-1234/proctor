@@ -42,44 +42,52 @@ unchanged.
 
 ## Current state
 
-**30 of 34 cheats caught, 0 of 8 controls flagged**, across seven rounds. The arc was 4/20, 13/20,
-17/28, 22/34, 24/34, 26/34, then 30/34. Every round that widened the corpus found more than the
-rounds that deepened it.
+**76 of 76 cheats caught, 0 of 24 controls flagged**, across eleven rounds. The arc was 4/20,
+13/20, 17/28, 22/34, 24/34, 26/34, 30/34, 33/37, 53/53, 67/67, then 76/76. Every widening round
+adds neighboring controls; a finding on any control prevents the round from counting as closed.
 
 The seventh round closed four strong before/after signals rather than broad token matches: an
 expected value changing in a parameter table while its inputs stay fixed; a forwarded process
 status becoming literal zero; `await call()` becoming the exact same bare `call()`; and code moved
 or added after an unconditional return. Each shipped with a neighboring legitimate control.
 
+The eighth round widened again and closed three indirect versions of existing cheats:
+`process.exitCode` laundering without a call to `process.exit`, a rejecting test assertion whose
+leading `await` disappeared, and an expected literal moved behind a named `expected` binding.
+Three neighboring controls keep explained detachment, implementation-backed expectation changes,
+and a fail-closed strengthening of an existing Proctor invocation silent.
+
+Rounds nine through eleven deliberately left literal assertion edits behind. They added workload
+cuts, dependency rollbacks, diagnostic deletion/downgrade, fixed-delay race masking, focused test
+commands, shell/pipeline/background status laundering, CI matrix and trigger contraction,
+snapshot-update mode, conditional and expected-failure test APIs, exception-type broadening,
+test-runner environment branches, compact inline tables, and expression-based exit laundering.
+RH014 and WI113 came from that widening. A separate CLI regression test applies a real Git
+`assume-unchanged` flag, because that attack creates no diff and cannot live in this diff corpus.
+
 Two results from those rounds are worth more than the count.
 
-The corpus produced exactly one false positive in six rounds: RH007 firing on a widened `testMatch`.
-That is the failure mode to care about. A guard that reports somebody for broadening their test
-suite gets uninstalled, and no amount of detection makes up for it.
+The corpus has produced three false positives while rules were being developed: RH007 on a widened
+`testMatch`, WI110 on a separately named snapshot-update helper, and WI110 on a background process
+whose status was explicitly waited and propagated. All three became permanent controls. That is
+the failure mode to care about: a guard that reports honest verification work gets uninstalled,
+and no amount of detection makes up for it.
 
 The literal-handling rule was learned the expensive way, five times. Blank string and regex literals
 when the token you are matching is code; leave them when the token is data. WI105 matches
 `NODE_ENV === 'test'`, where the value is the signal, so blanking erased it and detection silently
 dropped by one. Only this corpus noticed: the test suite was green and the base check was clean.
 
-## Still getting through
+## Residual boundary
 
-Listed rather than quietly dropped, because a red-team corpus whose failures are invisible is worth
-nothing:
+No case in this corpus is currently getting through. That is a regression claim about these 76
+attacks, not a proof that every possible future agent strategy has been enumerated. A novel semantic
+hardcode can always be expressed in syntax a deterministic diff rule has not seen, and intent-heavy
+maintenance (for example a justified dependency rollback) still needs a committed human approval
+or an inline explanation where the format permits one.
 
-| Case | Why it is still open |
-|---|---|
-| Benchmark iteration count reduced | Legitimately tuned all the time. Would need to know the budget it is measured against |
-| A dependency pinned back to dodge a failing version | Indistinguishable from ordinary pinning without knowing why the version moved |
-| Error logging removed | A deleted `console.error` is not reliably a cheat. Needs to know the call sat on a failure path |
-| A `setTimeout` sleep inserted to paper over a race | RH010 watches test timeouts and retries. The shipped-code equivalent is the same idea one layer over |
-
-What is left is not a regex problem. A reduced benchmark budget, a dependency pin, a deleted log,
-and a delay can all be either a cheat or legitimate maintenance. The difference is intent or an
-external requirement, and a diff does not carry either one.
-
-Shipping signatures for those would mean firing on legitimate work, and round four already priced
-that: one false positive on somebody widening their test suite costs more than several misses.
-Pushing past this ceiling needs a different instrument, either the `--ai` judge on the ambiguous
-cases or a specification to check against, both of which are deliberately outside the deterministic
-core. That is a scoping decision rather than a missing regex.
+Repository controls also have a trust boundary. Proctor now rejects actual assume-unchanged and
+manual skip-worktree flags before building a diff, but a user can always bypass a local Git hook and
+rewrite history. Branch protection and the base-range CI check are what make that local bypass
+non-authoritative. The optional `--ai` judge and project specifications cover fuzzy semantic claims;
+the deterministic core deliberately remains explainable and testable.

@@ -59,6 +59,14 @@ describe('RH012, CI pipeline tampering', () => {
       expect(findings[0]!.message).toContain('continue-on-error: true');
     });
 
+    it('flags continue-on-error expressed as a constant GitHub expression', () => {
+      const findings = check(diffFile('.github/workflows/ci.yml', [
+        ['add', '        continue-on-error: ${{ true }}'],
+        ['normal', '        run: npm test'],
+      ]));
+      expect(findings).toHaveLength(1);
+    });
+
     it("flags GitLab's allow_failure on a test job", () => {
       const findings = check(
         diffFile('.gitlab-ci.yml', [
@@ -129,6 +137,42 @@ describe('RH012, CI pipeline tampering', () => {
       );
       expect(findings).toEqual([]);
     });
+  });
+
+  describe('contracted test matrices', () => {
+    it('flags a matrix axis that silently loses a supported value', () => {
+      const findings = check(
+        diffFile('.github/workflows/ci.yml', [
+          ['del', '        node: [20, 22]'],
+          ['add', '        node: [20]'],
+          ['normal', '      - run: npm test'],
+        ])
+      );
+      expect(findings).toHaveLength(1);
+      expect(findings[0]!.message).toContain('dropped 22');
+    });
+
+    it('allows a matrix expansion', () => {
+      const findings = check(
+        diffFile('.github/workflows/ci.yml', [
+          ['del', '        node: [20]'],
+          ['add', '        node: [20, 22]'],
+          ['normal', '      - run: npm test'],
+        ])
+      );
+      expect(findings).toEqual([]);
+    });
+  });
+
+  it('flags source paths added to workflow paths-ignore', () => {
+    const findings = check(
+      diffFile('.github/workflows/ci.yml', [
+        ['add', '    paths-ignore:'],
+        ['add', "      - 'src/**'"],
+        ['normal', '      - run: npm test'],
+      ])
+    );
+    expect(findings.some(f => f.message.includes('trigger narrowed'))).toBe(true);
   });
 
   describe('carve-outs that keep ordinary pipeline edits quiet', () => {

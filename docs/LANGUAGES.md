@@ -4,7 +4,7 @@ Which checks work in which language, which agents proctor installs to, and what 
 deliberately not covered. Start at the [README](../README.md) if you just want it running.
 
 **Languages:** JavaScript and TypeScript (Jest and Vitest conventions) and Python (pytest and
-unittest conventions) have full coverage across all 11 language-level checks. RH012 and RH013 read
+unittest conventions) have the broadest coverage. RH012 and RH013 read
 CI and coverage config rather than source, so they apply to every language equally, which is why
 they are not in the tables. Go, Java, Rust, Ruby, PHP, C#,
 Kotlin, C++, C, Swift, Objective-C, Dart, Scala, Perl, R, Haskell, Elixir, Lua, Groovy, Clojure,
@@ -12,7 +12,7 @@ Shell/Bash, Julia, and VB.NET (25+ languages total) are covered by the five diff
 checks (RH001, RH002, RH003, RH007, RH011) that work off diff-line patterns. The two tables below are the per-language, per-check support matrix: the original 9
 languages, then the 16 added in the Language Expansion II round.
 
-The work-integrity family (WI101 to WI108) has its own scoping, described in
+The work-integrity family (WI101 to WI113) has its own scoping, described in
 [its own section](#the-work-integrity-family-wi1xx) below, since those checks read shipped code
 rather than test files and their coverage does not line up with the RH tables.
 
@@ -76,14 +76,21 @@ risk than the diff-line signature checks above, so this is a stated boundary, no
 RH009 and RH010 are JS/TS/Python-only for the same reason, and are left out of the tables above
 only because a row of one tick and twenty-four crosses says less than this sentence does. RH009
 reads `it`/`test`/`describe` declarations and Python test functions to spot a trivial test swapped
-in for a real one. RH010 matches the retry and timeout knobs of two ecosystems specifically:
+in for a real one. RH010 also catches an exact test expression whose leading `await` was deleted,
+and matches the retry and timeout knobs of two ecosystems specifically:
 `jest.retryTimes`, `jest.setTimeout`, Vitest's per-test `retry:`, mocha's `this.retries`,
-`@pytest.mark.flaky`, and `@pytest.mark.timeout`. Both are warn-severity, which is the right tier
-for a signal this narrow.
+`@pytest.mark.flaky`, and `@pytest.mark.timeout`. Retry, timeout, and mock signals are warnings;
+an exact await deletion is an error because the unchanged asynchronous check is no longer observed.
 
-That accounts for all thirteen: five diff-level checks across every language (RH001, RH002, RH003,
-RH007, RH011), six JS/TS/Python-only (RH004, RH005, RH006, RH008, RH009, RH010), and two that read
-config rather than source and so apply everywhere (RH012, RH013).
+RH014 is also omitted from the language tables because it tracks workload shapes rather than an
+assertion library. Named run/iteration/sample counts and numeric loop-bound contractions are
+language-neutral line shapes; `slice`/`filter` generated-input contractions target JS/TS; and
+parameter-table row removal covers Jest/Vitest `it.each` plus pytest parameter tables when their
+rows are visible in the diff. Every signal compares the before and after workload.
+
+That accounts for all fourteen: five diff-level checks across every language (RH001, RH002, RH003,
+RH007, RH011), six JS/TS/Python-centered checks (RH004, RH005, RH006, RH008, RH009, RH010), RH014's
+cross-language workload shapes, and two that read config rather than source (RH012, RH013).
 
 RH012 is absent from both tables on purpose. It reads CI pipeline definitions, not source, so it
 does not vary by language: `.github/workflows/*.yml`, `.gitlab-ci.yml`, `.circleci/config.yml`,

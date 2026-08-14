@@ -19,12 +19,32 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `npm run verify:pack` now locates Git Bash on Windows instead of assuming `bash` is on `PATH`.
 - Production GitHub workflows and the composite action now pin every third-party action to a full
   commit SHA while retaining the reviewed release tag in a comment.
+- Packed-package verification now requires a real clean verdict instead of accepting any fast
+  failure; the benchmark runner also settles reliably on timeout and caps output exactly.
+- Semgrep now blocks on production findings while scanning deliberately vulnerable fixtures in a
+  separate advisory step.
+- Bare `proctor check` now covers staged, unstaged, and untracked changes by default instead of
+  silently ignoring staged work; `--staged` and `--base` retain their narrower explicit scopes.
 
 ### Added
 
-- Red-team coverage for parameter-table expectation edits, removed `await`, unreachable code after
-  an unconditional return, and process-status laundering. The adversarial corpus now catches 30 of
-  34 cheats with 0 of 8 legitimate controls flagged.
+- RH014 detects reduced property/fuzz counts, collection slicing/filtering, contracted loop bounds,
+  and rows removed from parameterized tests while their names and assertions survive.
+- WI113 detects benchmark workload reductions, dependency/version-floor rollbacks, and unexplained
+  fixed delays used instead of fixing the exposed behavior.
+- Red-team coverage now spans 76 adversarial diffs and 24 neighboring legitimate controls. All 76
+  are caught and all controls remain silent, including expression-based exit laundering, focused
+  test commands, CI matrix/trigger contraction, diagnostic suppression, expected-failure modifiers,
+  test-environment branches, and an actual Git `assume-unchanged` state that produces no diff.
+
+### Changed
+
+- Existing rules now cover exception-type broadening, constant conditional/expected-failure test
+  modifiers, coverage collection disabled, source paths excluded from CI triggers, snapshot update
+  flags in the normal test command, shell pipeline/background status loss, and removed/downgraded
+  production error reporting.
+- `proctor check` refuses tracked files hidden with `assume-unchanged` or `skip-worktree` outside a
+  legitimate sparse checkout, closing a repository-state bypass no diff verifier can observe.
 
 ## [1.1.0]
 

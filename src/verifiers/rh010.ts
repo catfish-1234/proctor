@@ -1,4 +1,5 @@
 import type { Context, Finding, Verifier } from '../types.js';
+import { body, hasExplanation, withoutTrailingComment } from './wi-common.js';
 
 const RETRY_TIMES_RE = /jest\.retryTimes\(\s*(\d+)/;
 const SET_TIMEOUT_RE = /jest\.setTimeout\(\s*(\d+)/;
@@ -26,6 +27,18 @@ function normalize(s: string): string {
   return s.trim().replace(/;$/, '');
 }
 
+/** The expression on a standalone `await expression` line, normalized for exact diff pairing. */
+function awaitedExpression(text: string): string | undefined {
+  const line = withoutTrailingComment(body(text)).trim();
+  const match = /^await\s+(.+?)\s*;?$/.exec(line);
+  return match?.[1]?.replace(/\s+/g, '').replace(/;$/, '');
+}
+
+/** A standalone expression after its leading await was removed. */
+function bareExpression(text: string): string {
+  return withoutTrailingComment(body(text)).trim().replace(/\s+/g, '').replace(/;$/, '');
+}
+
 /**
  * RH010 catches failure masking, using three independent, conservative signals:
  * retry-count abuse, large timeout increases, and a network response mocked to return
@@ -40,6 +53,31 @@ function run(context: Context): Finding[] {
   for (const file of files) {
     const filePath = file.to ?? file.from ?? '';
     if (!ctx.isTestFile(filePath)) continue;
+
+    // A promise assertion or async setup call can remain textually intact while no longer being
+    // observed: deleting only its leading `await` lets the test finish before rejection. Exact
+    // deleted/added pairing keeps this distinct from a newly introduced fire-and-forget task.
+    for (const chunk of file.chunks) {
+      const removedAwaited = new Set(
+        chunk.changes
+          .filter(change => change.type === 'del')
+          .map(change => awaitedExpression(change.content))
+          .filter((expression): expression is string => expression !== undefined),
+      );
+      for (const added of chunk.changes.filter(change => change.type === 'add')) {
+        const addedBody = body(added.content);
+        if (hasExplanation(addedBody)) continue;
+        if (!removedAwaited.has(bareExpression(added.content))) continue;
+        findings.push({
+          verifierId: 'RH010',
+          severity: 'error',
+          file: filePath,
+          line: (added as { ln: number }).ln,
+          message: 'Await removed from an unchanged test expression, so the test can finish before a rejected promise or asynchronous assertion is observed.',
+          suggestion: 'Restore await so the test runner observes completion and rejection. If the task is intentionally detached, explain the independent failure-reporting path.',
+        });
+      }
+    }
 
     const assertionLiterals = new Set<string>();
     for (const chunk of file.chunks) {

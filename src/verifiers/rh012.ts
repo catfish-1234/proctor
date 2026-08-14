@@ -45,7 +45,7 @@ interface Signature {
 const SIGNATURES: Signature[] = [
   {
     // GitHub Actions / Azure: the step runs, fails, and the job passes anyway.
-    re: /continue-on-error\s*:\s*true\b/,
+    re: /continue-on-error\s*:\s*(?:true\b|\$\{\{\s*true\s*\}\})/,
     key: 'continueOnError',
     severity: 'error',
     message: file =>
@@ -159,6 +159,16 @@ function commandKey(content: string): string {
  */
 const RETRY_ACTION_RE = /uses\s*:\s*[\w-]+\/(?:retry|action-retry|retry-action)@/i;
 const RETRY_ATTEMPTS_RE = /max_attempts\s*:\s*([2-9]|\d{2,})/;
+const PATHS_IGNORE_RE = /paths-ignore\s*:/i;
+const SOURCE_TRIGGER_GLOB_RE = /(?:src|lib|app|packages?|services?)\/(?:\*\*)?|\*\*\/\*\.(?:ts|tsx|js|jsx|py|go|rs|java|kt|cs)/i;
+
+/** A compact matrix axis such as `node: [20, 22]` or `os: [ubuntu, windows]`. */
+function matrixEntry(content: string): { key: string; values: string[] } | undefined {
+  const match = /^\s*(?:[-+]\s*)?([\w-]+)\s*:\s*\[([^\]]*)\]\s*$/.exec(diffBody(content));
+  if (!match) return undefined;
+  const values = match[2]!.split(',').map(value => value.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+  return { key: match[1]!.toLowerCase(), values };
+}
 
 function run(context: Context): Finding[] {
   const findings: Finding[] = [];
@@ -167,11 +177,32 @@ function run(context: Context): Finding[] {
     const filePath = file.to ?? file.from ?? '';
     if (!isWorkflowFile(filePath)) continue;
 
+    // A runtime/OS support policy change commonly contracts the matching CI matrix. Treat that
+    // as an implementation change rather than quiet coverage loss; a workflow-only contraction
+    // has no such evidence and is the adversarial shape this check targets.
+    const supportPolicyChanged = context.files.some(candidate => {
+      const candidatePath = candidate.to ?? candidate.from ?? '';
+      if (!/(?:^|\/)package\.json$|(?:^|\/)pyproject\.toml$|(?:^|\/)go\.mod$|(?:^|\/)Cargo\.toml$/i.test(candidatePath.replace(/\\/g, '/'))) return false;
+      return candidate.chunks.some(chunk => chunk.changes.some(change =>
+        change.type === 'add' && /\b(?:engines|requires-python|go\s+\d|rust-version|platforms?)\b/i.test(change.content)
+      ));
+    });
+
     // A test command that merely moved (reindented under a new job, split across lines, renamed
     // from `script:` to `run:`) is not a removal. Collect every test command the change adds, so
     // a deleted one that reappears anywhere in the same file is recognized as a move.
     const addedCommands = new Set<string>();
     for (const chunk of file.chunks) {
+      const addedChunkText = chunk.changes.filter(change => change.type === 'add').map(change => diffBody(change.content)).join('\n');
+      if (PATHS_IGNORE_RE.test(addedChunkText) && SOURCE_TRIGGER_GLOB_RE.test(addedChunkText)) {
+        const first = chunk.changes.find(change => change.type === 'add' && PATHS_IGNORE_RE.test(change.content));
+        findings.push({
+          verifierId: 'RH012', severity: 'error', file: filePath,
+          line: first ? (first as { ln: number }).ln : 1,
+          message: 'CI trigger narrowed: source paths were added to paths-ignore, so implementation changes can merge without running the test workflow.',
+          suggestion: 'Remove source paths from paths-ignore. Limit trigger exclusions to documentation or generated artifacts.',
+        });
+      }
       for (const change of chunk.changes) {
         if (change.type !== 'add') continue;
         if (TEST_COMMAND_RE.test(change.content)) addedCommands.add(commandKey(change.content));
@@ -179,6 +210,33 @@ function run(context: Context): Finding[] {
     }
 
     for (const chunk of file.chunks) {
+      // Shrinking a test matrix removes a supported environment without deleting the test step,
+      // so command-based checks cannot see it. Exact axis pairing keeps reformatting and axis
+      // renames quiet.
+      if (!supportPolicyChanged) {
+        const removedAxes = chunk.changes
+          .filter(change => change.type === 'del')
+          .map(change => ({ change, entry: matrixEntry(change.content) }))
+          .filter((item): item is { change: typeof item.change; entry: { key: string; values: string[] } } => item.entry !== undefined);
+        for (const added of chunk.changes.filter(change => change.type === 'add')) {
+          const next = matrixEntry(added.content);
+          if (!next) continue;
+          const prior = removedAxes.find(item => item.entry.key === next.key);
+          if (!prior) continue;
+          const removed = prior.entry.values.filter(value => !next.values.includes(value));
+          const addedValues = next.values.filter(value => !prior.entry.values.includes(value));
+          if (removed.length === 0 || next.values.length >= prior.entry.values.length || addedValues.length > 0) continue;
+          findings.push({
+            verifierId: 'RH012',
+            severity: 'error',
+            file: filePath,
+            line: (added as { ln: number }).ln,
+            message: `CI test matrix narrowed: ${next.key} dropped ${removed.join(', ')}, so that supported environment is no longer verified.`,
+            suggestion: 'Restore the matrix entry. If support was intentionally dropped, change the project\'s declared support policy in the same change.',
+          });
+        }
+      }
+
       // Retry-action steps: matched across the whole step, since the action name and the command
       // it retries sit on different lines.
       for (const segment of stepSegments(chunk.changes)) {

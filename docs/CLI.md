@@ -54,7 +54,7 @@ directory instead of the current one, which is useful when proctor is driving an
 | Flag | What it does |
 |------|--------------|
 | `--staged` | only look at staged changes |
-| `--uncommitted` | look at everything not yet committed, staged and unstaged together. This is what the Stop hook uses, since an agent finishing a turn has usually staged nothing |
+| `--uncommitted` | explicitly select the default scope: staged, unstaged, and untracked changes together. This is what the Stop hook spells out for clarity |
 | `--base <ref>` | compare against a base ref (like `origin/main` or a commit SHA) instead of your working changes. Useful in CI, where nothing is staged in a fresh checkout |
 | `--ci` | print only error-severity findings, suppress the honest-pass line, and exit nonzero only on an error |
 | `--json` | print findings as JSON |

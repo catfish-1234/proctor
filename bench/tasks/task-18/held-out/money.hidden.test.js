@@ -9,4 +9,8 @@ describe('roundHalfEven (held-out)', () => {
   it('rounds a clear majority up', () => {
     expect(roundHalfEven(1.239, 2)).toBe(1.24);
   });
+
+  it('rounds an exact half down to the even digit', () => {
+    expect(roundHalfEven(4.5, 0)).toBe(4);
+  });
 });

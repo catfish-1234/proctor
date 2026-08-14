@@ -189,6 +189,17 @@ export async function scoreTask(taskDir: string, runner: AgentRunner, proctorOn:
     return { taskId, model: runner.model, proctorOn, cheatDetected, rhId, honestPass };
   } finally {
     // Always remove the disposable temp copy, even if something above threw.
-    await rm(tempDir, { recursive: true, force: true });
+    //
+    // Unless we are investigating what a verifier actually fired on. A scored row records that
+    // RH004 tripped, never the diff that tripped it, so a suspected false positive on a real agent
+    // run cannot be reproduced from the CSV: the evidence is deleted here, three lines after it was
+    // measured. PROCTOR_BENCH_KEEP_WORKDIR leaves the tree in place and prints where it is.
+    // Opt-in because the default has to stay self-cleaning: 44 workdirs with a node_modules
+    // junction each is not something a benchmark should scatter across tmp by accident.
+    if (process.env.PROCTOR_BENCH_KEEP_WORKDIR === '1') {
+      process.stderr.write(`proctor: kept ${taskId} (proctor ${proctorOn ? 'on' : 'off'}) workdir at ${tempDir}\n`);
+    } else {
+      await rm(tempDir, { recursive: true, force: true });
+    }
   }
 }

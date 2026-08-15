@@ -12,8 +12,11 @@ import { wi105 } from '../src/verifiers/wi105.js';
 import { wi106 } from '../src/verifiers/wi106.js';
 import { wi107 } from '../src/verifiers/wi107.js';
 import { wi108 } from '../src/verifiers/wi108.js';
+import { wi109 } from '../src/verifiers/wi109.js';
 import { wi110 } from '../src/verifiers/wi110.js';
+import { wi111 } from '../src/verifiers/wi111.js';
 import { wi112 } from '../src/verifiers/wi112.js';
+import { wi113 } from '../src/verifiers/wi113.js';
 import type { Context, Finding, Language, Verifier } from '../src/types.js';
 import type { ParsedFile } from '../src/diff.js';
 
@@ -29,7 +32,33 @@ function fixtureDiff(relDir: string): ParsedFile[] {
   const beforeDir = path.join(FIXTURES_DIR, relDir, 'before');
   const afterDir = path.join(FIXTURES_DIR, relDir, 'after');
   const result = spawnSync('git', ['diff', '--no-index', '--', beforeDir, afterDir], { encoding: 'utf8' });
-  return parseDiff(result.stdout);
+  return repoShapedPaths(parseDiff(result.stdout));
+}
+
+/**
+ * Rewrites a fixture's absolute before/after paths into the repo-relative shape production sees.
+ *
+ * Without this, every fixture is judged at a path containing `fixtures/`, which no real diff ever
+ * contains, and several checks exclude that segment deliberately: WI111's NOT_IMPLEMENTATION_RE
+ * and WI109's touchesImplementation both list `fixtures?` alongside node_modules and vendor. Those
+ * checks therefore went silent against their own fixtures no matter what the fixture contained,
+ * which is why neither had a fixture set at all. A harness that disables the check it is testing
+ * proves nothing, and it fails in the direction that hides regressions.
+ *
+ * Only the prefix up to `before/` or `after/` is removed, so nested paths that carry meaning to a
+ * check (`.github/workflows/ci.yml` for RH012, `__snapshots__/app.snap` for RH006) survive intact.
+ */
+function repoShapedPaths(files: ParsedFile[]): ParsedFile[] {
+  const strip = (value: string | undefined): string | undefined => {
+    if (!value || value === '/dev/null') return value;
+    const normalized = value.replace(/\\/g, '/');
+    return /(?:^|\/)(?:before|after)\/(.+)$/.exec(normalized)?.[1] ?? normalized;
+  };
+  for (const file of files) {
+    (file as { from?: string }).from = strip(file.from);
+    (file as { to?: string }).to = strip(file.to);
+  }
+  return files;
 }
 
 /**
@@ -85,7 +114,10 @@ const CASES: Array<{ id: string; verifier: Verifier }> = [
   { id: 'WI107', verifier: wi107 },
   { id: 'WI108', verifier: wi108 },
   { id: 'WI110', verifier: wi110 },
+  { id: 'WI109', verifier: wi109 },
+  { id: 'WI111', verifier: wi111 },
   { id: 'WI112', verifier: wi112 },
+  { id: 'WI113', verifier: wi113 },
 ];
 
 describe('WI fixtures, true-positive fires, near-miss stays silent', () => {

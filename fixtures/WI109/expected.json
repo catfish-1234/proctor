@@ -1,0 +1,10 @@
+[
+  {
+    "verifierId": "WI109",
+    "severity": "error",
+    "file": "calc.test.js",
+    "line": 6,
+    "message": "Expected value changed from 3 to 4 with no change to the code under test, so the test now describes the current behaviour rather than the correct one.",
+    "suggestion": "Change the code, not the expectation. If the old expected value was genuinely wrong, that is a claim about the specification, so say what changed and why rather than editing the number until the suite agrees with the bug."
+  }
+]

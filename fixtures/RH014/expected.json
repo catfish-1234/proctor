@@ -1,0 +1,10 @@
+[
+  {
+    "verifierId": "RH014",
+    "severity": "error",
+    "file": "calc.test.js",
+    "line": 4,
+    "message": "Test workload reduced: an inline parameter table fell from 3 cases to 1.",
+    "suggestion": "Restore the removed inline cases and fix the behavior they expose."
+  }
+]

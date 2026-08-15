@@ -208,6 +208,25 @@ function findRegexEnd(text: string, start: number): number {
  * worse than no stripping at all.
  */
 export function withoutTrailingComment(text: string): string {
+  // Bail before either regex when the line holds no comment marker at all.
+  //
+  // Both patterns lead with `\s*`, which the engine retries from every position in the line. On a
+  // line that is mostly whitespace and has no marker to find, that is quadratic: a 50,000-space
+  // line took 14.7s against the ReDoS suite's 5s budget on every CI platform. The regexes were
+  // always this shape and it stayed hidden until RH010's await-pairing signal began calling this
+  // on every changed line rather than on a preselected few.
+  //
+  // Semantics are unchanged: the first pattern cannot match without `//`, `#` or `--`, and the
+  // second cannot match without `/*`. Four indexOf scans are linear, so a line with no comment is
+  // now O(n) instead of O(n^2).
+  if (
+    text.indexOf('//') < 0 &&
+    text.indexOf('#') < 0 &&
+    text.indexOf('--') < 0 &&
+    text.indexOf('/*') < 0
+  ) {
+    return text;
+  }
   return text.replace(/\s*(?:\/\/|#|--\s).*$/, '').replace(/\s*\/\*.*\*\/\s*$/, '');
 }
 

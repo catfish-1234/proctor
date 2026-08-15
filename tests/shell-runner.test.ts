@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { tmpdir, platform } from 'node:os';
 import { join } from 'node:path';
 import { createShellRunner } from '../src/bench/runners/shell-runner.js';
 import type { AgentTask } from '../src/bench/types.js';
@@ -9,7 +9,19 @@ describe('bench/runners shell-runner', () => {
   let workdir: string;
 
   afterEach(() => {
-    if (workdir) rmSync(workdir, { recursive: true, force: true });
+    // `taskkill /T /F` returns before Windows has finished tearing the process down, so the killed
+    // child can still hold a handle on the temp directory when this runs. rmSync then throws EPERM
+    // and fails the test that just passed. `maxRetries` makes fs back off and retry instead.
+    //
+    // Cleaning up scratch state is not what any test here asserts, so a failure to delete must not
+    // be able to report a passing behaviour as broken. The directory lives under the OS temp dir
+    // and is reclaimed there regardless.
+    if (!workdir) return;
+    try {
+      rmSync(workdir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+    } catch {
+      // Left for the OS to reclaim.
+    }
   });
 
   function makeTask(): AgentTask {
@@ -40,14 +52,23 @@ describe('bench/runners shell-runner', () => {
     expect(result.stdout).toContain('done');
   });
 
+  // The settle budget follows the platform, the way SPAWN_BUDGET_MS does in bench.test.ts.
+  //
+  // The bound is not measuring the runner, it is measuring node process spawn plus taskkill, and
+  // on a loaded Windows machine that alone exceeded the original flat 5s about one run in three.
+  // The child is an infinite `setInterval` that never exits on its own, so the regression under
+  // guard (waiting on a `close` that may never arrive) means never settling at all: any finite
+  // bound catches it, and a generous one catches it without failing on healthy code.
+  const SETTLE_BUDGET_MS = platform() === 'win32' ? 20_000 : 5_000;
+
   it('settles promptly with timedOut=true when the child exceeds its deadline', async () => {
     const runner = createShellRunner('slow-model', [process.execPath, '-e', 'setInterval(() => {}, 1000)'], 50);
     const started = Date.now();
     const result = await runner.run(makeTask());
     expect(result.timedOut).toBe(true);
     expect(result.exitCode).toBe(-1);
-    expect(Date.now() - started).toBeLessThan(5_000);
-  });
+    expect(Date.now() - started).toBeLessThan(SETTLE_BUDGET_MS);
+  }, 30_000);
 
   it('caps each captured output stream at exactly 10 MiB', async () => {
     const script = 'process.stdout.write("x".repeat(11 * 1024 * 1024))';

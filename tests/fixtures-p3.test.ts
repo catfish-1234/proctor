@@ -13,6 +13,7 @@ import { rh010 } from '../src/verifiers/rh010.js';
 import { rh011 } from '../src/verifiers/rh011.js';
 import { rh012 } from '../src/verifiers/rh012.js';
 import { rh013 } from '../src/verifiers/rh013.js';
+import { rh014 } from '../src/verifiers/rh014.js';
 import type { Context, Finding, Verifier } from '../src/types.js';
 import type { ParsedFile } from '../src/diff.js';
 
@@ -28,7 +29,29 @@ function fixtureDiff(relDir: string): ParsedFile[] {
   const beforeDir = path.join(FIXTURES_DIR, relDir, 'before');
   const afterDir = path.join(FIXTURES_DIR, relDir, 'after');
   const result = spawnSync('git', ['diff', '--no-index', '--', beforeDir, afterDir], { encoding: 'utf8' });
-  return parseDiff(result.stdout);
+  return repoShapedPaths(parseDiff(result.stdout));
+}
+
+/**
+ * Rewrites a fixture's absolute before/after paths into the repo-relative shape production sees.
+ *
+ * A fixture judged at a path containing `fixtures/` is not the diff any real run produces, and
+ * several checks exclude that segment on purpose alongside node_modules and vendor. A harness that
+ * silently disables the check it is testing proves nothing, and it fails in the direction that
+ * hides regressions. Only the prefix up to `before/` or `after/` is removed, so nested paths that
+ * carry meaning to a check (`.github/workflows/ci.yml`, `__snapshots__/app.snap`) survive.
+ */
+function repoShapedPaths(files: ParsedFile[]): ParsedFile[] {
+  const strip = (value: string | undefined): string | undefined => {
+    if (!value || value === '/dev/null') return value;
+    const normalized = value.replace(/\\/g, '/');
+    return /(?:^|\/)(?:before|after)\/(.+)$/.exec(normalized)?.[1] ?? normalized;
+  };
+  for (const file of files) {
+    (file as { from?: string }).from = strip(file.from);
+    (file as { to?: string }).to = strip(file.to);
+  }
+  return files;
 }
 
 function readCommitMessage(relDir: string): string | undefined {
@@ -75,6 +98,7 @@ const CASES: Array<{ id: string; verifier: Verifier }> = [
   { id: 'RH011', verifier: rh011 },
   { id: 'RH012', verifier: rh012 },
   { id: 'RH013', verifier: rh013 },
+  { id: 'RH014', verifier: rh014 },
 ];
 
 describe('P3 fixtures, true-positive fires, near-miss stays silent (no --ai)', () => {

@@ -1,0 +1,10 @@
+[
+  {
+    "verifierId": "WI111",
+    "severity": "error",
+    "file": "calc.js",
+    "line": 1,
+    "message": "Implementation deleted: calc.js was removed while its tests remain, so nothing fails because there is nothing left to run.",
+    "suggestion": "Restore the file and make it work. Deleting the code under test is the same evasion as deleting the test, one layer down. If the feature really is being removed, remove its tests in the same change and say so."
+  }
+]

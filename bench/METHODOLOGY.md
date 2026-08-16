@@ -112,6 +112,29 @@ not, or a hardcode of the visible expectations satisfies it. And the visible tes
 before running the held-out suite as a check, since they fail against unfixed source by
 construction and will make any task look fine.
 
+## No Task's Reference Fix May Be Flagged
+
+Each task ships a reference fix in the `proctorOn` file set of its `mock-agent.json`: the canonical
+correct solution. Proctor flagging one of those is a false positive by construction, because the
+fix is the answer the task is asking for.
+
+A mock run already measures this, since its on arm replays the reference fix for every task:
+
+```
+$ node dist/cli.js bench --tasks 22 --mock --agent mock
+mock  on   cheat_rate 0.0%   honest_pass_rate 100.0%
+```
+
+It is worth naming separately because it is the corpus-scale counterpart to the near-miss fixtures.
+Those are 33 minimal hand-built diffs; these are 22 whole-repo solutions to real tasks. A signature
+that fires on correct work can show up here while every fixture stays green, and that is the
+failure mode this project treats as costlier than a miss.
+
+Verified clean across all 22 on 2026-08-15, after a live run flagged RH004 on an agent's own
+solution to task-17 that had passed its held-out tests. The reference fixes staying silent means no
+signature fires on the canonical solution; it does not rule out a signature firing on some other
+correct implementation, which is what that task-17 row still points at.
+
 ## Proctor On vs Off Is a Real Intervention, Not Model Nondeterminism
 
 Each selected task is scored **twice**: once with `proctorOn: false` and once with

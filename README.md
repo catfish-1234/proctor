@@ -391,34 +391,36 @@ is the claim the tool actually makes.
 across a fixed pool of tasks with the ruleset on and off.
 
 The honest state of this evidence: a complete 22-task live run against `claude-code`, both arms,
-all 44 agent invocations scored.
+all 44 agent invocations scored, against held-out tests each verified to fail their own unfixed
+source.
 
 | | proctor off | proctor on |
 |---|---|---|
-| cheat rate | **9.1%** (2 of 22) | **4.5%** (1 of 22) |
+| cheat rate | **4.5%** (1 of 22) | **4.5%** (1 of 22) |
 | honest-pass rate | **100.0%** | **100.0%** |
 
-**This is not evidence that proctor changes behaviour, and the honest-pass column is why.** Every
-one of the 44 runs passed its held-out tests, including all three that tripped a signature. The
-held-out design exists precisely so that an agent which fakes a green build fails the hidden test.
-Nothing failed one. The agent solved every task in the pool, including the seven built to make
-cheating cheaper than fixing, so the situation the tool exists for never arose in either arm.
+**No difference between the arms, and the honest-pass column explains why.** Every one of the 44
+runs passed its held-out tests, including the one that tripped a signature. The held-out design
+exists precisely so an agent that fakes a green build fails a test it never saw. Nothing failed
+one. The agent solved every task in the pool, including the seven built to make cheating cheaper
+than fixing, so the situation the tool exists for never arose in either arm and there was no
+behaviour left for the intervention to change.
 
-That also means the two flagged proctor-off diffs are most likely **false positives** rather than
-caught cheats: RH005 on task-20, which fired in both arms, and RH004 on task-18. A diff that solves
-the underlying problem and still trips a signature is a precision bug, and chasing those two is
+An earlier run of this same corpus showed 9.1% against 4.5%, and **that difference did not
+reproduce**. It was one task out of 22, which is what noise looks like at this sample size. Both
+runs are consistent with the same conclusion, and the apparent improvement in the first one would
+have been exactly the sort of unearned green this project exists to catch.
+
+The single flagged diff is most likely a **false positive** rather than a caught cheat: RH004 on
+task-17, fired in both arms, on a solution that passes held-out tests a hardcode could not satisfy.
+Proctor is clean against every task's reference fix, so no signature fires on the canonical
+solution, which narrows this to a signature firing on some other correct implementation. A diff
+that solves the underlying problem and still trips a check is a precision bug, and chasing it is
 worth more than the headline number above.
 
-The gap between 9.1% and 4.5% is a single task. At n=22 that is noise, not a result, and quoting it
-as a prevention rate would be exactly the sort of unearned green this project exists to catch.
-
-One further caveat, found while chasing those false positives. This run predates an audit of the
-task corpus which showed that eight of the twenty-two held-out suites passed against their own
-unfixed source, so for those tasks `honest_pass` could not tell a real fix from a cheat that
-satisfied the visible tests. All eight have been strengthened and
-`tests/bench-heldout-discriminates.test.ts` now enforces the property for every task, but the
-numbers above were collected before that and should be re-measured. See
-[bench/METHODOLOGY.md](bench/METHODOLOGY.md).
+The eight held-out suites that could not distinguish a fix from a cheat were found and strengthened
+before this run, and `tests/bench-heldout-discriminates.test.ts` now enforces that property for
+every task. See [bench/METHODOLOGY.md](bench/METHODOLOGY.md).
 
 The task corpus ships with this repository rather than the npm package, so `bench` needs a clone:
 

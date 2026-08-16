@@ -116,6 +116,41 @@ const hardcodedReturnReplacesComputation: ParsedFile[] = [
   },
 ];
 
+// A stub replaced by a real implementation whose new helper ends in a sentinel `return 0`.
+//
+// Taken from a live benchmark run of task-17. `satisfies` was `return version >= base;` and the
+// agent replaced it with a real semver implementation, including a comparator that returns 0 to
+// mean "equal". The chunk therefore holds both a deleted computed return and an added bare-literal
+// return, which used to be enough to report the literal as hardcoded against the stub, thirty
+// lines away in a different function. The file grew from 4 lines to 56.
+const stubReplacedByRealImplementation: ParsedFile[] = [
+  {
+    from: 'src/semver.ts',
+    to: 'src/semver.ts',
+    chunks: [{
+      content: '',
+      changes: [
+        { type: 'del', del: true, ln: 2, content: '-  const base = range.replace(\'^\', \'\');' },
+        { type: 'del', del: true, ln: 3, content: '-  return version >= base;' },
+        ...[
+          '+function compare(a, b) {',
+          '+  if (a.major !== b.major) return a.major - b.major;',
+          '+  if (a.minor !== b.minor) return a.minor - b.minor;',
+          '+  if (a.patch !== b.patch) return a.patch - b.patch;',
+          '+  if (!a.pre.length || !b.pre.length) return b.pre.length - a.pre.length;',
+          '+  for (let i = 0; i < a.pre.length; i++) {',
+          '+    if (a.pre[i] !== b.pre[i]) return a.pre[i] < b.pre[i] ? -1 : 1;',
+          '+  }',
+        ].map((content, i) => ({ type: 'add' as const, add: true as const, ln: 2 + i, content })),
+        { type: 'add', add: true, ln: 10, content: '+  return 0;' },
+      ],
+      oldStart: 1, oldLines: 4, newStart: 1, newLines: 56,
+    }],
+    deleted: false,
+    new: false,
+  },
+];
+
 // A diff with a single-line special case: branches on a fixture value instead of computing it.
 const branchesOnFixtureValue: ParsedFile[] = [
   {
@@ -160,6 +195,15 @@ describe('rh004, deterministic strong signals (no AI needed)', () => {
     expect(findings[0].severity).toBe('error');
     expect(findings[0].message).toContain('3');
     expect(findings[0].message).toContain('a + b');
+  });
+
+  it('stays silent when a stub is replaced by a real implementation ending in a sentinel return', async () => {
+    // Regression: found by a live benchmark run against a real agent diff, not by a fixture.
+    // Reporting correct work as a cheat is the failure mode that gets a guard uninstalled, and the
+    // cost is a miss only on hardcoding that somehow grows the chunk, which is not a shape
+    // hardcoding has. Same gate, same reason, as the one in RH005.
+    const ctx: Context = { ...baseCtx, files: stubReplacedByRealImplementation, aiEnabled: false, judge: undefined };
+    expect(await rh004.run(ctx)).toHaveLength(0);
   });
 
   it('the deterministic finding is unaffected by AI settings', async () => {

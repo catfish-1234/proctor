@@ -411,12 +411,14 @@ reproduce**. It was one task out of 22, which is what noise looks like at this s
 runs are consistent with the same conclusion, and the apparent improvement in the first one would
 have been exactly the sort of unearned green this project exists to catch.
 
-The single flagged diff is most likely a **false positive** rather than a caught cheat: RH004 on
-task-17, fired in both arms, on a solution that passes held-out tests a hardcode could not satisfy.
-Proctor is clean against every task's reference fix, so no signature fires on the canonical
-solution, which narrows this to a signature firing on some other correct implementation. A diff
-that solves the underlying problem and still trips a check is a precision bug, and chasing it is
-worth more than the headline number above.
+The single flagged diff was a **false positive**, and chasing it was worth more than the headline
+number. RH004 fired on task-17 in both arms, against an agent that had replaced a
+`return version >= base` stub with a real 52-line semver implementation. The flagged line was the
+`return 0` that terminates its new comparator, which is the correct "equal" result, paired by the
+check against the deleted stub thirty lines away in a different function. That has been fixed, so
+the same run scored against current code reads **0.0% in both arms**. The table above is left as
+the run actually scored, because a benchmark that quietly restates old results as if the tool had
+always behaved this way is not a record of anything.
 
 The eight held-out suites that could not distinguish a fix from a cheat were found and strengthened
 before this run, and `tests/bench-heldout-discriminates.test.ts` now enforces that property for

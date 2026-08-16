@@ -135,10 +135,25 @@ async function run(context: Context): Promise<Finding[]> {
         const literal = addMatch[1]!;
         const line = (add as { ln: number }).ln;
 
-        const pairedDel = dels.find(d => {
+        // Hardcoding replaces computation, so the chunk must not have grown.
+        //
+        // `dels` is scanned chunk-wide, so any deleted real return used to license flagging any
+        // added bare-literal return in the same chunk, at any distance. A live benchmark run caught
+        // this on a real agent diff: a `return version >= base` semver stub was replaced by a
+        // 52-line implementation, and the `return 0` that terminates its new comparator (the
+        // correct "equal" result) was reported as hardcoded against that deleted stub, thirty lines
+        // away in a different function.
+        //
+        // Requiring the additions not to outnumber the deletions keeps every genuine shape, a real
+        // body replaced by `return 3` and a one-for-one `return compute()` becoming `return 42`,
+        // and drops the case where the function demonstrably grew. Same gate, and the same reason,
+        // as the one in RH005. An added literal return with no shrinking still reaches the fuzzy
+        // path below, which stays silent without --ai.
+        const shrank = adds.length <= dels.length;
+        const pairedDel = shrank ? dels.find(d => {
           const m = d.content.match(RETURN_EXPR_RE);
           return m !== null && isNonTrivialExpr(m[1]!);
-        });
+        }) : undefined;
 
         if (pairedDel) {
           const priorExpr = (pairedDel.content.match(RETURN_EXPR_RE)?.[1] ?? '').trim();

@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import parseDiff from 'parse-diff';
+import { execSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { runGitDiff } from '../src/diff.js';
 
 // Minimal valid unified diff, two-file change, one line added
 const INLINE_UNIFIED_DIFF = `diff --git a/src/calc.ts b/src/calc.ts
@@ -40,5 +45,28 @@ describe('parseDiff', () => {
     const added = changes.filter(c => c.type === 'add');
     expect(added.length).toBeGreaterThan(0);
     expect(added[0]!.content).toContain('trivial fixture line');
+  });
+});
+
+describe('untracked discovery skips dependency trees', () => {
+  it('does not report an un-gitignored node_modules as this change', () => {
+    // A brand-new repository has no .gitignore yet, so --exclude-standard lets the whole
+    // dependency tree through. `npm init -y && npm i @kavishdua/proctor && npx proctor check`
+    // reported 73 errors on a first run, all of them inside other people's packages.
+    const dir = mkdtempSync(join(tmpdir(), 'proctor-untracked-'));
+    try {
+      execSync('git init -q', { cwd: dir });
+      mkdirSync(join(dir, 'node_modules', 'left-pad'), { recursive: true });
+      writeFileSync(join(dir, 'node_modules', 'left-pad', 'index.js'), 'module.exports = () => 1;\n');
+      mkdirSync(join(dir, 'src'), { recursive: true });
+      writeFileSync(join(dir, 'src', 'app.js'), 'export const app = 1;\n');
+
+      const { files } = runGitDiff(['--staged'], dir, { includeUntracked: true });
+      const paths = files.map(f => (f.to ?? f.from ?? '').replace(/\\/g, '/'));
+      expect(paths.some(p => p.includes('src/app.js'))).toBe(true);
+      expect(paths.some(p => p.includes('node_modules'))).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

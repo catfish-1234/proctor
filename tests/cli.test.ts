@@ -25,6 +25,69 @@ describe('CLI smoke tests', () => {
     expect(result.stdout).toContain('--sarif');
     expect(result.stdout).toContain('--rules');
     expect(result.stdout).toContain('--explain');
+    expect(result.stdout).toContain('--wi');
+    expect(result.stdout).toContain('--all-checks');
+  });
+
+  describe('the beta WI family is opt-in', () => {
+    /** A repo whose only change is a WI103 signature: a guard deleted from shipped code. */
+    function repoWithGuardRemoved(): string {
+      const dir = mkdtempSync(join(tmpdir(), 'proctor-wi-optin-'));
+      execSync('git init -q', { cwd: dir });
+      execSync('git config user.email t@t.t', { cwd: dir });
+      execSync('git config user.name t', { cwd: dir });
+      writeFileSync(join(dir, 'account.ts'), [
+        'export function withdraw(balance: number, amount: number): number {',
+        '  if (amount > balance) {',
+        "    throw new RangeError('insufficient funds');",
+        '  }',
+        '  return balance - amount;',
+        '}',
+        '',
+      ].join('\n'));
+      execSync('git add -A', { cwd: dir });
+      execSync('git commit -q -m init', { cwd: dir });
+      writeFileSync(join(dir, 'account.ts'), [
+        'export function withdraw(balance: number, amount: number): number {',
+        '  return balance - amount;',
+        '}',
+        '',
+      ].join('\n'));
+      return dir;
+    }
+
+    it('stays silent on a WI-only change by default', () => {
+      const dir = repoWithGuardRemoved();
+      try {
+        const result = spawnSync('node', [CLI, 'check', '--json'], { cwd: dir, encoding: 'utf8' });
+        expect(JSON.parse(result.stdout)).toEqual([]);
+        expect(result.status).toBe(0);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('finds the same change with --wi', () => {
+      const dir = repoWithGuardRemoved();
+      try {
+        const result = spawnSync('node', [CLI, 'check', '--wi', '--json'], { cwd: dir, encoding: 'utf8' });
+        const findings = JSON.parse(result.stdout) as { verifierId: string }[];
+        expect(findings.some(f => f.verifierId === 'WI103')).toBe(true);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('finds it with --all-checks too', () => {
+      const dir = repoWithGuardRemoved();
+      try {
+        const result = spawnSync('node', [CLI, 'check', '--all-checks', '--json'], { cwd: dir, encoding: 'utf8' });
+        const findings = JSON.parse(result.stdout) as { verifierId: string }[];
+        expect(findings.some(f => f.verifierId === 'WI103')).toBe(true);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
   });
 
   it('check in non-git dir exits 2 with proctor: on stderr', () => {

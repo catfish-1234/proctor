@@ -231,4 +231,44 @@ describe('RH012, CI pipeline tampering', () => {
       expect(check(diffFile(file, [['del', 'sh "npm test"']]))).toHaveLength(1);
     });
   });
+  describe('a workflow line that only mentions a test runner', () => {
+    it('does not read a YAML comment as a deleted test command', () => {
+      // From the real-commit sweep: a comment above a step was reworded, and the old wording
+      // mentioned pytest, so the reword was reported as CI coverage being deleted.
+      expect(check(diffFile('.github/workflows/third-party.yml', [
+        ['del', '        # Instead, manually run pytest (we run core, pandas and FastAPI tests):'],
+        ['add', '        # Instead, manually run pytest, one directory per process:'],
+        ['normal', '        run: uv run --no-sync pytest tests/base'],
+      ]))).toEqual([]);
+    });
+
+    it("does not read a composite action's input key as a deleted test command", () => {
+      // Also from the sweep: `pip-install: -e . --group tox` is an input to setup-python, not a
+      // call to tox, and dropping it in favour of an explicit install step is not coverage loss.
+      expect(check(diffFile('.github/workflows/lint.yml', [
+        ['normal', '        with:'],
+        ['del', '          pip-install: -e . --group tox'],
+        ['add', '      - name: Install dependencies'],
+        ['add', '        run: python -m pip install -e . --group tox'],
+      ]))).toEqual([]);
+    });
+
+    it('does not read a step name as a deleted test command', () => {
+      expect(check(diffFile('.github/workflows/ci.yml', [
+        ['del', '      - name: Run pytest'],
+        ['add', '      - name: Run the unit suite'],
+        ['normal', '        run: pytest'],
+      ]))).toEqual([]);
+    });
+
+    it('still flags the command itself being deleted, inside a block scalar', () => {
+      const findings = check(diffFile('.github/workflows/ci.yml', [
+        ['normal', '        run: |'],
+        ['normal', '          ruff check .'],
+        ['del', '          pytest tests/'],
+      ]));
+      expect(findings).toHaveLength(1);
+      expect(findings[0]!.message).toContain('no longer runs this suite');
+    });
+  });
 });

@@ -7,7 +7,54 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **The WI1xx work-integrity family is opt-in.** It ships as beta: run it with `proctor check --wi`
+  or `--all-checks`, or list the IDs in `enabled` in `proctor.config.json` to apply it everywhere,
+  hooks included. No check was removed or weakened; thirteen checks reading arbitrary source across
+  25+ languages is a larger false-positive surface than the RH family's and has had less real-world
+  exposure, so it earns default-on in a later release rather than assuming it.
+- **Installing no longer writes to your repository.** `npm install` now prints exactly what
+  `proctor setup` would write, and where, and stops. `proctor setup` is unchanged and still does the
+  whole install; `PROCTOR_AUTO_SETUP=1` restores the previous install-and-wire behaviour, and
+  `PROCTOR_NO_POSTINSTALL=1` silences the notice. An npm package that silently rewrites git hooks
+  spends exactly the trust this tool is selling.
+- **RH011 counts suppressions per file rather than per change**, and a suppression whose author
+  wrote down why it is there no longer counts toward the threshold. Its message now reads "N of them
+  in this file".
+- The README CI example uses the `catfish-1234/proctor@v1` moving tag, with the full-SHA pin
+  documented beside it as the stricter alternative.
+- Releases publish with `npm publish --access public --provenance`.
+
 ### Fixed
+
+Every fix in this group came out of a sweep of 689 human commits from 20 maintained repositories
+(`sandbox/REALWORLD_FP_REPORT.md`). Together they take the share of real commits producing any
+finding from 10.3% to 7.7%, and the share the default check set flags from 5.8% to 3.9%, with the
+Part A catch rate unchanged at 12/12.
+
+- **`check` no longer analyses `node_modules` on a first run.** Untracked discovery relies on
+  `.gitignore`, which a brand-new repository does not have yet, so
+  `npm init -y && npm i @kavishdua/proctor && npx proctor check` reported 73 errors inside other
+  people's packages. Dependency and build trees are now skipped whether or not they are ignored.
+  Tracked files are untouched.
+- **WI103 no longer reads a `finally` block as unreachable code.** `} finally {` closes one block
+  and opens a sibling whose body sits at the same indentation, so the first statement of every
+  `finally` after an early `return` was reported as bypassed. This was the single largest
+  false-positive source in the sweep.
+- **RH004 and RH005 no longer read a relocated block as a gutted one.** A line deleted and re-added
+  in the same chunk was moved, not written, so it now takes part in neither side of the
+  return-pairing. The same locality bug as the earlier chunk-wide pairing fixes, on the move axis.
+- **WI111 no longer says a test file "asserts nothing" when it plainly does.** It counted only the
+  declarations the diff removed, so removing two cases from a forty-test file produced that message.
+  A surviving declaration on an unchanged context line now suppresses it. A deleted build config or
+  a deleted `*.test-d.ts` type-test file is no longer reported as a deleted implementation.
+- **RH012 no longer reads a YAML comment or a composite action's input key as a test command.** The
+  removal branch requires the line to be somewhere a command actually runs.
+- **The WI family no longer treats markup and data files as code.** A build script embedded in a
+  TOML string had its `catch {}` reported as a swallowed error in shipped code.
+- **RH001 reports the whole test title** when it contains the other quote character. The truncated
+  title was also the key deleted tests are paired against, so distinct tests collapsed onto one.
 
 - `check --uncommitted` and the Claude Stop hook now include untracked, non-ignored files. A new
   test or config file previously sat outside `git diff HEAD` and was invisible until staged.
@@ -28,10 +75,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **The WI1xx work-integrity family**, WI101 through WI112, reading shipped code for the ways an
+  agent fakes a finished job without touching a test at all: an error swallowed, a guard deleted, a
+  "not implemented" marker shipped, real I/O replaced with canned data, a type widened to `any`, a
+  security control switched off, the code under test deleted. Opt-in and marked beta for this
+  release, see Changed above.
 - RH014 detects reduced property/fuzz counts, collection slicing/filtering, contracted loop bounds,
   and rows removed from parameterized tests while their names and assertions survive.
 - WI113 detects benchmark workload reductions, dependency/version-floor rollbacks, and unexplained
   fixed delays used instead of fixing the exposed behavior.
+- **A real-world false-positive corpus.** `sandbox/realworld/` clones 20 maintained open-source
+  repositories and replays proctor over recent human commits, which is how every fix in this
+  release's Fixed section was found. `sandbox/REALWORLD_FP_REPORT.md` has the numbers and the
+  triage; the harness is `sweep.mjs`, `compare.mjs` and `lines.mjs` beside it.
+- `check --wi` and `check --all-checks`, for running the beta WI family without editing config.
+- A feature-request issue template, and a `language` field on the false-positive template.
+- `assets/social-preview.png`, the 1280x640 card GitHub shows when a repository link is shared,
+  generated by `scripts/social-preview.ps1`.
 - Red-team coverage now spans 76 adversarial diffs and 24 neighboring legitimate controls. All 76
   are caught and all controls remain silent, including expression-based exit laundering, focused
   test commands, CI matrix/trigger contraction, diagnostic suppression, expected-failure modifiers,

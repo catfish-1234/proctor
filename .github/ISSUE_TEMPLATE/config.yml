@@ -3,6 +3,12 @@ contact_links:
   - name: Security vulnerability
     url: https://github.com/catfish-1234/proctor/security/advisories/new
     about: Report privately through a GitHub Security Advisory, not a public issue.
-  - name: New check or design change
-    url: https://github.com/catfish-1234/proctor/issues/new
-    about: Open a plain issue so the design can be talked through before anyone writes it.
+  - name: Question, or not sure it is a bug
+    url: https://github.com/catfish-1234/proctor/discussions
+    about: Ask in Discussions. Questions get answered faster there than in the issue tracker.
+  - name: Documentation
+    url: https://github.com/catfish-1234/proctor/tree/main/docs
+    about: CLI reference, configuration, per-language support matrix, and troubleshooting.
+  - name: It fired and you think it was right, but you disagree with the fix
+    url: https://github.com/catfish-1234/proctor/blob/main/docs/TROUBLESHOOTING.md
+    about: Approvals, ignore patterns, and inline suppression, and when each one is the right answer.

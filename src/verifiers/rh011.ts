@@ -162,8 +162,48 @@ const FILEWIDE_CREDO_FILE_RE = /#\s*credo:disable-for-this-file\b/;
 //   convention was found, so nothing is detected for it at all rather than a guessed detector.
 
 // A single suppression is often legitimate (third-party types with no stubs, a documented
-// exception). "Spam" means multiple added in the same change, and that's the actual signal.
+// exception). "Spam" means multiple added to the same file, and that's the actual signal.
+//
+// Per file, not per change, and that is the fix for the largest false-positive class this check
+// had. A real refactor touches sixty files and picks up a scoped lint disable in two of them; the
+// old diff-wide count read those two unrelated lines as a pattern. The cheat this check exists for
+// is concentrated by nature: an agent silencing the errors in front of it silences them where it
+// is working. Same locality constraint the RH004/RH005 pairing fixes applied.
 const SPAM_THRESHOLD = 2;
+
+/**
+ * Vendored, generated, and dependency trees, which are nobody's claim of work.
+ *
+ * Mirrors the gate the WI family gets from `isWatchedSource`. A suppression inside a vendored copy
+ * of somebody else's package says nothing about the change being reviewed, and a repository that
+ * checks its dependencies in tripped the spam threshold on files its author never wrote.
+ */
+const VENDORED_PATH_RE = /(?:^|\/)(?:node_modules|vendor|dist|build|\.venv|__pycache__|third_party)\//;
+
+/**
+ * Prose, set off from the directive, saying why this particular suppression is here.
+ *
+ * This check's own suggestion asks the author to "justify each suppression individually with a
+ * comment", and its own negative fixture is a suppression that does exactly that. Until now nothing
+ * read the justification: the negative fixture passed only because one suppression is below the
+ * threshold, and a change that added two well-argued ones was reported the same as a change that
+ * added two bare ones.
+ *
+ * Deliberately stricter than the WI family's `hasExplanation`. The prose has to be separated from
+ * the directive by `--` or a second comment marker, and it has to be at least three words. What a
+ * directive takes as its own argument is not prose, so `#pragma warning disable CS1234`,
+ * `@SuppressWarnings("unchecked")`, `# rubocop:disable Metrics/AbcSize` and a bare
+ * `eslint-disable-next-line some/rule` all remain counted, exactly as before.
+ */
+const JUSTIFICATION_RE = /(?:--|\/\/|#)\s*\S+(?:\s+\S+){2,}/;
+
+function isJustified(content: string): boolean {
+  const match = SUPPRESSION_PATTERNS.map(re => re.exec(content)).find(
+    (m): m is RegExpExecArray => m !== null,
+  );
+  if (!match) return false;
+  return JUSTIFICATION_RE.test(content.slice(match.index + match[0].length));
+}
 
 function isFilewideSuppression(content: string): boolean {
   return (
@@ -232,40 +272,42 @@ function filewideInCode(content: string): boolean {
 const DOC_FILE_RE = /\.(?:md|mdc|markdown|rst|txt|adoc)$/i;
 
 function run(context: Context): Finding[] {
-  const files = context.files;
-  const occurrences: Array<{ file: string; line: number }> = [];
-  const filewideOccurrences: Array<{ file: string; line: number }> = [];
+  const findings: Finding[] = [];
 
-  for (const file of files) {
+  for (const file of context.files) {
     const filePath = file.to ?? file.from ?? '';
     if (DOC_FILE_RE.test(filePath)) continue;
+    if (VENDORED_PATH_RE.test(filePath.replace(/\\/g, '/'))) continue;
+
+    const occurrences: Array<{ file: string; line: number }> = [];
+
     for (const chunk of file.chunks) {
       for (const add of chunk.changes.filter(c => c.type === 'add')) {
+        const line = (add as { ln: number }).ln;
         if (filewideInCode(add.content)) {
-          filewideOccurrences.push({ file: filePath, line: (add as { ln: number }).ln });
-        } else if (suppressionInCode(add.content)) {
-          occurrences.push({ file: filePath, line: (add as { ln: number }).ln });
+          // A file-wide directive is reported on its own, whatever the count: its blast radius is
+          // the signal, not how many of them there are. A justification does not shrink it either.
+          findings.push({
+            verifierId: 'RH011',
+            severity: 'warn',
+            file: filePath,
+            line,
+            message: 'File-wide suppression directive added. This silences every rule for the rest of the file, a larger blast radius than a targeted per-line suppression.',
+            suggestion: 'Scope the suppression to the specific rule(s) and line(s) that need it instead of disabling checks for the whole file.',
+          });
+        } else if (suppressionInCode(add.content) && !isJustified(add.content)) {
+          occurrences.push({ file: filePath, line });
         }
       }
     }
-  }
 
-  const findings: Finding[] = filewideOccurrences.map(occ => ({
-    verifierId: 'RH011',
-    severity: 'warn' as const,
-    file: occ.file,
-    line: occ.line,
-    message: 'File-wide suppression directive added. This silences every rule for the rest of the file, a larger blast radius than a targeted per-line suppression.',
-    suggestion: 'Scope the suppression to the specific rule(s) and line(s) that need it instead of disabling checks for the whole file.',
-  }));
-
-  if (occurrences.length >= SPAM_THRESHOLD) {
+    if (occurrences.length < SPAM_THRESHOLD) continue;
     findings.push(...occurrences.map(occ => ({
       verifierId: 'RH011',
       severity: 'warn' as const,
       file: occ.file,
       line: occ.line,
-      message: `Type/lint suppression comment added, ${occurrences.length} of them in this change, silencing errors instead of fixing them.`,
+      message: `Type/lint suppression comment added, ${occurrences.length} of them in this file, silencing errors instead of fixing them.`,
       suggestion: 'Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment.',
     })));
   }

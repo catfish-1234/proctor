@@ -478,3 +478,31 @@ describe('rh004 does not flag emptiness guards', () => {
     expect((await rh004.run({ ...baseCtx, files })).length).toBeGreaterThan(0);
   });
 });
+
+describe('RH004, a relocated return is not a hardcoded one', () => {
+  it('stays silent when the literal return it flags was also deleted in the same chunk', async () => {
+    // From the real-commit sweep: a Python branch was restructured so its `return 127` error path
+    // moved into two arms of an if. The literal was reported as replacing the `subprocess.call`
+    // that had moved with it, a few lines up in the same chunk.
+    const file = {
+      from: 'src/click/_termui_impl.py',
+      to: 'src/click/_termui_impl.py',
+      chunks: [{
+        content: '',
+        changes: [
+          { type: 'del', del: true, ln: 725, content: '-        try:' },
+          { type: 'del', del: true, ln: 726, content: '-            return subprocess.call(args)' },
+          { type: 'del', del: true, ln: 727, content: '-        except OSError:' },
+          { type: 'del', del: true, ln: 728, content: '-            return 127' },
+          { type: 'add', add: true, ln: 723, content: '+            try:' },
+          { type: 'add', add: true, ln: 724, content: '+                return subprocess.call(args)' },
+          { type: 'add', add: true, ln: 725, content: '+            except OSError:' },
+          { type: 'add', add: true, ln: 726, content: '+                return 127' },
+        ],
+        oldStart: 725, oldLines: 4, newStart: 723, newLines: 4,
+      }],
+      deleted: false, new: false,
+    } as unknown as ParsedFile;
+    expect(await rh004.run({ ...baseCtx, files: [file] })).toEqual([]);
+  });
+});

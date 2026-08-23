@@ -10,6 +10,7 @@ import { wi107 } from '../../src/verifiers/wi107.js';
 import { wi108 } from '../../src/verifiers/wi108.js';
 import { wi109 } from '../../src/verifiers/wi109.js';
 import { wi110 } from '../../src/verifiers/wi110.js';
+import { wi111 } from '../../src/verifiers/wi111.js';
 import { wi112 } from '../../src/verifiers/wi112.js';
 import type { Context, Finding, Language, Verifier } from '../../src/types.js';
 
@@ -755,6 +756,38 @@ describe('red-team expectation and control-flow findings', () => {
     expect(await run(wi103, diffOf('src/price.ts', before, after))).toEqual([]);
   });
 
+  it('WI103 stays silent on a return inside try with a finally block below it', async () => {
+    // The single biggest false-positive source in the real-world sweep: `} finally {` closes the
+    // try block and opens a sibling one, and the finally body sits at the try body's indentation,
+    // so scanning past the brace made the finally block read as surviving same-scope code.
+    const before = 'export async function load(key) {\n  return await fetch(key);\n}';
+    const after = [
+      'export async function load(key) {',
+      '  try {',
+      '    return await fetch(key);',
+      '  } finally {',
+      '    pending.delete(key);',
+      '  }',
+      '}',
+    ].join('\n');
+    expect(await run(wi103, diffOf('src/load.ts', before, after))).toEqual([]);
+  });
+
+  it('WI103 stays silent on a return inside try with a brace-style catch below it', async () => {
+    const before = 'export function read(path) {\n  return parse(path);\n}';
+    const after = [
+      'export function read(path) {',
+      '  try {',
+      '    return parse(path);',
+      '  } catch (error) {',
+      '    report(error);',
+      '    throw error;',
+      '  }',
+      '}',
+    ].join('\n');
+    expect(await run(wi103, diffOf('src/read.ts', before, after))).toEqual([]);
+  });
+
   it('WI103 stays silent on a reachable except clause following a return inside try', async () => {
     const before = 'def run():\n    return commit()';
     const after = [
@@ -798,5 +831,66 @@ describe('WI112 matcher override', () => {
   it('stays silent on a real custom matcher that computes its result', async () => {
     const code = "expect.extend({ toBeEven: (n) => ({ pass: n % 2 === 0, message: () => 'not even' }) });";
     expect(await run(wi112, addedOf('setup.js', code))).toEqual([]);
+  });
+});
+
+describe('WI111, what "asserts nothing" has to mean', () => {
+  it('stays silent when the diff shows other tests surviving in the same file', async () => {
+    // From the real-commit sweep: removing two obsolete cases from a large suite was reported as
+    // leaving a test file that asserts nothing, in nine separate commits across four repositories.
+    const files = parseDiff([
+      'diff --git a/src/cache.test.ts b/src/cache.test.ts',
+      'index 1111111..2222222 100644',
+      '--- a/src/cache.test.ts',
+      '+++ b/src/cache.test.ts',
+      '@@ -1,6 +1,4 @@',
+      " it('reads through', () => {});",
+      "-it('uses the DNS cache', () => {});",
+      "-it('uses a CacheableLookup instance', () => {});",
+      " it('evicts on ttl', () => {});",
+    ].join('\n'));
+    expect(await run(wi111, files)).toEqual([]);
+  });
+
+  it('still fires when every test declaration in view is removed', async () => {
+    const files = parseDiff([
+      'diff --git a/src/cache.test.ts b/src/cache.test.ts',
+      'index 1111111..2222222 100644',
+      '--- a/src/cache.test.ts',
+      '+++ b/src/cache.test.ts',
+      '@@ -1,4 +1,1 @@',
+      " describe('cache', () => {",
+      "-  it('reads through', () => { expect(read()).toBe(1); });",
+      "-  it('evicts on ttl', () => { expect(evict()).toBe(true); });",
+      ' });',
+    ].join('\n'));
+    const findings = await run(wi111, files);
+    expect(findings.some(f => f.message.includes('Tests emptied'))).toBe(true);
+  });
+
+  it('does not call a deleted build config a deleted implementation', async () => {
+    const files = parseDiff([
+      'diff --git a/pkgs/utc/babel.config.js b/pkgs/utc/babel.config.js',
+      'deleted file mode 100644',
+      'index 1111111..0000000',
+      '--- a/pkgs/utc/babel.config.js',
+      '+++ /dev/null',
+      '@@ -1,1 +0,0 @@',
+      "-module.exports = { presets: ['@babel/preset-env'] };",
+    ].join('\n'));
+    expect(await run(wi111, files)).toEqual([]);
+  });
+
+  it('does not call a deleted tsd type-test file a deleted implementation', async () => {
+    const files = parseDiff([
+      'diff --git a/source/index.test-d.ts b/source/index.test-d.ts',
+      'deleted file mode 100644',
+      'index 1111111..0000000',
+      '--- a/source/index.test-d.ts',
+      '+++ /dev/null',
+      '@@ -1,1 +0,0 @@',
+      "-expectType<string>(chalk.red('x'));",
+    ].join('\n'));
+    expect(await run(wi111, files)).toEqual([]);
   });
 });

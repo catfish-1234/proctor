@@ -23,6 +23,39 @@ function isConditionalReturn(line: string): boolean {
   return idx >= 0 && CONDITIONAL_BEFORE_RE.test(line.slice(0, idx));
 }
 
+/**
+ * Lines this chunk both deletes and adds: code that was relocated, not written.
+ *
+ * RH004 and RH005 both pair an added return against a deleted one somewhere in the same chunk. A
+ * chunk that moves a block around: a body reindented into a new branch, a helper hoisted out of a
+ * cfg-gated inner function, deletes every line of it and adds every line straight back, and the
+ * pairing then reads the relocated lines as a computation replaced by a constant. Two real commits
+ * in the sweep hit exactly this: a Rust path helper whose four `return None;` guards were reindented
+ * one level, and a Python branch whose `return 127` was duplicated into two arms of an if.
+ *
+ * A line present on both sides of the chunk is neither a deletion that removed anything nor an
+ * addition that wrote anything, so it takes part in neither side of the pairing. Compared on the
+ * trimmed text, since a move is usually also a reindent. This is the same locality-and-direction
+ * discipline as the `shrank` gate beside it, on the other axis.
+ */
+export function movedLineTexts(changes: { type: string; content: string }[]): Set<string> {
+  const body = (content: string) => content.replace(/^[+-]/, '').trim();
+  const deleted = new Set(changes.filter(c => c.type === 'del').map(c => body(c.content)));
+  const moved = new Set<string>();
+  for (const change of changes) {
+    if (change.type !== 'add') continue;
+    const text = body(change.content);
+    // A blank line moving is not evidence of anything, and would otherwise match everywhere.
+    if (text !== '' && deleted.has(text)) moved.add(text);
+  }
+  return moved;
+}
+
+/** True when this change is one of the relocated lines identified by movedLineTexts. */
+export function isMoved(moved: Set<string>, content: string): boolean {
+  return moved.has(content.replace(/^[+-]/, '').trim());
+}
+
 // The return-literal signal anchors the literal to end-of-line, so a trailing `// comment`,
 // `/* */`, or TS `as Type`/`satisfies Type` cast would otherwise let `return 42; // total` slip
 // past. Strip that trailing noise before matching. Exported-shape kept local per the one-pure-
@@ -120,8 +153,9 @@ async function run(context: Context): Promise<Finding[]> {
     if (ctx.isTestFile(filePath)) continue; // RH004 only looks at implementation files
 
     for (const chunk of file.chunks) {
-      const dels = chunk.changes.filter(c => c.type === 'del');
-      const adds = chunk.changes.filter(c => c.type === 'add');
+      const moved = movedLineTexts(chunk.changes);
+      const dels = chunk.changes.filter(c => c.type === 'del' && !isMoved(moved, c.content));
+      const adds = chunk.changes.filter(c => c.type === 'add' && !isMoved(moved, c.content));
 
       // Strong signal 1, fully deterministic: a real computed return is replaced by a bare literal.
       for (const add of adds) {

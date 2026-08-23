@@ -105,10 +105,35 @@ const DEFAULT_GLOBS = [
   '**/*Test.vb',
 ];
 
-const DEFAULT_ENABLED = [
+/**
+ * The test-tampering family, enabled by default.
+ *
+ * These are the checks that read the test suite and the code directly under it, and they are the
+ * ones with real-world validation behind them: the sandbox dogfood corpus, the live benchmark, and
+ * a false-positive sweep over 689 human commits from 20 maintained repositories.
+ */
+export const RH_CHECKS = [
   'RH001', 'RH002', 'RH003', 'RH004', 'RH005', 'RH006', 'RH007', 'RH008', 'RH009', 'RH010', 'RH011', 'RH012', 'RH013', 'RH014',
+];
+
+/**
+ * The work-integrity family, opt-in for the first release.
+ *
+ * WI1xx reads shipped code for the ways an agent fakes completion without touching a test at all.
+ * They work, and nothing here is weakened: this is a default-enablement decision, not a capability
+ * one. Thirteen checks reading arbitrary source across 25+ languages is a much larger
+ * false-positive surface than the RH family's, and it has had far less real-world exposure. A tool
+ * whose whole argument is that you can trust what it blocks does not get to spend that on a family
+ * still earning its precision numbers.
+ *
+ * Turn them on with `--wi` (or `--all-checks`) for one run, or list them in `enabled` in
+ * proctor.config.json to have them run everywhere, including both hooks.
+ */
+export const WI_CHECKS = [
   'WI101', 'WI102', 'WI103', 'WI104', 'WI105', 'WI106', 'WI107', 'WI108', 'WI109', 'WI110', 'WI111', 'WI112', 'WI113',
 ];
+
+const DEFAULT_ENABLED = RH_CHECKS;
 
 const VALID_SEVERITIES = new Set(['error', 'warn', 'info']);
 

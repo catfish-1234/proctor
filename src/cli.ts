@@ -7,7 +7,7 @@ import { readFile, writeFile, appendFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { hiddenTrackedPaths, runGitDiff } from './diff.js';
 import { classifyDiff } from './pre-classifier.js';
-import { buildContext } from './context/index.js';
+import { buildContext, WI_CHECKS } from './context/index.js';
 import { runChecks } from './engine.js';
 import { prettyReport } from './reporters/pretty.js';
 import { jsonReport } from './reporters/json.js';
@@ -76,10 +76,12 @@ program
   .option('--sarif', 'output SARIF 2.1.0 JSON to stdout')
   .option('--ai', 'enable LLM judge for ambiguous signatures')
   .option('--rules <ids>', 'comma-separated list of verifier IDs to run (narrows the enabled set, e.g. RH001,RH003)')
+  .option('--wi', 'also run the beta work-integrity family (WI1xx), which is opt-in by default')
+  .option('--all-checks', 'run every check in the registry, the RH family and the beta WI family together')
   .option('--explain <id>', 'print the full explanation for a verifier ID and exit, no diff analysis')
   .option('--fix', 'with --explain, print what an honest fix looks like instead of the rule description')
   .option('--markdown <file>', 'also write a Markdown summary to this file, e.g. --markdown "$GITHUB_STEP_SUMMARY"')
-  .action(async (pathArg: string | undefined, options: { staged?: boolean; uncommitted?: boolean; base?: string; ci?: boolean; json?: boolean; ai?: boolean; sarif?: boolean; rules?: string; explain?: string; fix?: boolean; markdown?: string }) => {
+  .action(async (pathArg: string | undefined, options: { staged?: boolean; uncommitted?: boolean; base?: string; ci?: boolean; json?: boolean; ai?: boolean; sarif?: boolean; rules?: string; wi?: boolean; allChecks?: boolean; explain?: string; fix?: boolean; markdown?: string }) => {
     if (options.fix && !options.explain) {
       process.stderr.write('proctor: --fix only applies with --explain, e.g. proctor check --explain RH001 --fix\n');
       process.exit(2);
@@ -164,6 +166,13 @@ program
     // otherwise the diff being checked could disable proctor in the same change it cheats in.
     const ctx = await buildContext(cwd, accepted, { configRef: options.base ?? 'HEAD' });
     ctx.committedDiff = Boolean(options.base);
+    // The WI family is opt-in for this release (see WI_CHECKS). A flag turns it on for one run;
+    // listing the IDs in the committed config turns it on everywhere, hooks included. Added rather
+    // than assigned, so a config that already enables some of them is not overwritten, and a config
+    // that deliberately narrows the RH set keeps that narrowing.
+    if (options.wi || options.allChecks) {
+      ctx.enabled = [...new Set([...ctx.enabled, ...WI_CHECKS])];
+    }
     if (options.rules) {
       const requested = options.rules.split(',').map(s => s.trim()).filter(Boolean);
       const unknown = requested.filter(id => !RULE_METADATA[id]);

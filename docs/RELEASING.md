@@ -18,10 +18,53 @@ Maintainer notes. Nothing here is needed to use proctor.
    git tag v1.1.0 && git push origin v1.1.0
    ```
 
+5. Re-point the `v1` moving tag at the same commit (see below).
+
 `.github/workflows/release.yml` takes it from there: it checks the tag against `package.json`,
-builds, runs the full suite, verifies the real tarball installs and runs, publishes to npm, and
-creates the GitHub release. The version check runs unconditionally, so a `workflow_dispatch` from a
-non-tag ref fails rather than publishing whatever `package.json` happens to say.
+builds, runs the full suite, verifies the real tarball installs and runs, publishes to npm with
+`npm publish --access public --provenance`, and creates the GitHub release. The version check runs
+unconditionally, so a `workflow_dispatch` from a non-tag ref fails rather than publishing whatever
+`package.json` happens to say.
+
+## Provenance
+
+The workflow publishes with `--provenance`, which attaches a Sigstore attestation binding the
+tarball to this repository, this workflow file, and the commit it was built from. npm shows it as
+the "Provenance" panel on the package page, and it is what lets somebody verify that the code on
+GitHub is the code in the tarball.
+
+Provenance is only available when npm can prove where the build ran, which in practice means
+publishing from the GitHub Actions workflow with `id-token: write` (OIDC). It does not matter
+whether the registry auth is trusted publishing or `NPM_TOKEN`; what matters is the environment.
+
+So: **the first publish, if it is done by hand from a laptop, will have no provenance.** That is
+expected and harmless. Every tag-triggered release after it carries provenance, and the missing
+attestation on the first version is not retroactively fixable, only superseded.
+
+## The `v1` moving tag
+
+Action consumers pin `catfish-1234/proctor@v1` and expect it to keep working across patch and minor
+releases, the same convention `actions/checkout@v5` uses. `v1` is a mutable tag that always points
+at the newest `v1.x.y` release commit, and re-pointing it is a manual step in the release: nothing
+in `release.yml` moves it.
+
+After the release workflow for `v1.2.3` goes green:
+
+```bash
+git tag -f v1 v1.2.3          # move the local tag onto the release commit
+git push origin v1 --force    # move it on the remote
+```
+
+Two rules for it:
+
+- Move `v1` only **after** the release workflow succeeds. A `v1` pointing at a commit whose publish
+  failed sends every consumer to a half-released version.
+- Never move `v1` across a major boundary. `v2.0.0` gets a new `v2` tag, and `v1` stays where it is
+  so pinned consumers are not upgraded into a breaking change by a tag move.
+
+Pinning to a full commit SHA (`catfish-1234/proctor@93ba04a...`) is also supported and is the
+stricter choice: it is immutable, so a compromised or mistaken tag move cannot reach it. The README
+shows `@v1` because that is what most consumers want, with the SHA form noted beside it.
 
 ## npm authentication, one time only
 

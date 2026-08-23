@@ -1,8 +1,14 @@
 <p align="center">
-  <img src="assets/proctor-logo.svg" alt="proctor logo, a watchful eye with a green checkmark pupil" width="96" height="96">
+  <img src="https://raw.githubusercontent.com/catfish-1234/proctor/main/assets/proctor-logo.svg" alt="proctor logo, a watchful eye with a green checkmark pupil" width="96" height="96">
 </p>
 
 <h1 align="center">proctor</h1>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/@kavishdua/proctor"><img src="https://img.shields.io/npm/v/@kavishdua/proctor?color=2ea043&label=npm" alt="npm version"></a>
+  <a href="https://github.com/catfish-1234/proctor/actions/workflows/ci.yml"><img src="https://github.com/catfish-1234/proctor/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
+  <a href="https://github.com/catfish-1234/proctor/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/@kavishdua/proctor?color=blue" alt="MIT license"></a>
+</p>
 
 <p align="center"><strong>Your agent didn't fix the bug. It deleted the test and told you it passed. proctor catches it.</strong></p>
 
@@ -17,7 +23,7 @@ No network, no account, no API key. The whole check runs offline. You need Node 
 **Getting started**
 
 - [Quickstart](#quickstart), try it against a repo without installing anything
-- [Install](#install), one command per agent
+- [Install](#install), and exactly what it writes
 - [What that setup does](#what-that-setup-does)
 - [One thing to do afterwards](#one-thing-to-do-afterwards)
 - [Checking it worked](#checking-it-worked)
@@ -66,7 +72,7 @@ The check writes nothing to the repository being checked and makes no runtime ne
 
 ## Install
 
-Pick your agent. One command, and you are done.
+Two steps, and the second one is the only thing that writes to your repo.
 
 **Claude Code**
 
@@ -96,28 +102,35 @@ npm pack
 npm install --save-dev /absolute/path/to/kavishdua-proctor-*.tgz
 ```
 
-That is the whole install. proctor sets itself up as it installs: it works out which agents this
-repo uses, writes the ruleset to those, installs the git pre-commit hook, and installs the Claude
-Code Stop hook if this repo uses Claude Code. There is no second command.
+**Installing writes nothing to your repository.** The install prints exactly what the next command
+would write, and stops. When you want the guards:
 
-It stays out of the way where setting itself up would be wrong: in CI, in a global install, when
-pulled in as somebody else's dependency, outside a git repository, or under `npx`. In each case it
-says which one applied and stops. `PROCTOR_NO_POSTINSTALL=1` turns it off entirely, and
-`npx proctor setup` runs it by hand whenever you want after the local tarball is installed.
+```bash
+npx proctor setup
+```
 
 ### What that setup does
 
-Three things, and then it tells you what it did:
+This is the complete list of what `proctor setup` writes, and where. Nothing outside your
+repository is touched, and no network call is made.
 
-1. Works out which agents this repository actually uses, by looking for their config
-   (`.cursor/`, `.claude/`, `WARP.md`, and so on), and writes the ruleset to just those. A repo
-   with no agent config gets `AGENTS.md`, the cross-vendor standard.
-2. Installs a git pre-commit hook, so a cheat can't be committed.
-3. Installs the Claude Code Stop hook, if this repo uses Claude Code, so a cheat is caught at the
-   end of the turn rather than at commit time.
+| Path | What it is | If it already exists |
+| --- | --- | --- |
+| The ruleset file for each agent this repo uses, e.g. `.claude/skills/proctor/SKILL.md`, `.cursor/rules/proctor.mdc`, `AGENTS.md` | The honest-completion rules your agent reads before it works | A shared file like `AGENTS.md` keeps your content; only proctor's delimited block is replaced |
+| `.git/hooks/pre-commit` | Blocks a cheat at commit time | A pre-commit hook that isn't proctor's is left alone |
+| `.claude/settings.json` | The Claude Code Stop hook, written only if this repo uses Claude Code | Merged into the existing JSON; nothing else in the file changes |
+| `.proctor-adapter-manifest.json` | Records what was written, so `uninstall` can take exactly that back out | Rewritten |
 
-Run `proctor agents` first if you want to see what it will write. `--all` installs to all 30
-supported agents; `--agents claude-code,cursor` names them yourself.
+How the agent list is chosen: proctor looks for each agent's own config (`.cursor/`, `.claude/`,
+`WARP.md`, and so on) and writes the ruleset to just those. A repo with no agent config gets
+`AGENTS.md`, the cross-vendor standard. Run `proctor agents` first to see the list for your repo.
+`--all` installs to all 30 supported agents; `--agents claude-code,cursor` names them yourself.
+
+`setup` stays out of the way where setting itself up would be wrong: in CI, in a global install,
+when pulled in as somebody else's dependency, outside a git repository, or under `npx`.
+
+**If you want the old install-and-wire behavior**, set `PROCTOR_AUTO_SETUP=1` and installing runs
+`proctor setup` for you. `PROCTOR_NO_POSTINSTALL=1` silences the install-time notice entirely.
 
 ### One thing to do afterwards
 
@@ -188,7 +201,7 @@ The commit never lands. The agent has to actually fix `slugify()`, not just make
 Here's the full two-scene recording: proctor catching a deleted test at the CLI layer, then the
 Claude Code Stop hook blocking the same cheat live in an agent session.
 
-![proctor demo](assets/demo.gif)
+![proctor demo](https://raw.githubusercontent.com/catfish-1234/proctor/main/assets/demo.gif)
 
 ## What happens when it blocks
 
@@ -217,7 +230,7 @@ haven't committed yet has no effect.
 ```
 
 The marker has to be committed before the change it excuses, for the same reason approvals do. See
-[inline suppression](docs/CONFIGURATION.md#inline-suppression).
+[inline suppression](https://github.com/catfish-1234/proctor/blob/main/docs/CONFIGURATION.md#inline-suppression).
 
 **You want to know why a check exists.** Every finding prints its ID, and every ID explains itself:
 
@@ -256,6 +269,13 @@ There are two families, and the split is by the claim each one checks.
 **WI1xx checks "the work is done."** Deleting a test is only one way to fake a finished job. These
 read shipped code for the rest of them, and none of the cheats they catch touches a test file.
 
+> **Beta, and opt-in for now.** The WI family is off by default in v1.0.0. Turn it on for one run
+> with `proctor check --wi` (or `--all-checks`), or for good by listing the IDs you want in
+> `enabled` in `proctor.config.json`, which also applies them in both hooks. Nothing about them is
+> weakened by being opt-in: thirteen checks reading arbitrary source across 25+ languages is a
+> larger false-positive surface than the RH family's, and it has had less real-world exposure, so
+> they earn default-on in a later release rather than assuming it.
+
 | | Catches |
 |---|---|
 | WI101 | An error discarded by an empty handler, so failures pass unnoticed |
@@ -287,7 +307,7 @@ disagree with.
 
 `✓ proctor: honest pass` prints after a clean `proctor check`, and `proctor badge` gives you the
 same result as Markdown to paste into your own README or a PR description (generated by
-[`src/badge/index.ts`](src/badge/index.ts)):
+[`src/badge/index.ts`](https://github.com/catfish-1234/proctor/blob/main/src/badge/index.ts)):
 
 ```bash
 $ proctor badge
@@ -312,8 +332,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with: { fetch-depth: 0 }
-      - uses: catfish-1234/proctor@93ba04a30ac3d8ed0903a46bb028853346baff0a
+      - uses: catfish-1234/proctor@v1
 ```
+
+`v1` is a moving tag: it follows the newest `1.x` release, so patch and minor fixes arrive without
+a PR. To pin exactly instead, use a full commit SHA
+(`catfish-1234/proctor@93ba04a30ac3d8ed0903a46bb028853346baff0a`), which is immutable and cannot be
+moved under you.
 
 ## How it works
 
@@ -368,7 +393,7 @@ person overriding their own tooling, and it is caught at the next turn by the St
 | **8 of 8** | agent benchmarks that [Berkeley RDI](https://rdi.berkeley.edu/blog/trustworthy-benchmarks-cont/) drove to near-perfect scores without solving a single task. SWE-bench Verified fell to a pytest hook that forced every test to pass |
 
 **What proctor catches.** The fixture and benchmark numbers below come out of `npm test`; the
-adversarial number comes from the independent widening corpus in [`bench/redteam/`](bench/redteam):
+adversarial number comes from the independent widening corpus in [`bench/redteam/`](https://github.com/catfish-1234/proctor/tree/main/bench/redteam):
 
 | | |
 |---|---|
@@ -422,7 +447,7 @@ always behaved this way is not a record of anything.
 
 The eight held-out suites that could not distinguish a fix from a cheat were found and strengthened
 before this run, and `tests/bench-heldout-discriminates.test.ts` now enforces that property for
-every task. See [bench/METHODOLOGY.md](bench/METHODOLOGY.md).
+every task. See [bench/METHODOLOGY.md](https://github.com/catfish-1234/proctor/blob/main/bench/METHODOLOGY.md).
 
 The task corpus ships with this repository rather than the npm package, so `bench` needs a clone:
 
@@ -447,21 +472,21 @@ Everything above is the whole product for most people. These pages are for when 
 
 | Page | What's in it |
 |------|--------------|
-| [docs/CLI.md](docs/CLI.md) | Every command and flag |
-| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Config file, severities, approvals, [inline suppression](docs/CONFIGURATION.md#inline-suppression) |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | It didn't fire, it fired wrongly, my approval didn't take |
-| [docs/LANGUAGES.md](docs/LANGUAGES.md) | Per-language support matrix, the 30 supported agents, known limitations |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Setting up, adding a check, adding an agent |
-| [docs/RELEASING.md](docs/RELEASING.md) | Maintainer notes: how a tag becomes a release |
-| [RESEARCH.md](RESEARCH.md) | Why it's built this way, and how it compares to Stryker and EvilGenie |
-| [bench/METHODOLOGY.md](bench/METHODOLOGY.md) | How the benchmark works and what it does not claim |
+| [docs/CLI.md](https://github.com/catfish-1234/proctor/blob/main/docs/CLI.md) | Every command and flag |
+| [docs/CONFIGURATION.md](https://github.com/catfish-1234/proctor/blob/main/docs/CONFIGURATION.md) | Config file, severities, approvals, [inline suppression](https://github.com/catfish-1234/proctor/blob/main/docs/CONFIGURATION.md#inline-suppression) |
+| [docs/TROUBLESHOOTING.md](https://github.com/catfish-1234/proctor/blob/main/docs/TROUBLESHOOTING.md) | It didn't fire, it fired wrongly, my approval didn't take |
+| [docs/LANGUAGES.md](https://github.com/catfish-1234/proctor/blob/main/docs/LANGUAGES.md) | Per-language support matrix, the 30 supported agents, known limitations |
+| [CONTRIBUTING.md](https://github.com/catfish-1234/proctor/blob/main/CONTRIBUTING.md) | Setting up, adding a check, adding an agent |
+| [docs/RELEASING.md](https://github.com/catfish-1234/proctor/blob/main/docs/RELEASING.md) | Maintainer notes: how a tag becomes a release |
+| [RESEARCH.md](https://github.com/catfish-1234/proctor/blob/main/RESEARCH.md) | Why it's built this way, and how it compares to Stryker and EvilGenie |
+| [bench/METHODOLOGY.md](https://github.com/catfish-1234/proctor/blob/main/bench/METHODOLOGY.md) | How the benchmark works and what it does not claim |
 
 proctor supports 25+ languages and installs to 30 agents. Five diff-level checks (RH001, RH002,
 RH003, RH007, RH011) work across all of them; six (RH004, RH005, RH006, RH008, RH009, RH010) are
 JS/TS/Python-only; and RH012 and RH013 read CI and coverage config, so they apply everywhere. Of the
 work-integrity family, WI101, WI102 and WI103 carry per-language signatures, WI104 reads config
 files so it applies everywhere, and WI105 and WI106 are scoped to the languages whose tokens are
-unambiguous. [Full matrix](docs/LANGUAGES.md).
+unambiguous. [Full matrix](https://github.com/catfish-1234/proctor/blob/main/docs/LANGUAGES.md).
 
 ## The Proctor
 

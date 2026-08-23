@@ -85,9 +85,25 @@ export function deletedLines(chunk: ParsedFile['chunks'][number]): DiffLine[] {
  * `as any` is routine when building a partial mock. Tests already have thirteen checks watching
  * them. These six watch the code the tests are supposed to be proving.
  */
+/**
+ * Markup and data-serialization formats, which the WI family reads as if they were code.
+ *
+ * These checks reason about statements: an empty catch block, an early return, a widened type. A
+ * document or a config table has none of those, and anything in one that looks like a statement is
+ * either an example being written about or a payload some other tool will run. A real commit in the
+ * sweep embedded a build script inside a TOML multiline string and had its `catch {}` reported as a
+ * swallowed error in shipped code.
+ *
+ * `.json`, `.yaml` and `.yml` are deliberately absent: WI110 and WI113 read `package.json`, and
+ * workflow files carry real test commands, so those checks recognise them explicitly rather than
+ * arriving here.
+ */
+const DATA_OR_DOC_FILE_RE = /\.(?:md|mdx|markdown|rst|txt|adoc|toml|ini|cfg|conf|csv|tsv|xml|svg|lock)$/i;
+
 export function isWatchedSource(context: Context, filePath: string): boolean {
   if (!filePath) return false;
   if (context.isTestFile(filePath)) return false;
+  if (DATA_OR_DOC_FILE_RE.test(filePath)) return false;
   // Vendored and generated trees are nobody's claim of work.
   return !/(?:^|\/)(?:node_modules|vendor|dist|build|\.venv|__pycache__|third_party)\//.test(
     filePath.replace(/\\/g, '/'),

@@ -4,7 +4,7 @@
     "severity": "warn",
     "file": "parser.ts",
     "line": 2,
-    "message": "Type/lint suppression comment added, 2 of them in this change, silencing errors instead of fixing them.",
+    "message": "Type/lint suppression comment added, 2 of them in this file, silencing errors instead of fixing them.",
     "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
   },
   {
@@ -12,7 +12,7 @@
     "severity": "warn",
     "file": "parser.ts",
     "line": 7,
-    "message": "Type/lint suppression comment added, 2 of them in this change, silencing errors instead of fixing them.",
+    "message": "Type/lint suppression comment added, 2 of them in this file, silencing errors instead of fixing them.",
     "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
   }
 ]

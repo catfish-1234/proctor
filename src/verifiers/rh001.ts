@@ -17,9 +17,19 @@ const PY_DEL = /^-\s*(?:async\s+)?def test_/;
 const JS_TS_ADD = /^\+\s*(?:it|test|describe)(?:\.\w+)?\s*\(/;
 const PY_ADD = /^\+\s*(?:async\s+)?def test_/;
 
+/**
+ * The title a test declaration was given.
+ *
+ * The closing quote has to be the same character as the opening one. Without the backreference,
+ * `test('Cannot set "stdout" option to "ipc"', ...)` stopped at the first inner double quote and
+ * yielded the title `Cannot set `, which is both what the finding printed and, worse, the key this
+ * title is paired against: five distinct execa tests collapsed onto one truncated key, so a deleted
+ * test could be matched against an unrelated added one that happened to share a prefix. Found in a
+ * sweep of real commits, where the truncation was visible in the message.
+ */
 function extractTestName(content: string): string {
-  const m = content.match(/['"](.*?)['"]/);
-  return m?.[1] ?? 'unknown';
+  const m = content.match(/(['"`])(.*?)\1/);
+  return m?.[2] ?? 'unknown';
 }
 
 // A whole test file being deleted is only suspicious if its implementation isn't also being

@@ -4,7 +4,7 @@
     "severity": "warn",
     "file": "Calculator.cpp",
     "line": 2,
-    "message": "Type/lint suppression comment added, 2 of them in this change, silencing errors instead of fixing them.",
+    "message": "Type/lint suppression comment added, 2 of them in this file, silencing errors instead of fixing them.",
     "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
   },
   {
@@ -12,7 +12,7 @@
     "severity": "warn",
     "file": "Calculator.cpp",
     "line": 7,
-    "message": "Type/lint suppression comment added, 2 of them in this change, silencing errors instead of fixing them.",
+    "message": "Type/lint suppression comment added, 2 of them in this file, silencing errors instead of fixing them.",
     "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
   },
   {
@@ -20,7 +20,7 @@
     "severity": "warn",
     "file": "Calculator.c",
     "line": 2,
-    "message": "Type/lint suppression comment added, 2 of them in this change, silencing errors instead of fixing them.",
+    "message": "Type/lint suppression comment added, 2 of them in this file, silencing errors instead of fixing them.",
     "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
   },
   {
@@ -28,7 +28,7 @@
     "severity": "warn",
     "file": "Calculator.c",
     "line": 7,
-    "message": "Type/lint suppression comment added, 2 of them in this change, silencing errors instead of fixing them.",
+    "message": "Type/lint suppression comment added, 2 of them in this file, silencing errors instead of fixing them.",
     "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
   },
   {
@@ -36,7 +36,7 @@
     "severity": "warn",
     "file": "Calculator.m",
     "line": 2,
-    "message": "Type/lint suppression comment added, 2 of them in this change, silencing errors instead of fixing them.",
+    "message": "Type/lint suppression comment added, 2 of them in this file, silencing errors instead of fixing them.",
     "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
   },
   {
@@ -44,7 +44,7 @@
     "severity": "warn",
     "file": "Calculator.m",
     "line": 7,
-    "message": "Type/lint suppression comment added, 2 of them in this change, silencing errors instead of fixing them.",
+    "message": "Type/lint suppression comment added, 2 of them in this file, silencing errors instead of fixing them.",
     "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
   },
   {
@@ -52,7 +52,7 @@
     "severity": "warn",
     "file": "Calculator.swift",
     "line": 2,
-    "message": "Type/lint suppression comment added, 2 of them in this change, silencing errors instead of fixing them.",
+    "message": "Type/lint suppression comment added, 2 of them in this file, silencing errors instead of fixing them.",
     "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
   },
   {
@@ -60,7 +60,7 @@
     "severity": "warn",
     "file": "Calculator.swift",
     "line": 7,
-    "message": "Type/lint suppression comment added, 2 of them in this change, silencing errors instead of fixing them.",
+    "message": "Type/lint suppression comment added, 2 of them in this file, silencing errors instead of fixing them.",
     "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
   },
   {
@@ -76,7 +76,7 @@
     "severity": "warn",
     "file": "Calculator.dart",
     "line": 2,
-    "message": "Type/lint suppression comment added, 2 of them in this change, silencing errors instead of fixing them.",
+    "message": "Type/lint suppression comment added, 2 of them in this file, silencing errors instead of fixing them.",
     "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
   },
   {
@@ -84,7 +84,7 @@
     "severity": "warn",
     "file": "Calculator.dart",
     "line": 7,
-    "message": "Type/lint suppression comment added, 2 of them in this change, silencing errors instead of fixing them.",
+    "message": "Type/lint suppression comment added, 2 of them in this file, silencing errors instead of fixing them.",
     "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
   },
   {
@@ -100,7 +100,7 @@
     "severity": "warn",
     "file": "Calculator.scala",
     "line": 2,
-    "message": "Type/lint suppression comment added, 2 of them in this change, silencing errors instead of fixing them.",
+    "message": "Type/lint suppression comment added, 2 of them in this file, silencing errors instead of fixing them.",
     "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
   },
   {
@@ -108,7 +108,7 @@
     "severity": "warn",
     "file": "Calculator.scala",
     "line": 7,
-    "message": "Type/lint suppression comment added, 2 of them in this change, silencing errors instead of fixing them.",
+    "message": "Type/lint suppression comment added, 2 of them in this file, silencing errors instead of fixing them.",
     "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
   },
   {
@@ -116,7 +116,7 @@
     "severity": "warn",
     "file": "CalculatorSpec.groovy",
     "line": 2,
-    "message": "Type/lint suppression comment added, 2 of them in this change, silencing errors instead of fixing them.",
+    "message": "Type/lint suppression comment added, 2 of them in this file, silencing errors instead of fixing them.",
     "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
   },
   {
@@ -124,7 +124,7 @@
     "severity": "warn",
     "file": "CalculatorSpec.groovy",
     "line": 8,
-    "message": "Type/lint suppression comment added, 2 of them in this change, silencing errors instead of fixing them.",
+    "message": "Type/lint suppression comment added, 2 of them in this file, silencing errors instead of fixing them.",
     "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
   },
   {
@@ -132,7 +132,7 @@
     "severity": "warn",
     "file": "Calculator.vb",
     "line": 3,
-    "message": "Type/lint suppression comment added, 2 of them in this change, silencing errors instead of fixing them.",
+    "message": "Type/lint suppression comment added, 2 of them in this file, silencing errors instead of fixing them.",
     "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
   },
   {
@@ -140,7 +140,7 @@
     "severity": "warn",
     "file": "Calculator.vb",
     "line": 8,
-    "message": "Type/lint suppression comment added, 2 of them in this change, silencing errors instead of fixing them.",
+    "message": "Type/lint suppression comment added, 2 of them in this file, silencing errors instead of fixing them.",
     "suggestion": "Fix the underlying type or lint error instead of suppressing it; if truly unavoidable, justify each suppression individually with a comment."
   }
 ]

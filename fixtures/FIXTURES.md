@@ -91,7 +91,7 @@ Single source of truth for all verifier fixtures (the planted true-positive and 
 **File modified:** `parser.ts`
 **Severity:** warn
 **Deterministic (no --ai):** yes, fires only at 2+ suppression comments added in the same diff; a single suppression is often legitimate
-**Expected output:** two findings, each with message `"Type/lint suppression comment added, 2 of them in this change, silencing errors instead of fixing them."`
+**Expected output:** two findings, each with message `"Type/lint suppression comment added, 2 of them in this file, silencing errors instead of fixing them."`
 **Near-miss (`negative/`):** a single `// @ts-ignore` with an inline justification comment. No finding.
 
 ## Language Expansion

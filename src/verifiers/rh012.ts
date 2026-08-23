@@ -139,6 +139,27 @@ function stepSegments<T extends { content: string }>(changes: T[]): T[][] {
  * Indentation, YAML list markers, and quoting all move around in routine pipeline edits and none
  * of them change what runs.
  */
+/** YAML keys whose value is a command the runner executes. */
+const COMMAND_KEYS = new Set(['run', 'script', 'command', 'commands', 'entrypoint', 'cmd', 'args']);
+
+/**
+ * True when a workflow line is somewhere a command actually runs.
+ *
+ * `TEST_COMMAND_RE` looks for a runner's name anywhere on the line, which is right for a `run:`
+ * value and wrong for everything else a workflow file contains. In the real-commit sweep it read a
+ * YAML comment ("# Instead, manually run pytest ...") and a composite action's input key
+ * ("pip-install: -e . --group tox") as test invocations, and reported both as CI coverage being
+ * deleted. A comment is not a step, and an input named after a tool is not a call to it.
+ *
+ * Two shapes count: a line under one of the command keys, and a bare line with no YAML key at all,
+ * which is how a command inside a `run: |` block scalar appears.
+ */
+function isCommandLine(text: string): boolean {
+  if (/^\s*#/.test(text)) return false;
+  const key = /^\s*-?\s*([A-Za-z_][\w.-]*)\s*:/.exec(text);
+  return key === null || COMMAND_KEYS.has(key[1]!.toLowerCase());
+}
+
 function commandKey(content: string): string {
   return stripDiffPrefix(content)
     .replace(/^-\s*/, '')
@@ -269,6 +290,7 @@ function run(context: Context): Finding[] {
             // the evidence.
             const stripped = stripDiffPrefix(change.content);
             if (!TEST_COMMAND_RE.test(stripped)) continue;
+            if (!isCommandLine(stripped)) continue;
             if (addedCommands.has(commandKey(change.content))) continue;
             findings.push({
               verifierId: 'RH012',

@@ -326,3 +326,26 @@ describe('rh001, new-language whole-file deletion (LANG-13)', () => {
     expect(normalised).toEqual([expectedEntry]);
   });
 });
+
+describe('RH001, test titles containing the other quote character', () => {
+  it('reports the whole title, not the part before an inner double quote', () => {
+    // From the real-commit sweep: five distinct execa tests all reported as 'Cannot set ', because
+    // the title match closed on the first quote of either kind rather than the matching one. The
+    // truncated title is also the pairing key, so distinct tests collapsed onto one.
+    const file = {
+      from: 'test/fd-options.test.js',
+      to: 'test/fd-options.test.js',
+      chunks: [{
+        content: '',
+        changes: [
+          { type: 'del', del: true, ln: 10, content: '-test(\'Cannot set "stdout" option to "ipc" to use .pipe()\', testPipeError, {' },
+        ],
+        oldStart: 10, oldLines: 1, newStart: 10, newLines: 0,
+      }],
+      deleted: false, new: false,
+    } as unknown as ParsedFile;
+    const findings = rh001.run({ ...baseCtx, files: [file] });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain('Cannot set "stdout" option to "ipc" to use .pipe()');
+  });
+});

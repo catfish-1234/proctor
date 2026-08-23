@@ -1,5 +1,5 @@
 import type { Context, Finding, Verifier } from '../types.js';
-import { stripTrailingNoise } from './rh004.js';
+import { isMoved, movedLineTexts, stripTrailingNoise } from './rh004.js';
 
 // Deterministic strong signal: an added line's return statement collapses to null/undefined/None,
 // tolerant of a trailing brace on the same line (`{ return undefined; }`).
@@ -118,8 +118,11 @@ async function run(context: Context): Promise<Finding[]> {
     const isTest = ctx.isTestFile(filePath);
 
     for (const chunk of file.chunks) {
-      const dels = chunk.changes.filter(c => c.type === 'del');
-      const adds = chunk.changes.filter(c => c.type === 'add');
+      // Relocated lines are neither a deletion that removed a computation nor an addition that
+      // wrote a trivial one. See movedLineTexts in rh004.ts.
+      const moved = movedLineTexts(chunk.changes);
+      const dels = chunk.changes.filter(c => c.type === 'del' && !isMoved(moved, c.content));
+      const adds = chunk.changes.filter(c => c.type === 'add' && !isMoved(moved, c.content));
 
       if (!isTest) {
         // Gutting removes computation. A chunk that adds far more than it deletes did the

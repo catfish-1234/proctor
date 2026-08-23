@@ -80,12 +80,16 @@ jobs:
       #
       # The OTP is passed as a separate argument rather than interpolated into the command, so a
       # value containing a space or a glob character cannot become extra argv entries.
+      #
+      # --provenance signs the package with a Sigstore attestation tying it to this workflow run
+      # and this commit. It needs id-token: write and a supported CI, both of which hold here, so
+      # every tag-triggered release carries it. A publish run by hand from a laptop cannot.
       - name: Publish to npm
         run: |
           if [ -n "$NPM_OTP" ]; then
-            npm publish --access public --otp="$NPM_OTP"
+            npm publish --access public --provenance --otp="$NPM_OTP"
           else
-            npm publish --access public
+            npm publish --access public --provenance
           fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,0 +1,42 @@
+name: Feature request
+description: Something proctor should do that it does not
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Proposing a **new check**? Describe the cheat first, not the detector. A check is only
+        worth having if there is a real diff an agent would plausibly write to fake a finished job,
+        and a nearby honest diff that must stay silent.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do that proctor makes hard
+      description: The situation, not the solution. What happened, and what you wanted instead.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like it to do
+    validations:
+      required: true
+  - type: textarea
+    id: cheat
+    attributes:
+      label: For a new check, the diff it would catch
+      description: The smallest change an agent could make to fake a passing build this way.
+      render: diff
+  - type: textarea
+    id: near-miss
+    attributes:
+      label: For a new check, the honest diff that must stay silent
+      description: >-
+        The nearest legitimate change that looks similar. A check without one of these is a false
+        positive generator, so this is the part that decides whether the check can exist.
+      render: diff
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Anything you tried already
+      description: Config, `ignorePatterns`, `approvedTestChanges`, inline suppression, another tool.

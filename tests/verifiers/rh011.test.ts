@@ -73,13 +73,73 @@ describe('rh011, type/lint silencing spam detection', () => {
     expect(findings.length).toBe(2);
   });
 
-  it('counts suppressions across multiple files in the same diff', () => {
+  it('does not add up one suppression each in two unrelated files', () => {
+    // Deliberate behavior change, not a relaxed assertion. The threshold used to count across the
+    // whole diff, so a refactor touching sixty files and picking up a scoped lint disable in two of
+    // them was reported as suppression spam. That was the single largest false-positive class in a
+    // sweep of 689 real commits from 20 maintained repositories. The cheat this check exists for is
+    // concentrated by nature: an agent silencing the errors in front of it silences them in the file
+    // it is working in. Counting per file is that locality constraint, the same one the RH004 and
+    // RH005 pairing fixes applied.
     const files: ParsedFile[] = [
       { from: 'src/a.ts', to: 'src/a.ts', chunks: [{ content: '', changes: [{ type: 'add', add: true, ln: 1, content: '+// @ts-ignore' }], oldStart: 1, oldLines: 0, newStart: 1, newLines: 1 }], deleted: false, new: false },
       { from: 'src/b.py', to: 'src/b.py', chunks: [{ content: '', changes: [{ type: 'add', add: true, ln: 1, content: '+x = 1  # noqa' }], oldStart: 1, oldLines: 0, newStart: 1, newLines: 1 }], deleted: false, new: false },
     ];
+    expect(rh011.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('still flags two suppressions in the same file, in either of two files', () => {
+    // The other half of the same change: making the count per file must not make it per diff-chunk,
+    // and a file that really did collect two bare suppressions is still reported.
+    const files: ParsedFile[] = [
+      { from: 'src/a.ts', to: 'src/a.ts', chunks: [{ content: '', changes: [
+        { type: 'add', add: true, ln: 1, content: '+// @ts-ignore' },
+        { type: 'add', add: true, ln: 2, content: '+const x: number = load();' },
+      ], oldStart: 1, oldLines: 0, newStart: 1, newLines: 2 }, { content: '', changes: [
+        { type: 'add', add: true, ln: 40, content: '+// @ts-ignore' },
+      ], oldStart: 40, oldLines: 0, newStart: 40, newLines: 1 }], deleted: false, new: false },
+      { from: 'src/b.py', to: 'src/b.py', chunks: [{ content: '', changes: [{ type: 'add', add: true, ln: 1, content: '+x = 1  # noqa' }], oldStart: 1, oldLines: 0, newStart: 1, newLines: 1 }], deleted: false, new: false },
+    ];
     const findings = rh011.run({ ...baseCtx, files });
     expect(findings.length).toBe(2);
+    expect(findings.every(f => f.file === 'src/a.ts')).toBe(true);
+  });
+
+  it('does not count a suppression whose author wrote down why it is there', () => {
+    // This check's own suggestion asks for exactly this, and its own negative fixture is a
+    // suppression that does it. Nothing read the justification until now.
+    const findings = rh011.run({
+      ...baseCtx,
+      files: fileWithLines([
+        '+  // eslint-disable-next-line no-bitwise -- the hot path needs the speed, measured at 3x',
+        '+  // @ts-ignore -- @types/legacy-lib has no overload for this call, see issue #482',
+      ]),
+    });
+    expect(findings).toEqual([]);
+  });
+
+  it('still counts a suppression that only names its rule, with no reason given', () => {
+    // Naming the rule is not a justification: every mandatory-argument form (@SuppressWarnings,
+    // #[allow(...)], #pragma warning disable) names one, and exempting those would gut the check
+    // for Java, Kotlin, Rust and C# entirely.
+    const findings = rh011.run({
+      ...baseCtx,
+      files: fileWithLines([
+        '+  // eslint-disable-next-line @typescript-eslint/naming-convention',
+        '+  // eslint-disable-next-line no-await-in-loop',
+      ]),
+    });
+    expect(findings.length).toBe(2);
+  });
+
+  it('ignores suppressions inside a vendored tree', () => {
+    const files: ParsedFile[] = [
+      { from: 'source/vendor/ansi-styles/index.js', to: 'source/vendor/ansi-styles/index.js', chunks: [{ content: '', changes: [
+        { type: 'add', add: true, ln: 1, content: '+// @ts-ignore' },
+        { type: 'add', add: true, ln: 2, content: '+// @ts-ignore' },
+      ], oldStart: 1, oldLines: 0, newStart: 1, newLines: 2 }], deleted: false, new: false },
+    ];
+    expect(rh011.run({ ...baseCtx, files })).toEqual([]);
   });
 
   // proctor-ignore: RH011 reason: planted file-wide-suppression fixture exercising the detector, not a real suppression

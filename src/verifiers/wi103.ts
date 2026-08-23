@@ -1,4 +1,5 @@
 import type { Context, Finding, Verifier } from '../types.js';
+import type { DiffLine } from './wi-common.js';
 import { addedLines, afterLines, deletedLines, hasExplanation, isCommentLine, isWatchedSource, pathOf, withoutLiterals, withoutTrailingComment } from './wi-common.js';
 
 /**
@@ -99,6 +100,43 @@ function loosened(before: string, after: string): boolean {
 
 const indentOf = (text: string): number => /^[ \t]*/.exec(text)![0].length;
 
+/**
+ * A line that closes the block it sits in and opens a sibling one: `} finally {`, `} catch (e) {`,
+ * `} else {`, and the dedented Python/Ruby forms.
+ */
+const SIBLING_CLAUSE_RE = /^(?:\}\s*)?(?:else|catch|finally|except|rescue|ensure)\b/;
+
+/** A line whose whole job is to close a block. */
+const CLOSER_RE = /^(?:\}|\);?|end\b)/;
+
+/**
+ * The next statement that really does live in the same scope as a return, or undefined if the
+ * scan leaves that scope first.
+ *
+ * The naive version of this skipped every line beginning with `}` and kept going, which is what
+ * made `return await promise;` inside a `try { … } finally { … }` read as bypassing the finally
+ * body: the `} finally {` was treated as a closing brace to step over, and the finally block's
+ * statements sit at exactly the try block's indentation, so the very next line looked like
+ * surviving same-scope code. It was the single largest false-positive source in a sweep of 689
+ * real commits. Two things end the scan instead of being skipped: a sibling clause, which by
+ * definition means the return's block is over, and a closer sitting at a shallower indent than
+ * the return, which means the enclosing block is over too. A closer at the return's own indent or
+ * deeper is still just the end of something nested inside the same scope, and is still skipped.
+ */
+function nextSameScopeStatement(rest: DiffLine[], indent: number): DiffLine | undefined {
+  for (const line of rest) {
+    const text = line.text.trim();
+    if (text === '' || isCommentLine(line.text)) continue;
+    if (SIBLING_CLAUSE_RE.test(text)) return undefined;
+    if (CLOSER_RE.test(text)) {
+      if (indentOf(line.text) < indent) return undefined;
+      continue;
+    }
+    return line;
+  }
+  return undefined;
+}
+
 /** A change that leaves executable same-scope code after an unconditional return. */
 function unreachableAfterReturn(chunk: Context['files'][number]['chunks'][number]): { line: number }[] {
   const after = afterLines(chunk);
@@ -112,10 +150,7 @@ function unreachableAfterReturn(chunk: Context['files'][number]['chunks'][number
     if (indent === 0 || !/^\s*return\b/.test(code)) continue;
     const index = after.findIndex(line => line.line === added.line && line.added);
     if (index < 0) continue;
-    const next = after.slice(index + 1).find(line => {
-      const text = line.text.trim();
-      return text !== '' && !isCommentLine(line.text) && !/^(?:}|\);?|end\b)/.test(text);
-    });
+    const next = nextSameScopeStatement(after.slice(index + 1), indent);
     if (!next || indentOf(next.text) !== indent) continue;
     results.push({ line: added.line });
   }

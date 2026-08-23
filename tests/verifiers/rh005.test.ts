@@ -377,3 +377,39 @@ describe('rh005, AI-gated fuzzy path (ambiguous gutting, no clear prior computat
     expect(findings).toEqual([]);
   });
 });
+
+describe('RH005, a relocated block is not a gutted body', () => {
+  /** A chunk that reindents an existing block, deleting and re-adding every line of it. */
+  function relocated(): ParsedFile {
+    return {
+      from: 'crates/ignore/src/pathutil.rs',
+      to: 'crates/ignore/src/pathutil.rs',
+      chunks: [{
+        content: '',
+        changes: [
+          { type: 'del', del: true, ln: 90, content: '-    if path.is_empty() {' },
+          { type: 'del', del: true, ln: 91, content: '-        return None;' },
+          { type: 'del', del: true, ln: 92, content: '-    }' },
+          { type: 'del', del: true, ln: 93, content: '-    let last = memrchr(b\'/\', path).unwrap_or(0);' },
+          { type: 'add', add: true, ln: 90, content: '+        if path.is_empty() {' },
+          { type: 'add', add: true, ln: 91, content: '+            return None;' },
+          { type: 'add', add: true, ln: 92, content: '+        }' },
+          { type: 'add', add: true, ln: 93, content: '+        let last = memrchr(b\'/\', path).unwrap_or(0);' },
+        ],
+        oldStart: 90, oldLines: 4, newStart: 90, newLines: 4,
+      }],
+      deleted: false, new: false,
+    } as unknown as ParsedFile;
+  }
+
+  it('stays silent when the trivial return it flags was also deleted in the same chunk', async () => {
+    // From the real-commit sweep: a Rust helper's four `return None;` guards were reindented one
+    // level when the surrounding function was restructured, and every one was reported as a real
+    // computation replaced by a no-op.
+    expect(await rh005.run({ ...baseCtx, files: [relocated()] })).toEqual([]);
+  });
+
+  it('still flags a real computation replaced by a trivial return', async () => {
+    expect((await rh005.run({ ...baseCtx, files: [makeGuttedImplFile()] })).length).toBeGreaterThan(0);
+  });
+});

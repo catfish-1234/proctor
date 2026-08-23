@@ -20,7 +20,7 @@ Drop a `proctor.config.json` in your repo root (it's validated against
 
 | Field | Type | What it does |
 |-------|------|---------|
-| `enabled` | `string[]` | which checks to run. Defaults to all of them: `RH001` through `RH014` and `WI101` through `WI113` |
+| `enabled` | `string[]` | which checks to run. Defaults to the RH family, `RH001` through `RH014`. The beta WI family, `WI101` through `WI113`, is opt-in: list the IDs you want here, or pass `--wi` / `--all-checks` for a single run |
 | `severity` | `object` | override how serious a check is, per check ID (e.g. `"RH006": "warn"`) |
 | `testPathGlobs` | `string[]` | glob patterns that identify your test files |
 | `ignorePatterns` | `string[]` | glob patterns for files to ignore entirely |

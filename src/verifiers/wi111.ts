@@ -1,6 +1,6 @@
 import path from 'node:path';
 import type { Context, Finding, Verifier } from '../types.js';
-import { addedLines, deletedLines, pathOf } from './wi-common.js';
+import { addedLines, afterLines, deletedLines, pathOf } from './wi-common.js';
 
 /**
  * The thing under test removed, rather than made to work.
@@ -36,6 +36,24 @@ const SOURCE_EXT_RE = /\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|java|rb|php|cs|kt|rs|swi
 const NOT_IMPLEMENTATION_RE =
   /(?:^|\/)(?:node_modules|dist|build|out|target|coverage|vendor|third_party|\.venv|__pycache__|fixtures?|testdata|examples?|docs?|scripts?)\//i;
 
+/**
+ * Build and tooling configuration, which is not the thing under test.
+ *
+ * Deleting `babel.config.js` during a bundler migration is not deleting the code a failing test
+ * covers; it is changing how that code is built. A real commit in the sweep did exactly that and
+ * was told it had removed an implementation while its tests remained.
+ */
+const CONFIG_FILE_RE =
+  /(?:^|\/)(?:[\w.-]+\.config\.(?:[cm]?[jt]s)|\.?babelrc(?:\.[cm]?js)?|karma\.conf\.js|gulpfile\.[cm]?js|gruntfile\.[cm]?js|conftest\.py|setup\.py|noxfile\.py)$/i;
+
+/**
+ * Type-level test files, which every `*.test.ts` glob misses by one character.
+ *
+ * tsd and its imitators name them `*.test-d.ts`, so proctor's default test globs do not claim them
+ * and this check read a deleted one as a deleted implementation.
+ */
+const TYPE_TEST_RE = /\.test-d\.[cm]?tsx?$/i;
+
 function run(context: Context): Finding[] {
   const findings: Finding[] = [];
 
@@ -51,6 +69,7 @@ function run(context: Context): Finding[] {
     // Shape one: an implementation file deleted while its tests stay behind.
     if (deleted && !context.isTestFile(filePath)) {
       if (!SOURCE_EXT_RE.test(normalized) || NOT_IMPLEMENTATION_RE.test(normalized)) continue;
+      if (CONFIG_FILE_RE.test(normalized) || TYPE_TEST_RE.test(normalized)) continue;
       // A feature genuinely being removed takes its tests with it. If any test file is also being
       // deleted in this change, this reads as a removal rather than an evasion, and RH001 is the
       // check that has an opinion about the test side of that.
@@ -91,6 +110,17 @@ function run(context: Context): Finding[] {
     // Only when the file ends up with strictly fewer tests than it had, and specifically when the
     // change removes them all: a refactor that consolidates ten cases into eight is not this.
     if (addedDeclarations > 0) continue;
+    // "Asserts nothing" has to be true of the file, not just of the hunks. Counting only what the
+    // diff touches said a file with forty tests asserts nothing when two of them were removed,
+    // which is both wrong and the loudest thing this check said in a sweep of real commits. A test
+    // declaration on an unchanged context line is direct evidence that tests survive. It is
+    // evidence the diff may not carry, so this narrows the claim without inventing one: no
+    // surviving declaration in view means the check can still fire, as it must for a file whose
+    // every test really was removed in one hunk.
+    const survivingDeclarations = file.chunks
+      .flatMap(afterLines)
+      .filter(l => !l.added && TEST_DECLARATION_RE.test(l.text)).length;
+    if (survivingDeclarations > 0) continue;
 
     findings.push({
       verifierId: 'WI111',

@@ -14,7 +14,9 @@ languages, then the 16 added in the Language Expansion II round.
 
 The work-integrity family (WI101 to WI113) has its own scoping, described in
 [its own section](#the-work-integrity-family-wi1xx) below, since those checks read shipped code
-rather than test files and their coverage does not line up with the RH tables.
+rather than test files and their coverage does not line up with the RH tables. That family is
+**beta and opt-in** in v1.0.0: run it with `proctor check --wi` (or `--all-checks`), or list the
+IDs in `enabled` in `proctor.config.json` to have it apply everywhere, hooks included.
 
 | RH-ID | JS/TS | Python | Go | Java | Rust | Ruby | PHP | C# | Kotlin |
 |-------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|

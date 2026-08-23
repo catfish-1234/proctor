@@ -337,7 +337,7 @@ jobs:
 
 `v1` is a moving tag: it follows the newest `1.x` release, so patch and minor fixes arrive without
 a PR. To pin exactly instead, use a full commit SHA
-(`catfish-1234/proctor@93ba04a30ac3d8ed0903a46bb028853346baff0a`), which is immutable and cannot be
+(`catfish-1234/proctor@11fcd5cbad7d3a731dc5e79c4858012e74c6fc52`), which is immutable and cannot be
 moved under you.
 
 ## How it works

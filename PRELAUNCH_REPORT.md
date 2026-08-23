@@ -102,7 +102,7 @@ The task asked for these to be called out as demotion candidates.
 - **RH011, ~2.0% of commits, 121 findings, all false positives.** The strongest candidate for
   opt-in demotion, and the reason it is not demoted here is that it is `warn` severity: it prints
   but never blocks a commit or an agent turn. The residue cannot be fixed without weakening
-  detection — raising the threshold breaks the fixtures, which use exactly two, and exempting
+  detection, raising the threshold breaks the fixtures, which use exactly two, and exempting
   rule-named forms would gut Java, Kotlin, Rust and C#, whose only suppression syntax names a rule.
   If it proves annoying in practice, opt-in is the next lever.
 - **WI103 (2.0%) and WI106 (1.0%)** are now behind the opt-in flag, which is the demotion the task
@@ -113,8 +113,8 @@ The task asked for these to be called out as demotion candidates.
 Task 3 asked whether the sweep supports promoting WI to default-on later. Mixed, and worth stating
 per check rather than as a family:
 
-- **Candidates for default-on**: WI102, WI104, WI105, WI108, WI109 — zero findings in 689 commits.
-  WI107, WI110, WI113 — one commit each, and all three were true positives.
+- **Candidates for default-on**: WI102, WI104, WI105, WI108, WI109, zero findings in 689 commits.
+  WI107, WI110, WI113, one commit each, and all three were true positives.
 - **Not yet**: WI103 (14 commits) and WI106 (7 commits) are the family's noise, and both resist a
   further narrow fix.
 - **In between**: WI101 (4), WI111 (3), WI112 (6), the last of which is mostly working as designed.
@@ -167,9 +167,9 @@ setup installs both. Five tests in `tests/postinstall.test.ts` cover all of it.
 
 Three ways to turn WI on, unchanged in capability:
 
-- `proctor check --wi` — one run.
-- `proctor check --all-checks` — same, spelled as "everything".
-- `"enabled": ["RH001", ..., "WI103"]` in `proctor.config.json` — everywhere, including both hooks.
+- `proctor check --wi`, one run.
+- `proctor check --all-checks`, same, spelled as "everything".
+- `"enabled": ["RH001", ..., "WI103"]` in `proctor.config.json`, everywhere, including both hooks.
 
 The flag *adds* to the enabled set rather than replacing it, so a config that already enables some
 WI checks is not overwritten and a config that deliberately narrows the RH set keeps that narrowing.
@@ -182,21 +182,21 @@ CLI tests assert a WI-only change is silent by default and found with either fla
 
 ## Task 4: release plumbing
 
-1. **`engines`** — already present and correct: `"node": ">=20.0.0"`.
-2. **Badges** — npm version, CI status, and license, centred under the title.
-3. **`v1` moving tag** — `docs/RELEASING.md` gains a section covering how `v1` is re-pointed
+1. **`engines`**, already present and correct: `"node": ">=20.0.0"`.
+2. **Badges**, npm version, CI status, and license, centred under the title.
+3. **`v1` moving tag**, `docs/RELEASING.md` gains a section covering how `v1` is re-pointed
    (`git tag -f v1 v1.2.3 && git push origin v1 --force`), the two rules for it (only after the
    release workflow goes green; never across a major boundary), and why a SHA pin is the stricter
    choice. Re-pointing `v1` is step 5 of the release checklist. The README CI example now uses
    `catfish-1234/proctor@v1` with the SHA alternative named beside it. **No tags were created.**
-4. **Provenance** — `release.yml` publishes with `npm publish --access public --provenance`, and
+4. **Provenance**, `release.yml` publishes with `npm publish --access public --provenance`, and
    `docs/RELEASING.md` explains that provenance needs `id-token: write` from GitHub Actions, so a
    first publish done by hand from a laptop will not carry it and that is expected rather than
    fixable after the fact.
-5. **npm-facing README** — every relative path is now absolute. Images and the demo GIF point at
+5. **npm-facing README**, every relative path is now absolute. Images and the demo GIF point at
    `raw.githubusercontent.com/catfish-1234/proctor/main/...`; the fourteen doc links point at
    `github.com/catfish-1234/proctor/blob/main/...`. No relative asset or link path remains.
-6. **CHANGELOG** — see the version-number decision at the top. The `Unreleased` section is complete
+6. **CHANGELOG**, see the version-number decision at the top. The `Unreleased` section is complete
    and accurate for this pass.
 
 One thing I changed that had a test pinning it: `tests/release-hardening.test.ts` required *both*
@@ -210,23 +210,23 @@ proctor's own action in proctor's own README is the publisher pointing at itself
 
 ## Task 5: community and feedback plumbing
 
-1. **`false-positive.yml`** — already existed and already asked for the check ID, the triggering
+1. **`false-positive.yml`**, already existed and already asked for the check ID, the triggering
    diff, why the change was honest, and the version. Added the **language** field the task asked
    for.
-2. **`bug-report.yml`** — renamed from `bug.yml` (same content, the filename the task names).
-   **`feature-request.yml`** — new. It asks for a new check's *cheat diff* and, separately, the
+2. **`bug-report.yml`**, renamed from `bug.yml` (same content, the filename the task names).
+   **`feature-request.yml`**, new. It asks for a new check's *cheat diff* and, separately, the
    nearest honest diff that must stay silent, because a check without one of those is a
    false-positive generator.
-3. **`config.yml`** — already pointed at Security Advisories; now also points at Discussions for
+3. **`config.yml`**, already pointed at Security Advisories; now also points at Discussions for
    questions, at `docs/` for reference, and at `docs/TROUBLESHOOTING.md` for "it fired and I
    disagree with the fix".
-4. **`dependabot.yml`** — already present and correct: npm and github-actions, weekly, 7-day
+4. **`dependabot.yml`**, already present and correct: npm and github-actions, weekly, 7-day
    cooldown. No change needed.
-5. **`SECURITY.md`** — contact is a GitHub Security Advisory link for this repository, which is a
+5. **`SECURITY.md`**, contact is a GitHub Security Advisory link for this repository, which is a
    real, working, private reporting channel with a stated 7-day acknowledgement. Verified. One
    staleness note: it says "There is no published npm version yet", which will need a line change
    on the day you publish.
-6. **Social preview** — `assets/social-preview.png`, 1280x640, logo plus name plus tagline plus
+6. **Social preview**, `assets/social-preview.png`, 1280x640, logo plus name plus tagline plus
    `npx proctor setup`, in the brand palette from `src/brand.ts`. Generated by
    `scripts/social-preview.ps1` (System.Drawing, no new dependency).
    **You need to upload it manually: repo Settings → Social preview → Upload an image.** GitHub has
@@ -290,7 +290,7 @@ whole argument is that you can trust what it blocks.
 
 What ships by default is now the RH family alone: fourteen checks, validated against a 12/12
 planted-cheat corpus, a live benchmark, and 689 human commits from twenty maintained repositories,
-flagging 3.9% of those commits and blocking 2.47% — most of which are the check correctly noticing a
+flagging 3.9% of those commits and blocking 2.47%, most of which are the check correctly noticing a
 human deleted a test. Thirteen checks that had never been measured against real history are behind a
 flag, with the measurement now in hand to promote most of them next release.
 

@@ -15,7 +15,7 @@ Maintainer notes. Nothing here is needed to use proctor.
 4. Commit, then tag and push:
 
    ```bash
-   git tag v1.1.0 && git push origin v1.1.0
+   git tag v1.0.0 && git push origin v1.0.0
    ```
 
 5. Re-point the `v1` moving tag at the same commit (see below).

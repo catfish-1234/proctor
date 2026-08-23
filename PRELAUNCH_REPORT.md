@@ -2,35 +2,24 @@
 
 Work against `proctor-prelaunch-tasks.md`. Nothing was published and no tag was created.
 
-**Recommendation: go**, with one decision for you first (the version number, below).
+**Recommendation: go.** Shipping as 1.0.0.
 
 ---
 
-## The one thing that needs your decision
+## Version
 
-The task list says "for v1.0.0" throughout. The repository is at **1.1.0**, and neither version has
-ever been published or tagged:
+**This release is 1.0.0.** Nothing before it was ever published or tagged: `npm view
+@kavishdua/proctor` returns 404 and `git tag -l` is empty, so the 1.1.0 that `package.json`
+carried described work that never shipped anywhere.
 
-- `package.json` says `1.1.0`; `npm view @kavishdua/proctor` still returns 404.
-- `git tag -l` is empty. There is no `v1.0.0` and no `v1.1.0`.
-- `CHANGELOG.md` has a `1.0.0` entry describing "thirteen checks (RH001 through RH013), 30 agent
-  adapters". At the commit that actually set `version: 1.0.0` (`04f958c`), the tree held eight
-  checks (`src/signatures/rh001..rh008`) and ten adapters. Thirteen checks and thirty adapters is
-  the tree at the `1.1.0` release commit (`dee9582`). The `1.0.0` entry was written retroactively
-  and describes the wrong tree, and its link points at a GitHub release that does not exist.
+`package.json` and all seven distribution manifests now say `1.0.0`, and `tests/distribution.test.ts`
+fails if any of them disagree. `CHANGELOG.md` is a single `1.0.0` entry describing the whole tool
+rather than a delta from a version nobody can install, with the accumulated development detail kept
+below it under a heading that says exactly that.
 
-So "verify the `1.0.0` entry is complete and accurate" (task 4.6) resolves to: **it is not, and it
-cannot be, because no `1.0.0` artifact was ever produced.** I did not rewrite it, because which
-number ships is your call and the fix differs by answer:
-
-- **Ship as `1.0.0`** (matches the task list, and it is honest: nothing has ever been published).
-  Then `package.json` drops to `1.0.0`, the `1.1.0` and `1.0.0` sections merge into one, and the
-  `Unreleased` content folds in.
-- **Ship as `1.2.0`** (keeps the existing history). Then `Unreleased` becomes `1.2.0` and the
-  `1.0.0` entry gets a one-line note that it was never published.
-
-Everything else in this report is done and verified either way. The `Unreleased` section of
-`CHANGELOG.md` now carries a complete, accurate account of this pass.
+The old `1.0.0` entry was inaccurate as well as redundant: it claimed "thirteen checks (RH001
+through RH013), 30 agent adapters", but at the commit that actually set `version: 1.0.0` the tree
+held eight checks and ten adapters. That text described the 1.1.0 tree. It is gone.
 
 ---
 

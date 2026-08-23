@@ -1,6 +1,6 @@
 {
   "name": "@kavishdua/proctor",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "description": "Catch AI agents gaming their test suites: deleted tests, skipped tests, weakened assertions, hardcoded outputs",
   "homepage": "https://github.com/catfish-1234/proctor#readme",
   "bugs": {

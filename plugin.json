@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "proctor",
-  "version": "1.1.0",
+  "version": "1.0.0",
   "description": "Catches AI coding agents gaming their test suites: deleting tests, skipping them, weakening assertions, or hardcoding outputs to fake a green build.",
   "author": {
     "name": "Kavish Dua",

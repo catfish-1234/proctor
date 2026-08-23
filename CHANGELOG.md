@@ -5,9 +5,70 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0]
 
-### Changed
+First release. Nothing before this reached npm, so this entry describes the whole tool rather
+than a delta from a version nobody can install.
+
+### What ships
+
+- **27 checks in two families.** RH001 to RH014 read the test suite and the code directly under
+  it, and are enabled by default. WI101 to WI113 read shipped code for the ways an agent fakes
+  completion without touching a test at all; they ship as **beta and opt-in**, behind
+  `proctor check --wi` (or `--all-checks`), or by naming the IDs in `enabled` in
+  `proctor.config.json`.
+- **The honest-completion ruleset**, deployed to 30 agents from one canonical source, with
+  `drift-check` to prove every copy still matches it.
+- **`proctor check`**, plus `setup`, `agents`, `uninstall`, `watch`, `score`, `statusline`,
+  `approve`, `badge`, `drift-check` and `bench`. Output as text, JSON, SARIF 2.1.0 or Markdown.
+- **A git pre-commit hook and a Claude Code Stop hook**, and a GitHub Action that uploads SARIF
+  and writes a job summary.
+- **25+ languages**, with the per-language, per-check support matrix and every known gap
+  documented in `docs/LANGUAGES.md`.
+- **A reproducible benchmark** and an adversarial red-team corpus, both runnable from a clone.
+
+### Worth knowing before you install
+
+- **Installing writes nothing to your repository.** `npm install` prints exactly what
+  `proctor setup` would write, and where, and stops there. `PROCTOR_AUTO_SETUP=1` opts into the
+  install-and-wire behaviour; `PROCTOR_NO_POSTINSTALL=1` silences the notice.
+- **Enforcement config is read from the committed `proctor.config.json`**, never the working
+  tree, so a change cannot disable proctor in the same breath it cheats in.
+- **An inline `proctor-ignore` marker only suppresses when it predates the diff.** A marker added
+  alongside the change it excuses is a self-approval and does not count.
+- **`approvedTestChanges` downgrades a finding to `info`, it never hides one.** An approved
+  finding still prints, still reaches `--json` and SARIF, and still withholds the honest-pass
+  badge.
+- **The pre-commit hook fails closed and the Stop hook fails open**, deliberately: a guard that
+  breaks should not become a wall at the end of an agent turn, but it must not mint a pass from
+  missing evidence at commit time.
+- **The deterministic core makes no network call.** `--ai` is an opt-in extra and needs an API
+  key you set yourself.
+
+### Measured
+
+- **139 of 139** planted cheats caught, **0 of 33** near-miss fixtures flagged. Both counts are
+  recomputed from `fixtures/` by the test suite rather than written by hand.
+- **76 of 76** adversarial diffs caught with **0 of 24** controls flagged, across eleven
+  red-team rounds.
+- **3.9%** of 689 real human commits from 20 maintained repositories produce any finding from the
+  default check set, and **2.47%** produce a blocking one, most of which are the check correctly
+  noticing that somebody deleted a test. See `sandbox/REALWORLD_FP_REPORT.md`.
+- Two complete live benchmark runs show **no difference between the proctor-on and proctor-off
+  arms**. The README says so plainly rather than quoting the first run's one-task gap: this
+  release claims a detection rate and explicitly refuses a prevention rate.
+
+---
+
+## Pre-release development history
+
+Everything below happened before the first release, so none of it is a change to a published
+version. It is kept because the reasoning is worth reading, not because any of it shipped
+separately.
+
+### The final pass
+
+#### Changed
 
 - **The WI1xx work-integrity family is opt-in.** It ships as beta: run it with `proctor check --wi`
   or `--all-checks`, or list the IDs in `enabled` in `proctor.config.json` to apply it everywhere,
@@ -26,7 +87,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   documented beside it as the stricter alternative.
 - Releases publish with `npm publish --access public --provenance`.
 
-### Fixed
+#### Fixed
 
 Every fix in this group came out of a sweep of 689 human commits from 20 maintained repositories
 (`sandbox/REALWORLD_FP_REPORT.md`). Together they take the share of real commits producing any
@@ -73,7 +134,7 @@ Part A catch rate unchanged at 12/12.
 - Bare `proctor check` now covers staged, unstaged, and untracked changes by default instead of
   silently ignoring staged work; `--staged` and `--base` retain their narrower explicit scopes.
 
-### Added
+#### Added
 
 - **The WI1xx work-integrity family**, WI101 through WI112, reading shipped code for the ways an
   agent fakes a finished job without touching a test at all: an error swallowed, a guard deleted, a
@@ -97,7 +158,7 @@ Part A catch rate unchanged at 12/12.
   test commands, CI matrix/trigger contraction, diagnostic suppression, expected-failure modifiers,
   test-environment branches, and an actual Git `assume-unchanged` state that produces no diff.
 
-### Changed
+#### Changed
 
 - Existing rules now cover exception-type broadening, constant conditional/expected-failure test
   modifiers, coverage collection disabled, source paths excluded from CI triggers, snapshot update
@@ -106,9 +167,9 @@ Part A catch rate unchanged at 12/12.
 - `proctor check` refuses tracked files hidden with `assume-unchanged` or `skip-worktree` outside a
   legitimate sparse checkout, closing a repository-state bypass no diff verifier can observe.
 
-## [1.1.0]
+### Earlier work
 
-### Fixed
+#### Fixed
 
 - **The Stop hook now sees unstaged changes.** It ran `check --staged`, but an agent finishing a
   turn has edited the working tree and staged nothing, so the guard saw an empty diff and allowed
@@ -159,7 +220,7 @@ Part A catch rate unchanged at 12/12.
   the working tree carries the incoming branch's changes and a test that branch deleted would read
   as this turn deleting it. The pre-commit hook still guards the resolution.
 
-### Added
+#### Added
 
 - **`proctor uninstall`** removes everything `setup` installed, and nothing else. A shared file
   keeps your own content and loses only the managed block; a foreign pre-commit hook and any other
@@ -177,11 +238,4 @@ Part A catch rate unchanged at 12/12.
   subdirectory.
 - `CONTRIBUTING.md`, `SECURITY.md`, `docs/TROUBLESHOOTING.md`, this changelog, and issue templates.
 
-## [1.0.0]
-
-First release. Thirteen checks (RH001 through RH013), 30 agent adapters, 25+ languages, a CLI, a
-git pre-commit hook, a Claude Code Stop hook, a GitHub Action with SARIF output, and a reproducible
-benchmark.
-
-[1.1.0]: https://github.com/catfish-1234/proctor/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/catfish-1234/proctor/releases/tag/v1.0.0

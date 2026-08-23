@@ -11,7 +11,7 @@
       "name": "proctor",
       "source": "./plugin",
       "description": "Catches AI coding agents gaming their test suites: deleting tests, skipping them, weakening assertions, or hardcoding outputs to fake a green build. Installs the honest-completion ruleset and a Stop hook that blocks a turn on any error-severity finding.",
-      "version": "1.1.0",
+      "version": "1.0.0",
       "category": "testing",
       "tags": ["testing", "guardrails", "code-review", "reward-hacking"],
       "author": {

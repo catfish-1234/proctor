@@ -32,6 +32,16 @@ describe('action.yml', () => {
     expect(actionYml).toContain('github.event.before');
   });
 
+  it('requires the push base to share history with HEAD, not merely to exist', () => {
+    // `rev-parse --verify` only answers "is this a real object". After a force-push, a rebase or
+    // a squash-merge the old head is still fetchable but is no longer an ancestor of the new one,
+    // so `base...HEAD` has no merge base and git rejects it as an invalid symmetric difference.
+    // This repository's own first push after a history rewrite failed exactly that way, so the
+    // merge-base test is what keeps the fallback to HEAD~1 reachable in those cases.
+    expect(actionYml).toMatch(/git merge-base "\$\{\{ github\.event\.before \}\}" HEAD/);
+    expect(actionYml).toContain('echo "ref=HEAD~1"');
+  });
+
   it('pins github/codeql-action upload-sarif v4 to its immutable commit', () => {
     expect(actionYml).toContain('github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3');
   });

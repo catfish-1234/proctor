@@ -32,7 +32,14 @@ runs:
         if [ "${{ github.event_name }}" = "pull_request" ]; then
           git fetch --no-tags origin "${{ github.event.pull_request.base.ref }}"
           echo "ref=origin/${{ github.event.pull_request.base.ref }}" >> "$GITHUB_OUTPUT"
-        elif git rev-parse --verify --quiet "${{ github.event.before }}" >/dev/null 2>&1; then
+        # A usable base has to exist AND share history with HEAD. `rev-parse --verify` only
+        # answers the first half, and github.event.before fails the second after a force-push,
+        # a rebase, or a squash-merge: the old head is still a real object the runner can fetch,
+        # but it is no longer an ancestor of the new one, so `base...HEAD` has no merge base and
+        # git rejects it as an invalid symmetric difference. Requiring a merge base falls back to
+        # HEAD~1 in exactly those cases instead of failing the job on the first push after one.
+        elif git rev-parse --verify --quiet "${{ github.event.before }}^{commit}" >/dev/null 2>&1 \
+             && git merge-base "${{ github.event.before }}" HEAD >/dev/null 2>&1; then
           echo "ref=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
         else
           echo "ref=HEAD~1" >> "$GITHUB_OUTPUT"

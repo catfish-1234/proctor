@@ -239,8 +239,13 @@ export async function buildContext(cwd: string, files: ParsedFile[], opts?: { co
   if (opts?.configRef) {
     let baselineRaw: string | undefined;
     try {
+      // --end-of-options for the same reason the diff call in cli.ts uses it: a ref beginning with
+      // a dash is otherwise parsed as a git option, and `git show` accepts --output=<file>, so a
+      // hostile --base could create a file instead of reading config. Unreachable today only
+      // because the guarded diff runs first and git rejects the ref there, which is an ordering
+      // accident rather than a guarantee. Guarded here so it stays safe if that order ever changes.
       ({ stdout: baselineRaw } = await execFileAsync(
-        'git', ['show', `${opts.configRef}:proctor.config.json`], { cwd },
+        'git', ['show', '--end-of-options', `${opts.configRef}:proctor.config.json`], { cwd },
       ));
     } catch {
       // Config doesn't exist at the baseline ref (or the ref is unborn), run with defaults.

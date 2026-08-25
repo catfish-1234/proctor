@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { RULE_METADATA } from '../src/rules.js';
 import { buildContext, RH_CHECKS, WI_CHECKS } from '../src/context/index.js';
 import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
+import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -34,6 +35,22 @@ describe('buildContext', () => {
     expect(ctx.isTestFile('src/foo.ts')).toBe(false);
     expect(ctx.enabled).toEqual(RH_CHECKS);
     expect(ctx.enabled).toContain('RH001');
+  });
+
+  it('passes --end-of-options when reading config at a ref', () => {
+    // `git show` accepts --output=<file>, so a ref beginning with a dash could create a file
+    // instead of reading config. cli.ts has guarded its diff call since it was written; this call
+    // did not, and was safe only because the guarded call runs first and fails, which is an
+    // ordering accident rather than a guarantee.
+    //
+    // Asserted against the source rather than by behaviour, deliberately. git appends the
+    // `:proctor.config.json` suffix to the whole --output value, which on Windows is an invalid
+    // filename, so a behavioural test passes identically with the guard removed and proves
+    // nothing. Pinning the argument is the assertion that actually fails if the guard is dropped.
+    const source = readFileSync(join(__dirname, '../src/context/index.ts'), 'utf8');
+    const showCall = /execFileAsync\(\s*'git',\s*\[([^\]]*)\]/.exec(source);
+    expect(showCall, 'the git show call for configRef moved or changed shape').not.toBeNull();
+    expect(showCall![1]).toContain("'--end-of-options'");
   });
 
   it('leaves the beta WI family out of the default enabled set', async () => {

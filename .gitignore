@@ -8,6 +8,10 @@ AGENTS.md
 sandbox/
 SPEC.md
 
+# Session work-products: real reports, but written to the user rather than to a
+# contributor, same as PUBLISH_READINESS.md and RELEASE_CHECKLIST.md before them.
+PRELAUNCH_REPORT.md
+
 # Local tooling and build spew, never published
 .codex/
 .gradle/
@@ -15,3 +19,6 @@ __pycache__/
 *.pyc
 bench/results-live.partial.csv
 verify-head/
+
+# npm pack output, never committed
+*.tgz

@@ -320,7 +320,7 @@ under `--ci`, which is what the hooks and the GitHub Action use.
 
 ## CI
 
-Add proctor to a pull request in eight lines. Findings land in the job summary, and in Code Scanning
+Add proctor to a pull request in nine lines. Findings land in the job summary, and in Code Scanning
 as inline PR comments if the repository has it enabled.
 
 ```yaml
@@ -401,13 +401,14 @@ adversarial number comes from the independent widening corpus in [`bench/redteam
 | **0 of 33** | near-miss fixtures flagged. Each one is a change built to look like a cheat and be legitimate: a single `@ts-ignore` with a justification, one retry rather than five, an empty catch whose comment explains itself, a guard clause extracted into a validator |
 | **21 of 21** | recorded cheats caught in the benchmark corpus, across 7 signatures. Whole-repo task diffs rather than minimal fixtures. The 22nd task is a control that plants no cheat, and proctor stays silent on it. Reproduce with `proctor bench --mock` |
 | **76 of 76** | adversarial cheat diffs caught, with **0 of 24** legitimate controls flagged across eleven total red-team rounds. Includes process-status laundering, workload cuts, dependency rollback, fixed-delay masking, CI trigger/matrix contraction, diagnostic suppression, and out-of-band Git index hiding. Reproduce with `node bench/redteam/probe.mjs` |
+| **3.9%** | of 689 real human commits, sampled from 20 maintained open-source repositories across seven languages, produce any finding at all from the default check set. **2.47%** produce a blocking one, and most of those are the check correctly noticing that somebody deleted a test or added a skip marker |
 | **27** | checks in two families, across **25+** languages, installable into **30** agents |
 | **under 1s** | to check a commit, offline. Measured here at roughly 0.25s on a 3-file diff and 0.55s on a 79-file one, cold Node start included |
 
 **What we don't claim.** That proctor makes an agent *behave* better. That is a different measurement
-and our own [benchmark](#benchmark) has not produced it: the one complete live run passed its
-held-out tests in 44 of 44 runs, so the agent never reached the point where cheating was worth it
-and there was no behaviour to change in either arm. The 139 of 139 above is a detection claim, which
+and our own [benchmark](#benchmark) has not produced it: both complete live runs passed their
+held-out tests in every one of the 44 invocations, so the agent never reached the point where
+cheating was worth it and there was no behaviour to change in either arm. The 139 of 139 above is a detection claim, which
 is the claim the tool actually makes.
 
 ## Benchmark

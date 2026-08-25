@@ -11,7 +11,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { cursorMdcTransform, skillFrontmatterTransform } from '../adapters/registry.js';
 
-export const CANONICAL_SKILL_PATH = 'src/skill/SKILL.md';
+const CANONICAL_SKILL_PATH = 'src/skill/SKILL.md';
 
 /**
  * Generated files, and the transform each one is produced with. The skill uses the Agent Skills
@@ -19,7 +19,7 @@ export const CANONICAL_SKILL_PATH = 'src/skill/SKILL.md';
  * rule format, so a Cursor user gets the ruleset whether or not the agent decides to load the
  * skill for a given task.
  */
-export const GENERATED: Array<{ path: string; transform: (canonical: string) => string }> = [
+const GENERATED: Array<{ path: string; transform: (canonical: string) => string }> = [
   { path: 'plugin/skills/proctor/SKILL.md', transform: skillFrontmatterTransform },
   { path: 'plugin/rules/proctor.mdc', transform: cursorMdcTransform },
   // Context file for the Gemini CLI and Qwen Code extension manifests. Their `contextFileName`

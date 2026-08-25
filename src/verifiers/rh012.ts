@@ -156,7 +156,12 @@ const COMMAND_KEYS = new Set(['run', 'script', 'command', 'commands', 'entrypoin
  */
 function isCommandLine(text: string): boolean {
   if (/^\s*#/.test(text)) return false;
-  const key = /^\s*-?\s*([A-Za-z_][\w.-]*)\s*:/.exec(text);
+  // `\s*-?\s*` is quadratic in isolation: two whitespace runs with a bare optional dash between
+  // them let the engine split a long run every possible way, measured at 430ms on 100k characters
+  // against 0.05ms for the form below. It is not reachable today, because stripDiffPrefix trims
+  // before every call, so no leading whitespace ever arrives here. Written the linear way anyway:
+  // the cost is nothing, and the hazard would come back the moment a caller stopped trimming.
+  const key = /^[ \t]*(?:-[ \t]*)?([A-Za-z_][\w.-]*)[ \t]*:/.exec(text);
   return key === null || COMMAND_KEYS.has(key[1]!.toLowerCase());
 }
 

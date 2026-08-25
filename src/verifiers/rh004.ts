@@ -24,6 +24,25 @@ function isConditionalReturn(line: string): boolean {
 }
 
 /**
+ * How far apart a deleted computation and an added return may sit, counted in diff positions.
+ *
+ * Line numbers cannot express this: a deletion carries an old-file line and an addition a new-file
+ * line, so subtracting them compares two different coordinate systems. Position within the chunk's
+ * change list is the honest measure, and it is exactly what "these two lines are the same edit"
+ * means: a body replaced by a constant leaves its old and new returns adjacent in the diff.
+ *
+ * Without this, `dels` is scanned chunk-wide and a literal returned by one method pairs against a
+ * computation deleted from another, producing a message naming an expression that was never in
+ * this function.
+ */
+export const PAIRING_DISTANCE = 3;
+
+/** Position of each change within its chunk, for the locality test above. */
+export function positionIndex(changes: readonly unknown[]): Map<unknown, number> {
+  return new Map(changes.map((c, i) => [c, i]));
+}
+
+/**
  * Lines this chunk both deletes and adds: code that was relocated, not written.
  *
  * RH004 and RH005 both pair an added return against a deleted one somewhere in the same chunk. A
@@ -154,8 +173,11 @@ async function run(context: Context): Promise<Finding[]> {
 
     for (const chunk of file.chunks) {
       const moved = movedLineTexts(chunk.changes);
+      const at = positionIndex(chunk.changes);
       const dels = chunk.changes.filter(c => c.type === 'del' && !isMoved(moved, c.content));
       const adds = chunk.changes.filter(c => c.type === 'add' && !isMoved(moved, c.content));
+      const near = (a: unknown, b: unknown): boolean =>
+        Math.abs((at.get(a) ?? 0) - (at.get(b) ?? 0)) <= PAIRING_DISTANCE;
 
       // Strong signal 1, fully deterministic: a real computed return is replaced by a bare literal.
       for (const add of adds) {
@@ -185,6 +207,7 @@ async function run(context: Context): Promise<Finding[]> {
         // path below, which stays silent without --ai.
         const shrank = adds.length <= dels.length;
         const pairedDel = shrank ? dels.find(d => {
+          if (!near(d, add)) return false;
           const m = d.content.match(RETURN_EXPR_RE);
           return m !== null && isNonTrivialExpr(m[1]!);
         }) : undefined;

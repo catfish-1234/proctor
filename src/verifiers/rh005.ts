@@ -1,5 +1,5 @@
 import type { Context, Finding, Verifier } from '../types.js';
-import { isMoved, movedLineTexts, stripTrailingNoise } from './rh004.js';
+import { isMoved, movedLineTexts, PAIRING_DISTANCE, positionIndex, stripTrailingNoise } from './rh004.js';
 
 // Deterministic strong signal: an added line's return statement collapses to null/undefined/None,
 // tolerant of a trailing brace on the same line (`{ return undefined; }`).
@@ -121,8 +121,11 @@ async function run(context: Context): Promise<Finding[]> {
       // Relocated lines are neither a deletion that removed a computation nor an addition that
       // wrote a trivial one. See movedLineTexts in rh004.ts.
       const moved = movedLineTexts(chunk.changes);
+      const at = positionIndex(chunk.changes);
       const dels = chunk.changes.filter(c => c.type === 'del' && !isMoved(moved, c.content));
       const adds = chunk.changes.filter(c => c.type === 'add' && !isMoved(moved, c.content));
+      const near = (a: unknown, b: unknown): boolean =>
+        Math.abs((at.get(a) ?? 0) - (at.get(b) ?? 0)) <= PAIRING_DISTANCE;
 
       if (!isTest) {
         // Gutting removes computation. A chunk that adds far more than it deletes did the
@@ -140,11 +143,13 @@ async function run(context: Context): Promise<Finding[]> {
         // `return null`, or a one-for-one `return compute()` becoming `return null`) and drops the
         // case where the function demonstrably grew. An added trivial return with no shrinking
         // still reaches the fuzzy path below, which stays silent without --ai.
+        // Locality, the third constraint alongside direction and move, and evaluated per addition
+        // since each added return has its own neighbourhood. See PAIRING_DISTANCE in rh004.ts.
         const shrank = adds.length <= dels.length;
-        const hasNonTrivialDel = shrank && dels.some(d => isNonTrivialReturn(d.content));
         for (const add of adds) {
           if (!isGuttedAdd(add.content)) continue;
           const line = (add as { ln: number }).ln;
+          const hasNonTrivialDel = shrank && dels.some(d => near(d, add) && isNonTrivialReturn(d.content));
           if (hasNonTrivialDel) {
             findings.push({
               verifierId: 'RH005',

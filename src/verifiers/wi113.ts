@@ -10,7 +10,23 @@ import { addedLines, deletedLines, hasExplanation, isCommentLine, isWatchedSourc
 const BENCH_PATH_RE = /(?:^|\/)(?:bench|benchmark|benchmarks|perf|performance|load|stress|fuzz)(?:\/|\.|$)/i;
 const WORKLOAD_SETTING_RE =
   /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(\d+)|\b(numRuns|iterations|runs|samples|repetitions|maxCases)\s*:\s*(\d+)/i;
-const WORKLOAD_NAME_RE = /runs?|iterations?|samples?|repetitions?|cases?/i;
+/**
+ * A workload word has to be a whole token in the identifier, not a substring of one.
+ *
+ * Unanchored, this matched `runs?` inside `truncateAt` ("t-run-cateAt") and reported a string
+ * truncation limit as a reduced test workload. Splitting on camelCase and underscore boundaries
+ * keeps every real shape (`numRuns`, `maxCases`, `iterations`, `NUM_SAMPLES`) and drops the
+ * accidental substring hits.
+ */
+const WORKLOAD_WORD_RE = /^(?:runs?|iterations?|samples?|repetitions?|cases?)$/i;
+
+function isWorkloadName(key: string): boolean {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .split(/[^A-Za-z0-9]+|\s+/)
+    .filter(Boolean)
+    .some(token => WORKLOAD_WORD_RE.test(token));
+}
 const FIXED_DELAY_RE =
   /\bsetTimeout\s*\([^,]+,\s*\d[\d_]*\s*\)|\b(?:time\.)?sleep\s*\(\s*\d[\d_.]*\s*\)/;
 
@@ -18,7 +34,7 @@ function workloadSetting(text: string): { key: string; value: number } | undefin
   const match = WORKLOAD_SETTING_RE.exec(withoutTrailingComment(text));
   if (!match) return undefined;
   const key = (match[1] ?? match[3])!;
-  if (!WORKLOAD_NAME_RE.test(key)) return undefined;
+  if (!isWorkloadName(key)) return undefined;
   return { key: key.toLowerCase(), value: Number(match[2] ?? match[4]) };
 }
 

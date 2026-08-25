@@ -23,8 +23,13 @@ const COVERAGE_CONFIG_RE =
  * Each is a dedicated threshold setting, not a general number that happens to live nearby, so a
  * value that drops is unambiguous rather than a guess about what the number meant.
  */
+// The optional quote before the separator is what makes JSON reachable. Requiring the colon
+// immediately after the key means JSON never matched, since the closing quote sits between
+// them: `"lines": 90` was invisible. package.json, jest.config.json, .nycrc and .nycrc.json are
+// all listed as coverage configs and none of them could produce a finding, with package.json
+// being much the most common home for coverageThreshold.
 const THRESHOLD_KEY_RE =
-  /\b(lines|statements|functions|branches|fail_under|fail-under|minimum_coverage|minimumCoverage|min_coverage|coverage_threshold|target|threshold|minimum|COVERAGE_MIN|haltOnFailure|minimumInstructionCoverage)\b\s*[:=]\s*['"]?(\d+(?:\.\d+)?)\s*%?['"]?/;
+  /\b(lines|statements|functions|branches|fail_under|fail-under|minimum_coverage|minimumCoverage|min_coverage|coverage_threshold|target|threshold|minimum|COVERAGE_MIN|haltOnFailure|minimumInstructionCoverage)\b['"]?\s*[:=]\s*['"]?(\d+(?:\.\d+)?)\s*%?['"]?/;
 
 interface Threshold {
   key: string;

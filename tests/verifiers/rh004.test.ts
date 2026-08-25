@@ -506,3 +506,33 @@ describe('RH004, a relocated return is not a hardcoded one', () => {
     expect(await rh004.run({ ...baseCtx, files: [file] })).toEqual([]);
   });
 });
+
+describe('RH004, pairing is local to the edit', () => {
+  it('names the computation from the same method, not one deleted elsewhere in the chunk', async () => {
+    // dels is chunk-wide, so before the locality gate the literal returned by offset() paired
+    // against the computation deleted from width() and the message named `this.cols`, an
+    // expression that was never in offset(). The finding is right; the attribution was not.
+    const file = {
+      from: 'src/box.ts', to: 'src/box.ts',
+      chunks: [{
+        content: '',
+        changes: [
+          { type: 'normal', normal: true, ln1: 2, ln2: 2, content: '   width(): number {' },
+          { type: 'del', del: true, ln: 3, content: '-    return this.cols;' },
+          { type: 'add', add: true, ln: 3, content: '+    return this.size.cols;' },
+          { type: 'normal', normal: true, ln1: 4, ln2: 4, content: '   }' },
+          { type: 'normal', normal: true, ln1: 5, ln2: 5, content: '   offset(): number {' },
+          { type: 'del', del: true, ln: 6, content: '-    return this.pad;' },
+          { type: 'add', add: true, ln: 6, content: '+    return 0;' },
+        ],
+        oldStart: 2, oldLines: 5, newStart: 2, newLines: 5,
+      }],
+      deleted: false, new: false,
+    } as unknown as ParsedFile;
+    const findings = await rh004.run({ ...baseCtx, files: [file] });
+    const rh004Findings = findings.filter(f => f.verifierId === 'RH004');
+    expect(rh004Findings).toHaveLength(1);
+    expect(rh004Findings[0]!.message).toContain('this.pad');
+    expect(rh004Findings[0]!.message).not.toContain('this.cols');
+  });
+});

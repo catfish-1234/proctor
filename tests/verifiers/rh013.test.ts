@@ -133,3 +133,24 @@ describe('RH013, coverage gate weakened', () => {
     expect(check(diffFile(file, [['del', '-  fail_under = 90'], ['add', '+  fail_under = 10']]))).toHaveLength(1);
   });
 });
+
+describe('RH013, JSON coverage configs', () => {
+  it('sees a threshold lowered in package.json', () => {
+    // `\b<key>\b\s*[:=]` required the colon immediately after the key, but JSON puts the closing
+    // quote in between, so this check was silently inert on every JSON config it claims to read.
+    // package.json is much the most common home for coverageThreshold.
+    const findings = rh013.run({ ...baseCtx, files: [diffFile('package.json', [
+      ['del', '-      "lines": 90'],
+      ['add', '+      "lines": 40'],
+    ])] });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain('lowered from 90 to 40');
+  });
+
+  it('stays silent when a JSON threshold is raised', () => {
+    expect(rh013.run({ ...baseCtx, files: [diffFile('package.json', [
+      ['del', '-      "lines": 90'],
+      ['add', '+      "lines": 95'],
+    ])] })).toEqual([]);
+  });
+});

@@ -72,3 +72,19 @@ describe('RH014, test workload reduced', () => {
     expect(rh014.run(context(files))).toEqual([]);
   });
 });
+
+describe('RH014, workload names are whole tokens', () => {
+  it('ignores an identifier that merely contains a workload word', () => {
+    // `runs?` matched inside `truncateAt` ("t-run-cateAt"), so lowering a string truncation limit
+    // was reported as a reduced test workload.
+    const files = diffOf('a.test.ts', 'const truncateAt = 200;', 'const truncateAt = 80;');
+    expect(rh014.run(context(files))).toEqual([]);
+  });
+
+  it('still catches a real workload cut', () => {
+    const files = diffOf('a.test.ts', 'const numRuns = 500;', 'const numRuns = 5;');
+    const findings = rh014.run(context(files));
+    expect(findings.length).toBeGreaterThan(0);
+    expect(findings[0]!.message).toContain('500');
+  });
+});

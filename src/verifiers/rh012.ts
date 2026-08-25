@@ -186,14 +186,33 @@ function commandKey(content: string): string {
 const RETRY_ACTION_RE = /uses\s*:\s*[\w-]+\/(?:retry|action-retry|retry-action)@/i;
 const RETRY_ATTEMPTS_RE = /max_attempts\s*:\s*([2-9]|\d{2,})/;
 const PATHS_IGNORE_RE = /paths-ignore\s*:/i;
-const SOURCE_TRIGGER_GLOB_RE = /(?:src|lib|app|packages?|services?)\/(?:\*\*)?|\*\*\/\*\.(?:ts|tsx|js|jsx|py|go|rs|java|kt|cs)/i;
+// A trigger exclusion that hides the codebase, rather than one package of many.
+//
+// `(?:\*\*)?` made the wildcard optional, so a bare `packages/` matched and any monorepo
+// excluding its docs or website package was reported as hiding source from CI. The honest cut is
+// scope: `src/**` or `packages/**` excludes everything the workflow was watching, while
+// `packages/website/**` excludes one subtree and is ordinary hygiene. The two are otherwise
+// indistinguishable without knowing which package holds source, so the narrower shape is left
+// alone deliberately.
+const SOURCE_TRIGGER_GLOB_RE = /(?:^|['"\s])(?:src|lib|app|packages?|services?)\/\*\*|\*\*\/\*\.(?:ts|tsx|js|jsx|py|go|rs|java|kt|cs)/i;
 
 /** A compact matrix axis such as `node: [20, 22]` or `os: [ubuntu, windows]`. */
+/**
+ * Keys that are genuinely a CI test matrix axis.
+ *
+ * `key: [a, b]` is ordinary YAML, so without this the check read `branches: [main, develop]`
+ * becoming `branches: [main]` as a narrowed test matrix, and said a supported environment was no
+ * longer verified. Narrowing a branch, tag or path trigger is a routine workflow edit.
+ */
+const MATRIX_AXIS_RE = /^(?:os|node|node-version|python|python-version|go|go-version|ruby|ruby-version|php|php-version|java|jdk|java-version|dotnet|dotnet-version|rust|toolchain|elixir|otp|swift|scala|kotlin|platform|arch|target|include|exclude)$/;
+
 function matrixEntry(content: string): { key: string; values: string[] } | undefined {
   const match = /^\s*(?:[-+]\s*)?([\w-]+)\s*:\s*\[([^\]]*)\]\s*$/.exec(diffBody(content));
   if (!match) return undefined;
+  const key = match[1]!.toLowerCase();
+  if (!MATRIX_AXIS_RE.test(key)) return undefined;
   const values = match[2]!.split(',').map(value => value.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
-  return { key: match[1]!.toLowerCase(), values };
+  return { key, values };
 }
 
 function run(context: Context): Finding[] {

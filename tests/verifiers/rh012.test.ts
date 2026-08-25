@@ -272,3 +272,49 @@ describe('RH012, CI pipeline tampering', () => {
     });
   });
 });
+
+describe('RH012, trigger and matrix edits that are not coverage loss', () => {
+  it('does not read a narrowed branch trigger as a narrowed test matrix', () => {
+    // `key: [a, b]` is ordinary YAML, so branches, tags, paths and types all looked like matrix
+    // axes and narrowing any of them claimed a supported environment was no longer verified.
+    expect(check(diffFile('.github/workflows/ci.yml', [
+      ['normal', 'on:'],
+      ['normal', '  push:'],
+      ['del', '    branches: [main, develop]'],
+      ['add', '    branches: [main]'],
+    ]))).toEqual([]);
+  });
+
+  it('still flags a genuinely narrowed matrix axis', () => {
+    const findings = check(diffFile('.github/workflows/ci.yml', [
+      ['normal', '    strategy:'],
+      ['normal', '      matrix:'],
+      ['del', '        node-version: [18, 20, 22]'],
+      ['add', '        node-version: [22]'],
+    ]));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain('matrix narrowed');
+  });
+
+  it('does not flag one package excluded from a monorepo trigger', () => {
+    // `packages/website/**` and `packages/core/**` are indistinguishable without knowing which
+    // package holds source, so only an exclusion covering everything the workflow watched counts.
+    expect(check(diffFile('.github/workflows/ci.yml', [
+      ['normal', 'on:'],
+      ['normal', '  push:'],
+      ['add', '    paths-ignore:'],
+      ['add', "      - 'packages/website/**'"],
+    ]))).toEqual([]);
+  });
+
+  it('still flags the whole source tree excluded from a trigger', () => {
+    const findings = check(diffFile('.github/workflows/ci.yml', [
+      ['normal', 'on:'],
+      ['normal', '  push:'],
+      ['add', '    paths-ignore:'],
+      ['add', "      - 'src/**'"],
+    ]));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain('trigger narrowed');
+  });
+});

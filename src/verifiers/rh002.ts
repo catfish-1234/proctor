@@ -136,6 +136,15 @@ function isContextualWeak(content: string): boolean {
  * and is ReDoS-safe, every alternative consumes at least one char with no ambiguity, so a long
  * whitespace run inside expect(...) can't cause catastrophic backtracking.
  */
+/**
+ * How far apart a removed strong assertion and an added weak one may sit and still be one edit.
+ *
+ * Counted in diff positions rather than line numbers, since a deletion and an addition are
+ * numbered against different files. An assertion weakened in place leaves the old and new lines
+ * adjacent; anything further apart is a different test.
+ */
+const WEAKENING_DISTANCE = 3;
+
 function extractSubject(content: string): string | null {
   const m = content.match(/expect\(((?:[^()]|\([^()]*\))*)\)\s*\./);
   return m ? m[1]!.replace(/\s+/g, '') : null;
@@ -685,6 +694,11 @@ function run(context: Context): Finding[] {
     for (const chunk of file.chunks) {
       const dels = chunk.changes.filter(c => c.type === 'del');
       const adds = chunk.changes.filter(c => c.type === 'add');
+      // Position within the chunk, for the locality test on the pairing below. Line numbers cannot
+      // express this: a deletion carries an old-file line and an addition a new-file line.
+      const at = new Map<unknown, number>(chunk.changes.map((c, i) => [c, i]));
+      const nearby = (a: unknown, b: unknown): boolean =>
+        Math.abs((at.get(a) ?? 0) - (at.get(b) ?? 0)) <= WEAKENING_DISTANCE;
 
       // Track reported add-line numbers to avoid duplicate findings within the same chunk
       const reported = new Set<number>();
@@ -714,7 +728,11 @@ function run(context: Context): Finding[] {
         const delSubject = extractSubject(del.content);
         const weakAdd = adds.find(a => {
           if (reported.has((a as { ln: number }).ln)) return false;
-          // Unconditionally-weak add pairs with any removed strong assertion in the chunk.
+          // Weakening replaces an assertion in place, so the two lines sit together in the diff.
+          // Without this the unconditional branch paired a weak assertion added to one test
+          // against a strong one removed from another, and reported an addition as a weakening.
+          if (!nearby(del, a)) return false;
+          // Unconditionally-weak add pairs with a removed strong assertion beside it.
           if (isWeakAssertion(a.content)) return true;
           // Contextually-weak add only counts when it targets the SAME subject as the removed
           // strong assertion, so an unrelated legit `toBeGreaterThan(0)` elsewhere doesn't pair.

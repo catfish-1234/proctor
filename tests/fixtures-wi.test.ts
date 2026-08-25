@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import parseDiff from 'parse-diff';
 import { wi101 } from '../src/verifiers/wi101.js';
 import { wi102 } from '../src/verifiers/wi102.js';
@@ -88,9 +88,23 @@ function baseCtx(): Context {
   };
 }
 
+/**
+ * The test files that exist in the fixture's after-state.
+ *
+ * In production `context.testFiles` is populated by fast-glob over the working tree, and a check
+ * may legitimately depend on it: WI111 only reports a deleted implementation when a test that
+ * covers it actually survives. Leaving this `[]` made that check unable to fire against its own
+ * fixture, which is the same harness infidelity that once let four checks pass vacuously.
+ */
+function testFilesIn(relDir: string): string[] {
+  const after = path.join(FIXTURES_DIR, relDir, 'after');
+  if (!existsSync(after)) return [];
+  return readdirSync(after).filter(name => name.includes('.test.') || name.includes('_test.'));
+}
+
 async function runFixture(verifier: Verifier, relDir: string): Promise<Finding[]> {
   const files = fixtureDiff(relDir);
-  const findings = await verifier.run({ ...baseCtx(), files });
+  const findings = await verifier.run({ ...baseCtx(), testFiles: testFilesIn(relDir), files });
   // Normalize to the basename so results don't depend on where the checkout lives.
   return findings.map(f => ({ ...f, file: path.basename(f.file) }));
 }

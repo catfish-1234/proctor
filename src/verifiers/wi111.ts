@@ -29,6 +29,22 @@ import { addedLines, afterLines, deletedLines, pathOf } from './wi-common.js';
 const TEST_DECLARATION_RE =
   /\b(?:it|test|specify)\s*(?:\.\w+)?\s*\(|\bdef\s+test_\w+|\bfunc\s+Test\w+|@Test\b|\[Fact\]|\[Test\]|\bit\s+['"]|#\[test\]|\bTEST(?:_F)?\s*\(/;
 
+/**
+ * The stem an implementation file and its test conventionally share.
+ *
+ * `foo.ts` and `foo.test.ts` both reduce to `foo`, as do `foo.py` and `test_foo.py`. Used to find
+ * the surviving test that makes a deletion a cheat rather than a cleanup.
+ */
+function implStem(fileName: string): string {
+  return fileName
+    .replace(/\.(test|spec)\.[cm]?[jt]sx?$/i, '')
+    .replace(/\.[cm]?[jt]sx?$/i, '')
+    .replace(/\.(py|go|rb|php|cs|kt|rs|java)$/i, '')
+    .replace(/^test_/i, '')
+    .replace(/_test$/i, '')
+    .toLowerCase();
+}
+
 /** Source extensions worth treating as program logic when the whole file disappears. */
 const SOURCE_EXT_RE = /\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|java|rb|php|cs|kt|rs|swift|dart|scala|ex|exs)$/i;
 
@@ -59,6 +75,11 @@ function run(context: Context): Finding[] {
 
   const paths = context.files.map(f => pathOf(f)).filter(Boolean);
   const testPathsInDiff = paths.filter(p => context.isTestFile(p));
+  // Every test path proctor can see, in the diff or already in the tree. The message says "while
+  // its tests remain", so there has to be a surviving test that plausibly covers the deleted file
+  // before this can fire; without that it reported ordinary dead-code removal and asserted the
+  // existence of tests the diff never showed.
+  const knownTestPaths = [...new Set([...testPathsInDiff, ...(context.testFiles ?? [])])];
 
   for (const file of context.files) {
     const filePath = pathOf(file);
@@ -86,12 +107,22 @@ function run(context: Context): Finding[] {
       });
       if (movedElsewhere) continue;
 
+      // The surviving test that makes this a cheat rather than a cleanup, matched on the stem the
+      // two conventionally share (foo.ts <-> foo.test.ts, foo.py <-> test_foo.py).
+      const stem = implStem(base);
+      const coveringTest = knownTestPaths.find(p => {
+        const testBase = path.basename(p.replace(/\\/g, '/'));
+        return implStem(testBase) === stem && !(context.files.some(f =>
+          pathOf(f) === p && (f as { deleted?: boolean }).deleted === true));
+      });
+      if (!coveringTest) continue;
+
       findings.push({
         verifierId: 'WI111',
         severity: 'error',
         file: filePath,
         line: 1,
-        message: `Implementation deleted: ${base} was removed while its tests remain, so nothing fails because there is nothing left to run.`,
+        message: `Implementation deleted: ${base} was removed while ${path.basename(coveringTest)} remains, so nothing fails because there is nothing left to run.`,
         suggestion:
           'Restore the file and make it work. Deleting the code under test is the same evasion as deleting the test, one layer down. If the feature really is being removed, remove its tests in the same change and say so.',
       });

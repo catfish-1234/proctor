@@ -420,3 +420,34 @@ describe('RH007 selection keys narrow rather than change', () => {
     expect(rh007.run({ ...baseCtx, files }).length).toBeGreaterThan(0);
   });
 });
+
+describe('RH007, pytest keys only count inside a pytest section', () => {
+  const toml = (lines: string[]): ParsedFile[] => parseDiff([
+    'diff --git a/pyproject.toml b/pyproject.toml',
+    'index 1111111..2222222 100644',
+    '--- a/pyproject.toml',
+    '+++ b/pyproject.toml',
+    `@@ -1,${lines.length} +1,${lines.length} @@`,
+    ...lines,
+  ].join('\n'));
+
+  it("does not read ruff's ignore list as a deselected test path", () => {
+    // pyproject.toml is the shared home of ruff, black, isort, mypy, coverage and poetry, and an
+    // unanchored `ignore\s*=` matched ruff's own key.
+    expect(rh007.run({ ...baseCtx, files: toml([
+      ' [tool.ruff.lint]',
+      ' select = ["E", "F"]',
+      '+ignore = ["E501"]',
+    ]) })).toEqual([]);
+  });
+
+  it('still flags a real pytest ignore', () => {
+    const findings = rh007.run({ ...baseCtx, files: toml([
+      ' [tool.pytest.ini_options]',
+      ' testpaths = ["tests"]',
+      '+ignore = ["tests/slow"]',
+    ]) });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.verifierId).toBe('RH007');
+  });
+});

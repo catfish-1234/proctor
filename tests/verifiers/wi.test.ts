@@ -894,3 +894,27 @@ describe('WI111, what "asserts nothing" has to mean', () => {
     expect(await run(wi111, files)).toEqual([]);
   });
 });
+
+describe('WI111, a deleted file needs a surviving test to be a cheat', () => {
+  const deletedImpl = () => parseDiff([
+    'diff --git a/src/legacy.ts b/src/legacy.ts',
+    'deleted file mode 100644',
+    'index 1111111..0000000',
+    '--- a/src/legacy.ts',
+    '+++ /dev/null',
+    '@@ -1,1 +0,0 @@',
+    '-export const legacy = 1;',
+  ].join('\n'));
+
+  it('stays silent when nothing in the repo tests the deleted file', async () => {
+    // The gate the message already promised was computed and never used, so this fired on
+    // ordinary dead-code removal while asserting that tests remained, which the diff never showed.
+    expect(await run(wi111, deletedImpl())).toEqual([]);
+  });
+
+  it('fires, and names the test, when one survives', async () => {
+    const findings = await wi111.run({ ...ctx(), testFiles: ['src/legacy.test.ts'], files: deletedImpl() });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain('legacy.test.ts');
+  });
+});

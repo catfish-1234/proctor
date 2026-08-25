@@ -153,6 +153,9 @@ interface ExclusionPattern {
   // test-like and the chunk isn't a routine coverage-exclude block, mirrors the original
   // carve-out, now expressed as data instead of a key-name string comparison.
   requiresTestLikeValue?: boolean;
+  // pyproject.toml is shared by ruff, black, isort, mypy, coverage and poetry, so a pytest key
+  // only counts inside a pytest section. Mirrors the cabal test-suite gate below.
+  requiresPytestSection?: boolean;
   // Human-readable label used in the suggestion text in place of the raw internal key.
   suggestionLabel?: string;
 }
@@ -204,7 +207,11 @@ const EXCLUSION_PATTERNS: ExclusionPattern[] = [
   // since `coverage.exclude` in the same files is routine and not a test-run exclusion.
   { re: /\bexclude\s*:/, key: 'exclude', severity: 'warn', langs: ['js'], requiresTestLikeValue: true },
   { re: /norecursedirs/, key: 'norecursedirs', severity: 'error', langs: ['pytest'] },
-  { re: /ignore\s*=/, key: 'ignore', severity: 'error', langs: ['pytest'] },
+  // Anchored (allowing the diff's +/- prefix, as the .Rbuildignore pattern does) and gated on
+  // a pytest section below. pyproject.toml is the shared home of ruff,
+  // black, isort, mypy, coverage and poetry, and an unanchored `ignore\s*=` matched ruff's
+  // `ignore = ["E501"]` and `extend-ignore =` as a deselected test path.
+  { re: /^[+-]?\s*ignore\s*=/, key: 'ignore', severity: 'error', langs: ['pytest'], requiresPytestSection: true },
   { re: /testpaths\s*=/, key: 'testpaths', severity: 'error', langs: ['pytest'] },
   { re: /collect_ignore/, key: 'collect_ignore', severity: 'error', langs: ['pytest'] },
   // pytest addopts with a -k/-m/--deselect expression deselects matching tests from every run.
@@ -409,6 +416,11 @@ function run(context: Context): Finding[] {
       // (case-insensitive per Cabal's stanza-type keyword rules). Also capture the stanza's name
       // (if present in the same chunk) for the finding's excludedVal.
       const chunkMentionsTestSuite = chunk.changes.some(c => /\btest-suite\b/i.test(c.content));
+      // `[tool.pytest.ini_options]`, `[pytest]` or `[tool:pytest]` in view. pyproject.toml is the
+      // shared home of ruff, black, isort, mypy, coverage and poetry, so a pytest key outside one
+      // of those sections belongs to whichever other tool owns it.
+      const chunkMentionsPytestSection = chunk.changes.some(c =>
+        /\[\s*(?:tool\.pytest(?:\.\w+)*|pytest|tool:pytest)\s*\]/i.test(c.content));
       const testSuiteNameMatch = chunk.changes
         .map(c => c.content.match(/\btest-suite\s+([A-Za-z0-9_-]+)/i))
         .find((m): m is RegExpMatchArray => m !== null);
@@ -467,6 +479,7 @@ function run(context: Context): Finding[] {
         }
 
         if (pattern.requiresTestLikeValue && (chunkMentionsCoverage || !/test|spec/i.test(excludedVal))) continue;
+        if (pattern.requiresPytestSection && !chunkMentionsPytestSection && /pyproject\.toml$/i.test(filePath.replace(/\\/g, '/'))) continue;
 
         findings.push({
           verifierId: 'RH007',

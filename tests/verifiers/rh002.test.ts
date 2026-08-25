@@ -820,3 +820,44 @@ describe('rh002 does not report an assertion as weakened into itself', () => {
     expect(rh002.run({ ...baseCtx, files }).length).toBeGreaterThan(0);
   });
 });
+
+describe('RH002, weakening pairs are local to the edit', () => {
+  const diff = (lines: string[]): ParsedFile[] => parseDiff([
+    'diff --git a/t/a.test.ts b/t/a.test.ts',
+    'index 1111111..2222222 100644',
+    '--- a/t/a.test.ts',
+    '+++ b/t/a.test.ts',
+    `@@ -1,${lines.length} +1,${lines.length} @@`,
+    ...lines,
+  ].join('\n'));
+
+  it('does not pair a weak assertion added to one test against a strong one removed from another', () => {
+    // The unconditional-weak branch had neither the same-subject gate nor the surviving-strong
+    // gate the contextual branch has, so it paired across the whole chunk. This change ADDS an
+    // assertion and keeps an equally strong one, and was reported as a weakening.
+    const findings = rh002.run({ ...baseCtx, files: diff([
+      " it('parses the id', () => {",
+      "   expect(parse('a=1').id).toBe(1);",
+      "+  expect(parse('a=1').raw).toBeDefined();",
+      ' });',
+      " it('lists everything', () => {",
+      '   const all = listAll();',
+      "-  expect(all.length).toBe(3);",
+      "+  expect(all).toHaveLength(3);",
+      ' });',
+    ]) });
+    expect(findings).toEqual([]);
+  });
+
+  it('still flags an assertion weakened in place', () => {
+    const findings = rh002.run({ ...baseCtx, files: diff([
+      " it('sums', () => {",
+      '   const total = sum([1, 2, 3]);',
+      '-  expect(total).toBe(6);',
+      '+  expect(total).toBeDefined();',
+      ' });',
+    ]) });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain('toBe(6)');
+  });
+});

@@ -861,3 +861,35 @@ describe('RH002, weakening pairs are local to the edit', () => {
     expect(findings[0]!.message).toContain('toBe(6)');
   });
 });
+
+describe('RH002, GROUP B assertions are scoped to their own languages', () => {
+  it("does not read JavaScript's Object.is as a Perl assertion", () => {
+    // Perl's `is(`, R's `expect_equal(`, Lua's `assert.are.equal(` and bats' `assert_equal` are
+    // ordinary words elsewhere, and these four sat in the language-agnostic array with no
+    // extension gate. In a .js source file `Object.is` read as a removed Perl assertion and the
+    // added `ok(next)` as its weakened replacement.
+    const files = parseDiff([
+      'diff --git a/src/store.js b/src/store.js',
+      'index 1111111..2222222 100644',
+      '--- a/src/store.js',
+      '+++ b/src/store.js',
+      '@@ -1,4 +1,5 @@',
+      ' function setState(next) {',
+      '-  if (Object.is(this.state, next)) {',
+      '+  if (shallowEqual(this.state, next)) {',
+      '+    ok(next);',
+      '     return;',
+      ' }',
+    ].join('\n'));
+    expect(rh002.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('still catches the Perl weakening in a Perl file', () => {
+    const findings = rh002.run({ ...baseCtx, files: pairAt(
+      'calculator.t',
+      "-is(add(2, 3), 5, 'adds');",
+      "+ok(add(2, 3), 'adds');",
+    ) });
+    expect(findings).toHaveLength(1);
+  });
+});

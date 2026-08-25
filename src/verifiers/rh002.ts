@@ -37,16 +37,6 @@ const STRONG_PATTERNS = [
   // GROUP A, Swift + Objective-C shared XCTest (one extension-agnostic pair, fires on .swift
   // and .m/.mm alike)
   /\bXCTAssertEqual(?:Objects)?\s*\(/,
-  // GROUP B, Perl Test::More
-  /\bis(?:_deeply)?\s*\(/,
-  // GROUP B, R testthat
-  /\bexpect_(?:equal|identical)\s*\(/,
-  // GROUP B, Lua busted
-  /\bassert\.(?:are\.equal|equals)\s*\(/,
-  // GROUP B, Shell/Bash bats-assert (flat pair only; native `[ ]` same-subject form is a
-  // documented gap: bare `[ ]` test syntax is pervasive in ordinary shell control
-  // flow and carries high false-positive risk)
-  /\bassert_equal\b/,
 ];
 
 // Unconditionally-weak matchers: these assert almost nothing regardless of context, so replacing
@@ -116,14 +106,42 @@ const SOLE_ANYTHING = /\.(?:toBe|toEqual|toStrictEqual)\(\s*expect\.anything\(\)
  */
 const CONTAINMENT_WEAK = /\.(?:toContain|toContainEqual|toMatch|toHaveProperty)\(/;
 
-function isStrongAssertion(content: string): boolean {
-  // `.toEqual(expect.anything())` matches a STRONG shape but asserts nothing, exclude it.
-  if (SOLE_ANYTHING.test(content)) return false;
-  return STRONG_PATTERNS.some(p => p.test(content));
+/**
+ * GROUP B strong assertions, scoped to the languages that own them.
+ *
+ * Perl's `is(`, R's `expect_equal(`, Lua's `assert.are.equal(` and bats' `assert_equal` are
+ * ordinary English words in every other language, and these four sat in the language-agnostic
+ * array with no extension gate and no isTestFile gate. `Object.is(a, b)` in a JavaScript source
+ * file read as a Perl assertion, so replacing it was reported as a weakened test. Every other
+ * language block in this file is scoped this way; these were the exception.
+ */
+const GROUP_B_STRONG: { ext: RegExp; re: RegExp }[] = [
+  { ext: /\.(?:pl|pm|t)$/i, re: /\bis(?:_deeply)?\s*\(/ },
+  { ext: /\.r$/i, re: /\bexpect_(?:equal|identical)\s*\(/ },
+  { ext: /\.lua$/i, re: /\bassert\.(?:are\.equal|equals)\s*\(/ },
+  { ext: /\.(?:bats|sh|bash)$/i, re: /\bassert_equal\b/ },
+];
+
+/** GROUP B weak counterparts, scoped the same way. */
+const GROUP_B_WEAK: { ext: RegExp; re: RegExp }[] = [
+  { ext: /\.(?:pl|pm|t)$/i, re: /\bok\s*\(/ },
+  { ext: /\.r$/i, re: /\bexpect_(?:true|type)\s*\(/ },
+  { ext: /\.lua$/i, re: /\bassert\.(?:is_truthy|is_not_nil)\s*\(/ },
+  { ext: /\.(?:bats|sh|bash)$/i, re: /\bassert_success\b/ },
+];
+
+function matchesGroupB(table: { ext: RegExp; re: RegExp }[], content: string, filePath: string): boolean {
+  return table.some(entry => entry.ext.test(filePath) && entry.re.test(content));
 }
 
-function isWeakAssertion(content: string): boolean {
-  return WEAK_PATTERNS.some(p => p.test(content));
+function isStrongAssertion(content: string, filePath = ''): boolean {
+  // `.toEqual(expect.anything())` matches a STRONG shape but asserts nothing, exclude it.
+  if (SOLE_ANYTHING.test(content)) return false;
+  return STRONG_PATTERNS.some(p => p.test(content)) || matchesGroupB(GROUP_B_STRONG, content, filePath);
+}
+
+function isWeakAssertion(content: string, filePath = ''): boolean {
+  return WEAK_PATTERNS.some(p => p.test(content)) || matchesGroupB(GROUP_B_WEAK, content, filePath);
 }
 
 function isContextualWeak(content: string): boolean {
@@ -724,7 +742,7 @@ function run(context: Context): Finding[] {
       }
 
       for (const del of dels) {
-        if (!isStrongAssertion(del.content)) continue;
+        if (!isStrongAssertion(del.content, filePath)) continue;
         const delSubject = extractSubject(del.content);
         const weakAdd = adds.find(a => {
           if (reported.has((a as { ln: number }).ln)) return false;
@@ -733,7 +751,7 @@ function run(context: Context): Finding[] {
           // against a strong one removed from another, and reported an addition as a weakening.
           if (!nearby(del, a)) return false;
           // Unconditionally-weak add pairs with a removed strong assertion beside it.
-          if (isWeakAssertion(a.content)) return true;
+          if (isWeakAssertion(a.content, filePath)) return true;
           // Contextually-weak add only counts when it targets the SAME subject as the removed
           // strong assertion, so an unrelated legit `toBeGreaterThan(0)` elsewhere doesn't pair.
           if (isContextualWeak(a.content)) {
@@ -741,7 +759,7 @@ function run(context: Context): Finding[] {
             if (delSubject === null || addSubject === null || delSubject !== addSubject) return false;
             // If a strong assertion on the same subject still survives among the adds, the value
             // is not actually weakened (e.g. keeping `toBe(6)` while adding a redundant range check).
-            const stillStrong = adds.some(o => isStrongAssertion(o.content) && extractSubject(o.content) === addSubject);
+            const stillStrong = adds.some(o => isStrongAssertion(o.content, filePath) && extractSubject(o.content) === addSubject);
             return !stillStrong;
           }
           return false;

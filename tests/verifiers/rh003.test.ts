@@ -376,3 +376,17 @@ describe('RH003, a skip construct inside a string literal is data, not a skip', 
     expect(rh003.run({ ...baseCtx, files })).toHaveLength(1);
   });
 });
+
+describe('RH003, focus aliases need a test title', () => {
+  it('does not read a curve-fitting call as a focused test', () => {
+    // Every jest/jasmine focus form takes a title string. Without requiring one, a bare
+    // `fit(xs, ys)` regression or layout call inside a test file read as `fit('name', ...)`.
+    const findings = rh003.run({ ...baseCtx, files: [makeAddFile('t/a.test.ts', '  const slope = fit([1, 2], [3, 4]);', 2)] });
+    expect(findings).toEqual([]);
+  });
+
+  it('still flags a real focused test', () => {
+    const findings = rh003.run({ ...baseCtx, files: [makeAddFile('t/a.test.ts', "fit('adds', () => { expect(add(1, 2)).toBe(3); });", 2)] });
+    expect(findings).toHaveLength(1);
+  });
+});

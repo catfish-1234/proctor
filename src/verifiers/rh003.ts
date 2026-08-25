@@ -11,8 +11,10 @@ const XIT = /\bxit\s*\(/;
 const XDESCRIBE = /\bxdescribe\s*\(/;
 // Jest/jasmine aliases: xtest = test.skip; fit/fdescribe focus one case and silently skip the rest.
 // Bare globals only, `(?<![.\w])` prevents matching member calls like `model.fit(...)` (scikit-
-// learn/Keras) or `obj.xtest(...)`.
-const FOCUS_ALIAS = /(?<![.\w])(?:xtest|fit|fdescribe)\s*\(/;
+// learn/Keras) or `obj.xtest(...)`. The title string is required too: every jest/jasmine focus form
+// takes one, and without it a bare `fit(xs, ys)` curve-fitting or regression call inside a test
+// file read as a focused test. Same discipline as COMMENTED_JS_TEST, which already requires it.
+const FOCUS_ALIAS = /(?<![.\w])(?:xtest|fit|fdescribe)\s*\(\s*['"`]/;
 // Bracket notation: it['skip'](...) / test["only"](...) reaches the same modifier past the regex.
 const BRACKET_SKIP = /\b(?:it|test|describe)\s*\[\s*['"`](?:skip|only)['"`]\s*\]/;
 const CONDITIONAL_DISABLE = /\b(?:it|test|describe)\.(?:runIf\(\s*false\s*\)|skipIf\(\s*true\s*\))/;

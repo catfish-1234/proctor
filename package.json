@@ -59,7 +59,7 @@
     "sync-plugin": "node dist/scripts/sync-plugin.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.116.0",
+    "@anthropic-ai/sdk": "^0.118.0",
     "commander": "^15.0.0",
     "fast-glob": "3.3.3",
     "micromatch": "^4.0.8",

@@ -60,6 +60,6 @@ runs:
       # turn into a red X for a feature the user never asked for. The job summary above already
       # carried the findings, and the check step's own exit code already carried the verdict.
       continue-on-error: true
-      uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4
+      uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
       with:
         sarif_file: results.sarif

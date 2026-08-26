@@ -273,7 +273,12 @@ function run(context: Context): Finding[] {
       // Updating snapshots is a maintenance operation, not the normal verification command. It
       // is safe as a separately named opt-in helper, but not as a replacement for the same script.
       for (const line of added) {
-        for (const next of scriptEntries(line.text).filter(entry => SNAPSHOT_UPDATE_RE.test(entry.command))) {
+        // Only a script that actually verifies something can be neutered by an update flag.
+        // scriptEntries returns every name/command pair, so without this `-u` on an unrelated
+        // script (npm-check-updates, a deploy step) was reported as rewriting its own
+        // expectations while testing, which is both a false positive and an over-claim.
+        for (const next of scriptEntries(line.text).filter(entry =>
+          SNAPSHOT_UPDATE_RE.test(entry.command) && verifierTool(entry.command) !== undefined)) {
           const prior = deleted
             .flatMap(old => scriptEntries(old.text))
             .find(old => old.name === next.name && !SNAPSHOT_UPDATE_RE.test(old.command));

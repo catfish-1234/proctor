@@ -22,6 +22,12 @@ import { addedLines, deletedLines, insideTemplateLiteral, isCommentLine, pathOf,
  */
 
 /** An assertion: the thing whose disappearance this check is counting. */
+/**
+ * `should` is the one token here that is also an ordinary English word, and it lands in test
+ * titles constantly. Counting it on the raw line meant renaming `it('should normalize ...')` to
+ * `it('normalizes ...')` read as an assertion being deleted from a surviving test. The family's
+ * rule applies: the token being matched is code, so literals are blanked before counting.
+ */
 const ASSERTION_RE =
   /\bexpect\s*\(|\bassert(?:\.\w+)?\s*\(|\bassert\s+|\bshould\b|\bassertEquals?\b|\bassert_eq!|\bXCTAssert\w*\s*\(|\bEXPECT_\w+\s*\(|\bASSERT_\w+\s*\(/;
 
@@ -56,6 +62,18 @@ const MATCHER_OVERRIDE_RE =
   /\b(?:expect\.extend|addMatchers|registerMatcher)\s*\(/;
 const ALWAYS_PASS_BODY_RE = /pass\s*:\s*true\b|=>\s*\(?\s*\{\s*pass\s*:\s*true/;
 
+
+/**
+ * An assertion, with test titles excluded.
+ *
+ * Literals are blanked first, so `should` inside a test name is not counted; a test declaration
+ * line is excluded outright, since renaming a test is not deleting an assertion from it.
+ */
+function countsAsAssertion(text: string): boolean {
+  if (TEST_DECLARATION_RE.test(text)) return false;
+  return ASSERTION_RE.test(withoutLiterals(text));
+}
+
 function run(context: Context): Finding[] {
   const findings: Finding[] = [];
 
@@ -68,10 +86,10 @@ function run(context: Context): Finding[] {
     if (context.isTestFile(filePath) && (file as { deleted?: boolean }).deleted !== true) {
       const removedAssertions = file.chunks
         .flatMap(deletedLines)
-        .filter(l => !isCommentLine(l.text) && ASSERTION_RE.test(l.text)).length;
+        .filter(l => !isCommentLine(l.text) && countsAsAssertion(l.text)).length;
       const addedAssertions = file.chunks
         .flatMap(addedLines)
-        .filter(l => !isCommentLine(l.text) && ASSERTION_RE.test(l.text)).length;
+        .filter(l => !isCommentLine(l.text) && countsAsAssertion(l.text)).length;
       const removedTests = file.chunks
         .flatMap(deletedLines)
         .filter(l => TEST_DECLARATION_RE.test(l.text)).length;
@@ -86,7 +104,7 @@ function run(context: Context): Finding[] {
       if (testsSurvive && lost > 0 && addedAssertions >= 0 && removedAssertions > 0) {
         const firstRemoved = file.chunks
           .flatMap(deletedLines)
-          .find(l => ASSERTION_RE.test(l.text));
+          .find(l => countsAsAssertion(l.text));
         findings.push({
           verifierId: 'WI112',
           severity: 'error',

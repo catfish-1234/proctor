@@ -265,10 +265,16 @@ function run(context: Context): Finding[] {
       const removedAwaited = deletedLines(chunk)
         .map(line => ({ line, call: awaitedCall(line.text) }))
         .filter(item => item.call !== undefined);
+      // A function that stopped being async has to drop its awaits; that is the refactor, not a
+      // dropped rejection. The evidence sits in the same chunk and was being ignored, so
+      // `async function setup()` becoming `function setup()` reported every await it removed.
+      const deAsynced = deletedLines(chunk).some(d => /\basync\b/.test(d.text)
+        && addedLines(chunk).some(a => a.text.replace(/\basync\s+/, '') === d.text.replace(/\basync\s+/, '')
+          && !/\basync\b/.test(a.text)));
       for (const added of addedInOrder) {
         if (hasExplanation(added.text) || isCommentLine(added.text)) continue;
         const call = bareCall(added.text);
-        if (!call || !removedAwaited.some(prior => prior.call === call)) continue;
+        if (!call || deAsynced || !removedAwaited.some(prior => prior.call === call)) continue;
         findings.push({
           verifierId: 'WI101',
           severity: 'error',

@@ -978,3 +978,51 @@ describe('WI103/WI105/WI108, tokens that are ordinary code elsewhere', () => {
     expect(findings.length).toBeGreaterThan(0);
   });
 });
+
+describe('WI101/WI102/WI110/WI112, refactors that are not evasion', () => {
+  it('WI101 does not flag awaits dropped by a de-async refactor', async () => {
+    // A function that stopped being async has to drop its awaits. The evidence sits in the same
+    // chunk and was ignored, so the refactor reported every await it removed.
+    const before = 'export async function setup() {\n  await registerHandlers();\n  return true;\n}';
+    const after = 'export function setup() {\n  registerHandlers();\n  return true;\n}';
+    expect(await run(wi101, diffOf('src/d.js', before, after))).toEqual([]);
+  });
+
+  it('WI101 still flags an await dropped from a function that is still async', async () => {
+    const before = 'export async function save(x) {\n  await persist(x);\n  return true;\n}';
+    const after = 'export async function save(x) {\n  persist(x);\n  return true;\n}';
+    expect((await run(wi101, diffOf('src/e.js', before, after))).length).toBeGreaterThan(0);
+  });
+
+  it('WI102 does not flag a duck-typed Python base class', async () => {
+    // Idiomatic Python declares a contract without inheriting ABC. Several sentinels together in
+    // one class body is an interface; one among real methods is a gap.
+    const code = 'class Storage:\n    def read(self, key):\n        raise NotImplementedError\n\n    def write(self, key, value):\n        raise NotImplementedError';
+    expect(await run(wi102, addedOf('src/s.py', code))).toEqual([]);
+  });
+
+  it('WI102 still flags a single unimplemented function', async () => {
+    const code = 'def retry(self):\n    raise NotImplementedError';
+    expect((await run(wi102, addedOf('src/c.py', code))).length).toBeGreaterThan(0);
+  });
+
+  it('WI112 does not count `should` in a test title as an assertion', async () => {
+    const before = "it('should normalize whitespace', () => {\n  expect(norm('a  b')).toBe('a b');\n});";
+    const after = "it('normalizes whitespace', () => {\n  expect(norm('a  b')).toBe('a b');\n});";
+    expect(await run(wi112, diffOf('t/a.test.ts', before, after))).toEqual([]);
+  });
+
+  it('WI110 does not flag an update flag on a script that verifies nothing', async () => {
+    // scriptEntries returns every name/command pair, so `-u` on npm-check-updates was reported as
+    // rewriting its own expectations while testing.
+    const before = '{\n  "scripts": { "deps": "npm-check-updates" }\n}';
+    const after = '{\n  "scripts": { "deps": "npm-check-updates -u" }\n}';
+    expect(await run(wi110, diffOf('package.json', before, after))).toEqual([]);
+  });
+
+  it('WI110 still flags an update flag added to the test script', async () => {
+    const before = '{\n  "scripts": { "test": "vitest run" }\n}';
+    const after = '{\n  "scripts": { "test": "vitest run -u" }\n}';
+    expect((await run(wi110, diffOf('package.json', before, after))).length).toBeGreaterThan(0);
+  });
+});

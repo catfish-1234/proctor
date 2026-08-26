@@ -82,7 +82,38 @@ function isAbstractContext(lines: { text: string }[], index: number): boolean {
   for (let i = index; i >= 0 && i > index - ABSTRACT_LOOKBACK; i--) {
     if (ABSTRACT_MARKER_RE.test(lines[i]!.text)) return true;
   }
-  return false;
+  return isDuckTypedBase(lines, index);
+}
+
+/**
+ * A Python base class that declares its contract without inheriting ABC.
+ *
+ * `ABSTRACT_MARKER_RE` only recognises the explicit forms, but a plain `class Storage:` whose
+ * methods each raise NotImplementedError is idiomatic Python and the dominant legitimate use of
+ * that sentinel. What separates it from a half-finished function is that the sentinel is the
+ * method's entire body and a sibling method in the same class does the same thing: one unimplemented
+ * method among real ones is a gap, several together are an interface.
+ */
+function isDuckTypedBase(lines: { text: string }[], index: number): boolean {
+  const indentOf = (t: string): number => /^[ 	]*/.exec(t)![0].length;
+  const sentinelIndent = indentOf(lines[index]!.text);
+  let classHeader = -1;
+  for (let i = index; i >= 0; i--) {
+    const text = lines[i]!.text;
+    if (text.trim() === '') continue;
+    if (/^\s*class\s+\w+/.test(text) && indentOf(text) < sentinelIndent) { classHeader = i; break; }
+    if (indentOf(text) === 0 && !/^\s*class\s+\w+/.test(text)) return false;
+  }
+  if (classHeader < 0) return false;
+  const bodyIndent = indentOf(lines[classHeader]!.text);
+  let sentinels = 0;
+  for (let i = classHeader + 1; i < lines.length; i++) {
+    const text = lines[i]!.text;
+    if (text.trim() === '') continue;
+    if (indentOf(text) <= bodyIndent) break;
+    if (/^\s*raise\s+NotImplementedError/.test(text)) sentinels++;
+  }
+  return sentinels >= 2;
 }
 
 /**

@@ -66,11 +66,14 @@ const ALWAYS_PASS_BODY_RE = /pass\s*:\s*true\b|=>\s*\(?\s*\{\s*pass\s*:\s*true/;
 /**
  * An assertion, with test titles excluded.
  *
- * Literals are blanked first, so `should` inside a test name is not counted; a test declaration
- * line is excluded outright, since renaming a test is not deleting an assertion from it.
+ * Literals are blanked first, so `should` inside a test name is not counted as an assertion.
+ *
+ * A declaration-line exclusion used to sit here too and was removed as dead: `testsSurvive` below
+ * already requires the removed and added declaration counts to match, so a declaration line on
+ * either side kills the finding before this predicate could matter. A mutation removing it changed
+ * no behaviour, and no case could be constructed where it did.
  */
 function countsAsAssertion(text: string): boolean {
-  if (TEST_DECLARATION_RE.test(text)) return false;
   return ASSERTION_RE.test(withoutLiterals(text));
 }
 

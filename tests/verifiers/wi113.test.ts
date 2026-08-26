@@ -65,3 +65,17 @@ describe('WI113, failure-avoidance workarounds', () => {
     expect(wi113.run(context(files))).toEqual([]);
   });
 });
+
+describe('WI113, workload names are whole tokens', () => {
+  it('ignores an identifier that merely contains a workload word', () => {
+    // Same unanchored `runs?` as RH014's copy: `truncateAt` contains "run". A mutation removing
+    // this gate entirely survived the suite, because only RH014's copy had a test.
+    const files = diffOf('bench/suite.js', 'const truncateAt = 200;', 'const truncateAt = 80;');
+    expect(wi113.run(context(files))).toEqual([]);
+  });
+
+  it('still catches a real benchmark workload cut', () => {
+    const files = diffOf('bench/suite.js', 'const iterations = 1000;', 'const iterations = 10;');
+    expect(wi113.run(context(files)).length).toBeGreaterThan(0);
+  });
+});

@@ -112,6 +112,17 @@ describe('WI101, silent error swallowing', () => {
     expect((await run(wi101, addedOf('src/a.ts', code))).length).toBe(1);
   });
 
+  it('needs a real sentence, not one or two words, to count as an explanation', async () => {
+    // The bare-marker list above catches `// TODO` by name, so it never exercises the word count
+    // that every other short comment falls back on. Dropping that threshold to zero survived a
+    // mutation run: nothing in the suite noticed that any comment at all became an excuse.
+    const twoWords = ['try {', '  work();', '} catch (err) {', '  // best effort', '}'].join('\n');
+    expect((await run(wi101, addedOf('src/a.ts', twoWords))).length).toBe(1);
+
+    const sentence = ['try {', '  work();', '} catch (err) {', '  // Best effort: the cache rebuilds on the next request.', '}'].join('\n');
+    expect(await run(wi101, addedOf('src/a.ts', sentence))).toEqual([]);
+  });
+
   it('stays silent on a pre-existing empty handler this change did not add', async () => {
     const files = parseDiff([
       'diff --git a/src/a.ts b/src/a.ts',

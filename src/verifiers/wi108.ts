@@ -37,7 +37,7 @@ const TEST_SEGMENT_RE = /(?:^|[\/_.-])(?:tests?|specs?|__tests__|testing)(?:[\/_
  * here is the whole reason this check can exist without being turned off.
  */
 const ROUTINE_IGNORE_RE =
-  /(?:^|\/)(?:node_modules|dist|build|out|target|coverage|vendor|third_party|\.venv|venv|__pycache__|\.next|\.nuxt|\.cache|tmp|temp|logs?|bin|obj)(?:\/|$)|\.(?:log|tmp|temp|cache|lock|map|pyc|pyo|class|o|so|dll|exe|jar|zip|tar|gz|env|DS_Store)$|\.min\.[jt]s$|(?:^|\/)\*\.(?:log|tmp|swp)$/i;
+  /(?:^|\/)(?:node_modules|dist|build|out|target|coverage|vendor|third_party|\.venv|venv|__pycache__|\.next|\.nuxt|\.cache|tmp|temp|logs?|bin|obj|test-results|test-output|test-reports?|playwright-report|allure-results|\.pytest_cache|\.tox|\.nyc_output)(?:\/|$)|\.(?:log|tmp|temp|cache|lock|map|pyc|pyo|class|o|so|dll|exe|jar|zip|tar|gz|env|DS_Store)$|\.min\.[jt]s$|(?:^|\/)\*\.(?:log|tmp|swp)$/i;
 
 /** Git commands that hide a tracked file's changes without touching any config. */
 const INDEX_HIDING_RE = /git\s+update-index\s+[^\n]*--(?:assume-unchanged|skip-worktree)\b/;

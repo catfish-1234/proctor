@@ -17,7 +17,7 @@ import { addedLines, codeLines, deletedLines, isWatchedSource, pathOf, withoutLi
 
 /** Calls that reach outside the process: the work that canned data replaces. */
 const REAL_IO_RE =
-  /\bfetch\s*\(|\baxios\s*[.(]|\bgot\s*\(|\bsuperagent\b|\bXMLHttpRequest\b|\brequests\.(?:get|post|put|patch|delete)\s*\(|\burllib\b|\bhttpx\.\w+\s*\(|\bhttp\.(?:Get|Post|Client)\b|\bHttpClient\b|\bRestTemplate\b|\bURLSession\b|\bfs\.(?:readFile|writeFile|readdir)\w*\s*\(|\bopen\s*\([^)]*['"][^'"]*['"]|\b(?:db|conn|client|session|pool)\.(?:query|execute|find\w*|select|insert|update|delete|aggregate)\s*\(|\bprisma\.\w+\.\w+\s*\(|\bknex\s*\(|\bcursor\.execute\s*\(|\bMongoClient\b|\bcreateClient\s*\(|\bsubprocess\.\w+\s*\(|\bexec(?:File|Sync)?\s*\(|\bspawn(?:Sync)?\s*\(/;
+  /\bfetch\s*\(|\baxios\s*[.(]|\bgot\s*\(|\bsuperagent\b|\bXMLHttpRequest\b|\brequests\.(?:get|post|put|patch|delete)\s*\(|\burllib\b|\bhttpx\.\w+\s*\(|\bhttp\.(?:Get|Post|Client)\b|\bHttpClient\b|\bRestTemplate\b|\bURLSession\b|\bfs\.(?:readFile|writeFile|readdir)\w*\s*\(|\bopen\s*\([^)]*['"][^'"]*['"]|\b(?:db|conn|client|session|pool)\.(?:query|execute|find\w*|select|insert|update|delete|aggregate)\s*\(|\bprisma\.\w+\.\w+\s*\(|\bknex\s*\(|\bcursor\.execute\s*\(|\bMongoClient\b|\bcreateClient\s*\(|\bsubprocess\.\w+\s*\(|\b(?:child_process|cp)\.exec(?:File|Sync)?\s*\(|(?<![.\w])exec(?:File|Sync)\s*\(|\bspawn(?:Sync)?\s*\(/;
 
 /** A return of a fixed, self-contained value: an object, an array, or a bare literal. */
 const LITERAL_RETURN_RE =
@@ -30,7 +30,7 @@ const LITERAL_RETURN_RE =
  * it fires on its own without needing the IO pairing.
  */
 const CANNED_NAME_RE =
-  /\b(?:mock|fake|stub|dummy|sample|placeholder|hardcoded|canned|fixture)[_A-Z]\w*\b|\b(?:MOCK|FAKE|STUB|DUMMY|SAMPLE|PLACEHOLDER|CANNED)_\w+\b/;
+  /\b(?:mock|fake|stub|dummy|placeholder|hardcoded|canned|fixture)[_A-Z]\w*\b|\b(?:MOCK|FAKE|STUB|DUMMY|SAMPLE|PLACEHOLDER|CANNED)_\w+\b/;
 
 /**
  * A return of one of those names, which is the shape that actually ships the canned value.

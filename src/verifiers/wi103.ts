@@ -30,7 +30,10 @@ const GUARD_SIGNATURES: { re: RegExp; what: string }[] = [
   { re: /\bpanic\s*\(/, what: 'a panic' },
   { re: /\breturn\s+(?:nil|null)\s*,\s*(?:errors\.New|fmt\.Errorf)\s*\(/, what: 'an error return' },
   { re: /\breturn\s+(?:errors\.New|fmt\.Errorf)\s*\(/, what: 'an error return' },
-  { re: /\brequire\s*\(|\bcheckArgument\s*\(|\bcheckNotNull\s*\(/, what: 'a precondition check' },
+  // `require(` only counts with a non-string first argument. The Guava/Node-assert precondition
+  // form takes a condition; CommonJS `require('lodash')` takes a module specifier, and removing an
+  // unused import is one of the most common diffs there is.
+  { re: /\brequire\s*\(\s*[^'"`)]|\bcheckArgument\s*\(|\bcheckNotNull\s*\(/, what: 'a precondition check' },
   { re: /\braise_error\b|\bargument_error\b/, what: 'a raised error' },
 ];
 

@@ -918,3 +918,63 @@ describe('WI111, a deleted file needs a surviving test to be a cheat', () => {
     expect(findings[0]!.message).toContain('legacy.test.ts');
   });
 });
+
+describe('WI103/WI105/WI108, tokens that are ordinary code elsewhere', () => {
+  it('WI103 does not read a removed CommonJS import as a deleted precondition', () => {
+    // The Guava/Node-assert form takes a condition; `require('lodash')` takes a module specifier,
+    // and removing an unused import is one of the most common diffs there is. The surviving import
+    // has to be a context line, not an addition, or the extracted-validator escape masks the bug.
+    const files = parseDiff([
+      'diff --git a/src/a.js b/src/a.js',
+      'index 1111111..2222222 100644',
+      '--- a/src/a.js',
+      '+++ b/src/a.js',
+      '@@ -1,2 +1,1 @@',
+      " const path = require('path');",
+      "-const lodash = require('lodash');",
+    ].join('\n'));
+    return expect(wi103.run({ ...ctx(), files })).toEqual([]);
+  });
+
+  it('WI103 still flags a real precondition being deleted', async () => {
+    const before = "function withdraw(bal, amt) {\n  require(amt > 0, 'must be positive');\n  return bal - amt;\n}";
+    const after = 'function withdraw(bal, amt) {\n  return bal - amt;\n}';
+    const findings = await run(wi103, diffOf('src/a.js', before, after));
+    expect(findings.some(f => f.message.includes('precondition'))).toBe(true);
+  });
+
+  it('WI105 does not read RegExp.prototype.exec as removed I/O', async () => {
+    // `\bexec(?:File|Sync)?\s*\(` matched `RE.exec(s)`, so switching a regex call to .match()
+    // read as real work replaced with canned data.
+    const before = 'export function major(input) {\n  const m = RE.exec(input);\n  return m ? Number(m[1]) : 0;\n}';
+    const after = 'export function major(input) {\n  const m = input.match(RE);\n  if (m) {\n    return Number(m[1]);\n  }\n  return 0;\n}';
+    expect(await run(wi105, diffOf('src/b.js', before, after))).toEqual([]);
+  });
+
+  it('WI105 does not read sampleRate as a canned-data name', async () => {
+    // `sample[_A-Z]` matched `sampleRate`, and this change does the opposite of canning data:
+    // it replaces a hardcoded 0 with the real value.
+    const before = 'class M {\n  rate() {\n    return 0;\n  }\n}';
+    const after = 'class M {\n  rate() {\n    return this.sampleRate;\n  }\n}';
+    expect(await run(wi105, diffOf('src/c.js', before, after))).toEqual([]);
+  });
+
+  it('WI105 still flags a name that announces the substitution', async () => {
+    const before = 'function getUser() {\n  return db.query("select 1");\n}';
+    const after = 'const mockUser = { id: 1 };\nfunction getUser() {\n  return mockUser;\n}';
+    expect((await run(wi105, diffOf('src/c.js', before, after))).length).toBeGreaterThan(0);
+  });
+
+  it('WI108 does not flag a test-runner output directory', async () => {
+    // TEST_SEGMENT_RE read `test-results/` as a hidden test suite. Every Playwright project has
+    // this line, and the directory holds generated reports rather than source.
+    const before = 'node_modules';
+    const after = 'node_modules\ntest-results/\nplaywright-report/';
+    expect(await run(wi108, diffOf('.gitignore', before, after))).toEqual([]);
+  });
+
+  it('WI108 still flags a source file hidden from review', async () => {
+    const findings = await run(wi108, diffOf('.gitignore', 'node_modules', 'node_modules\nsrc/billing.ts'));
+    expect(findings.length).toBeGreaterThan(0);
+  });
+});

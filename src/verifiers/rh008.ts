@@ -1,4 +1,5 @@
 import type { Context, Finding, Verifier } from '../types.js';
+import { isCommentLine, withoutLiterals } from './wi-common.js';
 
 // All four patterns below are exact syntactic tautologies. There is no legitimate test that
 // matches them, so this check is fully deterministic and needs no AI judge, unlike RH004/RH005,
@@ -39,7 +40,12 @@ function run(context: Context): Finding[] {
     for (const chunk of file.chunks) {
       for (const change of chunk.changes) {
         if (change.type !== 'add') continue;
-        const reason = tautologyReason(change.content);
+        // A tautology quoted inside a string is a payload, not an assertion. The seventh check in
+        // this repository to need the rule: blank literals when the token you match is code. A
+        // test that writes a scratch test file, a codemod fixture, or a migration guide all embed
+        // `expect(1).toBe(1)` as data, and proctor reported its own hook tests for doing it.
+        if (isCommentLine(change.content)) continue;
+        const reason = tautologyReason(withoutLiterals(change.content));
         if (!reason) continue;
         findings.push({
           verifierId: 'RH008',

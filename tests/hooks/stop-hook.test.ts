@@ -62,6 +62,32 @@ describe('runStopHookCheck', () => {
     }
   });
 
+  it('allows a turn mid-merge, where the diff belongs to the incoming branch', () => {
+    // `git diff HEAD` during a merge reports the incoming branch's changes as this turn's, so a
+    // test that branch deleted would be blamed on the agent. The pre-commit hook still guards the
+    // resolution, which is the point where those changes become this repository's.
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-merge-'));
+    try {
+      const cliPath = resolve(process.cwd(), 'dist/cli.js');
+      const git = (...args: string[]) => spawnSync('git', args, { cwd: tmpDir, encoding: 'utf8' });
+      git('init');
+      git('config', 'user.email', 'x@x');
+      git('config', 'user.name', 'x');
+      writeFileSync(join(tmpDir, 'a.test.ts'), "it('a', () => { expect(1).toBe(1); });\nit('b', () => { expect(2).toBe(2); });\n");
+      git('add', '-A');
+      git('commit', '-m', 'base');
+      // A deletion that would block if it were read as this turn's work.
+      writeFileSync(join(tmpDir, 'a.test.ts'), "it('a', () => { expect(1).toBe(1); });\n");
+      expect(runStopHookCheck(tmpDir, cliPath).exitCode).toBe(2);
+
+      // The same working tree, now mid-merge: allowed.
+      writeFileSync(join(tmpDir, '.git', 'MERGE_HEAD'), 'deadbeef\n', 'utf8');
+      expect(runStopHookCheck(tmpDir, cliPath).exitCode).toBe(0);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it('blocks a deleted test that was never staged, the state an agent actually leaves behind', () => {
     // An agent finishing a turn has edited files and staged nothing. A hook that only reads the
     // index would see an empty diff and allow every unstaged cheat through.

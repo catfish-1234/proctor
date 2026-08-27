@@ -93,3 +93,19 @@ describe('rh008, tautological assertion detection (fully deterministic, no AI)',
     expect(findings[0].message).toContain('assertEqual');
   });
 });
+
+describe('RH008, a tautology quoted as data is not an assertion', () => {
+  it('stays silent on a tautology inside a string literal', () => {
+    // A test that writes a scratch test file embeds assertions as data. proctor reported its own
+    // stop-hook tests for exactly this, which is the seventh check in this repo to need the rule:
+    // blank literals when the token you are matching is code.
+    const line = String.raw`      writeFileSync(p, "it('a', () => { expect(1).toBe(1); });");`;
+    expect(rh008.run({ ...baseCtx, files: fileWith('a.test.ts', line) })).toEqual([]);
+  });
+
+  it('still flags a real tautology written as code', () => {
+    const findings = rh008.run({ ...baseCtx, files: fileWith('a.test.ts', '  expect(total).toBe(total);') });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.verifierId).toBe('RH008');
+  });
+});

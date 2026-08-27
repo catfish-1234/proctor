@@ -1056,3 +1056,50 @@ describe('WI103, a guard that exits is still a guard', () => {
     expect((await run(wi103, diffOf('src/cli.ts', before, after))).length).toBeGreaterThan(0);
   });
 });
+
+describe('WI101/WI106, the last two warn-severity false positives', () => {
+  it('WI101 does not report a diagnostic that went with its own handler', async () => {
+    // Collapsing a try/catch removes the catch, the console.error inside it and the fallback
+    // together. Calling that reduced visibility describes a program that no longer exists.
+    const before = 'function load() {\n  try {\n    return read();\n  } catch (e) {\n    console.error(e);\n    return null;\n  }\n}';
+    const after = 'function load() {\n  return read();\n}';
+    expect(await run(wi101, diffOf('src/a.js', before, after))).toEqual([]);
+  });
+
+  it('WI101 still reports a diagnostic removed from a handler that stays', async () => {
+    // Context lines matter here: the catch survives, so only the diagnostic inside it went.
+    const files = parseDiff([
+      'diff --git a/src/a.js b/src/a.js',
+      'index 1111111..2222222 100644',
+      '--- a/src/a.js',
+      '+++ b/src/a.js',
+      '@@ -1,7 +1,6 @@',
+      ' function load() {',
+      '   try {',
+      '     return read();',
+      '   } catch (e) {',
+      '-    console.error(e);',
+      '     return null;',
+      '   }',
+      ' }',
+    ].join('\n'));
+    expect((await run(wi101, files)).length).toBeGreaterThan(0);
+  });
+
+  it('WI106 does not read next/dynamic as a widened type', async () => {
+    // `dynamic` is a top type in Dart and C#. In TypeScript it is a variable name, and the import
+    // survives literal-blanking as a bare identifier, so every lazy-loaded component fired.
+    const before = 'export const A = () => null;\nexport const B = () => null;';
+    const after = "import dynamic from 'next/dynamic';\nexport const A = dynamic(() => import('./A'));\nexport const B = dynamic(() => import('./B'));";
+    expect(await run(wi106, diffOf('src/c.tsx', before, after))).toEqual([]);
+  });
+
+  it('WI106 still flags dynamic in a language where it is the top type', async () => {
+    const findings = await wi106.run({
+      ...ctx(),
+      getLanguage: () => 'csharp' as const,
+      files: diffOf('src/r.cs', 'class Repo {\n  int a;\n  int b;\n}', 'class Repo {\n  dynamic a;\n  dynamic b;\n}'),
+    });
+    expect(findings.length).toBeGreaterThan(0);
+  });
+});

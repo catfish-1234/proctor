@@ -1,4 +1,4 @@
-import type { Context, Finding, Verifier } from '../types.js';
+import type { Context, Finding, Language, Verifier } from '../types.js';
 import type { DiffLine } from './wi-common.js';
 import { addedLines, deletedLines, hasExplanation, isCommentLine, isWatchedSource, pathOf, withoutLiterals, withoutTrailingComment } from './wi-common.js';
 
@@ -16,14 +16,17 @@ import { addedLines, deletedLines, hasExplanation, isCommentLine, isWatchedSourc
  */
 
 /** A value declared or asserted as the top type. */
-const WIDENING_SIGNATURES: { re: RegExp; what: string }[] = [
+const WIDENING_SIGNATURES: { re: RegExp; what: string; langs?: Language[] }[] = [
   { re: /\bas\s+any\b/, what: 'as any' },
   { re: /:\s*any\b(?!\s*\w)/, what: ': any' },
   { re: /\bas\s+unknown\s+as\b/, what: 'as unknown as' },
   { re: /Array<any>|any\[\]/, what: 'any[]' },
   { re: /:\s*Any\b/, what: ': Any' },
   { re: /\binterface\{\}/, what: 'interface{}' },
-  { re: /\bdynamic\b/, what: 'dynamic' },
+  // `dynamic` is a real top type in Dart and C#. In TypeScript it is a variable name, and
+  // `import dynamic from 'next/dynamic'` survives literal-blanking as a bare identifier, so
+  // every Next.js lazy-loaded component read as a widened type.
+  { re: /\bdynamic\b/, what: 'dynamic', langs: ['dart', 'csharp'] },
   { re: /\b@ts-expect-error\b/, what: '@ts-expect-error' },
 ];
 
@@ -68,7 +71,8 @@ function run(context: Context): Finding[] {
       // not a cast. Without this, WI106's own signature table read as seven type widenings.
       if (isCommentLine(line.text)) continue;
       const code = withoutLiterals(withoutTrailingComment(line.text));
-      const sig = WIDENING_SIGNATURES.find(s => s.re.test(code));
+      const lang = context.getLanguage(filePath);
+      const sig = WIDENING_SIGNATURES.find(s => s.re.test(code) && (s.langs === undefined || s.langs.includes(lang)));
       // A cast the author explained is the boundary case this check is designed not to punish.
       if (sig && !hasExplanation(line.text)) widened.push({ line, what: sig.what });
     }

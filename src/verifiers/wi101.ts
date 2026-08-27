@@ -29,6 +29,9 @@ interface Signature {
 }
 
 /** Error-reporting calls whose removal can make a real failure invisible without swallowing it. */
+/** The line that opens the error handler a diagnostic lives inside. */
+const HANDLER_OPENER_RE = /\bcatch\s*[({]|\bexcept\b|\brescue\b|^\s*\}\s*catch\b/;
+
 const ERROR_DIAGNOSTIC_RE =
   /\b(?:console|logger|log)\.(?:error|fatal)\s*\(|\b(?:captureException|reportError|notifyException)\s*\(/;
 const QUIET_DIAGNOSTIC_RE = /\b(?:console|logger|log)\.(?:debug|trace)\s*\(/;
@@ -226,7 +229,14 @@ function run(context: Context): Finding[] {
       .flatMap(addedLines)
       .some(line => isCommentLine(line.text) && hasExplanation(line.text));
 
-    if (removedDiagnostic && !replacementReported && !changeExplainsRemoval) {
+    // A diagnostic that went with the handler around it is not reduced visibility, it is deleted
+    // code. Collapsing a try/catch into a direct call removes the catch, the console.error inside
+    // it, and the fallback return together, and reporting that as "the failure can become
+    // invisible" describes a program that no longer exists.
+    const handlerAlsoRemoved = file.chunks.some(chunk =>
+      deletedLines(chunk).some(line => HANDLER_OPENER_RE.test(line.text)));
+
+    if (removedDiagnostic && !replacementReported && !changeExplainsRemoval && !handlerAlsoRemoved) {
       findings.push({
         verifierId: 'WI101',
         severity: 'warn',

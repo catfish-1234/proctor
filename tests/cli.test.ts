@@ -90,11 +90,15 @@ describe('CLI smoke tests', () => {
     });
   });
 
-  it('check in non-git dir exits 2 with proctor: on stderr', () => {
+  it('check in a non-git dir exits 3, the code for proctor failing to run', () => {
+    // Deliberate change from 2. Exit 2 means a finding, and the Stop hook blocks on it; 3 means
+    // proctor could not look, which the Stop hook allows as its documented fail-open policy. Not
+    // being able to read a repository is the second thing, not the first. The pre-commit hook
+    // propagates both and so still fails closed either way.
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
       const result = spawnSync('node', [CLI, 'check'], { cwd: tmpDir, encoding: 'utf8' });
-      expect(result.status).toBe(2);
+      expect(result.status).toBe(3);
       expect(result.stderr).toContain('proctor:');
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
@@ -1126,7 +1130,9 @@ describe('check --base flag', () => {
         cwd: tmpDir,
         encoding: 'utf8',
       });
-      expect(result.status).toBe(2);
+      // 3 rather than 2: an unresolvable ref means proctor could not produce a diff, not that it
+      // found something. What this test actually guards is the line below.
+      expect(result.status).toBe(3);
       expect(result.stderr).toContain('proctor:');
       expect(existsSync(join(tmpDir, 'pwned...HEAD'))).toBe(false);
     } finally {

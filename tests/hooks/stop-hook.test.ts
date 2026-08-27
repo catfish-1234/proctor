@@ -44,6 +44,24 @@ describe('runStopHookCheck', () => {
     }
   });
 
+  it('allows a turn when the check itself could not run, rather than blocking on it', () => {
+    // The Stop hook's documented policy is to fail open on infrastructure failure and block only
+    // on a finding. That only holds if `check` distinguishes the two: a git failure used to exit 2,
+    // the same code as a real finding, so an unreadable repository blocked the turn. It exits 3 now,
+    // and the hook maps only 2 to blocked.
+    const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-infra-'));
+    try {
+      const cliPath = resolve(process.cwd(), 'dist/cli.js');
+      // A repository whose index is unreadable: git can start but cannot produce a diff.
+      spawnSync('git', ['init'], { cwd: tmpDir });
+      writeFileSync(join(tmpDir, '.git', 'index'), 'not an index', 'utf8');
+      const result = runStopHookCheck(tmpDir, cliPath);
+      expect(result.exitCode).toBe(0);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
   it('blocks a deleted test that was never staged, the state an agent actually leaves behind', () => {
     // An agent finishing a turn has edited files and staged nothing. A hook that only reads the
     // index would see an empty diff and allow every unstaged cheat through.

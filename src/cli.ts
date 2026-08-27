@@ -147,7 +147,11 @@ program
       if (!options.base) {
         const hidden = hiddenTrackedPaths(cwd);
         if (hidden.length > 0) {
-          throw new Error(`tracked path(s) hidden by assume-unchanged/skip-worktree: ${hidden.slice(0, 5).join(', ')}${hidden.length > 5 ? ` (+${hidden.length - 5} more)` : ''}`);
+          process.stderr.write('proctor: ' + `tracked path(s) hidden by assume-unchanged/skip-worktree: ${hidden.slice(0, 5).join(', ')}${hidden.length > 5 ? ` (+${hidden.length - 5} more)` : ''}` + '\n');
+          // Deliberately exit 2, not 3. A tracked file hidden with assume-unchanged is a state
+          // an agent can set on purpose to make its change invisible, so it is a finding about the
+          // change rather than proctor failing to run.
+          process.exit(2);
         }
       }
       ({ raw, files } = runGitDiff(diffArgs, cwd, { includeUntracked: allUncommitted }));
@@ -159,7 +163,11 @@ program
         ? `not a git repository (run proctor inside a git repo)`
         : msg.replace(/^Error:\s*/, '');
       process.stderr.write('proctor: ' + clean + '\n');
-      process.exit(2);
+      // 3, not 2. git failing to produce a diff means proctor could not look, which is a
+      // different claim from "a cheat was found". The pre-commit hook blocks on both and so still
+      // fails closed; the Stop hook blocks on 2 and allows 3, which is its documented fail-open
+      // policy. Exiting 2 here made an unreadable repository block an agent turn instead.
+      process.exit(3);
     }
     const { accepted } = classifyDiff(raw, files);
     // Config comes from the diff baseline (HEAD, or the --base ref), never the working tree,

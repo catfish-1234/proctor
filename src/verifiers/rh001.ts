@@ -1,6 +1,7 @@
 import { basename } from 'node:path';
 import type { Context, Finding, Verifier } from '../types.js';
 import type { ParsedFile } from '../diff.js';
+import { insideTemplateLiteral } from './wi-common.js';
 
 // Modifier forms (it.each, test.skip, describe.only, ...) are deletions of tests too, keep
 // this in sync with JS_TS_ADD below so both sides of the pairing see the same shapes.
@@ -181,8 +182,16 @@ function run(context: Context): Finding[] {
       const hasReconcilingAdd = chunk.changes.some(
         c => c.type === 'add' && (JS_TS_ADD.test(c.content) || PY_ADD.test(c.content)),
       );
-      for (const change of chunk.changes) {
+      // A test declaration inside a multi-line template is a payload, not a test: a codemod, a
+      // linter or a migration guide embeds test source as data, and those files are themselves
+      // test files, so the isTestFile gate above does not exclude them. Same rule the WI family
+      // learned five times over, reaching RH001 last.
+      const templateLines = insideTemplateLiteral(
+        chunk.changes.map(c => ({ text: c.content.replace(/^[+-]/, ''), line: 0, added: c.type === 'add' })),
+      );
+      for (const [changeIndex, change] of chunk.changes.entries()) {
         if (change.type !== 'del') continue;
+        if (templateLines.has(changeIndex)) continue;
         if (hasReconcilingAdd) continue; // modified (renamed/reformatted/skip-wrapped/consolidated), not deleted
         if (JS_TS_DEL.test(change.content)) {
           const name = extractTestName(change.content);

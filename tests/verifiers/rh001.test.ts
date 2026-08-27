@@ -349,3 +349,23 @@ describe('RH001, test titles containing the other quote character', () => {
     expect(findings[0]!.message).toContain('Cannot set "stdout" option to "ipc" to use .pipe()');
   });
 });
+
+describe('RH001, a test declaration inside a template is a payload', () => {
+  it('does not report a test removed from an embedded source string', () => {
+    // A codemod or linter test embeds test source as data, and those files are themselves test
+    // files, so the isTestFile gate does not exclude them.
+    const files = parseDiff([
+      'diff --git a/t/codemod.test.ts b/t/codemod.test.ts',
+      'index 1111111..2222222 100644',
+      '--- a/t/codemod.test.ts',
+      '+++ b/t/codemod.test.ts',
+      '@@ -1,5 +1,4 @@',
+      ' const INPUT = `',
+      ' describe(1, () => {',
+      "-  it('old case', () => {});",
+      "   it('kept case', () => {});",
+      ' });',
+    ].join('\n'));
+    expect(rh001.run({ ...baseCtx, files })).toEqual([]);
+  });
+});

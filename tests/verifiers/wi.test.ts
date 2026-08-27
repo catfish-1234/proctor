@@ -1037,3 +1037,22 @@ describe('WI101/WI102/WI110/WI112, refactors that are not evasion', () => {
     expect((await run(wi110, diffOf('package.json', before, after))).length).toBeGreaterThan(0);
   });
 });
+
+describe('WI103, a guard that exits is still a guard', () => {
+  it('does not report a throw converted to stderr plus a nonzero exit', async () => {
+    // CLI code routinely reports and exits instead of raising. proctor's own hidden-paths guard was
+    // converted that way and reported as validation removed, which is the opposite of what the diff
+    // did: the case is still rejected, and loudly.
+    const before = 'function scan(paths) {\n  if (paths.length > 0) {\n    throw new Error(`hidden: ${paths}`);\n  }\n}';
+    const after = 'function scan(paths) {\n  if (paths.length > 0) {\n    process.stderr.write(`hidden: ${paths}`);\n    process.exit(2);\n  }\n}';
+    expect(await run(wi103, diffOf('src/cli.ts', before, after))).toEqual([]);
+  });
+
+  it('still reports a throw replaced by an exit that succeeds', async () => {
+    // Exiting 0 in place of a throw is how a guard gets laundered into a no-op, so the zero case
+    // stays a finding.
+    const before = 'function scan(paths) {\n  if (paths.length > 0) {\n    throw new Error(`hidden: ${paths}`);\n  }\n}';
+    const after = 'function scan(paths) {\n  if (paths.length > 0) {\n    process.exit(0);\n  }\n}';
+    expect((await run(wi103, diffOf('src/cli.ts', before, after))).length).toBeGreaterThan(0);
+  });
+});

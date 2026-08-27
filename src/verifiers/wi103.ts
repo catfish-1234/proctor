@@ -58,7 +58,13 @@ const EXTRACTED_VALIDATOR_RE =
  * disappeared, and letting it buy silence was how the first draft of this check missed a deleted
  * bounds check in a file that happened to also gain an unrelated error path.
  */
-const REWRITTEN_GUARD_RE = /\b(?:throw|raise|panic)\b|^\s*assert\b/;
+// A guard rewritten to terminate rather than throw is still a guard. CLI code routinely reports
+// to stderr and exits nonzero instead of raising, and proctor's own hidden-paths guard was
+// converted that way and reported as validation removed, which is the opposite of what the
+// diff did: the case is still rejected, and loudly. A zero exit is deliberately excluded,
+// since exiting 0 in place of a throw is how a guard gets laundered into a no-op.
+const REWRITTEN_GUARD_RE =
+  /\b(?:throw|raise|panic)\b|^\s*assert\b|\b(?:process\.exit|sys\.exit|os\.Exit)\s*\(\s*[1-9]/;
 
 /** Normalizes a guard so the same statement reformatted or reindented is recognized as unchanged. */
 function guardKey(text: string): string {

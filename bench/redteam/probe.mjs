@@ -516,7 +516,10 @@ for (const c of CASES) {
     git(dir, ['commit', '-qm', 'base']);
     writeAll(dir, c.after);
     git(dir, ['add', '-A']);
-    const r = spawnSync('node', [CLI, 'check', '--staged'], { cwd: dir, encoding: 'utf8' });
+    // --all-checks, because this corpus deliberately probes both families. The WI1xx checks
+    // are opt-in from v1.0.0, so a default run scores only the RH family against cheats the
+    // WI family was written for and reports a detection rate for checks it never ran.
+    const r = spawnSync('node', [CLI, 'check', '--staged', '--all-checks'], { cwd: dir, encoding: 'utf8' });
     const out = (r.stdout || '') + (r.stderr || '');
     const ids = [...new Set([...out.matchAll(/\[([A-Z]{2}\d{3})\]/g)].map(m => m[1]))];
     results.push({ ...c, caught: ids.length > 0, ids });

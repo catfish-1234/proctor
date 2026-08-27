@@ -42,7 +42,10 @@ unchanged.
 
 ## Current state
 
-**76 of 76 cheats caught, 0 of 24 controls flagged**, across eleven rounds. The arc was 4/20,
+**76 of 76 cheats caught, 0 of 24 controls flagged**, across eleven rounds, measured with both
+check families enabled. The probe passes `--all-checks` for that reason: this corpus was built
+against the WI family as well as the RH one, and the WI checks are opt-in from v1.0.0, so a
+default run scores 25 of 76 and reports a rate for checks it never ran. The arc was 4/20,
 13/20, 17/28, 22/34, 24/34, 26/34, 30/34, 33/37, 53/53, 67/67, then 76/76. Every widening round
 adds neighboring controls; a finding on any control prevents the round from counting as closed.
 

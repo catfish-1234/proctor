@@ -13,8 +13,8 @@ describe('action.yml', () => {
     expect(actionYml).toContain('using: composite');
   });
 
-  it('pins actions/setup-node v7 to its immutable commit', () => {
-    expect(actionYml).toContain('actions/setup-node@820762786026740c76f36085b0efc47a31fe5020');
+  it('pins actions/setup-node v7.1.0 to its immutable commit', () => {
+    expect(actionYml).toContain('actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0');
   });
 
   it('builds proctor from source', () => {
@@ -42,8 +42,8 @@ describe('action.yml', () => {
     expect(actionYml).toContain('echo "ref=HEAD~1"');
   });
 
-  it('pins github/codeql-action upload-sarif v4 to its immutable commit', () => {
-    expect(actionYml).toContain('github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3');
+  it('pins github/codeql-action upload-sarif v4.38.2 to its immutable commit', () => {
+    expect(actionYml).toContain('github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2');
   });
 
   it('upload step runs if: always()', () => {

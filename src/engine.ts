@@ -1,7 +1,7 @@
 import type { ParsedFile } from './diff.js';
 import type { ApprovedTestChange, Context, Finding, Severity } from './types.js';
 import { VERIFIERS } from './verifiers/registry.js';
-import micromatch from 'micromatch';
+import picomatch from 'picomatch';
 
 const norm = (p: string) => p.replace(/\\/g, '/');
 
@@ -76,7 +76,7 @@ function applySuppression(findings: Finding[], files: ParsedFile[]): Finding[] {
       // justification was removed (or a pre-planted marker is being used to mask a file
       // deletion). Also does not suppress.
       if (change.type !== 'normal') continue;
-      const content = change.content.replace(/^[ +\-]/, '');
+      const content = change.content.replace(/^[ +-]/, '');
       const m = /proctor-ignore:\s*(\S+)\s+reason:\s*(.+)/.exec(content);
       if (m && m[1] === finding.verifierId && m[2]?.trim()) return false; // suppress
     }
@@ -87,7 +87,7 @@ function applySuppression(findings: Finding[], files: ParsedFile[]): Finding[] {
 /**
  * `dot: true` on every glob match in this file, and it is load-bearing.
  *
- * micromatch does not match a leading dot with `*` unless told to, so `fixtures/**` silently failed
+ * Picomatch does not match a leading dot with `*` unless told to, so `fixtures/**` silently failed
  * to cover `fixtures/x/.gitignore`, and this repository's own `ignorePatterns` did not do what it
  * plainly says. Nobody noticed until a check started reporting dotfiles, because until then no
  * finding had ever landed on one. The same applies to approvals: `src/**` should approve
@@ -97,8 +97,9 @@ function applySuppression(findings: Finding[], files: ParsedFile[]): Finding[] {
 const GLOB_OPTIONS = { dot: true } as const;
 
 function applyIgnorePatterns(findings: Finding[], patterns: string[]): Finding[] {
-  if (patterns.length === 0) return findings;
-  return findings.filter(f => !micromatch.isMatch(f.file.replace(/\\/g, '/'), patterns, GLOB_OPTIONS));
+  if (patterns.length === 0 || findings.length === 0) return findings;
+  const matchesIgnoredPath = picomatch(patterns, GLOB_OPTIONS);
+  return findings.filter(f => !matchesIgnoredPath(norm(f.file)));
 }
 
 /**
@@ -119,7 +120,7 @@ function applyApprovals(findings: Finding[], approvals: ApprovedTestChange[]): F
   return findings.map(f => {
     const path = norm(f.file);
     const match = approvals.find(
-      a => a.rule === f.verifierId && (norm(a.file) === path || micromatch.isMatch(path, norm(a.file), GLOB_OPTIONS)),
+      a => a.rule === f.verifierId && (norm(a.file) === path || picomatch(norm(a.file), GLOB_OPTIONS)(path)),
     );
     if (!match) return f;
     return { ...f, severity: 'info' as Severity, approved: true as const, approvalReason: match.reason };

@@ -1,4 +1,4 @@
-import micromatch from 'micromatch';
+import picomatch from 'picomatch';
 import type { Context, Finding, Verifier } from '../types.js';
 
 // Default snapshot/golden file globs. This file owns these defaults, not context/index.ts.
@@ -29,12 +29,13 @@ function run(context: Context): Finding[] {
   // documented way to state a reason for an uncommitted change is the generic inline
   // `proctor-ignore: RH006 reason: ...` comment (applied by the engine for every verifier).
   const hasReason = ctx.committedDiff && ctx.commitMessage ? REASON_KEYWORDS.test(ctx.commitMessage) : false;
-  if (hasReason) return [];
+  if (hasReason || files.length === 0) return [];
+  const matchesSnapshot = picomatch(globs);
 
   for (const file of files) {
-    // Normalize path separator for cross-platform micromatch (Windows uses backslash)
+    // Normalize path separators for cross-platform glob matching (Windows uses backslash).
     const filePath = (file.to ?? file.from ?? '').replace(/\\/g, '/');
-    if (!micromatch.isMatch(filePath, globs)) continue;
+    if (!matchesSnapshot(filePath)) continue;
 
     // Skip pure-deletion diffs, removing old snapshots is routine maintenance, not suspicious
     const firstAdd = file.chunks.flatMap(c => c.changes).find(c => c.type === 'add');

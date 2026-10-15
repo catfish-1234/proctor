@@ -2,10 +2,10 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import fg from 'fast-glob';
+import picomatch from 'picomatch';
+import { discoverTestFiles } from '../glob.js';
 
 const execFileAsync = promisify(execFile);
-import micromatch from 'micromatch';
 import type { Context, Language, ProctorConfig } from '../types.js';
 import type { ParsedFile } from '../diff.js';
 import { RULE_METADATA } from '../rules.js';
@@ -289,17 +289,12 @@ export async function buildContext(cwd: string, files: ParsedFile[], opts?: { co
   const testPathGlobs = config.testPathGlobs ?? DEFAULT_GLOBS;
   const enabled = config.enabled ?? DEFAULT_ENABLED;
 
-  const testFiles = await fg(testPathGlobs, {
-    cwd,
-    dot: false,
-    ignore: ['node_modules/**', 'dist/**'],
-    absolute: false,
-    onlyFiles: true,
-  });
+  const testFiles = await discoverTestFiles(cwd, testPathGlobs);
+  const matchesTestPath = picomatch(testPathGlobs);
 
   // Pure closure, no I/O. Normalize backslashes so this works the same on Windows and POSIX.
   const isTestFile = (path: string): boolean =>
-    micromatch.isMatch(path.replace(/\\/g, '/'), testPathGlobs);
+    matchesTestPath(path.replace(/\\/g, '/'));
 
   const getLanguage = (filePath: string): Language => {
     const ext = filePath.split('.').pop()?.toLowerCase();

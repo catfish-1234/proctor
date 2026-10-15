@@ -1,7 +1,7 @@
 import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { chmodSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import pkg from '../../package.json' with { type: 'json' };
 
 /**
@@ -54,6 +54,21 @@ export function preCommitHookContent(): string {
   ].join('\n');
 }
 
+/**
+ * Where git will actually look for hooks, or undefined outside a repository.
+ *
+ * `.git` is a directory only in a plain clone. In a linked worktree or a submodule it is a file
+ * pointing elsewhere, and `core.hooksPath` can move hooks anywhere, so joining `.git/hooks` by
+ * hand either fails with ENOTDIR or writes a hook git never runs. Asking git settles both, and
+ * `--git-path hooks` honors `core.hooksPath`. The answer is relative to cwd unless absolute.
+ */
+function gitHooksDir(cwd: string): string | undefined {
+  const r = spawnSync('git', ['rev-parse', '--git-path', 'hooks'], { cwd, encoding: 'utf8' });
+  if (r.status !== 0) return undefined;
+  const out = r.stdout.trim();
+  return out ? resolve(cwd, out) : undefined;
+}
+
 async function hasHusky(cwd: string): Promise<boolean> {
   try {
     const pkgJson = JSON.parse(await readFile(join(cwd, 'package.json'), 'utf8')) as Record<string, unknown>;
@@ -96,16 +111,16 @@ export async function installPreCommitHook(cwd: string): Promise<string> {
     return hookPath;
   }
 
-  // Without this, `mkdir -p .git/hooks` below happily creates a .git directory in a plain folder,
-  // leaving behind something that looks like a repository, contains a hook nothing will ever run,
-  // and reports success.
-  const insideRepo = spawnSync('git', ['rev-parse', '--git-dir'], { cwd, encoding: 'utf8' });
-  if (insideRepo.status !== 0) {
+  // Outside a repository there is no pre-commit hook to install. Creating `.git/hooks` anyway
+  // would leave something that looks like a repository, holds a hook nothing will ever run, and
+  // reports success.
+  const hooksDir = gitHooksDir(cwd);
+  if (!hooksDir) {
     throw new Error('not a git repository, so there is no pre-commit hook to install');
   }
 
-  const hookPath = join(cwd, '.git', 'hooks', 'pre-commit');
-  await mkdir(join(cwd, '.git', 'hooks'), { recursive: true });
+  const hookPath = join(hooksDir, 'pre-commit');
+  await mkdir(hooksDir, { recursive: true });
   await backupForeignHook(hookPath);
   await writeFile(hookPath, hookContent, 'utf8');
   try { chmodSync(hookPath, 0o755); } catch { /* Windows, acceptable */ }
@@ -129,7 +144,10 @@ export async function removePreCommitHook(cwd: string, dryRun: boolean): Promise
     s.replace(/\r\n/g, '\n').split('\n').map(l => l.trimEnd()).filter(Boolean).join('\n');
   const ours = normalize(preCommitHookContent());
 
-  for (const hookPath of [join(cwd, '.husky', 'pre-commit'), join(cwd, '.git', 'hooks', 'pre-commit')]) {
+  const gitHooks = gitHooksDir(cwd);
+  const candidates = [join(cwd, '.husky', 'pre-commit')];
+  if (gitHooks) candidates.push(join(gitHooks, 'pre-commit'));
+  for (const hookPath of candidates) {
     let existing: string;
     try {
       existing = await readFile(hookPath, 'utf8');

@@ -89,10 +89,11 @@ async function printNotice(target: string): Promise<void> {
     agentPaths.length > 0
       ? `  - the honest-completion ruleset to ${agentPaths.length} agent path${agentPaths.length === 1 ? '' : 's'}: ${agentPaths.join(', ')}`
       : '  - the honest-completion ruleset to the agent paths this repo already uses (AGENTS.md if none are detected)',
-    '  - a git pre-commit hook at .git/hooks/pre-commit (an existing hook is never overwritten)',
+    '  - a git pre-commit hook at .git/hooks/pre-commit (or the configured hook path / .husky/pre-commit); a foreign hook is backed up, then replaced',
     '  - a Claude Code Stop hook in .claude/settings.json, only if this repo uses Claude Code',
+    '  - .proctor-adapter-manifest.json, recording the deployed ruleset paths',
     '',
-    'Nothing outside your repository is touched, and no network call is made.',
+    'No network call is made. Git may configure a hook path outside the working tree.',
     'Run `npx proctor check` first if you want to see what it finds before wiring anything up.',
     'Set PROCTOR_AUTO_SETUP=1 to have future installs run setup for you.',
     '',

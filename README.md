@@ -16,13 +16,15 @@ proctor reads your git diff and blocks the changes an AI coding agent makes when
 finished job: deleting a failing test, weakening the assertion, hardcoding the answer, swallowing
 the error, or switching off the checks that were about to catch any of it.
 
-No network, no account, no API key. The whole check runs offline. You need Node 20 or newer.
+The default check runs offline: no account or API key. The optional `--ai` judge sends candidates
+to Anthropic and needs `ANTHROPIC_API_KEY`. You need Node 20 or newer; building and testing from
+source needs Node 20.19+ or 22.12+.
 
 ## Contents
 
 **Getting started**
 
-- [Quickstart](#quickstart), try it against a repo without installing anything
+- [Quickstart](#quickstart), try it from source against a repo
 - [Install](#install), and exactly what it writes
 - [What that setup does](#what-that-setup-does)
 - [One thing to do afterwards](#one-thing-to-do-afterwards)
@@ -64,15 +66,15 @@ npm run build
 node dist/cli.js check /path/to/repository
 ```
 
-If it prints `✓ proctor: honest pass`, your current changes are clean. If your changes don't touch
-tests at all, that's the answer you should expect.
+If it prints `✓ proctor: honest pass`, no enabled check found a problem. Checks also cover source
+and configuration changes; findings depend on the enabled rules.
 
 The check writes nothing to the repository being checked and makes no runtime network call.
-`npm ci` installs build dependencies only in the proctor checkout.
+`npm ci` installs dependencies in the proctor checkout.
 
 ## Install
 
-Two steps, and the second one is the only thing that writes to your repo.
+Agent plugins install the ruleset. For CLI checks and hooks, use the local npm installation below.
 
 **Claude Code**
 
@@ -102,8 +104,9 @@ npm pack
 npm install --save-dev /absolute/path/to/kavishdua-proctor-*.tgz
 ```
 
-**Installing writes nothing to your repository.** The install prints exactly what the next command
-would write, and stops. When you want the guards:
+**Proctor does not install guards during npm installation by default.** npm still updates your
+package files and `node_modules`. Proctor prints what setup would write, then stops. From the
+repository you want to guard, run:
 
 ```bash
 npx proctor setup
@@ -111,13 +114,13 @@ npx proctor setup
 
 ### What that setup does
 
-This is the complete list of what `proctor setup` writes, and where. Nothing outside your
-repository is touched, and no network call is made.
+This is what `proctor setup` writes. It makes no network call. Git chooses the hook directory,
+which may be outside the working tree when you use worktrees or `core.hooksPath`.
 
 | Path | What it is | If it already exists |
 | --- | --- | --- |
 | The ruleset file for each agent this repo uses, e.g. `.claude/skills/proctor/SKILL.md`, `.cursor/rules/proctor.mdc`, `AGENTS.md` | The honest-completion rules your agent reads before it works | A shared file like `AGENTS.md` keeps your content; only proctor's delimited block is replaced |
-| `.git/hooks/pre-commit` | Blocks a cheat at commit time | A pre-commit hook that isn't proctor's is left alone |
+| Git's hook directory (`.git/hooks/pre-commit` normally), or `.husky/pre-commit` when Husky is a dev dependency | Blocks a cheat at commit time; the Husky file is also staged | A foreign hook is backed up to `pre-commit.bak`, then replaced; merge it manually if needed |
 | `.claude/settings.json` | The Claude Code Stop hook, written only if this repo uses Claude Code | Merged into the existing JSON; nothing else in the file changes |
 | `.proctor-adapter-manifest.json` | Records what was written, so `uninstall` can take exactly that back out | Rewritten |
 
@@ -126,8 +129,8 @@ How the agent list is chosen: proctor looks for each agent's own config (`.curso
 `AGENTS.md`, the cross-vendor standard. Run `proctor agents` first to see the list for your repo.
 `--all` installs to all 30 supported agents; `--agents claude-code,cursor` names them yourself.
 
-`setup` stays out of the way where setting itself up would be wrong: in CI, in a global install,
-when pulled in as somebody else's dependency, outside a git repository, or under `npx`.
+The npm postinstall notice and automatic setup stay quiet in CI, global installs, transitive
+installs, outside a git repository, and under `npx`. An explicit `proctor setup` still runs.
 
 **If you want the old install-and-wire behavior**, set `PROCTOR_AUTO_SETUP=1` and installing runs
 `proctor setup` for you. `PROCTOR_NO_POSTINSTALL=1` silences the install-time notice entirely.
@@ -149,8 +152,8 @@ config file.
 ### Checking it worked
 
 ```bash
-proctor drift-check   # exits 0 if every deployed ruleset copy still matches the source
-proctor statusline    # "proctor: watching", or "proctor: 3 caught" once it has blocked something
+npx proctor drift-check   # exits 0 if every deployed ruleset copy still matches the source
+npx proctor statusline    # "proctor: watching", or "proctor: 3 caught" once it has blocked something
 ```
 
 Or trip it deliberately: delete a test in a scratch branch and run `proctor check`.
@@ -241,6 +244,16 @@ proctor check --explain RH001 --fix  # what an honest fix looks like
 
 ## What do the codes mean?
 
+For `proctor check`, exit `0` means no warning or error findings, `1` means warnings only, `2` means
+error findings, and `3` means the check could not complete (for example, outside a git repository).
+With `--ci`, warnings still appear in JSON, SARIF, and Markdown but exit `0`; text output shows
+only errors. Invalid arguments can also exit `1` or `2`, and `--ai` without its key exits `1`.
+
+Use `npx proctor check --staged` for the index or `npx proctor check --base origin/main` for
+committed changes since the merge base. The default includes staged, unstaged, and untracked files.
+Run `npx proctor check --help` for flags, or see the
+[CLI reference](https://github.com/catfish-1234/proctor/blob/main/docs/CLI.md).
+
 Every finding carries a short ID like `RH001`. They are just stable labels, the same idea as an
 ESLint rule name, so a check can be referenced without spelling out a whole sentence. Nothing to
 memorize: the plain-English name and full explanation print with every finding.
@@ -320,25 +333,27 @@ under `--ci`, which is what the hooks and the GitHub Action use.
 
 ## CI
 
-Add proctor to a pull request in nine lines. Findings land in the job summary, and in Code Scanning
-as inline PR comments if the repository has it enabled.
+Add proctor to a pull request with this workflow. Findings land in the job summary and in Code
+Scanning if the repository has it enabled.
 
 ```yaml
 # .github/workflows/proctor.yml
 on: [pull_request]
+permissions:
+  contents: read
+  security-events: write
 jobs:
   proctor:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with: { fetch-depth: 0 }
-      - uses: catfish-1234/proctor@v1
+      - uses: catfish-1234/proctor@1bfd0b192ea214a0ed349b27822b11b8ccf23e07
 ```
 
-`v1` is a moving tag: it follows the newest `1.x` release, so patch and minor fixes arrive without
-a PR. To pin exactly instead, use a full commit SHA
-(`catfish-1234/proctor@11fcd5cbad7d3a731dc5e79c4858012e74c6fc52`), which is immutable and cannot be
-moved under you.
+No release tags exist yet, so the example pins an existing source commit. After the first release,
+`catfish-1234/proctor@v1` will be the moving tag for the newest `1.x` release. To keep builds
+reproducible, use a full commit SHA as above; a full SHA is immutable.
 
 ## How it works
 

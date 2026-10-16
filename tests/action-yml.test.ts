@@ -42,8 +42,9 @@ describe('action.yml', () => {
     expect(actionYml).toContain('echo "ref=HEAD~1"');
   });
 
-  it('pins github/codeql-action upload-sarif v4.38.2 to its immutable commit', () => {
-    expect(actionYml).toContain('github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2');
+  it('pins github/codeql-action upload-sarif to an immutable commit', () => {
+    // A dependency update should keep the pin, without requiring a test edit for each release.
+    expect(actionYml).toMatch(/uses: github\/codeql-action\/upload-sarif@[0-9a-f]{40} # v[0-9]+\.[0-9]+\.[0-9]+(?:\s|$)/);
   });
 
   it('upload step runs if: always()', () => {

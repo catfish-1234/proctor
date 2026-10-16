@@ -18,12 +18,14 @@ the point.
 
 ## Getting set up
 
-Node 20 or newer.
+Use Node 20.19+ or 22.12+ for development (the packaged CLI supports Node 20+).
 
 ```bash
 git clone https://github.com/catfish-1234/proctor && cd proctor
-npm install
+npm ci
 npm run build
+npm run typecheck
+npm run lint
 npm test
 ```
 
@@ -35,6 +37,7 @@ subprocess. If you change `src/`, rebuild before re-running those tests, or just
 | `npm run build` | bundle `src/` to `dist/` with tsup |
 | `npm test` | build, then run the full vitest suite |
 | `npm run test:watch` | vitest in watch mode, no rebuild |
+| `npm run lint` | Oxlint correctness checks for source, tests, scripts and build config |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run sync-plugin` | regenerate the copies of `src/skill/SKILL.md` (see below) |
 | `npm run drift-check` | verify every deployed ruleset copy still matches the source |
@@ -56,7 +59,7 @@ src/
   watch.ts              # the file watcher behind `proctor watch`
   brand.ts              # name and color tokens shared by CLI output and badges
   context/              # builds Context: test globs, language detection, config
-  verifiers/            # one file per check, RH001 through RH013, pure functions
+  verifiers/            # one file per check, RH001 through RH014 and WI101 through WI113, pure functions
   reporters/            # pretty, json, sarif, markdown, score output
   hooks/                # git pre-commit hook, Claude Code Stop hook, settings merge
   adapters/             # ruleset deployment and removal, agent detection, drift-check
@@ -82,18 +85,18 @@ If a change would make a normal `proctor check` require a network call, it is th
 
 ## Adding a check
 
-Say you want `RH014`.
+Choose the next unused ID in the relevant check family; the examples below use `RH015`.
 
-1. **Write the fixtures first**, in `fixtures/RH014/`. You need both a true positive (a diff that
+1. **Write the fixtures first**, in `fixtures/RH015/`. You need both a true positive (a diff that
    should fire) and a near miss (a diff that looks similar and must *not* fire). The near miss is
    the important one: a check that fires on honest code is worse than no check.
 2. **Add the rule metadata** to `src/rules.ts`: `name`, `shortDescription`, `fullDescription`,
    `defaultLevel`, and `fix`. The `fix` text is what an agent reads when it gets blocked, so write
    it as an instruction, not a description.
-3. **Write the verifier** in `src/verifiers/rh014.ts`, exporting a `Verifier`. Keep it pure.
-4. **Register it** in `src/verifiers/registry.ts` and add the ID to `DEFAULT_ENABLED` in
+3. **Write the verifier** in `src/verifiers/rh015.ts`, exporting a `Verifier`. Keep it pure.
+4. **Register it** in `src/verifiers/registry.ts` and add the ID to `RH_CHECKS` or `WI_CHECKS` in
    `src/context/index.ts`.
-5. **Write the tests** in `tests/verifiers/rh014.test.ts`, covering both fixtures.
+5. **Write the tests** in `tests/verifiers/rh015.test.ts`, covering both fixtures.
 6. **Document it**: the table in `README.md`, `src/skill/SKILL.md`, and the matrix in
    `docs/LANGUAGES.md`. Then run `npm run sync-plugin`.
 

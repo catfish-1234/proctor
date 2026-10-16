@@ -7,7 +7,7 @@ export interface ClassificationResult {
 
 // Extensions that make a path a test file. Kept local and deliberately simple: this only decides
 // whether a rename-only diff is worth keeping for RH001 (renaming a test to drop its extension),
-// so it doesn't need the full configurable testPathGlobs the verifiers use.
+// as a fallback for standalone callers. CLI callers pass the committed config's matcher.
 const TEST_FILE_RE = /(?:\.(?:test|spec)\.[jt]sx?|(?:^|\/)test_[^/]*\.py|_test\.py)$/;
 const dropsTestExtension = (from: string, to: string): boolean =>
   TEST_FILE_RE.test(from) && !TEST_FILE_RE.test(to);
@@ -22,7 +22,11 @@ const dropsTestExtension = (from: string, to: string): boolean =>
  *   5. rename-only    (file-level: different names, no hunks, not add/delete)
  * Files that pass all checks land in `accepted`.
  */
-export function classifyDiff(raw: string, files: ParsedFile[]): ClassificationResult {
+export function classifyDiff(
+  raw: string,
+  files: ParsedFile[],
+  isTestFile?: (path: string) => boolean,
+): ClassificationResult {
   const accepted: ParsedFile[] = [];
   const rejected: Array<{ file: ParsedFile | null; reason: string }> = [];
 
@@ -51,6 +55,7 @@ export function classifyDiff(raw: string, files: ParsedFile[]): ClassificationRe
     // but are not mode-only, they carry real content changes.
     if (
       file.chunks.length === 0 &&
+      file.from === file.to &&
       (file.oldMode !== undefined || file.newMode !== undefined) &&
       !file.deleted &&
       !file.new
@@ -70,14 +75,17 @@ export function classifyDiff(raw: string, files: ParsedFile[]): ClassificationRe
 
     // 5. Rename-only (no content change, just rename).
     // Exception: a rename that drops the test extension (foo.test.ts -> foo.ts) is exactly the
-    // RH001 "disable a whole test file by renaming it" cheat. Those must reach the verifiers,
+    // RH001 "disable a whole test file by renaming it" cheat. The context matcher also covers
+    // directory-based discovery, other languages, and custom testPathGlobs. Those must reach the verifiers,
     // so only reject rename-only diffs that are NOT test-extension drops.
     if (
       file.from !== file.to &&
       file.chunks.length === 0 &&
       !file.deleted &&
       !file.new &&
-      !dropsTestExtension(file.from ?? '', file.to ?? '')
+      !(isTestFile
+        ? isTestFile(file.from ?? '') && !isTestFile(file.to ?? '')
+        : dropsTestExtension(file.from ?? '', file.to ?? ''))
     ) {
       rejected.push({ file, reason: 'rename-only' });
       return;

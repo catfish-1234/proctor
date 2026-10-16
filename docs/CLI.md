@@ -60,16 +60,18 @@ directory instead of the current one, which is useful when proctor is driving an
 | `--json` | print findings as JSON |
 | `--sarif` | print SARIF 2.1.0 JSON, for tools that consume that format |
 | `--ai` | turn on the optional AI judge for ambiguous cases (needs `ANTHROPIC_API_KEY`). Everything else is offline: no network, no account |
-| `--rules <ids>` | only run specific checks, e.g. `RH001,RH003` |
+| `--rules <ids>` | narrow the enabled checks, e.g. `RH001,RH003`; use `--wi` to enable WI checks first |
 | `--wi` | also run the beta work-integrity family (WI101 to WI113), which is opt-in in v1.0.0 |
-| `--all-checks` | run every check in the registry: the RH family and the beta WI family together |
+| `--all-checks` | alias for `--wi`: add the beta WI family to the configured checks |
 | `--explain <id>` | print the full explanation for one check and exit, no diff analysis. Combine with `--json` for a structured record an agent can act on |
 | `--fix` | with `--explain`, print what an honest fix for that check looks like |
 | `--markdown <file>` | also append a Markdown summary to this file, e.g. `--markdown "$GITHUB_STEP_SUMMARY"` |
 
-Exit codes: `0` means clean, `1` means warnings only, `2` means at least one error was found, and
-`3` means Proctor itself failed before it could complete the check. The pre-commit hook propagates
-`3` and blocks; the Claude Stop hook deliberately allows infrastructure failures as documented
+Exit codes: `0` means no warning or error findings, `1` means warnings only, `2` means at least one error
+was found, and `3` means Proctor itself failed before it could complete the check. With `--ci`,
+warnings exit `0` and remain in machine-readable reports and Markdown. Invalid arguments can
+exit `1` (Commander usage errors) or `2` (validation errors); `--ai` without its key exits `1`.
+The pre-commit hook propagates `3` and blocks; the Claude Stop hook deliberately allows infrastructure failures as documented
 below.
 
 ```bash
@@ -90,7 +92,8 @@ Honest fix: proctor check --explain RH001 --fix
 ### `proctor install-hook`
 
 Installs a git pre-commit hook that runs `proctor check --staged`. Detects Husky automatically and
-writes to `.husky/pre-commit`, otherwise falls back to `.git/hooks/pre-commit`.
+writes to `.husky/pre-commit` and stages it, otherwise uses Git's configured hook directory
+(normally `.git/hooks/pre-commit`, respecting worktrees and `core.hooksPath`).
 
 Only error-severity findings block the commit. Warnings are printed so you see them, but the
 commit still goes through, the same policy the Claude Code Stop hook follows. If you already have
@@ -280,5 +283,6 @@ node dist/cli.js bench --mock
 | `--mock` | use the mock fixture runner instead of a real agent, no network needed |
 | `--agent <id>` | which agent to run, e.g. `claude-code`, `codex` (default `claude-code`) |
 | `--out <path>` | where to write the results CSV |
+| `--resume` | reuse completed tasks from `<out>.partial.csv` |
 
 See [`bench/METHODOLOGY.md`](../bench/METHODOLOGY.md) for the full methodology.

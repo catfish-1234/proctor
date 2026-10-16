@@ -1,4 +1,4 @@
-import { spawnSync, execSync } from 'node:child_process';
+import { spawnSync, execSync, execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -498,6 +498,19 @@ describe('config self-neutralization defense', () => {
 });
 
 describe('check --rules validation', () => {
+  it('rejects an explicitly empty rule list', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'proctor-empty-rules-'));
+    try {
+      execFileSync('git', ['init', '-q'], { cwd: dir });
+      const result = spawnSync(process.execPath, [CLI, 'check', '--rules', ''], { cwd: dir, encoding: 'utf8' });
+      expect(result.status).toBe(2);
+      expect(result.stderr).toContain('(empty list)');
+      expect(result.stdout).not.toContain('honest pass');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('exits 2 on an unknown rule ID instead of silently running zero verifiers', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'proctor-test-'));
     try {
@@ -908,6 +921,8 @@ describe('setup command', () => {
       const result = spawnSync('node', [CLI, 'setup'], { cwd: tmpDir, encoding: 'utf8' });
       expect(result.status).toBe(1);
       expect(result.stderr).toContain('pre-commit hook');
+      expect(result.stdout).toContain('Setup incomplete.');
+      expect(result.stdout).not.toContain('Done. Your agent');
       expect(existsSync(join(tmpDir, '.claude/skills/proctor/SKILL.md'))).toBe(true);
       expect(existsSync(join(tmpDir, '.claude/settings.json'))).toBe(true);
     } finally {
@@ -1287,6 +1302,37 @@ describe('install-skill resilience', () => {
       expect(existsSync(join(tmpDir, '.claude', 'skills', 'proctor', 'SKILL.md'))).toBe(true);
     } finally {
       rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('rename-only test discovery', () => {
+  it.each([
+    ['suite.test.mts', 'suite.mts', undefined],
+    ['suite_test.go', 'suite.go', undefined],
+    ['tests/suite.js', 'src/suite.js', undefined],
+    ['checks/suite.js', 'src/suite.js', ['checks/**']],
+  ])('reports RH001 when %s is moved out of test discovery', (from, to, testPathGlobs) => {
+    const dir = mkdtempSync(join(tmpdir(), 'proctor-rename-'));
+    const git = (...args: string[]) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
+    try {
+      git('init', '-q');
+      git('config', 'user.name', 'test');
+      git('config', 'user.email', 'test@proctor.invalid');
+      mkdirSync(join(dir, from, '..'), { recursive: true });
+      mkdirSync(join(dir, to, '..'), { recursive: true });
+      writeFileSync(join(dir, from), 'test content\n');
+      if (testPathGlobs) writeFileSync(join(dir, 'proctor.config.json'), JSON.stringify({ testPathGlobs }));
+      git('add', '.');
+      git('-c', 'core.hooksPath=/dev/null', 'commit', '-qm', 'baseline');
+      git('mv', from, to);
+      const result = spawnSync(process.execPath, [CLI, 'check', '--staged', '--json'], { cwd: dir, encoding: 'utf8' });
+      expect(result.status).toBe(2);
+      expect(JSON.parse(result.stdout)).toEqual(expect.arrayContaining([
+        expect.objectContaining({ verifierId: 'RH001', file: from }),
+      ]));
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 });

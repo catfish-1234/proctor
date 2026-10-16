@@ -19,9 +19,10 @@ only supported source; there are no long-term support branches.
 Worth knowing, because it shapes what a vulnerability here would mean:
 
 - **It writes executable git hooks.** `proctor setup` and `proctor install-hook` write
-  `.git/hooks/pre-commit` (or `.husky/pre-commit`). If a hook from another tool is already there,
-  it is copied to `pre-commit.bak` before being replaced, and you are told.
-- **The hooks prefer the repository's local Proctor binary, then fall back to
+  Git's configured hook directory (normally `.git/hooks/pre-commit`) or `.husky/pre-commit`.
+  Worktrees and `core.hooksPath` can place hooks outside the working tree. An existing foreign hook
+  is copied to `pre-commit.bak` before being replaced, and you are told.
+- **The hooks prefer the repository's local Proctor binary, then a global `proctor` on PATH, then
   `npx @kavishdua/proctor`.** The fallback cannot resolve until the first npm release; after that,
   it is a supply-chain surface because it may fetch from the registry. A local dev dependency is
   therefore the recommended hook installation.
@@ -32,7 +33,8 @@ Worth knowing, because it shapes what a vulnerability here would mean:
   parsed as a git option.
 - **The deterministic core makes no network calls at all.** The only outbound request in the entire
   tool is the optional AI judge, reached solely via `--ai`, which requires `ANTHROPIC_API_KEY` to
-  be set explicitly.
+  be set explicitly and sends candidate code to Anthropic. Git external diff drivers and textconv
+  commands are disabled when constructing patches.
 - **It reads untrusted input**: diffs, and a hand-editable `proctor.config.json`. Config is
   normalized and validated rather than trusted, and diff lines are capped at 4000 characters as a
   systemic backstop against regex denial of service.

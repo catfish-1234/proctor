@@ -141,6 +141,20 @@ rename to src/new.ts
     expect(result.rejected.map(r => r.reason)).toContain('rename-only');
   });
 
+  it('keeps a test-disabling rename even when it also changes the executable bit', () => {
+    const raw = `diff --git a/checks/suite.js b/src/suite.js
+old mode 100644
+new mode 100755
+similarity index 100%
+rename from checks/suite.js
+rename to src/suite.js
+`;
+    const files = parseDiff(raw);
+    const result = classifyDiff(raw, files, path => path.startsWith('checks/'));
+    expect(result.accepted).toHaveLength(1);
+    expect(result.rejected).toEqual([]);
+  });
+
   it('passes a clean unified diff through accepted', () => {
     const raw = CLEAN_UNIFIED_DIFF;
     const files = parseDiff(raw);

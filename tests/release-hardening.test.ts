@@ -45,8 +45,9 @@ describe('release and supply-chain hardening', () => {
     expect(thirdParty.every(match => /^[0-9a-f]{40}$/.test(match[2]!))).toBe(true);
   });
 
-  it("points the README workflow at proctor's own v1 moving tag", () => {
-    expect(readmeCiSection).toMatch(/uses:\s+catfish-1234\/proctor@v1/);
+  it("pins the prerelease README workflow to an existing source commit", () => {
+    expect(readmeCiSection).toMatch(/uses:\s+catfish-1234\/proctor@[0-9a-f]{40}/);
+    expect(readmeCiSection).toContain("No release tags exist yet");
   });
 
   it('tells the reader that a full SHA is the stricter alternative', () => {

@@ -56,12 +56,13 @@
     "typecheck": "tsc --noEmit",
     "drift-check": "node dist/cli.js drift-check",
     "verify:pack": "node scripts/run-bash.mjs scripts/verify-pack.sh",
-    "sync-plugin": "node dist/scripts/sync-plugin.js"
+    "sync-plugin": "node dist/scripts/sync-plugin.js",
+    "lint": "oxlint --deny correctness --allow no-unused-vars --allow no-useless-escape --allow prefer-string-starts-ends-with src tests scripts tsup.config.ts vitest.config.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.132.0",
     "brace-expansion": "^5.0.12",
-    "commander": "^15.0.0",
+    "commander": "^14.0.3",
     "parse-diff": "0.12.0",
     "picocolors": "1.1.1",
     "picomatch": "^4.0.7",
@@ -70,6 +71,7 @@
   "devDependencies": {
     "@types/node": "^26.6.4",
     "@types/picomatch": "^4.0.3",
+    "oxlint": "^1.88.0",
     "tsup": "8.5.1",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11"

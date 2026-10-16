@@ -50,6 +50,8 @@ describe('postinstall posture', () => {
       expect(out).toContain('npx proctor setup');
       expect(out).toContain('written nothing to your repository');
       expect(out).toContain('.git/hooks/pre-commit');
+      expect(out).toContain('a foreign hook is backed up, then replaced');
+      expect(out).toContain('.proctor-adapter-manifest.json');
       expect(out).toContain('PROCTOR_AUTO_SETUP=1');
     } finally {
       rmSync(dir, { recursive: true, force: true });

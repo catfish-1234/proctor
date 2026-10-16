@@ -67,17 +67,17 @@ program
 
 program
   .command('check [path]')
-  .description('Analyze all uncommitted changes against every enabled Verifier (test-tampering signatures are the first Verifier type)')
+  .description('Check staged, unstaged, and untracked changes for test tampering')
   .option('--staged', 'analyze only staged changes')
   .option('--uncommitted', 'explicitly analyze the default scope: staged, unstaged, and untracked changes together')
   .option('--base <ref>', 'analyze changes against a base ref (e.g. origin/main or a commit SHA) instead of staged/working-tree changes, for CI, where nothing is staged in a fresh checkout')
-  .option('--ci', 'suppress non-error output, exit nonzero on error only')
+  .option('--ci', 'show only errors in the text report; warnings do not affect the exit code')
   .option('--json', 'output findings as JSON to stdout')
   .option('--sarif', 'output SARIF 2.1.0 JSON to stdout')
-  .option('--ai', 'enable LLM judge for ambiguous signatures')
+  .option('--ai', 'enable the networked LLM judge (requires ANTHROPIC_API_KEY)')
   .option('--rules <ids>', 'comma-separated list of verifier IDs to run (narrows the enabled set, e.g. RH001,RH003)')
   .option('--wi', 'also run the beta work-integrity family (WI1xx), which is opt-in by default')
-  .option('--all-checks', 'run every check in the registry, the RH family and the beta WI family together')
+  .option('--all-checks', 'alias for --wi: add the beta WI family to the configured checks')
   .option('--explain <id>', 'print the full explanation for a verifier ID and exit, no diff analysis')
   .option('--fix', 'with --explain, print what an honest fix looks like instead of the rule description')
   .option('--markdown <file>', 'also write a Markdown summary to this file, e.g. --markdown "$GITHUB_STEP_SUMMARY"')
@@ -169,10 +169,10 @@ program
       // policy. Exiting 2 here made an unreadable repository block an agent turn instead.
       process.exit(3);
     }
-    const { accepted } = classifyDiff(raw, files);
     // Config comes from the diff baseline (HEAD, or the --base ref), never the working tree,
     // otherwise the diff being checked could disable proctor in the same change it cheats in.
-    const ctx = await buildContext(cwd, accepted, { configRef: options.base ?? 'HEAD' });
+    const ctx = await buildContext(cwd, files, { configRef: options.base ?? 'HEAD' });
+    ctx.files = classifyDiff(raw, files, ctx.isTestFile).accepted;
     ctx.committedDiff = Boolean(options.base);
     // The WI family is opt-in for this release (see WI_CHECKS). A flag turns it on for one run;
     // listing the IDs in the committed config turns it on everywhere, hooks included. Added rather
@@ -181,7 +181,7 @@ program
     if (options.wi || options.allChecks) {
       ctx.enabled = [...new Set([...ctx.enabled, ...WI_CHECKS])];
     }
-    if (options.rules) {
+    if (options.rules !== undefined) {
       const requested = options.rules.split(',').map(s => s.trim()).filter(Boolean);
       const unknown = requested.filter(id => !RULE_METADATA[id]);
       if (requested.length === 0 || unknown.length > 0) {
@@ -345,7 +345,9 @@ program
       }
     }
 
-    process.stdout.write('\nDone. Your agent reads the rules before it works, and gets stopped if it breaks them.\n');
+    process.stdout.write(process.exitCode
+      ? '\nSetup incomplete. Resolve the errors above and run proctor setup again.\n'
+      : '\nDone. Your agent reads the rules before it works, and gets stopped if it breaks them.\n');
   });
 
 program
@@ -428,8 +430,8 @@ program
       process.stderr.write('proctor: ' + clean + '\n');
       process.exit(2);
     }
-    const { accepted } = classifyDiff(raw, files);
-    const ctx = await buildContext(cwd, accepted, { configRef: 'HEAD' });
+    const ctx = await buildContext(cwd, files, { configRef: 'HEAD' });
+    ctx.files = classifyDiff(raw, files, ctx.isTestFile).accepted;
     const receipt = buildReceipt(await runChecks(ctx));
     process.stdout.write((options.url ? badgeUrl(receipt) : badgeMarkdown(receipt)) + '\n');
   });

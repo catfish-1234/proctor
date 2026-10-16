@@ -11,6 +11,10 @@ export type ParsedFile = ReturnType<typeof parseDiff>[number];
 const MAX_LINE_LENGTH = 4000;
 const MAX_DIFF_BUFFER = 512 * 1024 * 1024;
 
+// Human-facing Git settings and diff drivers must not change the patch the detector reads.
+// In particular, ANSI color hides hunk headers and a textconv can replace real source with prose.
+const PATCH_ARGS = ['--patch', '--no-color', '--no-ext-diff', '--no-textconv', '--no-relative', '--src-prefix=a/', '--dst-prefix=b/'];
+
 function capLineLengths(files: ParsedFile[]): void {
   for (const file of files) {
     for (const chunk of file.chunks) {
@@ -88,7 +92,7 @@ function untrackedDiff(cwd: string): string {
   let raw = '';
   for (const filePath of paths) {
     // Exit 1 means "different" for --no-index. Exit 0 is possible for an empty file.
-    raw += runGit(['diff', '--no-index', '--', '/dev/null', filePath], cwd, [0, 1]);
+    raw += runGit(['diff', ...PATCH_ARGS, '--no-index', '--', '/dev/null', filePath], cwd, [0, 1]);
     if (raw.length > MAX_DIFF_BUFFER) {
       throw new Error(`git diff exceeded the ${MAX_DIFF_BUFFER / (1024 * 1024)} MiB safety limit`);
     }
@@ -103,7 +107,7 @@ export function runGitDiff(
 ): { raw: string; files: ParsedFile[] } {
   // Default maxBuffer is 1 MiB, which large diffs (lockfile churn, generated files) exceed,
   // spawnSync then reports ENOBUFS with status null and the diff is never analyzed.
-  const tracked = runGit(['diff', ...args], cwd);
+  const tracked = runGit(['diff', ...PATCH_ARGS, ...args], cwd);
   const raw = tracked + (options.includeUntracked ? untrackedDiff(cwd) : '');
   const files = parseDiff(raw);
   capLineLengths(files);

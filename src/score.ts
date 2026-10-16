@@ -85,10 +85,10 @@ async function scoreCommit(cwd: string, commit: CommitRef): Promise<CommitScore 
     return undefined;
   }
 
-  const { accepted } = classifyDiff(raw, files);
   // Config is read from the commit being scored, so each commit is judged by the rules that were
   // actually in force when it landed rather than by today's config.
-  const ctx = await buildContext(cwd, accepted, { configRef: commit.sha, quiet: true });
+  const ctx = await buildContext(cwd, files, { configRef: commit.sha, quiet: true });
+  ctx.files = classifyDiff(raw, files, ctx.isTestFile).accepted;
   ctx.committedDiff = true;
   const findings = await runChecks(ctx);
 

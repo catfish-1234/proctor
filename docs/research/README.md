@@ -1,26 +1,30 @@
 # Proctor research package
 
-Decision snapshot: 2026-10-15, based on main
-`d5acb6aa0eddcff618925eadc4c937c65a3f3fd5`. This directory prepares a research
-direction and an offline development artifact. It does not contain a completed
-agent intervention study or a paper submission.
+Decision snapshot: 2026-10-16, based on latest main
+`1bfd0b192ea214a0ed349b27822b11b8ccf23e07` (including PR #46). The direction is
+**authorization-aware verification integrity** across tests, graders, benchmarks,
+CI, result evidence and reward channels. Current Proctor is one diff-based sensor;
+the broader prevention protocol is proposed research, not an implemented system.
 
 Read in this order:
 
-1. [Positioning memo](positioning.md): the question worth testing, implemented
-   capabilities, trust boundary, and limits on novelty claims.
-2. [Related work](related-work.md): primary-source review of all five requested
-   papers and closer contemporary work, with evidence depth and comparison limits.
-3. [Evaluation plan](evaluation-plan.md): hypotheses, independent labels/oracles,
+1. [Three paper framings and recommendation](positioning.md): permission-conditioned
+   benchmark first, selective protection of evolving verification second, causal
+   attribution as an alternative; theses, novelty boundaries, experiments and risks.
+2. [Related work](related-work.md): verified primary sources and close collisions,
+   including the two AgentGuard papers and SWE-bench leakage/contamination studies.
+3. [Taxonomy and current coverage](taxonomy.md): behaviors, rule IDs, benign neighbors,
+   evidence gaps and enforcement limits.
+4. [Evaluation plan](evaluation-plan.md): hypotheses, independent labels/oracles,
    metrics, baselines, ablations, statistics, and validity threats.
-4. [Dataset design](dataset-design.md): authorization-sensitive tampering labels,
+5. [Dataset design](dataset-design.md): authorization-sensitive tampering labels,
    collection, leakage control, hard benign edits, and release protocol.
-5. [Seed dataset and offline harness](seed/README.md): reproducible synthetic
-   development cases and detector comparisons; no model credentials or fixture
-   execution required.
-6. [Venues and timeline](venues-and-timeline.md): workshop-first recommendation,
+6. [Seed dataset and offline harness](seed/README.md): original 24 cases plus a
+   separate 48-case extended development corpus with benign look-alikes; unchanged
+   harness and detector, no fixture execution or model credentials.
+7. [Venues and timeline](venues-and-timeline.md): workshop-first recommendation,
    verified calls and deadlines, prospective milestones and missing main-track evidence.
-7. [Validation record](validation.md): actual local checks and seed measurements,
+8. [Validation record](validation.md): actual local checks and seed measurements,
    kept separate from proposed experiments.
 
 The honest verdict is **workshop/position-or-tool scope first**. A main-track

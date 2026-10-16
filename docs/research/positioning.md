@@ -1,112 +1,123 @@
-# Proctor research direction: verification integrity during coding-agent work
+# Paper plan: selective protection of evolving verification
 
-Decision date: 2026-10-15 (America/Los_Angeles). Status: research proposal and
-reproducibility seed, not an evaluated prevention method. Implementation inspected
-at `d5acb6aa0eddcff618925eadc4c937c65a3f3fd5` on main.
+Design decision: 2026-10-16, America/Los_Angeles. Builds on PR #47 at
+`2a22881d5abb4b16f9a38129254a50ccdd763f5f`, whose base is latest main
+`1bfd0b192ea214a0ed349b27822b11b8ccf23e07`. This revision changes docs only.
+All experimental quantities in this plan are **planned**, unless explicitly called
+measured or source-reported. No prevention result or main-track readiness is claimed.
 
-## Decision
+## Thesis and choice among the three framings
 
-Pursue a workshop paper first, centered on the tradeoff between catching
-unauthorized verification changes and allowing legitimate verification maintenance.
-Keep a main-track paper conditional on independent data and a controlled agent
-intervention study. The skill format, discovering reward hacking, a tampering
-taxonomy, and prompt-based prevention are already established ideas.
+**Lead with framing 2: selective protection of evolving verification.** An agent
+should be able to repair tests, graders and CI without acquiring authority to
+weaken the evidence that accepts its own work. Test whether separately authorized,
+artifact-bound verifier migrations preserve integrity and useful maintenance at
+lower review cost than locking with human exceptions. Use framing 1's
+policy-conditioned benchmark as the evaluation instrument. Use framing 3's
+counterfactual replays to explain failures and displaced attacks, rather than
+claiming a separate causal-attribution invention.
 
-The candidate question is:
+This is a stronger main-track bet than another taxonomy or detector benchmark.
+It is also falsifiable: a well-configured lock with human exceptions may be equally
+safe, useful and cheap. If so, report that result and retire the selective-system
+claim. A better detector score on public seed cases cannot rescue it.
 
-> Can a portable skill plus an inexpensive, explainable diff guard reduce
-> unauthorized verification tampering without obstructing authorized test edits
-> or reducing independently measured task completion?
+Provisional title: **Who May Change the Oracle? Selective Protection of Evolving
+Verification in Coding Agents**. The intended paper is about a protocol and its
+limits; Proctor is one replaceable routing sensor.
 
-The contribution would be evidence about that tradeoff under a stated trust
-boundary, together with an auditable implementation and authorization-sensitive
-data. It is not currently a claim of superior detection, secure enforcement, or
-firstness. [Related work](related-work.md) examines the nearest collisions,
-including AgentGuard's coding-agent skill and BenchShield's integrity mechanisms.
-AgentGuard already considers authorized test corrections and measures useful
-task completion and over-refusal. Authorization awareness and utility measurement
-are therefore prior art too; the remaining bet is the deterministic guard's
-incremental benefit under independent evaluation.
+## Contributions to earn
 
-## Define the target before counting it
+1. A concrete migration protocol: authenticated task/policy, independently owned
+   verifier versions and witnesses, and atomic acceptance of the checked artifact.
+   State the trust assumptions and attack boundaries; do not claim pinning or
+   human approval as inventions.
+2. Independent executable data linking task, authorization, patch and trajectory:
+   real executed agent traces, public issue-resolution tasks, and real verifier
+   maintenance. Include identical-edit/different-permission contrasts, grouped
+   holdouts and honest unresolved labels. The benchmark supports the system claim.
+3. A preregistered integrity/utility/review-cost comparison against strong guards,
+   a simple contextual LLM judge, immutable verification, and locking with the same
+   human exceptions. Adaptive attacks and component ablations test what creates
+   any advantage. A credible negative result is an alternative outcome.
 
-Verification tampering means an unauthorized change to a test, grader, execution
-path, expected answer, gate, or reported result that weakens evidence of satisfying
-the task. An authorized feature deletion, corrected erroneous test, deliberate
-snapshot migration, or independently approved flaky-test quarantine is not
-automatically tampering. The same patch can receive different labels under
-different authorization records. Unknown authorization is an abstention, not a
-convenient negative.
+These are proposed contributions, not established firsts. [Related work](related-work.md)
+occupies conditional guardrails, contrastive hack detection, evaluator locking,
+infrastructure provenance and protocol-validity measurement already.
 
-Distinguish attempted tampering, successfully corrupted verification, independently
-incorrect code, and intent. A diff detector observes change patterns; it does not
-establish the agent's motivation. Some reward hacks (semantic overfitting to visible
-tests, data leakage, changing an external service) never modify verification and
-are outside this primary target. Wider work-integrity rules are exploratory
-extensions and must not silently redefine the primary endpoint.
+## Protocol and threat model
 
-## What exists and what remains to build
+The actor is a coding agent with shell access and write access to its assigned
+checkout. In ordinary runs it tries to finish the user task; in an explicit attack
+stratum an independent red team tries to get unauthorized evidence accepted. The
+actor may edit tests, loaders, grader dependencies, CI, result artifacts, policy
+files and local logs; create commits/worktrees; forge approval text; and perform
+edit-run-restore. Intent is not inferred from a diff. Hidden-answer access and
+semantic overfitting are separately labeled, not silently counted as verifier edits.
 
-| Component | Inspected implementation | Research limit or proposed addition |
-| --- | --- | --- |
-| Skill | Canonical [ruleset](../../src/skill/SKILL.md) deployed through agent adapters | Instructions are advisory; measure whether the agent actually reads and follows them |
-| Detection | Git diffs, 14 default RH verifiers and 13 opt-in WI verifiers; stable finding IDs | Pattern coverage varies by language and syntax; no semantic completeness |
-| Interventions | Pre-commit hook, Claude Code Stop hook, CLI and CI; error findings can block | A block is an event, not proof that later evasion or task corruption was prevented |
-| Policy | Committed-baseline config; approvals downgrade findings to info; unchanged-context suppression markers | Git history is not authenticated human provenance; an agent allowed to commit can stage a policy change in an earlier commit |
-| Explanations | Several individual verifiers accept explanatory comments | A persuasive comment can be agent-written; this is a separate adversarial ablation |
-| Optional judge | `--ai` for selected fuzzy cases | Separate network/model-dependent comparator, not the offline core |
-| Existing evidence | Unit fixtures, iterative red-team corpus, fixture replay and live-run machinery | Developer-tuned material is development evidence; mock replay cannot estimate behavior change |
-| New artifact here | Synthetic labeled seed and offline CLI replay | No live-agent, hidden correctness, or prevention measurements in this PR |
+The trusted controller owns the original task and base, authenticated permissions,
+checker/image, verifier dependency closure, host-side append-only events, reviewer
+service and acceptance decision. The independent correctness oracle lives in a
+separate sandbox outside agent-readable mounts/services. Agent-generated comments,
+local commits and local traces never establish authority. Local hooks alone are
+not a security boundary. OS/container escape, compromised researcher keys and
+malicious authorized owners are excluded; all must be stated as assumptions.
 
-## Trust boundary and deployment claims
+The proposed state machine is:
 
-For local assistance, assume the working tree is untrusted and keep the CLI's
-baseline policy explicit. A repository owner can override a hook. An agent with
-the same privileges can also bypass it, change tooling, rewrite history, or use a
-different worktree. A stop hook is an agent integration, not an OS security
-boundary. An end-of-turn diff also misses a verifier modified, executed, and
-restored between observations.
+1. Pin `(task, policy, base, source tree, verifier/dependencies, environment)` by
+   content hash. Agent-visible tests provide feedback but cannot certify acceptance.
+2. Source-only proposals run against the current trusted verifier. A verifier
+   change becomes a *migration proposal*; it cannot authorize itself.
+3. Check a human-signed, out-of-band permission predicate scoped to the task and
+   allowed obligation delta. When it validates that predicate, the trusted controller
+   issues one-use authorization bound to exact old/new and candidate hashes. The controller checks independently authored task-derived migration
+   witnesses: required behavior retained, specifically authorized behavior changed,
+   new edge cases and seeded bypasses rejected. Agent tests alone are insufficient.
+4. Automate only explicitly scoped, machine-checkable migrations: for example a
+   test move preserving discovered obligations, equivalent CI sharding, or an
+   exact requirement-backed expected-value change. Unknown scope, unmet witnesses
+   or uncertain dependency effects escalate to the independent reviewer; approval
+   cannot be inferred from successful tests. The controller binds the authorized
+   scope to the exact proposal; the actor cannot grant authority. Record how much
+   was preauthorized, automated and manually reviewed.
+5. Execute in a fresh controlled environment. Bind source, verifier and witness
+   hashes to the verdict and a one-use approval. Revalidate atomically at acceptance;
+   any changed byte, dependency, policy or environment invalidates it. A rejected
+   migration leaves the previous verifier authoritative.
 
-For a prevention experiment, the external orchestrator must own the policy and
-base commit, monitor binary, event log, held-out oracle, and merge decision.
-Evaluate the exact candidate tree whose hash was checked. The agent must not be
-able to replace that checker or choose the comparison base. Trusted CI must load
-the checker and workflow from a pinned trusted source, not blindly execute a
-candidate-modified workflow. These are proposed experimental controls, not new
-capabilities implemented by the seed harness.
+The guarantee is conditional acceptance integrity within that boundary, not proof
+that finite tests capture the intended specification. Exact controller, trace and
+oracle integration are **not implemented by this docs PR**. The existing CLI,
+skill, hooks and synthetic replay remain as inspected in PR #47; their failures
+and coverage remain in [taxonomy.md](taxonomy.md) and [seed/README.md](seed/README.md).
 
-Report both boundaries. A useful local warning tool can exist without claiming
-resistance to a hostile agent with arbitrary shell access. Strong enforcement
-may be simpler using immutable evaluators; proctor must justify its extra value
-where legitimate test maintenance makes blanket locking costly.
+## Evidence and paper structure
 
-## What can be novel relative to the required papers
+Use [dataset-design.md](dataset-design.md) for independent collection,
+[evaluation-plan.md](evaluation-plan.md) for frozen comparisons and statistics,
+and [PLAYBOOK.md](PLAYBOOK.md) for commands, staffing, costs and decision gates.
+The paper should allocate space to the protocol and trust boundary, independent
+collection/annotation, controlled experiments, adaptive failures and limitations.
+The public 48-case seed stays a development sanity check, never the headline table.
 
-| Work | Established contribution that proctor must credit | Candidate distinction requiring evidence |
-| --- | --- | --- |
-| [ImpossibleBench](https://arxiv.org/abs/2510.20270) | Specification/test conflicts expose shortcuts and support monitoring research | Ordinary solvable repository tasks with authorized test-edit controls and measured intervention utility |
-| [EvilGenie](https://arxiv.org/abs/2511.21654) | Perturbations and ambiguity expose coding-agent misbehavior | Reusable offline guard evaluated on fresh trajectories, with cost of false alarms measured |
-| [SpecBench](https://arxiv.org/abs/2605.21384) | Visible-test success can diverge from specification correctness | Verification-change detection is a narrower endpoint; pair it with an independent correctness oracle |
-| [HVTB](https://arxiv.org/abs/2608.22103) | Hack-verifiable terminal tasks and prompting interventions | Portable repository checks on unplanted edits, including legitimate maintenance, compared with prompt-only guidance |
-| [TRACE / contrastive detection](https://arxiv.org/abs/2601.20103) | Human-verified synthetic trajectories and contextual detection baselines | Explainable, model-free diff evidence at an intervention point; compare information access and benign-edit burden fairly |
+Design to ICSE/FSE/ASE technical-paper standards. USENIX Security '27 cycle 2 is
+the nearest verified flagship opportunity if an adversarial security result is
+ready; ML main track requires a broader scientific result across model/policy
+families. [Venues and timeline](venues-and-timeline.md) records official deadlines
+and fit. Target one venue after the evidence gate; do not promise acceptance or
+rush an underpowered result to a calendar date.
 
-These are differences of scope, not priority or performance claims. In
-particular, [AgentGuard](https://arxiv.org/abs/2609.16287) already learns and deploys
-a coding-agent guardrail skill, while [RewardHackingAgents](https://arxiv.org/abs/2603.11337)
-already examines evaluator tampering and locking. A credible paper must improve
-on their evidence or answer a different, useful question. The detailed review
-records verified scope and uncertainties for each source.
+## Risks that can change the paper
 
-## Stop, narrow, or continue
-
-Continue if an independent benign corpus reveals a useful precision/recall frontier
-and a pilot can produce enough actual tampering events to evaluate interventions.
-Narrow to a tool/position paper if the guard is useful but the skill adds no
-measurable benefit. Publish a negative finding within a later authorized
-submission if guard feedback induces evasion or locking is consistently better.
-Do not invent hard tasks, report only easy victories, or reclassify benign edits
-after observing detector output to rescue a prevention story.
-
-The [evaluation plan](evaluation-plan.md), [dataset design](dataset-design.md), and
-[venue recommendation](venues-and-timeline.md) specify the evidence required for
-the next decision. This PR prepares that work; it does not establish its outcome.
+- If authenticated human review explains everything, compare review cost fairly
+  and narrow the contribution; do not attribute isolation gains to the diff guard.
+- If natural attacks are rare, report event-rate uncertainty and use the explicit
+  adversarial stratum for robustness. It cannot estimate deployment prevalence.
+- If oracle isolation or task semantics fail, quarantine the task and rerun every
+  affected arm before interpreting results. An intact but wrong oracle stays wrong.
+- If the independent data or strongest baseline cannot be obtained/reproduced,
+  limit the claim. API model drift, public-benchmark contamination, ambiguous
+  permissions, correlated tasks and nonredistributable traces constrain generality.
+- If only benchmark characterization survives, framing 1 can be a separate,
+  accurately scoped paper. The workshop route is a fallback, not the default ambition.

@@ -1,69 +1,59 @@
-# Venue decision and evidence timeline
+# Venue route and verified deadlines
 
-As of 2026-10-15, America/Los_Angeles. Dates below were checked on primary
-conference/organizer pages on that date. Conference deadlines retain their
-published timezone (usually Anywhere on Earth, UTC-12); internal work milestones
-are Los Angeles dates. Recheck the selected call before a future submission.
+Checked 2026-10-16, America/Los_Angeles, on the official primary pages linked
+below. Dates are organizer-published, not planned research outcomes. Fit judgments
+are our assessment, not acceptance probabilities. AoE means UTC-12; retain that
+zone rather than substituting the runner's local date. Recheck before submission.
+No submission, publication or announcement is authorized by this plan.
 
-## Recommendation
+**Design for ICSE/FSE/ASE technical-paper standards.** The nearest verified
+flagship deadline with plausible runway is USENIX Security '27 cycle 2, conditional
+on a credible adversary, enforced boundary and independent adaptive evaluation.
+If the contribution is primarily software maintenance rather than security,
+prefer a later SE cycle after its official CFP appears. ML main track needs a
+scientific finding across agents/policies beyond a tool and small benchmark.
 
-Aim first for a workshop short/tool or position paper. The current artifact is a
-research plan plus an offline development benchmark. It is not a main-track
-empirical result and is not yet evidence that proctor prevents real-agent reward
-hacking. The closest prior work already covers coding-agent skills, tampering
-benchmarks, learned detection and evaluator integrity. Packaging alone is weak
-novelty; a measured benign-maintenance/prevention tradeoff is the research bet.
-
-| Candidate | Verified date/status | Recommendation and fit |
+| Venue | Verified deadline/status | Realistic fit / action |
 | --- | --- | --- |
-| [AGENTVERIFY 2027, ICSE workshop](https://agentverify2027.github.io/cfp.html) | Abstract Nov 1, 2026; paper Nov 6, 2026, AoE; short/demo up to 4 pages including references | Best immediate fit: skills, harnesses, grading and trustworthy software-agent infrastructure. A non-archival option is available. Submit a scoped position/tool paper only if the artifact and evidence audit are complete |
-| [LLM4Code 2027, ICSE workshop](https://llm4code.github.io/dates/) | Paper Nov 13, 2026, 23:59 AoE | Alternative rather than simultaneous submission. [Call](https://llm4code.github.io/call/) includes position papers (1-4 pages) and short/extended work (1-5); also provides a non-archival option |
-| [ICLR 2027 workshops](https://iclr.cc/Conferences/2027/CallForWorkshops) | Workshop decisions Nov 29, 2026; suggested contribution date Feb 1, 2027 | Better runway for a pilot. A specific accepted safety/agent-evaluation workshop and its actual deadline remain unverified; Feb 1 is guidance, not an accepted workshop's binding deadline |
-| [ICLR 2027 main](https://iclr.cc/Conferences/2027/CallForPapers) | Paper deadline Sep 25, 2026, AoE, already passed | Not an available fresh submission target |
-| [ICSE 2027 research](https://conf.researchr.org/track/icse-2027/icse-2027-research-track) | Single cycle; paper deadline June 30, 2026, AoE, already passed | Strong eventual software-engineering fit, but this edition is closed to a new research submission |
-| [NeurIPS 2026](https://neurips.cc/Conferences/2026/Dates) | Main deadline May 6; suggested workshop contributions Aug 29; mandatory workshop notifications Sep 29, 2026 | Not a sensible new-paper target now; do not assume a late workshop slot |
-| ICML 2027 / NeurIPS 2027 main / next ICSE research cycle | No applicable submission deadline verified in this review; [ICML future meetings](https://icml.cc/Conferences/FutureMeetings) is not a CFP | Conditional later targets. Verify official calls when available; historical annual cadence is not a deadline |
+| [USENIX Security '27](https://www.usenix.org/conference/usenixsecurity27/call-for-papers) | Upcoming cycle 2: mandatory registration Jan 19 / paper Jan 26 / artifacts Jan 29, 2027, all AoE. | Primary confirmed flagship schedule. Needs systems-security relevance, practical attacker model, strongest locking/guard baselines and bypass evidence. Register only if the evidence gate passes. |
+| [IEEE S&P '27](https://www.ieee-security.org/TC/SP2027/cfpapers.html) | Upcoming second cycle: abstract Nov 10 / paper Nov 17, 2026, 23:59:59 AoE. | Relevant, but too soon for this new study. Do not target an incomplete empirical paper. |
+| [CCS '27](https://www.sigsac.org/ccs/CCS2027/cfp.html) | Two cycles stated; Important Dates and submission portals TBD. | Strong security alternative when dates appear. Current copied artifact text is not a verified paper deadline. |
+| [ICSE '27 research](https://conf.researchr.org/track/icse-2027/icse-2027-research-track) | Passed: abstract Jun 23 / paper Jun 30, 2026, 23:59:59 AoE; single cycle. | Excellent natural fit: trustworthy AI for SE, testing and evolution. Next research cycle deadline unverified; do not extrapolate. |
+| [FSE '27 research](https://conf.researchr.org/track/fse-2027/fse-2027-papers) | Passed: Oct 2, 2026 dates panel; CFP extension to Oct 3 AoE after portal outage. | Excellent fit. Jan 23, 2027 industry deadline is not the main research deadline. Next research cycle unannounced in checked source. |
+| [ASE series](https://conf.researchr.org/series/ase), [ASE '26 research](https://conf.researchr.org/track/ase-2026/ase-2026-research-track) | '26 paper Mar 26, 2026 AoE passed; '27 CFP/deadline not verified in official series. | Strong automation/agent-workflow fit; monitor, do not invent a '27 deadline. |
+| [ICLR '27](https://iclr.cc/Conferences/2027/AuthorGuidelines) | Passed: abstract Sep 18 / paper Sep 25, 2026 AoE. | Stretch for general agent/learning insight. Next cycle deadline unverified. |
+| [ICML future meetings](https://icml.cc/Conferences/FutureMeetings) | '27 location listed; no paper deadline announced in checked official source. | Conditional main-track stretch; historical January patterns are not a deadline. |
+| [NeurIPS future meetings](https://neurips.cc/Conferences/FutureMeetings), [2026 dates](https://neurips.cc/Conferences/2026/Dates) | '26 paper May 6, 2026 AoE passed; '27 paper deadline unannounced in checked source. | Generalizable experimental insight needed. A later evaluations/datasets track, if offered, is a distinct target. |
+| [SAIS '27 preliminary CFP](https://www.usenix.org/conference/sais27/call-for-papers) | Upcoming paper Feb 4, 2027, 23:59 AoE. | New full conference on Secure Agentic-AI Systems; excellent topic fit, not an established flagship. Alternative if January gate missed; no simultaneous overlapping submission. |
 
-Source caveat: the ICLR 2027 workshop call contains an apparent stale event-date
-sentence referring to April 2026. The table uses its explicit 2026-2027 application
-timeline only and does not rely on that sentence for conference logistics.
+## Workshop fallback and its timing limit
 
-## Work plan and decision gates
+[AGENTVERIFY '27 CFP](https://agentverify2027.github.io/cfp.html): **Nov 13, 2026
+AoE**; full papers up to 8 pages including references, short/demo up to 4, extended
+abstract up to 2. Oracle design, benchmark validity and permission controls fit
+closely. The CFP explicitly offers a non-archival option; default proceedings are
+archival. This is an **early vision/pilot fallback**, not a post-January outlet for
+the completed study. Preserve the main-track paper and check both overlap policies
+before any later owner-authorized submission.
 
-| Internal target | Deliverable / gate | If the gate fails |
-| --- | --- | --- |
-| Oct 15-22, 2026 | Audit primary citations, freeze threat model, run offline seed, enumerate blind spots and independent collection owners | Keep the document as an agenda; no quantitative prevention abstract |
-| Oct 23-30 | Separate collector pilot: representative authorized edits plus fresh tampering episodes, double annotation, external-oracle rehearsal, preregister comparisons and costs | AGENTVERIFY can still receive a position/tool paper explicitly limited to engineering and failure analysis |
-| Oct 30 | Decide AGENTVERIFY submission scope and archival/non-archival option; check anonymity, artifact access, author/AI disclosure and registration requirements | Choose the later ICLR-workshop runway; do not rush an empirical claim |
-| Nov 1 / Nov 6 | Potential abstract/paper to AGENTVERIFY if ready; these are external AoE deadlines | Nov 13 LLM4Code is an alternative only if no conflicting submission/review; follow both venues' policies |
-| Nov 2026-Jan 2027 | Collect independent test set, run paired multi-model trials and adaptive attacks, release a reproducible analysis draft within a later authorized workflow | Report insufficient events or negative results; do not turn mock replays into treatment evidence |
-| Nov 30-Dec 7 | Inspect accepted ICLR workshops and select a specific CFP with verified scope/deadline | No presumed workshop acceptance or invented venue name |
-| Jan 15, 2027 | Empirical workshop readiness decision, two weeks before the suggested Feb 1 window | Submit a position paper if permitted, or wait |
-| Feb-Mar 2027 | Main-track readiness review after pilot, independent data and intervention results | Continue tool research or broaden collection; do not select a deadline as a substitute for evidence |
+[FSE '27 workshops](https://conf.researchr.org/track/fse-2027/fse-2027-workshops)
+lists a suggested workshop-paper date Feb 11, 2027, 23:59:59 AoE, with individual
+chairs setting actual dates. This is a monitoring date, not a verified named
+workshop deadline. No suitable post-study workshop CFP is yet verified here.
 
-These are proposed work milestones, not experiments performed or scheduled by
-this PR. No submission, announcement, or publication is authorized by the research
-recommendation itself.
+## Planned schedule and gate
 
-## Evidence needed for a stronger paper
+A planned 12-16-week study from Oct 16 finishes Jan 8-Feb 5, 2027; January is
+plausible only with parallel collection, implementation and writing. Weeks 1-2:
+freeze tasks/policy/annotation and validate oracle prototypes. Weeks 3-4: trusted
+controller rehearsal and cost/event-rate pilot. Week 5: power and spend decision;
+freeze the full protocol. Weeks 6-10: independent lockbox trials and adaptation.
+Weeks 11-12: blind adjudication, analysis, replication and failure audit. Weeks
+13-16: writing, artifact audit and any justified extension. Holidays, reviewer
+availability and insufficient independent task groups can move this schedule.
 
-A workshop position/tool contribution can honestly describe the threat boundary,
-artifact, reproducible seed, failures and an actionable evaluation protocol. If
-it claims an empirical detector improvement, it additionally needs independently
-labeled held-out edits and a fair baseline comparison; a small pilot must retain
-its uncertainty and sampling limits.
-
-A main-track paper needs a sharper result: independent multi-repository data,
-enough positive events for useful uncertainty bounds, realistic benign-edit
-sampling, task/model/family transfer, strong static and learned baselines,
-matched agent intervention arms, externally scored correctness, adaptive evasion,
-and cost/latency/maintainer-burden analysis. Measure skill plus guard against
-guard alone and immutable verification, not just against an unprotected agent.
-The [evaluation plan](evaluation-plan.md) makes the prospective thresholds explicit.
-
-Missing now: independently annotated test set, live-agent causal evidence,
-independent hidden correctness execution, robust external enforcement integration,
-adaptive attack evaluation, deployment-prevalence estimates, and a demonstrated
-advantage over the closest contemporary work. The seed is intentionally too small
-and public to fill these gaps. A workshop-first verdict is a fit judgment, not an
-acceptance prediction.
+At planned week 10 (Dec 25), assess the power/baseline/oracle gates without choosing
+favorable subgroups. If incomplete, defer the flagship deadline. Jan 19
+registration and Jan 26 paper are opportunities, not evidence thresholds. A later
+SAIS or SE/ML CFP is an alternative only after it is rechecked and the study is
+ready. The [playbook](PLAYBOOK.md) gives staffing, budget and concrete gates.

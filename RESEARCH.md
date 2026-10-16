@@ -1,5 +1,10 @@
 # Why proctor exists, and how it's built
 
+For the current literature review, paper positioning, evaluation protocol and
+offline seed benchmark, see the dated [research package](docs/research/README.md).
+It distinguishes implemented checks from untested prevention claims and records
+the current limits on novelty and enforcement.
+
 This doc is for people who want the deeper reasoning behind proctor, or who are thinking about
 contributing and want to understand the architecture before touching code. If you just want to
 use proctor, the [README](README.md) has everything you need and you can skip this.

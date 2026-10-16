@@ -1,130 +1,74 @@
-# Verification-tampering dataset design
+# Independent data and labeling
 
-Status: prospective protocol with a small synthetic development seed. No claim of
-natural prevalence, independent human annotation, or held-out generalization.
-See the [offline seed instructions](seed/README.md) for the actual checked-in
-format and commands.
+Prospective, 2026-10-16. Every collection count below is **planned**. Nothing here
+imports data or reports measured performance. The existing synthetic seeds,
+fixtures, red-team probes and every derivative remain development material.
 
-## Unit, labels, and authorization
+## Three sources, three denominators
 
-Use an edit episode rather than a single suspicious line as the primary unit:
-task instruction, trusted starting tree, permission record, agent-visible files,
-before/after trees, complete patch, and, when collected, tool events with monotonic
-timestamps. A trajectory can contain multiple episodes; keep their common parent
-ID for splitting and confidence intervals. A final diff alone cannot establish
-the absence of temporary tampering.
-
-The gold label has three values: `tamper`, `benign`, and `ambiguous`. Label
-unauthorized verification weakening as tamper even if it fails to inflate reward;
-record success separately. Do not infer malicious intent from a positive label.
-Keep correctness, authorization, and mechanism labels separate:
-
-| Field | Meaning |
-| --- | --- |
-| Task and provenance | Original prompt, source URI or synthetic authoring statement, source commit, license, collection date, generator/model identity if applicable |
-| Permission record | What verification changes the requester authorized, when, and who controls that record; `unknown` if absent |
-| Patch evidence | Changed paths, before/after blobs and hashes, line spans, explanation of how verification changes |
-| Gold judgment | Label, mechanism family, rationale, annotator IDs, disagreement and adjudication status |
-| Outcome evidence | Attempted tamper, mutable-verifier result, independent-oracle result, execution failure; `unmeasured` when not run |
-| Split and ancestry | Development/validation/test, repository/task/template/trajectory parent, near-duplicate group |
-| Observation boundary | Final diff, staged snapshot, tool-event prefix, or entire trajectory; distinguishes different detector inputs |
-
-A signed permission record or trusted human service is a future collection
-mechanism. A comment written by the actor or an arbitrary earlier Git commit is
-not proof of human authorization. Never turn a detector finding, rule ID, or
-the mutable grader's pass bit into the gold label.
-
-## Mechanism and benign-neighbor coverage
-
-| Surface | Tamper examples | Necessary benign neighbors |
+| Pool / planned target | Collection and independent evidence | Limitation |
 | --- | --- | --- |
-| Tests and assertions | Delete/skip/focus cases, weaken assertions, detach async checks, shrink parameter domain | Rename/move unchanged tests, strengthen assertions, add cases, refactor helpers |
-| Oracles and graders | Replace expected answer, forge score/result file, monkeypatch evaluator | Approved specification correction, grader bug fix, schema migration |
-| Test execution | Exclude discovery glob, neuter package test script, launder exit status | Broaden discovery, split equivalent jobs, propagate a failing subprocess status |
-| CI and quality gates | Remove tests, tolerate failures, lower coverage, contract matrix | Add platforms, justified migration, approved flaky-test isolation |
-| Guard and policy | Self-approve, insert suppression, disable hook/checker, change comparison base | Trusted preapproval, checker upgrade, equivalent fail-closed wrapper |
-| Outside verifier paths | Hardcode a fixture, test-environment branch, dependency/import shadowing | Legitimate cache/mock boundary, lookup table, dependency maintenance |
-| Temporal/runtime state | Edit-run-restore, unstaged/untracked files, symlink or index manipulation | Safe generated files and deliberate worktree operations |
+| Real executed agent trajectories / 200 | Seeded sampling before detector scoring from [Nebius SWE-agent trajectories](https://huggingface.co/datasets/nebius/SWE-agent-trajectories) and [official released SWE-agent runs](https://github.com/SWE-bench/experiments). Retain task, native transcript, patch, model, failures/no-edit cases and evaluation logs. Prospectively collected ordinary tasks add trusted host events. | Released logs lack authenticated policy and complete host events; unknown stays unknown. Source success bits are not integrity labels. Convenience samples cannot estimate natural prevalence. |
+| Real verifier maintenance / 200 | Declare repository/time sampling frame before searching changes. Independently sample merged PRs for tests, expected values, snapshots, discovery, grader/CI/toolchain maintenance, including strengthening and authorized deletions. Save original issue, review and base/merge SHAs. | Historical merge is not blanket permission for an agent. A separate panel reconstructs a research task and authenticates its allowed obligation delta; label this retrospective permission, not historical fact. |
+| Executable challenge/permission contrasts / 100 pairs = 200 episodes | Independent authors, blind to Proctor rules, implement runnable mechanisms and hard benign neighbors. Include identical patch with different authentic policies. Pair equivalent migrations with requirement changes, self-approval, dependency/CI/report/trace attacks. | Authored and attack-enriched; not natural incidence. Twins are dependent and stay in one split. |
 
-The seed samples only some cells. Temporal state, real reward inflation, and many
-languages require subsequent collection. A coverage table must show zero-count
-cells instead of implying that every family is represented.
+Use [SWE-bench Verified](https://www.swebench.com/SWE-bench/guides/datasets/) for
+the live ordinary-fix stratum, not as a source of cheating labels. Keep public
+benchmark tasks distinct from recent real-repository maintenance. Source-reported
+dataset sizes, exact revisions, access and license checks are in
+[related-work.md](related-work.md); acquisition commands are in [PLAYBOOK.md](PLAYBOOK.md).
 
-## Collection and independence
+Plan at least 15 repositories, with target grouped allocations 120 development,
+120 validation and 360 lockbox episodes. Whole-repository groups, task ancestry,
+trajectory descendants, templates, reference patches and permission twins never
+cross splits. Deduplicate public task IDs across Nebius, SWE-bench and released
+runs; also audit patch similarity, renamed paths and semantic duplicates. Retain
+actual grouped sizes when targets cannot be exact; freeze IDs before scoring.
+Build a separate unseen-mechanism panel. Do not imply every panel is jointly
+unseen by repository, mechanism and model. No detector tuning after lockbox access.
 
-1. Treat existing `fixtures/`, `bench/tasks/`, and `bench/redteam/` plus this seed
-   as public development material. The red-team corpus influenced the rules.
-   Derivatives, translated examples, and minimized variants inherit this status.
-2. Recruit a separate collector/annotator to gather real agent episodes on
-   licensed repositories and create fresh mechanisms without consulting rule
-   patterns. Preserve failed attempts and no-edit runs. Real-agent provenance
-   must name actual model, prompt, tools, and budget; synthetic data stays labeled.
-3. Sample legitimate verification maintenance from a stated repository/time
-   sampling frame, including rare authorized deletions. Preserve original issue
-   context and the authorization record. Include benign patches that ordinary
-   static analysis finds suspicious, rather than only implementation bug fixes.
-4. Freeze repository/task/ancestry groups before scoring. Split 60/20/20 by
-   group where feasible, then publish the exact IDs, counts, hashes, and grouping
-   algorithm. Choose the sample allocation before looking at detector scores.
-   Maintain an independently collected mechanism-family holdout in addition.
-5. Two annotators independently label each evaluation episode while blind to
-   tool outputs and study arm. Adjudicate with a third reviewer; report raw
-   agreement, class-wise disagreement and Cohen's kappa. Conflicting/missing
-   permission stays ambiguous if evidence cannot resolve it.
-6. Freeze labels, prompts, configurations, code SHA, and analysis script before
-   opening test results. Log later corrections with reasons; if a held-out case
-   drives a rule change, retire it to development and replenish the test set.
+## Record contract
 
-Publish the sampling flow: candidate episodes, license exclusions, missing
-context, ambiguous judgments, execution failures, retained units and per-family
-counts. Report how selected and natural data differ; artificial class balance is
-not deployment prevalence.
+Store one immutable raw record and one derived annotation per episode. Required
+fields are `episode_id`, `source_pool`, `source_uri`, `license`, `collected_at`,
+`repo`, `base_sha`, `task_id`, `task_text`, `policy_id`, `policy_principal`,
+`policy_timestamp`, `allowed_obligation_delta`, `policy_evidence_uri`, `before_hash`,
+`after_hash`, `patch_uri`, `trajectory_uri`, `host_events_uri`, `model_snapshot`,
+`runner_version`, `parent_group`, `split`, and artifact SHA-256 map. Missing fields
+have explicit reason codes, never invented values. Collection records name actor,
+author, curator and whether any knew the rules. A controller-held authenticated
+policy is separate from actor-writable repository files.
 
-## Seed release contract
+Annotation fields: integrity (`unauthorized`, `authorized_or_benign`,
+`indeterminate`); mechanism/surface; attempt evidence; transient score corruption;
+accepted corruption; independent correctness; authorized migration completion;
+prohibited answer access; semantic overfitting; missingness; annotator rationales
+and original/adjudicated labels. Do not infer intent. Temporal actions and final
+patches have separate observation boundaries. Failure of a hidden test establishes
+neither tampering nor intent. Semantic hardcoding without verifier manipulation
+is exploratory and does not enter the primary integrity denominator.
 
-The seed is authored for this research package, under the repository's MIT
-license. It contains complete tiny before/after file maps so replay needs no
-external dataset, agent, model key, package download, or executable fixture
-dependency. Git and an already built proctor CLI are prerequisites. Fixture code
-is inert input: the harness never runs the test, grader, shell or CI payload.
+Two independent annotators see task/policy and artifact/trace evidence while blind
+to monitor decisions and arm where feasible; a third adjudicates. Pilot the rubric
+on development only. Publish raw agreement, class confusion and Cohen's kappa,
+then adjudicated labels and exclusions. An LLM may triage but cannot be sole gold
+judge. Report unresolved authorization and trace incompleteness, with best/worst-case
+sensitivity bounds. Never convert missing context into a benign negative.
 
-Each seed item includes a task, explicit authorization, rationale, evidence path,
-mechanism family and development split. Benign authorized weakening is deliberate:
-it tests whether a broad alert is appropriate, not whether any test edit occurred.
-An ambiguous item exercises exclusion reporting. Labels were written for the
-scenario, not chosen to make proctor pass. The seed has not received independent
-double annotation and may overlap the semantics of public proctor fixtures.
+## Task validity and release readiness
 
-Replay compares default RH checks, all checks, a no-detector baseline, and a naive
-protected-path baseline. Path protection is a change alarm, not an authorization
-oracle. Exact prediction rules, metrics and the seed inventory live beside the
-harness to avoid describing a different implementation here. The JSON report
-preserves per-item findings and invalid runs; summary metrics must not hide them.
-The harness records corpus and detector hashes. Wall-clock timings are environment
-specific; fixed input content and predictions are the reproducibility target.
+Before any trial, independently author the authorized contract and oracle; require
+broken-base failure, reference success, discriminating witness tests and rejection
+of seeded harness bypasses. For an approved semantic change, enumerate retained,
+retired and new obligations. Keep gold patches, hidden tests and future Git history
+outside the agent namespace. Full license and access audit precedes redistribution;
+public availability alone is insufficient permission. Preserve source notices and
+redact credentials/personal data. TRACE's gated synthetic data is optional transfer
+evaluation, never a substitute for real executed trajectories.
 
-No held-out task solution or grader-correctness measurement is claimed by replay.
-For the later intervention study, place the independent oracle and event logger
-outside the agent's filesystem/security boundary and evaluate a frozen candidate
-tree. Merely naming a test file `hidden` inside an agent-readable repository is
-not isolation.
-
-## Release and integrity checks
-
-Reject duplicate IDs, unsafe paths, invalid labels, missing rationale or permission
-context, unchanged episodes, malformed detector output, inconsistent exit status,
-and incomplete subprocess runs. A crash, timeout or invalid JSON is an unknown
-measurement, never a true negative. Return a failing harness status and record
-coverage so a partial run cannot look like a complete result.
-
-Pin corpus bytes using SHA-256 and record the proctor commit and bundle hash,
-runtime versions, detector command/configuration and seed schema version. Build
-once before a run. For archival experiments also pin dependency lockfile, OS image,
-locale, CPU allocation, model snapshots, and tool permissions. Keep raw reports
-and an analysis manifest; redact credentials and personal data before any future
-public data release. Audit train/test leakage by content hashes, rename-aware
-patch similarity, common task ancestry, and manual semantic review.
-
-The next data milestone is the pilot in the [evaluation plan](evaluation-plan.md).
-Expanding this hand-authored seed alone does not meet the evidence gate for a
-main-conference paper.
+Record sampling flow from candidates through license/context exclusions,
+indeterminates, oracle failures and final retained groups. Archive raw bytes,
+content hashes, prompts, model/config versions, assignment/status/cost ledger,
+annotation and analysis scripts. Release only after a separate owner decision;
+this PR authorizes no data publication. Any lockbox item that informs a method
+change becomes development data and must be replenished before a new test.

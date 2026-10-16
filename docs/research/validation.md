@@ -1,4 +1,58 @@
-# Validation record: broader research direction and extended seed
+# Research validation history
+
+## Main-track design revision, 2026-10-16 (current)
+
+Measured checks in the isolated `/workspace/proctor` checkout. Latest main was
+verified as `1bfd0b192ea214a0ed349b27822b11b8ccf23e07`; this new branch,
+`research/evolving-verification-main-track`, starts at PR #47's exact commit
+`2a22881d5abb4b16f9a38129254a50ccdd763f5f`. The PR is stacked on
+`research/verification-trust-boundaries`. Only research Markdown changes relative
+to that parent; seed data, harness, detector, tests and dependency manifests are
+unchanged. No paid inference, external dataset download, live agent experiment,
+submission, release or announcement occurred.
+
+Measured so far: fresh build passed; original 24-case validation passed; all 7
+unchanged harness tests passed; both original and extended replays completed every
+case in default and all-checks modes (48 and 96 successful CLI invocations,
+respectively). Their error-block decisions match the existing synthetic reports.
+These are development reproduction checks, not research results. Raw new replay
+outputs are private scratch files; prior checked-in observations are preserved.
+
+Source checks opened primary papers/cards and official venue pages; external
+implementations and dataset contents were not executed. The playbook's Hugging
+Face acquisition commands are source/schema-reviewed and remain unexecuted.
+Its controller commands are explicitly a future interface requiring implementation.
+
+Setup issue: the preinstalled dependency tree was stale. A cache-only full install
+failed on missing Vitest 4.1.11; production dependencies were restored offline and
+build/test tools temporarily recovered from cache. A subsequent supported network-
+permission execution restored the exact lockfile with `npm ci`. No dependency edit
+was made. Initial shell proxy and sandbox subprocess failures are setup failures,
+not negative detector results. Final checks are recorded below after exact restore.
+
+Final measured checks after exact lockfile restore:
+
+- `npm run build` and `npm run typecheck`: passed.
+- `npm exec -- vitest run tests/prose.test.ts`: 2/2 passed with Vitest 4.1.11,
+  after staging the new playbook and revised docs.
+- Both replay reports: every status, exit, alert/block/warning and finding matches
+  the preserved development observation for every case in both detector modes.
+- Relative Markdown links, punctuation, docs-only scope and
+  `git diff --cached --check`: passed.
+- `node dist/cli.js check --staged --all-checks --json --ci`: no findings.
+
+The first commit attempt was correctly blocked because the hook could not locate
+an installed `proctor` command. Linking `node_modules/.bin/proctor` to this
+checkout's freshly built `dist/cli.js` lets the unchanged hook execute the actual
+checker; the hook is not bypassed or modified.
+
+The full production suite was not rerun for this docs-only revision. These checks
+establish documentation/replay consistency, not empirical prevention, external
+baseline reproduction, remote CI success or main-track acceptance readiness.
+
+---
+
+# PR #47 validation record (historical)
 
 Run date: 2026-10-16, America/Los_Angeles. The isolated `/workspace/proctor`
 checkout started at latest main `1bfd0b192ea214a0ed349b27822b11b8ccf23e07`, verified

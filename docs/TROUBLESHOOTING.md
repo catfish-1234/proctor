@@ -1,6 +1,6 @@
 # Troubleshooting
 
-The things that actually go wrong, and what each one means.
+Common problems and how to check them.
 
 ## The Stop hook never fired
 
@@ -23,11 +23,10 @@ You want a `Stop` entry whose command contains `proctor stop-hook`. If it is mis
 is outside a git repository, when proctor itself errors or takes more than 60 seconds, and during a
 merge, rebase, cherry-pick, or revert. That last one matters: mid-merge the working tree holds the
 incoming branch's changes too, so a test that branch deleted would look like this turn deleting it.
-The pre-commit hook still guards the resolution, which is where it becomes your change.
+The pre-commit hook checks the staged resolution.
 
-**A brand-new file the agent never staged is not seen.** The hook reads tracked changes; a file
-that git does not know about yet is invisible to it. `git add` the file, or rely on the pre-commit
-hook, which sees it once it is staged.
+**Check whether the file is ignored.** The Stop hook includes staged, unstaged, and untracked
+files. Untracked files ignored by Git and untracked dependency/build trees are excluded.
 
 Run the check by hand to see what the hook sees:
 
@@ -35,10 +34,10 @@ Run the check by hand to see what the hook sees:
 proctor check --uncommitted
 ```
 
-If that finds nothing, the change genuinely did not trip a rule.
+If that finds nothing, no enabled rule matched the change.
 
-> Historical note: before v1.1 the Stop hook checked `--staged` only, so changes an agent had not
-> staged were invisible to it. If you installed proctor before then, re-run `proctor setup`.
+> Older source checkouts used a staged-only Stop hook. Re-run `proctor setup` to update an
+> existing installation.
 
 ## I got a false positive
 
@@ -49,16 +48,14 @@ proctor check --explain RH004        # what this check looks for
 proctor check --explain RH004 --fix  # what an honest fix looks like
 ```
 
-If it is genuinely wrong about your code, suppress that one line:
+If the finding is incorrect, suppress that line:
 
 ```js
 // proctor-ignore: RH004 reason: extension-to-language mapping table, not a fixture hardcode
 ```
 
-**The marker must already be committed.** proctor reads suppressions from the committed baseline,
-not the working tree, so a marker added in the same change it excuses does nothing. That is
-deliberate: an agent that could suppress a rule in the change that trips it would have no guard at
-all. Commit the marker first, then make the change.
+**Commit the marker first.** Suppressions come from the committed baseline. A marker added
+alongside the flagged change has no effect.
 
 To turn a rule down repository-wide instead, set its severity in `proctor.config.json` (see
 [CONFIGURATION.md](CONFIGURATION.md)). A `warn` still prints and still appears in reports; it just
@@ -66,7 +63,7 @@ stops blocking.
 
 If the check is wrong in a way that would be wrong for anyone,
 [open an issue](https://github.com/catfish-1234/proctor/issues/new/choose) with the diff that
-triggered it. Precision bugs are worth fixing at the source.
+triggered it so the check can be fixed.
 
 ## `proctor approve` didn't take effect
 
@@ -81,8 +78,8 @@ git add proctor.config.json && git commit -m "chore: approve RH001 for legacy bi
 If you see `proctor.config.json differs from the version at HEAD; enforcement uses the committed
 version`, that is this exact situation: your edit is real, it just isn't in force yet.
 
-An approved finding still prints, still appears in `--json` and `--sarif`, and still withholds the
-honest-pass badge. Approving makes a finding non-blocking and visible, not invisible.
+Approved findings remain in text, JSON, and SARIF reports and withhold the honest-pass badge.
+The approval makes them non-blocking.
 
 ## `npx` can't find the package
 
@@ -108,8 +105,8 @@ After the first public release, a 404 should instead prompt a registry check wit
 
 ## `proctor bench` says there are no tasks
 
-The benchmark corpus ships with the git repository, not the npm package, because it is a research
-fixture rather than something every install should carry. Clone and run it from there:
+The benchmark corpus is included in the git repository but omitted from the npm package.
+Run it from a clone:
 
 ```bash
 git clone https://github.com/catfish-1234/proctor && cd proctor
@@ -119,8 +116,7 @@ node dist/cli.js bench --mock
 
 ## `setup` wrote fewer files than I expected
 
-That is the intended behaviour as of v1.1. `setup` installs to the agents this repository shows
-signs of using, not all 30. Check what it detected:
+By default, `setup` installs to detected agents. Check the detection results:
 
 ```bash
 proctor agents

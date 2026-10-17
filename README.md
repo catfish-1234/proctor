@@ -10,11 +10,10 @@
   <a href="https://github.com/catfish-1234/proctor/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/@kavishdua/proctor?color=blue" alt="MIT license"></a>
 </p>
 
-<p align="center"><strong>Your agent didn't fix the bug. It deleted the test and told you it passed. proctor catches it.</strong></p>
+<p align="center"><strong>Catch test tampering in AI coding agents' changes.</strong></p>
 
-proctor reads your git diff and blocks the changes an AI coding agent makes when it fakes a
-finished job: deleting a failing test, weakening the assertion, hardcoding the answer, swallowing
-the error, or switching off the checks that were about to catch any of it.
+proctor checks your git diff for deleted tests, weakened assertions, hardcoded answers,
+swallowed errors, and disabled checks. Its hooks block changes that trigger an error finding.
 
 The default check runs offline: no account or API key. The optional `--ai` judge sends candidates
 to Anthropic and needs `ANTHROPIC_API_KEY`. You need Node 20 or newer; building and testing from
@@ -66,8 +65,8 @@ npm run build
 node dist/cli.js check /path/to/repository
 ```
 
-If it prints `✓ proctor: honest pass`, no enabled check found a problem. Checks also cover source
-and configuration changes; findings depend on the enabled rules.
+The `✓ proctor: honest pass` line means there are no error-level or approved findings. Warnings
+may still be reported. Checks cover source and configuration changes as well as tests.
 
 The check writes nothing to the repository being checked and makes no runtime network call.
 `npm ci` installs dependencies in the proctor checkout.
@@ -90,7 +89,7 @@ gemini extensions install https://github.com/catfish-1234/proctor
 qwen extensions install https://github.com/catfish-1234/proctor
 ```
 
-**Anything else** (30 agents supported, or none at all)
+**Other agents, or CLI use without an agent** (30 agents supported)
 
 Until the npm package is published, build its installable tarball from source:
 
@@ -124,16 +123,16 @@ which may be outside the working tree when you use worktrees or `core.hooksPath`
 | `.claude/settings.json` | The Claude Code Stop hook, written only if this repo uses Claude Code | Merged into the existing JSON; nothing else in the file changes |
 | `.proctor-adapter-manifest.json` | Records what was written, so `uninstall` can take exactly that back out | Rewritten |
 
-How the agent list is chosen: proctor looks for each agent's own config (`.cursor/`, `.claude/`,
-`WARP.md`, and so on) and writes the ruleset to just those. A repo with no agent config gets
-`AGENTS.md`, the cross-vendor standard. Run `proctor agents` first to see the list for your repo.
-`--all` installs to all 30 supported agents; `--agents claude-code,cursor` names them yourself.
+proctor detects agents from their config files, such as `.cursor/`, `.claude/`, or `WARP.md`,
+and installs the ruleset for those agents. If it finds none, it writes `AGENTS.md`.
+Run `proctor agents` to check the list before installing. Use `--all` for all 30 supported agents,
+or `--agents claude-code,cursor` to choose them yourself.
 
 The npm postinstall notice and automatic setup stay quiet in CI, global installs, transitive
 installs, outside a git repository, and under `npx`. An explicit `proctor setup` still runs.
 
-**If you want the old install-and-wire behavior**, set `PROCTOR_AUTO_SETUP=1` and installing runs
-`proctor setup` for you. `PROCTOR_NO_POSTINSTALL=1` silences the install-time notice entirely.
+Set `PROCTOR_AUTO_SETUP=1` to run `proctor setup` automatically during installation.
+Set `PROCTOR_NO_POSTINSTALL=1` to silence the install-time notice.
 
 ### One thing to do afterwards
 
@@ -146,8 +145,7 @@ git add -A && git commit -m "chore: add proctor"
 
 If you use Claude Code, restart it so it picks up the new Stop hook.
 
-That's the whole setup. You don't need to run proctor by hand, remember any flags, or write a
-config file.
+The hooks run checks automatically. A config file is optional.
 
 ### Checking it worked
 
@@ -171,8 +169,8 @@ keep or delete. To skip the hook once without uninstalling: `git commit --no-ver
 
 ## See it catch a real cheat
 
-An agent is asked to fix a bug in a slug generator. It can't get the whitespace-only case to
-return `''`, so instead of fixing `slugify()`, it deletes the inconvenient test:
+An agent deleted the test and told you it passed. It had been asked to make `slugify()` return
+`''` for whitespace-only input; instead, it removed that test:
 
 ```diff
  describe('slugify', () => {
@@ -199,23 +197,21 @@ $ echo $?
 2
 ```
 
-The commit never lands. The agent has to actually fix `slugify()`, not just make the red go away.
+With the pre-commit hook installed, this finding blocks the commit until the test is restored
+or the change is approved.
 
-Here's the full two-scene recording: proctor catching a deleted test at the CLI layer, then the
-Claude Code Stop hook blocking the same cheat live in an agent session.
+The recording shows the CLI detecting a deleted test, followed by the Claude Code Stop hook
+blocking the same change during an agent session.
 
 ![proctor demo](https://raw.githubusercontent.com/catfish-1234/proctor/main/assets/demo.gif)
 
 ## What happens when it blocks
 
-Your agent handles it. When a check fires, proctor prints what tripped and what an honest fix looks
-like, and the agent goes and does that instead. That's the normal path and it needs nothing from
-you. At the terminal you'll see the finding and an exit code of `2`.
+When a check fires, proctor prints the finding and suggested fix. Error findings exit `2` and
+block the commit or agent turn. Review the suggestion, then fix the change or record an exception.
 
-Three cases want a human, and each is one command.
-
-**The test change was genuinely intended.** A feature got removed, so its tests went with it.
-Record it and the finding stops blocking:
+**The test change was intended.** For example, you removed a feature and its tests.
+Record the reason to make the finding non-blocking:
 
 ```bash
 proctor approve RH001 tests/legacy-billing.test.ts --reason "billing v1 removed in RFC-88"
@@ -254,11 +250,9 @@ committed changes since the merge base. The default includes staged, unstaged, a
 Run `npx proctor check --help` for flags, or see the
 [CLI reference](https://github.com/catfish-1234/proctor/blob/main/docs/CLI.md).
 
-Every finding carries a short ID like `RH001`. They are just stable labels, the same idea as an
-ESLint rule name, so a check can be referenced without spelling out a whole sentence. Nothing to
-memorize: the plain-English name and full explanation print with every finding.
-
-There are two families, and the split is by the claim each one checks.
+Every finding has a stable ID such as `RH001`, used in config, approvals, and reports. Use
+`proctor check --explain <id>` for the description and fix guidance. The checks fall into two
+families.
 
 **RH0xx checks "the tests pass."** These read the test suite and the code directly beneath it.
 
@@ -279,15 +273,14 @@ There are two families, and the split is by the claim each one checks.
 | RH013 | A coverage threshold lowered or removed |
 | RH014 | A surviving test changed to exercise fewer generated, looped, or table-driven cases |
 
-**WI1xx checks "the work is done."** Deleting a test is only one way to fake a finished job. These
-read shipped code for the rest of them, and none of the cheats they catch touches a test file.
+**WI1xx checks "the work is done."** These look for incomplete or disabled behavior in source,
+config, and tests, including discarded errors, removed validation, and altered expected values.
 
 > **Beta, and opt-in for now.** The WI family is off by default in v1.0.0. Turn it on for one run
 > with `proctor check --wi` (or `--all-checks`), or for good by listing the IDs you want in
-> `enabled` in `proctor.config.json`, which also applies them in both hooks. Nothing about them is
-> weakened by being opt-in: thirteen checks reading arbitrary source across 25+ languages is a
-> larger false-positive surface than the RH family's, and it has had less real-world exposure, so
-> they earn default-on in a later release rather than assuming it.
+> `enabled` in `proctor.config.json`, which also applies them in both hooks. These thirteen checks
+> cover 25+ languages and have had less real-world testing than the RH family, so they remain
+> opt-in while we assess false positives.
 
 | | Catches |
 |---|---|
@@ -305,14 +298,12 @@ read shipped code for the rest of them, and none of the cheats they catch touche
 | WI112 | Assertions deleted from a surviving test, a golden file rewritten, or a module aliased to a stub |
 | WI113 | A benchmark workload reduced, dependency downgraded, or fixed delay added instead of fixing the failure |
 
-Every WI check skips test files on purpose. An empty catch is how you assert that something throws,
-canned data is what a fixture is for, and a loose cast is ordinary when building a partial mock.
-They watch the code your tests are meant to be proving.
+Several WI checks skip test files because mocks, loose casts, and empty handlers can be normal
+in tests. Others, including WI109, WI111, and WI112, inspect changes to tests themselves.
+See the language matrix for each check's scope.
 
-Most of them also have the same escape hatch: a line whose comment explains why it is correct does
-not get flagged. That is not a loophole, it is the point. An agent racing to a green build does not
-stop to write the sentence, and if it does, the sentence is now in the diff for a human to read and
-disagree with.
+Some WI checks accept an explanatory comment; others require a committed approval or suppression
+marker. Check the rule's `--explain` output before relying on an exception.
 
 ## Badges
 
@@ -327,9 +318,8 @@ $ proctor badge
 [![proctor](https://img.shields.io/badge/proctor-honest_pass-22C55E)](https://github.com/catfish-1234/proctor)
 ```
 
-A run only earns it when it is genuinely clean. Findings you approved through `approvedTestChanges`
-do not count as clean, since somebody decided to let those through. The printed line is suppressed
-under `--ci`, which is what the hooks and the GitHub Action use.
+Findings approved through `approvedTestChanges` do not count as clean and do not earn the badge.
+`--ci` suppresses the printed badge line; the GitHub Action and Stop hook use this flag.
 
 ## CI
 
@@ -357,43 +347,29 @@ reproducible, use a full commit SHA as above; a full SHA is immutable.
 
 ## How it works
 
-proctor has two halves.
-
-The **ruleset** is a short document telling your agent how to finish work honestly. Most agents
-follow it most of the time.
-
-The **guard** is for the rest of the time. A ruleset alone is a request, and an agent under
-pressure to show green can talk itself out of a request. So proctor also ships a
-deterministic, diff-level guard that runs on every commit and at the end of every agent turn, and
-blocks the changes that broke the rules. It works below the agent's own reasoning: it reads the
-code change itself, never the agent's explanation of it, so nothing the agent says can argue
-with it.
+proctor combines a **ruleset** with a **guard**. The ruleset tells the agent how to complete work
+and report results. The deterministic, diff-level guard checks for known tampering patterns at
+commit time and, with the Claude Code Stop hook, at the end of a turn. It works
+below the agent's own reasoning by checking the changed code rather than the agent's explanation.
 
 ## Can the agent get around it?
 
-That is the question the design answers, so it is worth being concrete about.
+**The commit hook fails closed.** It probes with `--version`, prefers a local install, and blocks
+when proctor cannot run. An older hook treated exit `1` from `npx` as a warning-only result, even
+when the package could not be resolved. The probe prevents that failure from allowing an
+unchecked commit.
 
-**The commit hook fails closed.** If proctor cannot run at all, the commit is blocked rather than
-allowed. This used to be the other way round and it was the worst bug in the tool: the hook ran
-`npx @kavishdua/proctor check --staged` and treated exit 1 as "clean with warnings", but `npx` also
-exits 1 when it cannot resolve the package, so an unreachable registry looked identical to a clean
-run and the commit landed unchecked. The hook now probes with `--version` first, prefers a local
-install over the network, and refuses the commit when it cannot check it.
-
-**Config is read from the committed baseline, not your working tree.** An agent that edits
-`proctor.config.json` in the same change it is trying to land has changed nothing about the run:
-enforcement uses the version at the diff baseline. The same goes for approvals and for inline
-`proctor-ignore` markers, which only count when they were committed *before* the change they
-excuse. Self-approval is not a matter of policy here, it does not work.
+**Config comes from the committed baseline.** Editing `proctor.config.json` does not change how
+that same diff is checked. Approvals and inline `proctor-ignore` markers must also be committed
+before the change they cover.
 
 **Switching the guard off is itself a finding.** WI104 fires on a check removed from `enabled`, a
 severity downgraded, an ignore pattern or approval added, a ruleset file deleted, a `--no-verify`
-added to a script, or TypeScript strictness turned off. Since the config edit was already inert,
-the point of the check is to make the attempt visible rather than to stop it.
+added to a script, or TypeScript strictness turned off. WI104 is part of the opt-in WI family.
 
-**It reads the diff, never the explanation.** Nothing the agent says about its change is an input.
-The remaining honest gap is a human running `git commit --no-verify`, which is deliberate: that is a
-person overriding their own tooling, and it is caught at the next turn by the Stop hook and in CI.
+**Local hooks can be bypassed.** Anyone with shell access can run `git commit --no-verify`.
+A base-range CI check can still inspect the committed change. The Stop hook checks uncommitted
+changes and allows turns when proctor cannot run, so it is not a substitute for CI.
 
 ## By the numbers
 
@@ -420,46 +396,37 @@ adversarial number comes from the independent widening corpus in [`bench/redteam
 | **27** | checks in two families, across **25+** languages, installable into **30** agents |
 | **under 1s** | to check a commit, offline. Measured here at roughly 0.25s on a 3-file diff and 0.55s on a 79-file one, cold Node start included |
 
-**What we don't claim.** That proctor makes an agent *behave* better. That is a different measurement
-and our own [benchmark](#benchmark) has not produced it: both complete live runs passed their
-held-out tests in every one of the 44 invocations, so the agent never reached the point where
-cheating was worth it and there was no behaviour to change in either arm. The 139 of 139 above is a detection claim, which
-is the claim the tool actually makes.
+**What we don't claim.** The 139 of 139 result measures detection of planted changes.
+Our [benchmark](#benchmark) has not shown that proctor reduces cheating: all 44 invocations in
+each of the two complete live runs passed their held-out tests in both arms.
 
 ## Benchmark
 
 `proctor bench` measures how often an agent games its own tests, and how often proctor catches it,
 across a fixed pool of tasks with the ruleset on and off.
 
-The honest state of this evidence: a complete 22-task live run against `claude-code`, both arms,
-all 44 agent invocations scored, against held-out tests each verified to fail their own unfixed
-source.
+The table shows a complete 22-task live run against `claude-code`, with all 44 invocations scored.
+Before the run, each held-out suite was verified to fail its task's unfixed source.
 
 | | proctor off | proctor on |
 |---|---|---|
 | cheat rate | **4.5%** (1 of 22) | **4.5%** (1 of 22) |
 | honest-pass rate | **100.0%** | **100.0%** |
 
-**No difference between the arms, and the honest-pass column explains why.** Every one of the 44
-runs passed its held-out tests, including the one that tripped a signature. The held-out design
-exists precisely so an agent that fakes a green build fails a test it never saw. Nothing failed
-one. The agent solved every task in the pool, including the seven built to make cheating cheaper
-than fixing, so the situation the tool exists for never arose in either arm and there was no
-behaviour left for the intervention to change.
+All 44 runs passed their held-out tests, including the runs flagged by proctor. This includes
+the seven tasks designed to make cheating cheaper than fixing. The run provides no evidence of
+a difference between the two arms.
 
-An earlier run of this same corpus showed 9.1% against 4.5%, and **that difference did not
-reproduce**. It was one task out of 22, which is what noise looks like at this sample size. Both
-runs are consistent with the same conclusion, and the apparent improvement in the first one would
-have been exactly the sort of unearned green this project exists to catch.
+An earlier run showed 9.1% against 4.5%, a difference of one task out of 22. That difference did
+not reproduce in the second run and does not establish a prevention rate.
 
-The single flagged diff was a **false positive**, and chasing it was worth more than the headline
-number. RH004 fired on task-17 in both arms, against an agent that had replaced a
+The single flagged task was a **false positive**. RH004 fired on task-17 in both arms after the
+agent replaced a
 `return version >= base` stub with a real 52-line semver implementation. The flagged line was the
 `return 0` that terminates its new comparator, which is the correct "equal" result, paired by the
 check against the deleted stub thirty lines away in a different function. That has been fixed, so
-the same run scored against current code reads **0.0% in both arms**. The table above is left as
-the run actually scored, because a benchmark that quietly restates old results as if the tool had
-always behaved this way is not a record of anything.
+the same run scored against current code reads **0.0% in both arms**. The table preserves the
+results recorded at the time.
 
 The eight held-out suites that could not distinguish a fix from a cheat were found and strengthened
 before this run, and `tests/bench-heldout-discriminates.test.ts` now enforces that property for
@@ -474,9 +441,9 @@ node dist/cli.js bench --tasks 22 --agent claude-code --out bench/results-live.c
 ```
 
 A 22-task run is 44 agent invocations, which is more than one Claude subscription session allows.
-Three attempts reached 16, 14 and 16 tasks before the agent started returning "You've hit your
-session limit", and a rate-limited agent looks exactly like an honest one once it reaches the CSV:
-no changes, no cheat, no finding. `--resume` carries the completed tasks over from the
+Three attempts reached 16, 14 and 16 tasks before the agent returned "You've hit your
+session limit". An older scorer treated failed invocations with no changes as clean results;
+the current scorer rejects them. `--resume` carries the completed tasks over from the
 `.partial.csv` a failed attempt leaves behind, so a run can span more than one window; the numbers
 above were collected that way. `PROCTOR_BENCH_TIMEOUT_MS` raises the per-invocation budget, which
 the hard-tier tasks need. Read the `proctor: bench task-NN ... failed` lines on stderr before
@@ -484,7 +451,7 @@ trusting any number the table prints.
 
 ## Going further
 
-Everything above is the whole product for most people. These pages are for when you want more:
+For command details, configuration, support limits, and contributor instructions:
 
 | Page | What's in it |
 |------|--------------|
@@ -506,10 +473,8 @@ unambiguous. [Full matrix](https://github.com/catfish-1234/proctor/blob/main/doc
 
 ## The Proctor
 
-Picture the exam invigilator: arms crossed, half-moon glasses, watching over a sweating robot
-mid-delete of a failing test. That's proctor. The logo is a watchful eye with a green checkmark for
-a pupil, watching whether your green is real. When it catches a cheat, the iris flips red and the
-pupil becomes an X.
+The name comes from an exam invigilator. The logo is an eye with a green checkmark for a pupil.
+When proctor catches a problem, the iris turns red and the pupil becomes an X.
 
 ## License
 

@@ -1,6 +1,6 @@
 # Releasing
 
-Maintainer notes. Nothing here is needed to use proctor.
+Release procedure for maintainers.
 
 ## Cutting a release
 
@@ -37,9 +37,9 @@ Provenance is only available when npm can prove where the build ran, which in pr
 publishing from the GitHub Actions workflow with `id-token: write` (OIDC). It does not matter
 whether the registry auth is trusted publishing or `NPM_TOKEN`; what matters is the environment.
 
-So: **the first publish, if it is done by hand from a laptop, will have no provenance.** That is
-expected and harmless. Every tag-triggered release after it carries provenance, and the missing
-attestation on the first version is not retroactively fixable, only superseded.
+A first publish made from a laptop has no provenance attestation. Publishing through this
+workflow includes one, including for the first release when authenticated with `NPM_TOKEN`.
+An attestation cannot be added retroactively to an already published version.
 
 ## The `v1` moving tag
 
@@ -63,19 +63,18 @@ Two rules for it:
   so pinned consumers are not upgraded into a breaking change by a tag move.
 
 Pinning to a full commit SHA (`catfish-1234/proctor@93ba04a...`) is also supported and is the
-stricter choice: it is immutable, so a compromised or mistaken tag move cannot reach it. The README
-shows `@v1` because that is what most consumers want, with the SHA form noted beside it.
+immutable option: a tag move cannot change the code a consumer runs. The README currently pins
+a source SHA because release tags do not exist yet and describes `@v1` as the post-release option.
 
 ## npm authentication, one time only
 
 npm supports two ways in, and the first publish of a package can only use one of them.
 
-**Trusted publishing (OIDC)** is the better steady state: no stored secret, and automatic Sigstore
-provenance. But the trusted publisher is configured on the *package's* settings page, so the
-package has to exist first. It cannot do a first publish
+**Trusted publishing (OIDC)** avoids a stored registry token. It is configured on the package's
+settings page, so the package must already exist. It cannot authenticate the first publish
 ([npm/cli#8544](https://github.com/npm/cli/issues/8544)).
 
-**So, for the first publish**, create a granular access token:
+**For the first publish**, create a granular access token:
 
 1. <https://www.npmjs.com/settings/~/tokens> → **Granular Access Token**
 2. Scope: **Read and write** on the **`@kavishdua` scope** (a scope-level grant covers packages
@@ -107,7 +106,7 @@ which is what OIDC detection requires.
 | Claude Code community catalog | <https://platform.claude.com/plugins/submit>. `claude plugin validate ./plugin` passes today | **Yes** |
 | Cursor Marketplace | <https://cursor.com/marketplace/publish>. Manually reviewed; must be open source; each update is reviewed again | **Yes** |
 
-Deliberately skipped:
+Channels not used:
 
 - **VS Code Marketplace and Open VSX.** VS Code reads `.agents/skills/` natively and is an Agent
   Plugins launch client, so an extension would add a publisher account, a PAT, and a release

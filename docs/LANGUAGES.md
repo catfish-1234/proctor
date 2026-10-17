@@ -1,7 +1,7 @@
 # Languages and agents
 
-Which checks work in which language, which agents proctor installs to, and what is
-deliberately not covered. Start at the [README](../README.md) if you just want it running.
+Language coverage, supported agents, and known gaps. For installation, start with the
+[README](../README.md).
 
 **Languages:** JavaScript and TypeScript (Jest and Vitest conventions) and Python (pytest and
 unittest conventions) have the broadest coverage. RH012 and RH013 read
@@ -13,8 +13,8 @@ checks (RH001, RH002, RH003, RH007, RH011) that work off diff-line patterns. The
 languages, then the 16 added in the Language Expansion II round.
 
 The work-integrity family (WI101 to WI113) has its own scoping, described in
-[its own section](#the-work-integrity-family-wi1xx) below, since those checks read shipped code
-rather than test files and their coverage does not line up with the RH tables. That family is
+[its own section](#the-work-integrity-family-wi1xx) below. Coverage depends on the check and file
+type, so it does not line up with the RH tables. That family is
 **beta and opt-in** in v1.0.0: run it with `proctor check --wi` (or `--all-checks`), or list the
 IDs in `enabled` in `proctor.config.json` to have it apply everywhere, hooks included.
 
@@ -69,14 +69,12 @@ exclusion, Lua's fragile own-line-at-file-top form, Clojure's `.clj-kondo/config
 whole-file exclusion, and Shell/Bash's structural absence of any inline file-wide directive) would
 require forward-scanning past the diff line, which proctor's line-level model doesn't do.
 
-RH004, RH005, RH006, and RH008 stay **JS/TS/Python-only** by design, across all 25+ supported
-languages. Their patterns are written against JS/TS and Python syntax, and the ambiguous cases
-fall back to the `--ai` judge. Porting gutted-function, hardcoded-return, and
-tautological-assertion detection to every other language would carry a much higher false-positive
-risk than the diff-line signature checks above, so this is a stated boundary, not an oversight.
+RH004, RH005, RH006, and RH008 are scoped to JS/TS and Python; the table distinguishes checks
+without a Python equivalent. They are not implemented for the other 25+ supported languages.
+RH004 and RH005 can use the optional `--ai` judge for ambiguous cases. Extending their syntax
+patterns to other languages would need separate validation for false positives.
 
-RH009 and RH010 are JS/TS/Python-only for the same reason, and are left out of the tables above
-only because a row of one tick and twenty-four crosses says less than this sentence does. RH009
+RH009 and RH010 are also JS/TS/Python-only and are described here rather than in the tables. RH009
 reads `it`/`test`/`describe` declarations and Python test functions to spot a trivial test swapped
 in for a real one. RH010 also catches an exact test expression whose leading `await` was deleted,
 and matches the retry and timeout knobs of two ecosystems specifically:
@@ -90,16 +88,16 @@ language-neutral line shapes; `slice`/`filter` generated-input contractions targ
 parameter-table row removal covers Jest/Vitest `it.each` plus pytest parameter tables when their
 rows are visible in the diff. Every signal compares the before and after workload.
 
-That accounts for all fourteen: five diff-level checks across every language (RH001, RH002, RH003,
-RH007, RH011), six JS/TS/Python-centered checks (RH004, RH005, RH006, RH008, RH009, RH010), RH014's
-cross-language workload shapes, and two that read config rather than source (RH012, RH013).
+The fourteen RH checks include five diff-level checks with broad language coverage (RH001,
+RH002, RH003, RH007, RH011), six centered on JS/TS and Python (RH004, RH005, RH006, RH008,
+RH009, RH010), RH014's workload comparisons, and two config checks (RH012, RH013). The tables
+and gaps above qualify the coverage for each language.
 
 RH012 is absent from both tables on purpose. It reads CI pipeline definitions, not source, so it
 does not vary by language: `.github/workflows/*.yml`, `.gitlab-ci.yml`, `.circleci/config.yml`,
 `azure-pipelines.yml`, `.travis.yml`, `Jenkinsfile`, and `bitbucket-pipelines.yml` all get the same
-treatment whatever the repository is written in. It exists because RH007 watches the test runner's
-config while nothing watched the layer above it: deleting the test step from a workflow, or marking
-it `continue-on-error: true`, turns the suite green without touching a single test file.
+treatment whatever the repository is written in. RH012 catches deleted test steps and changes
+such as `continue-on-error: true` that let a workflow pass despite test failures.
 
 Everything except a removed test command is scoped to the individual step, not the diff chunk. A
 coverage upload marked `continue-on-error: true` right after a test step is an ordinary, correct
@@ -109,17 +107,15 @@ RH013 is absent from both tables for the same reason, one layer over again. It r
 thresholds out of config rather than source: Jest and Vitest `coverageThreshold`, nyc, `.coveragerc`
 and `pyproject.toml`, SimpleCov, PHPUnit, Maven and Gradle (JaCoCo), and `codecov.yml`. The
 threshold's own file format varies by ecosystem, but nothing about the check varies by the language
-the tests are written in. It exists because a coverage gate is one of the easiest things to meet by
-lowering it: dropping the bar from 90 to 40, or deleting the threshold block outright, turns a red
-build green without a single test changing.
+the tests are written in. It catches lowered thresholds, such as 90 to 40, and deleted threshold
+blocks.
 
 Documented gaps: Go's RH002 coverage is testify-only, stdlib comparison-weakening isn't
 pattern-matched. Kotlin's Kotest `enabled = false` skip form isn't covered, it's too generic a
 token to anchor safely. Go, Ruby, and C# don't have a genuine file-wide suppression detector for
 RH011, Go's file-wide `//nolint`, Ruby's unclosed `rubocop:disable`, and C#'s unrestored `#pragma
 warning disable` all require forward-scanning past the diff line, which proctor's line-level model
-doesn't do. None of these are silently absent, they're listed here and in `proctor check --explain
-<ID>`.
+doesn't do. The gaps are also documented in `proctor check --explain <ID>`.
 
 C#, Java, and Kotlin test-file detection is filename-convention-based (`*Tests.cs`/`*Test.cs`,
 Maven Surefire patterns, `*Test.kt`), not attribute-based, so a test file with an unconventional
@@ -130,12 +126,11 @@ All 16 Language Expansion II languages are the same: test-file recognition is
 filename/directory-convention-based (`*_test.cpp`/`test_*.c`, `*Tests.swift`, `test/*.dart`,
 `*Spec.scala`, `t/*.t`, `tests/testthat/test-*.R`, `*Spec.hs`, `test/*_test.exs`, `*_spec.lua`,
 `*Spec.groovy`, `test/*_test.clj`, `*.bats`, `test/runtests.jl`, `*Tests.vb`), never
-attribute-based. `.h` deliberately resolves to C, not C++, C headers vastly outnumber C++ headers
-using the bare `.h` extension, a documented judgment call (RESEARCH Pitfall 4) rather than a
-missed case; `.mm` resolves to Objective-C since XCTest macro usage there is identical to `.m`.
+attribute-based. The ambiguous `.h` extension is classified as C. `.mm` is classified as
+Objective-C because its XCTest macros are the same as those used in `.m` files.
 
-**Agents:** running `proctor install-skill` from a local install deploys the honest-completion skill to
-every agent below from one source file (see
+**Agents:** `proctor install-skill` deploys the ruleset to detected agents from one source file.
+Use `--all` to install every adapter below (see
 [`src/adapters/registry.ts`](../src/adapters/registry.ts)). The Claude Code Stop hook only works with
 Claude Code specifically. The git pre-commit hook works no matter which agent (or human) is making
 the commit.
@@ -190,12 +185,9 @@ not overwrite the file. It merges the ruleset into a delimited block:
 <!-- proctor:end -->
 ```
 
-Everything outside that block is left exactly as you wrote it, reinstalling replaces the block in
-place rather than appending a second copy, and `drift-check` only compares the block. `install-skill`
-also records which shared paths it wrote to `.proctor-adapter-manifest.json` (commit this alongside
-your adapter files), because a shared file with no block is ambiguous otherwise: it could mean
-proctor was never installed, or it could mean an agent deleted the ruleset. With the manifest,
-the second case is reported as drift.
+Reinstalling replaces the block and preserves your surrounding content. `drift-check` compares
+only the block. `install-skill` records deployed paths in `.proctor-adapter-manifest.json`;
+commit this with the adapter files so a deleted block can be reported as drift.
 
 Paths without a ✅ in that column belong to proctor alone and are written whole.
 
@@ -204,8 +196,8 @@ by itself mean a `proctor bench` `AgentRunner` exists, see `src/bench/runners/re
 
 ### One-command installs
 
-Every agent above gets the ruleset from `install-skill`. Five of them also have a package format
-you can install proctor from directly, so the ruleset and its enforcement arrive together:
+All listed agents can receive the ruleset through `install-skill`. Five also have package
+formats for direct installation:
 
 | Agent | Format | Install |
 |-------|--------|---------|
@@ -215,8 +207,7 @@ you can install proctor from directly, so the ruleset and its enforcement arrive
 | Qwen Code | extension | `qwen extensions install https://github.com/catfish-1234/proctor` |
 | goose | recipe | `goose run --recipe recipes/proctor.yaml` |
 
-The rest were checked and deliberately left out, because a package format has to be able to carry
-instructions for proctor to have anything to put in it:
+Other agents use instruction files or package formats that do not support this ruleset:
 
 - **Zed, Kiro, Windsurf, Trae** publish IDE extensions built in Rust/WASM or VS Code's format.
   They carry languages, themes, and debuggers, not rulesets.
@@ -229,8 +220,8 @@ instructions for proctor to have anything to put in it:
 - **Codex** uses Agent Skills, which `install-skill` already writes to `.agents/skills/`.
 - The remaining agents read a rules or instructions file and have no package format at all.
 
-Where an agent has no installable package, `install-skill` is the one-command path and loses
-nothing: the ruleset lands at the agent's own conventional path either way.
+For agents without an installable package, `install-skill` writes to their standard instructions
+path.
 
 ### Adding an adapter
 
@@ -260,10 +251,9 @@ To add support for another agent:
 
 ## The work-integrity family (WI1xx)
 
-These six read shipped code rather than the test suite, so their coverage is scoped differently
-from the tables above. Every one of them skips test files entirely: an empty catch is how you
-assert that something throws, canned data is what a fixture is for, and a loose cast is ordinary
-when building a partial mock, so firing there would make them unusable immediately.
+WI checks inspect source, config, and tests. Several skip test files where mocks and partial
+implementations are expected; WI109, WI111, and WI112 also inspect test changes. The tables below
+describe WI101 through WI108. The README lists all thirteen checks.
 
 | WI-ID | Scope | Coverage and gaps |
 |-------|-------|-------------------|
@@ -288,10 +278,8 @@ different enough that reusing the `any` framing would be misleading.
 
 ## Known limitations
 
-These were found by testing proctor against itself in around 28 throwaway repos, covering every
-check plus a handful of deliberately tricky evasions. None of them are patched with broader regex
-matching, because the fix would either need real judgment (a good fit for `--ai`, not a safe
-pattern to hardcode) or would open up a new way to sneak a cheat past a wider net.
+Testing in around 28 throwaway repositories exposed the following limits. Addressing them
+would require more context than the current line-based patterns provide.
 
 - **Hardcoding via a lookup table.** Proctor catches a bare `return 3` replacing real logic, or a
   one-line `if (x === fixture) return answer`. A dictionary populated with the exact expected
@@ -304,9 +292,8 @@ pattern to hardcode) or would open up a new way to sneak a cheat past a wider ne
   files is also better suited to `--ai`.
 - **Disabling a test with a block comment instead of `.skip()`.** Wrapping a test in `/* ... */`
   leaves the test's own line of code completely unchanged, so it never shows up as a changed line
-  in the diff at all. This is a known, documented gap rather than something we're chasing with more
-  regex, since reliably parsing comment boundaries out of a line-based diff is fragile.
+  in the diff. The current line-based detector does not reliably track these comment boundaries.
 - **A reason you haven't written down yet.** Proctor reads diffs, not intent. It can't know why a
   snapshot changed or why a test's timeout grew unless that reason is somewhere it can actually
-  read. This isn't a bug: if you have a good reason, say so with the
-  [inline marker](CONFIGURATION.md#inline-suppression) in a prior commit, before the change it justifies.
+  read. Record the reason with an
+  [inline marker](CONFIGURATION.md#inline-suppression) in a commit before the change it covers.

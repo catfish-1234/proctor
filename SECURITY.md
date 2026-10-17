@@ -16,7 +16,7 @@ only supported source; there are no long-term support branches.
 
 ## What proctor does on your machine
 
-Worth knowing, because it shapes what a vulnerability here would mean:
+These operations affect the scope of a security report:
 
 - **It writes executable git hooks.** `proctor setup` and `proctor install-hook` write
   Git's configured hook directory (normally `.git/hooks/pre-commit`) or `.husky/pre-commit`.
@@ -41,15 +41,13 @@ Worth knowing, because it shapes what a vulnerability here would mean:
 
 ## Things that are deliberate, not bugs
 
-- **Config and approvals are read from the committed baseline, not the working tree.** A change
-  cannot disable proctor, approve itself, or add its own suppression marker in the same breath.
-  If it could, the guard would be worthless against exactly the agent it exists to stop.
+- **Config and approvals come from the committed baseline.** An approval or suppression added
+  alongside a flagged change does not take effect for that change.
 - **The Stop hook fails open.** If proctor errors, times out, or runs outside a git repository, the
-  turn is allowed. A guard that breaks should not become a wall. It means a crash is an availability
-  problem, not a bypass to report, though a *reliable, triggerable* crash that suppresses findings
-  is worth reporting.
+  turn is allowed. This preserves interactive availability. A reliable, triggerable crash that
+  suppresses findings is still worth reporting.
 - **The pre-commit hook fails closed.** A verifier exception or other incomplete check exits `3`,
-  which the hook propagates. Missing evidence is never converted into an honest pass at commit
-  time; this differs deliberately from the interactive Stop-hook availability policy above.
+  which the hook propagates to block the commit. This differs from the Stop hook's availability
+  policy above.
 - **The pre-commit hook is bypassable with `git commit --no-verify`.** proctor guards against an
   agent taking a shortcut, not against a determined human with shell access to their own repo.

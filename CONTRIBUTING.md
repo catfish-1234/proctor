@@ -1,20 +1,20 @@
 # Contributing to proctor
 
-Thanks for looking. proctor is small on purpose and the code is meant to be readable in an
-afternoon, so contributions are genuinely practical here.
+Bug reports, fixes, and new check proposals are welcome. This guide covers local setup,
+fixtures, agent adapters, and the checks required for a PR.
 
 ## Ground rules
 
 These are the same rules proctor enforces on AI agents, applied to work on proctor itself:
 
 - Do not modify, skip, or delete tests to make them pass.
-- If a test looks genuinely wrong, say so in the PR with your reasoning. Don't quietly fix it.
+- If a test is wrong, explain why in the PR before changing it.
 - A fix isn't done until the original, unaltered tests pass.
 - Never hardcode an implementation value to match a test fixture literal.
 - Never gut real logic behind a stub or an always-true mock.
 
-If you use an AI agent to work on proctor, run `proctor setup` in your clone first. Dogfooding is
-the point.
+If you use an AI agent to work on proctor, run `proctor setup` in your clone first so its hooks
+check your changes.
 
 ## Getting set up
 
@@ -74,7 +74,7 @@ bench/tasks/            # the benchmark task corpus (not shipped in the npm pack
 plugin/                 # the Claude Code / Cursor plugin
 ```
 
-Two things worth knowing before you start:
+The checks follow two rules:
 
 **Every check is a pure function.** `Verifier.run(context: Context) => Finding[]`. No I/O, no
 network, no global state inside a verifier. Everything it needs is on `Context`, which
@@ -88,8 +88,8 @@ If a change would make a normal `proctor check` require a network call, it is th
 Choose the next unused ID in the relevant check family; the examples below use `RH015`.
 
 1. **Write the fixtures first**, in `fixtures/RH015/`. You need both a true positive (a diff that
-   should fire) and a near miss (a diff that looks similar and must *not* fire). The near miss is
-   the important one: a check that fires on honest code is worse than no check.
+   should fire) and a near miss (a diff that looks similar and must *not* fire). The near miss guards
+   against false positives.
 2. **Add the rule metadata** to `src/rules.ts`: `name`, `shortDescription`, `fullDescription`,
    `defaultLevel`, and `fix`. The `fix` text is what an agent reads when it gets blocked, so write
    it as an instruction, not a description.
@@ -129,8 +129,8 @@ Agents live in one place: `AGENT_ADAPTERS` in `src/adapters/registry.ts`. Add an
   itself the agent's pre-existing file (`AGENTS.md`, `WARP.md`). Avoid markers that are
   near-universal: a bare `.github/` is not evidence of Copilot.
 
-Cite your source for the path in a comment. Several of these conventions are undocumented or have
-moved, and the comment is how the next person checks whether it is still true.
+Cite the source for the agent's instructions path in a comment so future contributors can
+check whether the convention has changed.
 
 `shared` and `transform` are mutually exclusive: a merged block cannot carry file-level frontmatter.
 
@@ -163,13 +163,13 @@ through before you write it.
 
 ## Releasing
 
-Maintainer-only, and written down in [docs/RELEASING.md](docs/RELEASING.md): how a tag becomes an
-npm publish, the one-time npm authentication step, and which distribution channels need a browser.
+See [docs/RELEASING.md](docs/RELEASING.md) for the maintainer release procedure, npm
+authentication, and distribution channels.
 
 ## Reporting a bug
 
 [Open an issue](https://github.com/catfish-1234/proctor/issues/new/choose). For a false positive or
-a missed cheat, the diff that produced it is worth more than a description of it.
+a missed cheat, include the smallest diff that reproduces it.
 
 For a security issue, see [SECURITY.md](SECURITY.md) instead. Don't open a public issue.
 

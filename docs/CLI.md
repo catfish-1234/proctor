@@ -1,15 +1,12 @@
 # CLI reference
 
-Every command and flag. Most people never need this page: `proctor check` and the two
-install commands in the [README](../README.md) cover normal use.
-
-Straight from `proctor --help` and `proctor <command> --help`.
+Command and flag reference. Start with the [README](../README.md) for installation.
+You can also run `proctor --help` or `proctor <command> --help`.
 
 ### `proctor setup`
 
-The one command most people need. It works out which agents this repository uses, writes the
-ruleset to those, installs the git pre-commit hook, and installs the Claude Code Stop hook if
-Claude Code is one of them, then reports what it did.
+Detects the agents in this repository, writes their rulesets, and installs the git pre-commit
+hook. If Claude Code is among the selected agents, it also installs the Stop hook.
 
 ```bash
 proctor setup
@@ -18,9 +15,8 @@ proctor setup
 This assumes a local install. The scoped npm package is not published yet; the README documents
 the temporary source-tarball installation path.
 
-It is the three `install-*` commands below in one step, and it exists because doing two of the
-three is easy to mistake for being covered. The ruleset without the hooks is exactly the
-arrangement proctor argues against: rules an agent can decline to follow with nothing behind them.
+This combines the three `install-*` commands below. The ruleset provides instructions;
+the hooks enforce the checks.
 
 **How detection works.** An agent counts as in use when its own config file or directory is already
 in the repository: `.cursor/` for Cursor, `.claude/` or `CLAUDE.md` for Claude Code, `WARP.md` for
@@ -28,8 +24,7 @@ Warp, and so on. Run `proctor agents` to see the full list and what was detected
 no agent config at all gets `AGENTS.md`, the cross-vendor standard, so whatever you pick up later
 still reads the ruleset.
 
-Detection exists so proctor writes 2 files into a repository that uses two agents, not 30 into one
-that uses two. Use `--all` if you genuinely want the full roster.
+By default, setup writes rulesets only for detected agents. Use `--all` for the full roster.
 
 | Flag | What it does |
 |------|--------------|
@@ -43,8 +38,7 @@ and exits nonzero.
 
 **Commit what it writes.** The ruleset files and `.proctor-adapter-manifest.json` are ordinary
 files in your repository; they only reach your teammates and CI once they are committed. The
-manifest in particular is what lets `drift-check` tell "never installed here" apart from "installed
-and since deleted", which is the tampering case worth catching.
+manifest lets `drift-check` report a deleted ruleset even when its shared file still exists.
 
 ### `proctor check [path]`
 
@@ -71,8 +65,8 @@ Exit codes: `0` means no warning or error findings, `1` means warnings only, `2`
 was found, and `3` means Proctor itself failed before it could complete the check. With `--ci`,
 warnings exit `0` and remain in machine-readable reports and Markdown. Invalid arguments can
 exit `1` (Commander usage errors) or `2` (validation errors); `--ai` without its key exits `1`.
-The pre-commit hook propagates `3` and blocks; the Claude Stop hook deliberately allows infrastructure failures as documented
-below.
+The pre-commit hook propagates `3` and blocks. The Claude Stop hook allows infrastructure
+failures, as described below.
 
 ```bash
 $ proctor check --explain RH001
@@ -106,9 +100,8 @@ The Claude Code Stop hook itself. Reads the hook payload from stdin, runs `check
 --ci`, and exits `2` to block the turn if it finds something serious. Never exits `1`, since that's
 non-blocking in Claude Code.
 
-It reads uncommitted changes, staged and unstaged both, because an agent that has just finished
-editing has usually staged nothing. Outside a git repository, or if proctor itself errors or takes
-longer than 60 seconds, it allows the turn: a guard that breaks should not become a wall.
+It reads staged, unstaged, and untracked changes. It allows the turn outside a git repository,
+during a merge, rebase, cherry-pick, or revert, or if proctor errors or takes longer than 60 seconds.
 
 ### `proctor install-claude-hook`
 
@@ -153,11 +146,9 @@ each shared file, the adapter manifest, the pre-commit hook, and the Stop hook e
 |------|--------------|
 | `--dry-run` | list what would be removed without removing it |
 
-It is deliberately conservative about things that are not proctor's. A shared file keeps all of
-your own content and only loses the managed block; a file that would be left empty is deleted
-rather than left as a husk. A pre-commit hook that is not proctor's, and any other `Stop` hook in
-your settings, are left exactly as they are. `proctor.config.json` is left in place too, since your
-approvals and severities are yours to keep.
+Shared files keep your content and lose only the managed block. Files left empty are deleted.
+Uninstall leaves foreign or extended pre-commit hooks, other `Stop` hooks, and
+`proctor.config.json` in place.
 
 ### `proctor badge`
 
@@ -182,14 +173,13 @@ The badge reflects the run it was generated from: a run with an error-severity f
 Checks that every deployed skill copy still matches the source file. Exits `1` if any copy has
 drifted, `0` otherwise. Handy as a CI check so a stale copy gets caught.
 
-For a shared file, this compares the managed block and ignores everything around it, so your own
-notes never register as drift. Deleting the block from a file proctor previously wrote to does
-register, which is the case worth catching.
+For shared files, only the managed block is compared. Your surrounding notes are ignored,
+but deleting a previously deployed block counts as drift.
 
 ### `proctor watch`
 
-Re-runs a check whenever files change, so you can leave it in a second pane while an agent works
-and see a cheat the moment it lands rather than at the end of the turn.
+Re-runs checks when files change. Use it in a second terminal to see findings while an agent
+is still working.
 
 Each run happens in its own process, so a check that fails cannot take the watcher down with it,
 and `node_modules`, `dist`, `.git` and friends are ignored so an install or a build does not
@@ -203,19 +193,15 @@ trigger a run.
 
 ### `proctor score`
 
-Scores recent commits: how many landed with nothing blocking. This is the measurement view rather
-than the gate, and it is useful for answering "is this agent getting more honest over time" or
-"which rule keeps catching us".
+Reports how many recent commits have no blocking findings and which rules fire most often.
 
 ```bash
 proctor score --last 50
 proctor score --last 50 --author "some-agent"
 ```
 
-There is no history file to keep. Every past commit is a diff, and proctor already knows how to
-judge a diff, so the score is recomputed from the repository each time. That means it is the same
-on any clone, and there is no state to corrupt. It costs one check per commit, which is why
-`--last` defaults to a modest 20 rather than the whole history.
+Scores are recomputed from git history, with one check per commit and no separate history file.
+`--last` defaults to 20 to limit the work per run.
 
 Each commit is judged against the config that was committed *with it*, not today's config, so the
 score reflects the rules that were actually in force at the time. The first commit in a repository
@@ -229,15 +215,13 @@ has no parent to compare against and is reported as skipped rather than counted 
 | `--json` | emit the report as JSON |
 | `--min-rate <percent>` | exit 2 when the honesty rate falls below this, for use as a CI gate |
 
-`--min-rate` turns the measurement into a gate. `proctor check` blocks one bad change; this catches
-the slower version, where nothing individually alarming happens but the trend goes the wrong way:
+Use `--min-rate` as a CI gate for the share of commits without blocking findings:
 
 ```bash
 proctor score --last 50 --min-rate 90
 ```
 
-A repository with no scorable history passes with a note rather than failing, since having no
-evidence is not the same as failing.
+If no commits can be scored, the command prints a note and passes the gate.
 
 ### `proctor statusline`
 

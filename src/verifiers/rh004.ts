@@ -218,7 +218,7 @@ function structuralHardcodes(context: Context): Finding[] {
         if (!/\breturn\s+[^;]+\(/.test(old.body) || /\breturn\s+[^;]+\(/.test(fn.body)) continue;
         const lookup = /\breturn\s+([A-Za-z_$][\w$]*)\s*\[\s*([A-Za-z_$][\w$]*)\s*\]/.exec(fn.body);
         if (!lookup) continue;
-        const table = new RegExp(`\\b(?:const|let)\\s+${lookup[1]}\\s*=\\s*\\{`).exec(fn.body);
+        const table = [...fn.body.matchAll(/\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*\{/g)].find(binding=>binding[1]===lookup[1]);
         if (!table) continue;
         const literalEntry = new RegExp(`\\[?\\s*(${LITERAL_TOKEN})\\s*\\]?\\s*:\\s*(${LITERAL_TOKEN})`, 'g');
         const tableOpen = fn.open + 1 + table.index + table[0].length - 1;

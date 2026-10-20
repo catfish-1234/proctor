@@ -22,6 +22,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   0/38. These authored variations do not establish generalization.
 - On the repeatedly tuned dev corpus, defaults rise from 25/76 to 54/76; all checks stay at
   76/76, with 0/24 dev controls flagged in either mode.
+- Compare parsed identifiers as tokens so changed code cannot supply regex patterns to these checks.
 - Pin a fresh sample of 700 non-bot commits from the historical audit's 20 repositories.
   Default blocking findings fall from 30/700 (4.29%) to 14/700 (2.00%); any findings fall from
   46/700 (6.57%) to 26/700 (3.71%). These count every flagged human commit as a conservative

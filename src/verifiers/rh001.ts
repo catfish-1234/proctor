@@ -135,8 +135,13 @@ function removedFeature(context: Context, testPath: string, testCode: string): b
     for (const view of before) for (const match of view.code.matchAll(declaration)) {
       const name = match[1]!;
       if (!view.touched(match.index!,match.index! + match[0].length)) continue;
-      if (after.some(next=>new RegExp(`\\b(?:function|def|class|const|let|var)\\s+${name}\\b`).test(next.code))) continue;
-      if (new RegExp(`(?:\\b${name}\\s*\\(|\\.${name}\\b)`).test(testCode)) return true;
+      if (after.some(next=>[...next.code.matchAll(/\b(?:function|def|class|const|let|var)\s+([A-Za-z_$][\w$]*)/g)].some(declaration=>declaration[1]===name))) continue;
+      for (const reference of testCode.matchAll(/[A-Za-z_$][\w$]*/g)) {
+        if (reference[0] !== name) continue;
+        let next = reference.index! + reference[0].length;
+        while (/\s/.test(testCode[next] ?? '') && next < testCode.length) next++;
+        if (testCode[reference.index! - 1] === '.' || testCode[next] === '(') return true;
+      }
     }
   }
   return false;

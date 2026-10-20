@@ -722,9 +722,10 @@ function run(context: Context): Finding[] {
           for (const assertion of prior.body.matchAll(/\bexpect\s*\(\s*([A-Za-z_$][\w$]*)\s*\)\s*\.(?:toBe|toEqual|toStrictEqual|toBeCloseTo)\s*\(/g)) {
             const subject = assertion[1]!;
             // The computed value still exists, but nothing in the test consumes it anymore.
-            const binding = new RegExp(`\\b(?:const|let)\\s+${subject}\\s*=\\s*[^;\\n]+\\(`);
-            if (!binding.test(prior.body) || !binding.test(next.body)) continue;
-            if ([...next.body.matchAll(new RegExp(`\\b${subject}\\b`,'g'))].length !== 1) continue;
+            const computesSubject = (code: string) => [...code.matchAll(/\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*([^;\n]+)/g)]
+              .some(binding=>binding[1]===subject && /[^\s(]+\s*\(/.test(binding[2]!));
+            if (!computesSubject(prior.body) || !computesSubject(next.body)) continue;
+            if ([...next.body.matchAll(/[A-Za-z_$][\w$]*/g)].filter(token=>token[0]===subject).length !== 1) continue;
             findings.push({verifierId:'RH002',severity:'error',file:filePath,line:after.lineAt(next.open),
               message:'A computed test result is still assigned, but its value assertion was removed and the value is no longer used.',
               suggestion:'Restore the result assertion or replace it with an equivalent check of that value.'});

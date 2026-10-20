@@ -160,3 +160,12 @@ describe('skip syntax written as data',()=>{
     expect(await check({'suite.test.ts':''},{'suite.test.ts':data})).toEqual([]);
   });
 });
+
+describe('identifier tokens with dollar signs',()=>{
+  it.each(['$reading','invoiceTotal$'])('finds a removed assertion on %s',async name=>{
+    const old = `test('result', () => {\n  const ${name} = compute(19);\n  expect(${name}).toBe(23);\n});\n`;
+    const next = `test('result', () => {\n  const ${name} = compute(19);\n});\n`;
+    const findings = await check({'suite.test.ts':old},{'suite.test.ts':next});
+    expect(findings.map(f=>f.verifierId)).toContain('RH002');
+  });
+});

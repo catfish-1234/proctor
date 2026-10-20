@@ -305,7 +305,7 @@ function structuralSwallows(context: Context): Finding[] {
               if (!old || compact(old[2]!) !== compact(next[2]!)) return false;
               const names = old[1]!.split(',').map(binding => binding.trim());
               const slots = next[1]!.split(',').map(binding => binding.trim());
-              return names.some((name,i) => slots[i] === '_' && name !== '_' && new RegExp(`\\bif\\s+${name}\\s*!=\\s*nil\\b`).test(before.code));
+              return names.some((name,i) => slots[i] === '_' && name !== '_' && [...before.code.matchAll(/\bif\s+([A-Za-z_]\w*)\s*!=\s*nil\b/g)].some(check=>check[1]===name));
             });
           }
         } else if (/\.(?:sh|bash)$/.test(path)) {

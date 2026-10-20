@@ -86,7 +86,7 @@ function parameterTables(view: SourceView): Array<{key:string;count:number;start
       const reference = /^[A-Za-z_$][\w$]*/.exec(view.code.slice(open,argsEnd));
       if (reference) {
         key = 'binding:' + reference[0];
-        const binding = new RegExp(`\\b(?:const|let|var)\\s+${reference[0]}\\s*=\\s*\\[`).exec(view.code);
+        const binding = [...view.code.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\[/g)].find(binding=>binding[1]===reference[0]);
         if (!binding) continue;
         open = binding.index + binding[0].length - 1;
       } else {

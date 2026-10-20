@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { RULE_METADATA } from '../src/rules.js';
-import { buildContext, RH_CHECKS, WI_CHECKS } from '../src/context/index.js';
+import { buildContext, RH_CHECKS, WI_CHECKS, DEFAULT_CHECKS, DEFAULT_WI_CHECKS } from '../src/context/index.js';
 import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -33,7 +33,7 @@ describe('buildContext', () => {
     expect(ctx.isTestFile('tests/test_thing.py')).toBe(true);
     expect(ctx.isTestFile('src/thing_test.py')).toBe(true);
     expect(ctx.isTestFile('src/foo.ts')).toBe(false);
-    expect(ctx.enabled).toEqual(RH_CHECKS);
+    expect(ctx.enabled).toEqual(DEFAULT_CHECKS);
     expect(ctx.enabled).toContain('RH001');
   });
 
@@ -53,12 +53,12 @@ describe('buildContext', () => {
     expect(showCall![1]).toContain("'--end-of-options'");
   });
 
-  it('leaves the beta WI family out of the default enabled set', async () => {
-    // A default-enablement decision for the first release, not a capability one: every WI check
-    // still exists and still runs, via `--wi`/`--all-checks` or by being listed in the config.
+  it('enables the measured WI subset and leaves the remaining WI checks opt-in', async () => {
     const ctx = await buildContext(tmpDir, []);
-    for (const id of WI_CHECKS) expect(ctx.enabled).not.toContain(id);
+    expect(ctx.enabled).toEqual(DEFAULT_CHECKS);
+    for (const id of DEFAULT_WI_CHECKS) expect(ctx.enabled).toContain(id);
     expect(WI_CHECKS.every(id => id in RULE_METADATA)).toBe(true);
+    for (const id of WI_CHECKS.filter(id => !DEFAULT_WI_CHECKS.includes(id))) expect(ctx.enabled).not.toContain(id);
   });
 
   it('runs the WI family when the config asks for it by ID', async () => {
@@ -286,13 +286,13 @@ describe('buildContext', () => {
     git('commit', '--allow-empty', '-m', 'init');
     await writeFile(join(tmpDir, 'proctor.config.json'), JSON.stringify({ enabled: [] }));
     const ctx = await buildContext(tmpDir, [], { configRef: 'HEAD' });
-    expect(ctx.enabled).toEqual(RH_CHECKS);
+    expect(ctx.enabled).toEqual(DEFAULT_CHECKS);
   });
 
   it('falls back to default enabled when config enabled is not an array (malformed)', async () => {
     await writeFile(join(tmpDir, 'proctor.config.json'), JSON.stringify({ enabled: 'RH001' }));
     const ctx = await buildContext(tmpDir, []);
-    expect(ctx.enabled).toEqual(RH_CHECKS);
+    expect(ctx.enabled).toEqual(DEFAULT_CHECKS);
   });
 
   it('drops an invalid severity value ("warning") instead of applying it', async () => {
@@ -318,6 +318,6 @@ describe('buildContext', () => {
   it('falls back to defaults when enabled lists ONLY unknown IDs (no silent zero-verifier run)', async () => {
     await writeFile(join(tmpDir, 'proctor.config.json'), JSON.stringify({ enabled: ['RH01', 'NOPE'] }));
     const ctx = await buildContext(tmpDir, []);
-    expect(ctx.enabled).toEqual(RH_CHECKS);
+    expect(ctx.enabled).toEqual(DEFAULT_CHECKS);
   });
 });

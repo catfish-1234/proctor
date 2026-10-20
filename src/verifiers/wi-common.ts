@@ -256,8 +256,10 @@ export function withoutTrailingComment(text: string): string {
  * a human to read and disagree with. That is the outcome we want either way.
  */
 export function hasExplanation(text: string): boolean {
-  const comment = /(?:\/\/|#(?!\!)|--|\/\*|\*)\s*(.+)$/.exec(text);
+  const comment = /(?:\/\/|#(?!\!)|--(?=\s)|\/\*|\*)\s*(.+)$/.exec(text);
   if (!comment) return false;
+  // Suppression markers have a separate committed-baseline trust boundary.
+  if (/^proctor-ignore\s*:/.test(comment[1]!.trim())) return false;
   const words = comment[1]!.replace(/\*\/\s*$/, '').trim();
   // A bare marker ("// TODO", "# noqa", "// eslint-disable-next-line") is not an explanation. Ask
   // for enough prose that somebody had to think about the sentence.

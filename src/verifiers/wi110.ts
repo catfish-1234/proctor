@@ -1,6 +1,6 @@
 import path from 'node:path';
 import type { Context, Finding, Severity, Verifier } from '../types.js';
-import { afterLines, codeLines, deletedLines, isCommentLine, isWatchedSource, pathOf, withoutTrailingComment } from './wi-common.js';
+import { addedLines, afterLines, codeLines, deletedLines, isCommentLine, isWatchedSource, pathOf, withoutTrailingComment } from './wi-common.js';
 
 /**
  * The command that runs the checks, neutered.
@@ -24,7 +24,7 @@ const VERIFICATION_SCRIPT_RE = /"(test|tests|check|lint|typecheck|type-check|tsc
 
 /** Commands that actually run a verification tool. */
 const REAL_VERIFIER_RE =
-  /\b(?:vitest|jest|mocha|ava|pytest|tox|nox|rspec|phpunit|cargo\s+test|go\s+test|dotnet\s+test|mvn|gradle|swift\s+test|mix\s+test|bats|busted|prove|tsc|eslint|ruff|flake8|mypy|pylint|clippy|rubocop|phpstan|stylelint|biome)\b|\bnpm\s+(?:run\s+)?(?:test|\w+)|\bpytest\b/;
+  /\b(?:vitest|jest|mocha|ava|pytest|tox|nox|rspec|phpunit|cargo\s+test|go\s+test|dotnet\s+test|mvn|gradle|swift\s+test|mix\s+test|bats|busted|prove|tsc|eslint|ruff|flake8|mypy|pylint|clippy|rubocop|phpstan|stylelint|biome)\b|\b(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:test|check|lint|build|typecheck|verify|coverage|audit)[\w:-]*\b|\bnode\s+--test\b/;
 
 /** Replacements that make a verification script succeed without verifying anything. */
 const NO_OP_COMMAND_RE =
@@ -117,9 +117,9 @@ function verifierTool(text: string): string | undefined {
  * report, and no refactor produces that pair by accident.
  */
 const PROPAGATED_EXIT_RE =
-  /\b(?:process\.exit|sys\.exit|os\.exit|os\._exit)\s*\(\s*([^)]+?)\s*\)|^\s*exit\s+(\$\{?\w+\}?)\s*(?:#.*)?$/;
+  /\b(?:process\.exit|sys\.exit|os\.(?:exit|_exit|Exit)|(?:std::)?process::exit|System\.exit|Environment\.Exit|exit|die)\s*\(\s*([^)]+?)\s*\)|^\s*exit\s+(\$\{?\w+\}?)\s*(?:#.*)?$/;
 const FORCED_EXIT_ZERO_RE =
-  /\b(?:process\.exit|sys\.exit|os\.exit|os\._exit)\s*\(\s*0\s*\)|^\s*exit\s+0\s*(?:#.*)?$/;
+  /\b(?:process\.exit|sys\.exit|os\.(?:exit|_exit|Exit)|(?:std::)?process::exit|System\.exit|Environment\.Exit|exit|die)\s*\(\s*0\s*\)|^\s*exit\s+0\s*(?:#.*)?$/;
 const PROPAGATED_EXIT_CODE_RE = /\bprocess\.exitCode\s*=\s*([^;]+?)\s*;?\s*$/;
 const FORCED_EXIT_CODE_ZERO_RE = /\bprocess\.exitCode\s*=\s*0\s*;?\s*$/;
 
@@ -218,7 +218,7 @@ function run(context: Context): Finding[] {
       }
 
       const after = afterLines(chunk);
-      const afterRunsVerification = after.some(line => REAL_VERIFIER_RE.test(line.text));
+      const afterRunsVerification = after.some(line => !isCommentLine(line.text) && REAL_VERIFIER_RE.test(line.text));
       const failFastShell = after.some(line => /\bset\s+-[a-z]*e\b/.test(line.text));
       const backgroundStatusPropagated = after.some(line => /^\s*wait\b/.test(line.text))
         && after.some(line => /^\s*exit\s+\$\?\s*$/.test(line.text));
@@ -371,7 +371,33 @@ function run(context: Context): Finding[] {
         });
         if (!newEntry) continue;
         const newCommand = scriptCommand(newEntry.text) ?? '';
-        const dropped = oldSteps.filter(s => REAL_VERIFIER_RE.test(s) && !newCommand.includes(s));
+        const entries = new Map(file.chunks.flatMap(afterLines).flatMap(line=>scriptEntries(line.text)).map(entry=>[entry.name,entry.command]));
+        const expand = (command: string,seen = new Set<string>()): string => {
+          let expanded = command;
+          for (const call of command.matchAll(/\b(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?([\w:-]+)/g)) {
+            const name = call[1]!;
+            if (seen.has(name) || seen.size >= 20) continue;
+            const target = entries.get(name);
+            if (target) expanded += ' && ' + expand(target,new Set([...seen,name]));
+          }
+          return expanded;
+        };
+        const expandedCommand = expand(newCommand);
+        const dropped = oldSteps.filter(s => {
+          const invocation = REAL_VERIFIER_RE.exec(s);
+          if (!invocation || expandedCommand.includes(s)) return false;
+          // A changed copy/setup command before an unchanged verifier is not lost verification.
+          const tail = s.slice(invocation.index);
+          if (expandedCommand.includes(tail)) return false;
+          const testTool = (command: string) => /\b(?:vitest|jest|mocha|ava|pytest|tox|rspec|phpunit)\b|\bnode\s+--test\b/.exec(command)?.[0];
+          const priorTool = testTool(s);
+          const nextTool = testTool(newCommand);
+          const importsMigrated = context.files.some(candidate => candidate.chunks.some(change =>
+            deletedLines(change).some(line => /\bimport\b|\brequire\s*\(/.test(line.text) && !!priorTool && line.text.includes(priorTool))
+            && addedLines(change).some(line => /\bimport\b|\brequire\s*\(/.test(line.text)
+              && /['"](?:node:test|vitest|jest|mocha|ava)['"]/.test(line.text))));
+          return !(priorTool && nextTool && priorTool !== nextTool && importsMigrated);
+        });
         if (dropped.length === 0) continue;
         findings.push({
           verifierId: 'WI110',

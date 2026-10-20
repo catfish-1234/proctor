@@ -1,4 +1,5 @@
 import type { Context, Finding, Verifier } from '../types.js';
+import { callables, sourceView } from './structure.js';
 import { isMoved, movedLineTexts, PAIRING_DISTANCE, positionIndex, stripTrailingNoise } from './rh004.js';
 
 // Deterministic strong signal: an added line's return statement collapses to null/undefined/None,
@@ -128,6 +129,17 @@ async function run(context: Context): Promise<Finding[]> {
         Math.abs((at.get(a) ?? 0) - (at.get(b) ?? 0)) <= PAIRING_DISTANCE;
 
       if (!isTest) {
+        const beforeView = sourceView(chunk,'before');
+        const afterView = sourceView(chunk,'after');
+        const previous = callables(beforeView);
+        for (const fn of callables(afterView)) {
+          if (fn.body.trim() || !afterView.touched(fn.start,fn.end)) continue;
+          const prior = previous.find(old => old.header === fn.header);
+          if (!prior || !/\b(?:return|await)\b|\w\s*\(/.test(prior.body)) continue;
+          findings.push({verifierId:'RH005',severity:'error',file:filePath,line:afterView.lineAt(fn.open),
+            message:'An existing function lost its executable body and is now empty.',
+            suggestion:'Restore the implementation or remove the feature and its callers deliberately.'});
+        }
         // Gutting removes computation. A chunk that adds far more than it deletes did the
         // opposite, whatever its individual return statements look like.
         //

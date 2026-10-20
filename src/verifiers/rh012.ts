@@ -162,11 +162,14 @@ function isCommandLine(text: string): boolean {
   // before every call, so no leading whitespace ever arrives here. Written the linear way anyway:
   // the cost is nothing, and the hazard would come back the moment a caller stopped trimming.
   const key = /^[ \t]*(?:-[ \t]*)?([A-Za-z_][\w.-]*)[ \t]*:/.exec(text);
+  if (/^[ \t]*(?:-[ \t]*)?\{/.test(text)) return false;
   return key === null || COMMAND_KEYS.has(key[1]!.toLowerCase());
 }
 
 function commandKey(content: string): string {
-  return stripDiffPrefix(content)
+  const command = stripDiffPrefix(content);
+  const invocation = TEST_COMMAND_RE.exec(command);
+  return (invocation ? command.slice(invocation.index) : command)
     .replace(/^-\s*/, '')
     .replace(/^(?:run|script|command)\s*:\s*/, '')
     .replace(/['"]/g, '')

@@ -1,4 +1,6 @@
 import type { Context, Finding, Verifier } from '../types.js';
+import { afterLines, hasExplanation, body } from './wi-common.js';
+import { closingDelimiter, sourceView, testBodies } from './structure.js';
 
 // Anchored to a test-declaration root (it/test/describe) so a query-builder `.skip(10)` or an
 // observable `.only` on a domain object is NOT flagged. `(?:\.\w+)*` allows chained modifiers
@@ -584,6 +586,24 @@ function isSkipPattern(content: string, flags: {
   }
 }
 
+function skipIdentity(text: string): string | undefined {
+  const match = /\b((?:it|test|describe)(?:\.\w+)*)\s*\(\s*(['"`])((?:\\.|[^\\])*?)\2/.exec(text);
+  return match ? match[1] + ':' + match[3] : undefined;
+}
+
+function nativeReason(text: string): boolean {
+  const match = /\breason\s*=\s*(['"])/.exec(text);
+  if (!match) return false;
+  const start = match.index + match[0].length;
+  let end = start;
+  for (; end < text.length; end++) {
+    if (text[end] === '\\') end++;
+    else if (text[end] === match[1]) break;
+  }
+  const reason = text.slice(start,end).trim();
+  return reason.split(/\s+/).length >= 3 || /^https?:\/\/\S+/.test(reason);
+}
+
 function run(context: Context): Finding[] {
   const files = context.files;
   const ctx = context;
@@ -609,10 +629,78 @@ function run(context: Context): Finding[] {
     // Python and the new languages pass through: each handles its own gating internally
     // (named-test-file tiers or ungated-safe attribute anchors) inside isSkipPattern.
     if (!isPython && !isNewLang && !ctx.isTestFile(filePath)) continue;
+    const previousSkips = new Set(file.chunks.flatMap(chunk=>chunk.changes).filter(c=>c.type==='del' && isSkipPattern(c.content,{ext,pyTestModule,goTestFile,rubyTestFile,kotlinTestFile,cTestFile,scalaTestFile,rTestFile,haskellTestFile,luaTestFile,batsFile})).map(c=>skipIdentity(c.content)).filter(Boolean));
     for (const chunk of file.chunks) {
+      const lines = afterLines(chunk);
+      const view = sourceView(chunk,'after',isPython);
+      const signatureLines = view.signatures.split('\n');
+      const maskedLines = view.code.split('\n');
+      if (ctx.isTestFile(filePath) && !isPython && chunk.changes.some(change=>change.type==='add' && body(change.content).includes('/*'))) {
+        const before = sourceView(chunk,'before');
+        const surviving = new Set(testBodies(view).map(test=>test.key));
+        for (const prior of testBodies(before)) {
+          if (surviving.has(prior.key)) continue;
+          const oldLine = before.lineAt(prior.open);
+          const unchanged = chunk.changes.find(change=>change.type==='normal' && change.ln1===oldLine);
+          if (!unchanged || unchanged.type !== 'normal') continue;
+          const offset = view.offsetAtLine(unchanged.ln2);
+          if (offset === undefined) continue;
+          const end = view.code.indexOf('\n',offset);
+          if (view.code.slice(offset,end < 0 ? undefined : end).trim()) continue;
+          findings.push({verifierId:'RH003',severity:'error',file:filePath,line:unchanged.ln2,
+            message:'An existing named test is now inside a block comment and no longer executes.',
+            suggestion:'Restore the executable test or remove the feature and its tests deliberately.'});
+        }
+      }
+
+      if (ctx.isTestFile(filePath)) {
+        const after = sourceView(chunk,'after',isPython);
+        for (const match of after.code.matchAll(/\bif\s*\([^\n;{}]*\)\s*(?:\{\s*)?return\s*;|^([ \t]*)if\s+[^:\n]+:\s*return\s*$/gm)) {
+          if (!after.touched(match.index!,match.index! + match[0].length)) continue;
+          const offset = match.index!;
+          // Only a return in the test callback can detach the test. A helper elsewhere in
+          // the same test file can legitimately return before a later test declaration.
+          const inTest = isPython
+            ? /\bdef\s+test_\w+\s*\(/.test(after.code.slice(0,offset))
+            : testBodies(after).some(test => offset > test.open && offset < test.end
+              && !/=>|\bfunction\b/.test(after.code.slice(test.open + 1,offset)));
+          if (!inTest) continue;
+          const line = after.lineAt(offset);
+          const raw = after.text.slice(match.index!,match.index! + match[0].length);
+          if (hasExplanation(raw)) continue;
+          const later = after.code.slice(match.index! + match[0].length);
+          if (!/\bexpect\s*\(|\bassert\b/.test(later)) continue;
+          findings.push({verifierId:'RH003',severity:'error',file:filePath,line,
+            message:'A new conditional return can bypass the assertions in a test that still reports success.',
+            suggestion:'Run the assertions on every supported path, or document and report an explicit test skip.'});
+        }
+      }
       for (const change of chunk.changes) {
         if (change.type !== 'add') continue;
-        if (!isSkipPattern(change.content, {
+        // An explicit reason documents a skip; focusing a suite still suppresses other tests.
+        const text = body(change.content);
+        const identity = skipIdentity(text);
+        if (identity && previousSkips.has(identity)) continue;
+        const index = lines.findIndex(line=>line.line===change.ln && line.added);
+        const offset = lines.slice(0,index).reduce((sum,line)=>sum + line.text.length + 1,0);
+        const open = view.code.indexOf('(',offset);
+        const end = open < 0 ? -1 : closingDelimiter(view.code,open,'(',')');
+        const invocation = end < 0 ? text : view.text.slice(offset,end + 1);
+        const previousComment = index > 0 ? lines[index - 1]!.text : '';
+        if (!/\.only\b|\[\s*['"]only['"]\s*\]|\b(?:fit|fdescribe)\s*\(/.test(text)
+          && (nativeReason(invocation) || (/^\s*(?:\/\/|#)/.test(previousComment) && /\breason\s*:/i.test(previousComment) && hasExplanation(previousComment)))) continue;
+
+        if (!/\.only\b|\[\s*['"]only['"]\s*\]|\b(?:fit|fdescribe)\s*\(/.test(text)
+          && ((/\breason\s*:/i.test(text) && hasExplanation(text))
+            || /\breason\s*=\s*['"][^'"]*\S+\s+\S+\s+\S+[^'"]*['"]/.test(text))) continue;
+        const lexical = '+' + (signatureLines[index] ?? '');
+        const masked = '+' + (maskedLines[index] ?? '');
+        const bracketApi = [...change.content.matchAll(new RegExp(BRACKET_SKIP,'g'))].some(match => {
+          const root = /^(?:it|test|describe)/.exec(match[0])![0];
+          return masked.slice(match.index!,match.index! + root.length) === root;
+        });
+        const commentedDeclaration = COMMENTED_JS_TEST.test(change.content) || COMMENTED_PY_TEST.test(change.content);
+        if (!isSkipPattern(commentedDeclaration || bracketApi ? change.content : lexical, {
           ext, pyTestModule, goTestFile, rubyTestFile, kotlinTestFile, cTestFile, scalaTestFile,
           rTestFile, haskellTestFile, luaTestFile, batsFile,
         })) continue;

@@ -1,5 +1,6 @@
 import { basename } from 'node:path';
 import type { Context, Finding, Verifier } from '../types.js';
+import { closingDelimiter, sourceView } from './structure.js';
 import type { ParsedFile } from '../diff.js';
 import { insideTemplateLiteral } from './wi-common.js';
 
@@ -121,6 +122,31 @@ function testsRelocated(file: ParsedFile, files: ParsedFile[], ctx: Context): bo
   return assertionsGained >= assertionCount(file, 'del');
 }
 
+/** A test of a removed symbol in the corresponding source unit can go with that feature. */
+function removedFeature(context: Context, testPath: string, testCode: string): boolean {
+  const unit = (path: string) => (path.split('/').pop() ?? '').replace(/\.(?:test|spec)\.[^.]+$|\.[^.]+$/,'')
+    .replace(/^test_/, '').replace(/_test$/,'').replace(/^_+/,'');
+  const declaration = /\b(?:function|def|class)\s+([A-Za-z_$][\w$]*)/g;
+  for (const candidate of context.files) {
+    const path = candidate.from ?? candidate.to ?? '';
+    if (context.isTestFile(path) || unit(path) !== unit(testPath)) continue;
+    const before = candidate.chunks.map(chunk=>sourceView(chunk,'before',path.endsWith('.py')));
+    const after = candidate.chunks.map(chunk=>sourceView(chunk,'after',path.endsWith('.py')));
+    for (const view of before) for (const match of view.code.matchAll(declaration)) {
+      const name = match[1]!;
+      if (!view.touched(match.index!,match.index! + match[0].length)) continue;
+      if (after.some(next=>[...next.code.matchAll(/\b(?:function|def|class|const|let|var)\s+([A-Za-z_$][\w$]*)/g)].some(declaration=>declaration[1]===name))) continue;
+      for (const reference of testCode.matchAll(/[A-Za-z_$][\w$]*/g)) {
+        if (reference[0] !== name) continue;
+        let next = reference.index! + reference[0].length;
+        while (/\s/.test(testCode[next] ?? '') && next < testCode.length) next++;
+        if (testCode[reference.index! - 1] === '.' || testCode[next] === '(') return true;
+      }
+    }
+  }
+  return false;
+}
+
 function run(context: Context): Finding[] {
   const files = context.files;
   const ctx = context;
@@ -193,6 +219,22 @@ function run(context: Context): Finding[] {
         if (change.type !== 'del') continue;
         if (templateLines.has(changeIndex)) continue;
         if (hasReconcilingAdd) continue; // modified (renamed/reformatted/skip-wrapped/consolidated), not deleted
+        const before = sourceView(chunk,'before',from.endsWith('.py'));
+        const start = before.offsetAtLine(change.ln);
+        if (start !== undefined) {
+          let end = before.code.length;
+          if (from.endsWith('.py')) {
+            const indent = /^\s*/.exec(change.content.slice(1))![0].length;
+            const nextLine = before.code.indexOf('\n',start);
+            const rest = before.code.slice(nextLine + 1);
+            const boundary = /^( *)(\S)/gm;
+            for (const match of rest.matchAll(boundary)) if (match[1]!.length <= indent) { end = nextLine + 1 + match.index!; break; }
+          } else {
+            const open = before.code.indexOf('(',start);
+            if (open >= 0) { const close = closingDelimiter(before.code,open,'(',')'); if (close >= 0) end = close + 1; }
+          }
+          if (removedFeature(ctx,from,before.code.slice(start,end))) continue;
+        }
         if (JS_TS_DEL.test(change.content)) {
           const name = extractTestName(change.content);
           findings.push({

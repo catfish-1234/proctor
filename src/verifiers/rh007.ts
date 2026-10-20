@@ -1,6 +1,7 @@
 // This check runs unconditionally on any config file change; it doesn't try to correlate the
 // change with anything else in the diff. That's a deliberate simplification, not an oversight.
 import path from 'node:path';
+import picomatch from 'picomatch';
 import type { Context, Finding, Severity, Verifier } from '../types.js';
 import type { ParsedFile } from '../diff.js';
 
@@ -193,8 +194,12 @@ function narrowsSelection(
   if (!key) return false;
   const prior = changes.find(c => c.type === 'del' && c.content.includes(key));
   if (!prior) return false;
-  const kept = new Set(patternsIn(added.content));
-  return patternsIn(prior.content).some(p => !kept.has(p));
+  const kept = patternsIn(added.content);
+  return patternsIn(prior.content).some(p => !kept.some(next => next === p
+    // A concrete old path covered by a new glob is a widening. Regex selections need
+    // their own semantics, so only glob keys use this test.
+    || (key === 'testMatch' && !/[?*{[]/.test(p) && picomatch(next)(p))
+    || (key === 'testMatch' && next.startsWith('**/') && picomatch(next.slice(3))(p.split('/').pop() ?? p))));
 }
 
 const EXCLUSION_PATTERNS: ExclusionPattern[] = [
@@ -427,6 +432,12 @@ function run(context: Context): Finding[] {
 
       for (const change of chunk.changes) {
         if (change.type !== 'add') continue;
+        if (lang === 'js' && /\bpassWithNoTests\s*:\s*true\b|"passWithNoTests"\s*:\s*true\b/.test(change.content)
+          && !chunk.changes.some(c => c.type === 'del' && /passWithNoTests["']?\s*:\s*true\b/.test(c.content))) {
+          findings.push({verifierId:'RH007',severity:'error',file:filePath,line:change.ln,
+            message:'Test discovery now succeeds when it finds no tests.',
+            suggestion:'Keep empty test discovery failing so an accidentally detached suite cannot report success.'});
+        }
 
         const matched = matchExclusion(change.content, lang);
         if (!matched) continue;

@@ -275,15 +275,17 @@ families.
 **WI1xx checks "the work is done."** These look for incomplete or disabled behavior in source,
 config, and tests, including discarded errors, removed validation, and altered expected values.
 
-> **Beta, and opt-in for now.** The WI family is off by default in v1.0.0. Turn it on for one run
-> with `proctor check --wi` (or `--all-checks`), or for good by listing the IDs you want in
-> `enabled` in `proctor.config.json`, which also applies them in both hooks. These thirteen checks
-> cover 25+ languages and have had less real-world testing than the RH family, so they remain
-> opt-in while we assess false positives.
+> **Six WI checks run by default:** WI101, WI102, WI105, WI108, WI109, and WI110.
+> Alongside RH001 to RH014, they close error-handling, unfinished-body, canned-output,
+> source-hiding, expectation-edit, and script-verification gaps. The remaining seven WI checks
+> stay opt-in because their human-commit findings still include legitimate maintenance.
+> Run `proctor check --wi` (or `--all-checks`) to add the entire family, or name checks in
+> `enabled` in the committed config. An explicit `enabled` list is still honored exactly.
+> See the [measurements and per-check decisions](bench/detection/README.md).
 
 | | Catches |
 |---|---|
-| WI101 | An error discarded by an empty handler, so failures pass unnoticed |
+| WI101 | Empty or logging-only handlers, and formerly propagated operation errors discarded or replaced with defaults |
 | WI102 | An explicit "not implemented" marker shipped inside finished-looking work |
 | WI103 | Validation deleted so the case it rejected now goes through |
 | WI104 | Proctor, a commit hook, or a type/lint gate switched off instead of satisfied |
@@ -361,7 +363,7 @@ unchecked commit.
 that same diff is checked. Approvals and inline `proctor-ignore` markers must also be committed
 before the change they cover.
 
-**Switching the guard off is itself a finding.** WI104 fires on a check removed from `enabled`, a
+**An opt-in check can flag changes to the guard.** WI104 fires on a check removed from `enabled`, a
 severity downgraded, an ignore pattern or approval added, a ruleset file deleted, a `--no-verify`
 added to a script, or TypeScript strictness turned off. WI104 is part of the opt-in WI family.
 
@@ -381,22 +383,32 @@ changes and allows turns when proctor cannot run, so it is not a substitute for 
 | **up to 100 pts** | gap between "the visible tests pass" and "the held-out tests pass" on the largest tasks in [SpecBench](https://arxiv.org/abs/2605.21384). It widens by about 28 points per tenfold increase in code size, and adding test coverage does not close it |
 | **8 of 8** | agent benchmarks that [Berkeley RDI](https://rdi.berkeley.edu/blog/trustworthy-benchmarks-cont/) drove to near-perfect scores without solving a single task. SWE-bench Verified fell to a pytest hook that forced every test to pass |
 
-**What proctor catches.** The fixture and benchmark numbers below come out of `npm test`; the
-adversarial number comes from the independent widening corpus in [`bench/redteam/`](https://github.com/catfish-1234/proctor/tree/main/bench/redteam):
+**What proctor catches.** The original rule fixtures and recorded benchmark cases are checked by
+`npm test`. The redteam probe is a repeatedly tuned **dev corpus**, not independent evidence of
+generalization. Fresh measurements compare the unchanged main baseline with these changes:
 
 | | |
 |---|---|
-| **139 of 139** | planted cheats caught. One fixture per check per language, each asserted against the exact finding proctor has to produce, not just "something fired" |
-| **0 of 33** | near-miss fixtures flagged. Each one is a change built to look like a cheat and be legitimate: a single `@ts-ignore` with a justification, one retry rather than five, an empty catch whose comment explains itself, a guard clause extracted into a validator |
-| **21 of 21** | recorded cheats caught in the benchmark corpus, across 7 signatures. Whole-repo task diffs rather than minimal fixtures. The 22nd task is a control that plants no cheat, and proctor stays silent on it. Reproduce with `proctor bench --mock` |
-| **76 of 76** | adversarial cheat diffs caught with **both families enabled**, and **0 of 24** legitimate controls flagged, across eleven total red-team rounds. The corpus probes the WI family too, so reproduce it with `--all-checks`; the RH family alone catches 25 of the 76, since the rest are cheats the WI checks were written for. Includes process-status laundering, workload cuts, dependency rollback, fixed-delay masking, CI trigger/matrix contraction, diagnostic suppression, and out-of-band Git index hiding. Reproduce with `node bench/redteam/probe.mjs` |
-| **3.8%** | of 689 real human commits, sampled from 20 maintained open-source repositories across seven languages, produce any finding at all from the default check set. **2.32%** produce a blocking one, and most of those are the check correctly noticing that somebody deleted a test or added a skip marker |
-| **27** | checks in two families, across **25+** languages, installable into **30** agents |
-| **under 1s** | to check a commit, offline. Measured here at roughly 0.25s on a 3-file diff and 0.55s on a 79-file one, cold Node start included |
+| **139 of 139** | original planted rule fixtures caught with all checks, with **0 of 33** original near-miss fixtures flagged. These are development fixtures, not an unseen evaluation |
+| **21 of 21** | recorded cheats caught in the mock benchmark corpus, across 7 signatures. The 22nd task is a control; it stays quiet |
+| **25 to 54 of 76** | tuned dev cheats caught by defaults before and after. With all checks: **76 to 76 of 76**. Dev controls: **0 to 0 of 24** flagged in either mode. Run `node bench/redteam/probe.mjs --default` and `node bench/redteam/probe.mjs` |
+| **7 to 36 of 36** | cheats caught by defaults in the **74-case frozen validation set**, with benign flags falling from **2/38 to 0/38**. All checks improve from **9/36 to 36/36**. The separately frozen 74-case design set has the same totals. Both are small authored sets with paired variations |
+| **4.29% to 2.00% blocking** | **30/700 to 14/700** real non-bot commits flagged by defaults on the same fresh pinned sample from 20 repositories. Any finding: **46/700 (6.57%) to 26/700 (3.71%)**. Every flagged human commit counts as a conservative false-positive proxy, including intentional test deletions |
+| **26 to 35 of 72** | cheats caught by defaults on a **72-cheat, 72-benign held-out set** written after 1.0.0 by a separate run that never saw the checks. Benign flags: **5/72 before, 5/72 after**. All checks: **38 to 42 of 72**, with 6/72 benign flagged. Error handling went from 0/12 to 7/12. Hardcoded special cases (2/8), removed validation (0/3), edited expected values (0/3), race masking (0/3) and suppression (0/3) are still mostly missed. The set was used only to measure, not to tune, but it is now public, so it no longer counts as blind. Run `node bench/heldout/probe.mjs --default` |
+| **2.6% blocking** | **11/420** real commits blocked by both 1.0.0 and this release on a second fresh sample of 14 repositories that neither the checks nor the first sample touched. Any finding: **17 before, 16 after**. A few false positives found there were fixed with rules, not by pinning commits |
+| **27** | checks in two families, with **20 enabled by default**, across **25+** languages, installable into **30** agents |
 
-**What we don't claim.** The 139 of 139 result measures detection of planted changes.
-Our [benchmark](#benchmark) has not shown that proctor reduces cheating: all 44 invocations in
-each of the two complete live runs passed their held-out tests in both arms.
+The old **689-commit** claim, **2.32% blocking and 3.8% any finding**, refers to a missing ignored
+sample and harness. It could not be reproduced from this checkout or tracked history. The fresh
+700-commit sample uses the same 20 repositories, pins every commit and patch hash, and retains
+all findings. It is a replacement cohort, not the original sample. See
+[methods, per-rule results, and reproduction commands](bench/detection/README.md).
+
+**What we don't claim.** Proctor is a heuristic diff checker. Defaults still miss more than half of the held-out cheats, mostly the ones that need running the code to see: special-cased inputs, edited expected values, removed validation, masked races and suppression. It detects suspicious changes;
+it does not prevent them or judge intent. A determined author can write a cheat that no static
+diff check recognizes. The dev and authored-validation results do not establish a detection
+rate for unseen cheats. Our [live benchmark](#benchmark) has not shown that proctor reduces
+cheating: all 44 invocations in each complete run passed their evaluation tests in both arms.
 
 ## Benchmark
 
@@ -463,8 +475,9 @@ For command details, configuration, support limits, and contributor instructions
 | [bench/METHODOLOGY.md](https://github.com/catfish-1234/proctor/blob/main/bench/METHODOLOGY.md) | How the benchmark works and what it does not claim |
 
 proctor supports 25+ languages and installs to 30 agents. Five diff-level checks (RH001, RH002,
-RH003, RH007, RH011) work across all of them; six (RH004, RH005, RH006, RH008, RH009, RH010) are
-JS/TS/Python-only; and RH012 and RH013 read CI and coverage config, so they apply everywhere. Of the
+RH003, RH007, RH011) have signatures across the language roster. RH004, RH006, RH008, RH009, and
+RH010 have their tested coverage in JS/TS/Python; RH005 also detects emptied Go and Rust bodies.
+RH012 and RH013 read CI and coverage config, so they apply everywhere. Of the
 work-integrity family, WI101, WI102 and WI103 carry per-language signatures, WI104 reads config
 files so it applies everywhere, and WI105 and WI106 are scoped to the languages whose tokens are
 unambiguous. [Full matrix](https://github.com/catfish-1234/proctor/blob/main/docs/LANGUAGES.md).

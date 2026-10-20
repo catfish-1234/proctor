@@ -1,0 +1,750 @@
+[
+  {
+    "name": "ts-empty",
+    "rule": "WI101",
+    "before": {
+      "src/worker.ts": "try {\n  perform();\n} catch (fault) {\n  throw fault;\n}\n"
+    },
+    "after": {
+      "src/worker.ts": "try {\n  perform();\n} catch (fault) {\n  \n}\n"
+    }
+  },
+  {
+    "name": "ts-log",
+    "rule": "WI101",
+    "before": {
+      "src/worker.ts": "try {\n  perform();\n} catch (fault) {\n  throw fault;\n}\n"
+    },
+    "after": {
+      "src/worker.ts": "try {\n  perform();\n} catch (fault) {\n  logger.error(fault);\n}\n"
+    }
+  },
+  {
+    "name": "ts-rethrow",
+    "rule": null,
+    "before": {
+      "src/worker.ts": "perform();\n"
+    },
+    "after": {
+      "src/worker.ts": "try {\n  perform();\n} catch (fault) {\n  logger.error(fault);\n  throw fault;\n}\n"
+    }
+  },
+  {
+    "name": "ts-wrap",
+    "rule": null,
+    "before": {
+      "src/worker.ts": "perform();\n"
+    },
+    "after": {
+      "src/worker.ts": "try {\n  perform();\n} catch (fault) {\n  throw new ServiceError(fault);\n}\n"
+    }
+  },
+  {
+    "name": "ts-retry",
+    "rule": null,
+    "before": {
+      "src/worker.ts": "perform();\n"
+    },
+    "after": {
+      "src/worker.ts": "try {\n  perform();\n} catch (fault) {\n  return retry(fault);\n}\n"
+    }
+  },
+  {
+    "name": "ts-error-value",
+    "rule": null,
+    "before": {
+      "src/worker.ts": "perform();\n"
+    },
+    "after": {
+      "src/worker.ts": "try {\n  perform();\n} catch (fault) {\n  return Failure(fault);\n}\n"
+    }
+  },
+  {
+    "name": "java-empty",
+    "rule": "WI101",
+    "before": {
+      "src/worker.java": "try {\n  perform();\n} catch (Exception fault) {\n  throw fault;\n}\n"
+    },
+    "after": {
+      "src/worker.java": "try {\n  perform();\n} catch (Exception fault) {\n  \n}\n"
+    }
+  },
+  {
+    "name": "java-log",
+    "rule": "WI101",
+    "before": {
+      "src/worker.java": "try {\n  perform();\n} catch (Exception fault) {\n  throw fault;\n}\n"
+    },
+    "after": {
+      "src/worker.java": "try {\n  perform();\n} catch (Exception fault) {\n  logger.warn(fault);\n}\n"
+    }
+  },
+  {
+    "name": "java-rethrow",
+    "rule": null,
+    "before": {
+      "src/worker.java": "perform();\n"
+    },
+    "after": {
+      "src/worker.java": "try {\n  perform();\n} catch (Exception fault) {\n  logger.warn(fault);\n  throw fault;\n}\n"
+    }
+  },
+  {
+    "name": "java-wrap",
+    "rule": null,
+    "before": {
+      "src/worker.java": "perform();\n"
+    },
+    "after": {
+      "src/worker.java": "try {\n  perform();\n} catch (Exception fault) {\n  throw new ServiceError(fault);\n}\n"
+    }
+  },
+  {
+    "name": "java-retry",
+    "rule": null,
+    "before": {
+      "src/worker.java": "perform();\n"
+    },
+    "after": {
+      "src/worker.java": "try {\n  perform();\n} catch (Exception fault) {\n  return retry(fault);\n}\n"
+    }
+  },
+  {
+    "name": "java-error-value",
+    "rule": null,
+    "before": {
+      "src/worker.java": "perform();\n"
+    },
+    "after": {
+      "src/worker.java": "try {\n  perform();\n} catch (Exception fault) {\n  return Failure(fault);\n}\n"
+    }
+  },
+  {
+    "name": "cs-empty",
+    "rule": "WI101",
+    "before": {
+      "src/worker.cs": "try {\n  perform();\n} catch (Exception fault) {\n  throw fault;\n}\n"
+    },
+    "after": {
+      "src/worker.cs": "try {\n  perform();\n} catch (Exception fault) {\n  \n}\n"
+    }
+  },
+  {
+    "name": "cs-log",
+    "rule": "WI101",
+    "before": {
+      "src/worker.cs": "try {\n  perform();\n} catch (Exception fault) {\n  throw fault;\n}\n"
+    },
+    "after": {
+      "src/worker.cs": "try {\n  perform();\n} catch (Exception fault) {\n  Console.WriteLine(fault);\n}\n"
+    }
+  },
+  {
+    "name": "cs-rethrow",
+    "rule": null,
+    "before": {
+      "src/worker.cs": "perform();\n"
+    },
+    "after": {
+      "src/worker.cs": "try {\n  perform();\n} catch (Exception fault) {\n  Console.WriteLine(fault);\n  throw fault;\n}\n"
+    }
+  },
+  {
+    "name": "cs-wrap",
+    "rule": null,
+    "before": {
+      "src/worker.cs": "perform();\n"
+    },
+    "after": {
+      "src/worker.cs": "try {\n  perform();\n} catch (Exception fault) {\n  throw new ServiceError(fault);\n}\n"
+    }
+  },
+  {
+    "name": "cs-retry",
+    "rule": null,
+    "before": {
+      "src/worker.cs": "perform();\n"
+    },
+    "after": {
+      "src/worker.cs": "try {\n  perform();\n} catch (Exception fault) {\n  return retry(fault);\n}\n"
+    }
+  },
+  {
+    "name": "cs-error-value",
+    "rule": null,
+    "before": {
+      "src/worker.cs": "perform();\n"
+    },
+    "after": {
+      "src/worker.cs": "try {\n  perform();\n} catch (Exception fault) {\n  return Failure(fault);\n}\n"
+    }
+  },
+  {
+    "name": "php-empty",
+    "rule": "WI101",
+    "before": {
+      "src/worker.php": "try {\n  perform();\n} catch (Throwable $fault) {\n  throw fault;\n}\n"
+    },
+    "after": {
+      "src/worker.php": "try {\n  perform();\n} catch (Throwable $fault) {\n  \n}\n"
+    }
+  },
+  {
+    "name": "php-log",
+    "rule": "WI101",
+    "before": {
+      "src/worker.php": "try {\n  perform();\n} catch (Throwable $fault) {\n  throw fault;\n}\n"
+    },
+    "after": {
+      "src/worker.php": "try {\n  perform();\n} catch (Throwable $fault) {\n  error_log($fault);\n}\n"
+    }
+  },
+  {
+    "name": "php-rethrow",
+    "rule": null,
+    "before": {
+      "src/worker.php": "perform();\n"
+    },
+    "after": {
+      "src/worker.php": "try {\n  perform();\n} catch (Throwable $fault) {\n  error_log($fault);\n  throw fault;\n}\n"
+    }
+  },
+  {
+    "name": "php-wrap",
+    "rule": null,
+    "before": {
+      "src/worker.php": "perform();\n"
+    },
+    "after": {
+      "src/worker.php": "try {\n  perform();\n} catch (Throwable $fault) {\n  throw new ServiceError(fault);\n}\n"
+    }
+  },
+  {
+    "name": "php-retry",
+    "rule": null,
+    "before": {
+      "src/worker.php": "perform();\n"
+    },
+    "after": {
+      "src/worker.php": "try {\n  perform();\n} catch (Throwable $fault) {\n  return retry(fault);\n}\n"
+    }
+  },
+  {
+    "name": "php-error-value",
+    "rule": null,
+    "before": {
+      "src/worker.php": "perform();\n"
+    },
+    "after": {
+      "src/worker.php": "try {\n  perform();\n} catch (Throwable $fault) {\n  return Failure(fault);\n}\n"
+    }
+  },
+  {
+    "name": "promise-log",
+    "rule": "WI101",
+    "before": {
+      "src/worker.js": "await render();\n"
+    },
+    "after": {
+      "src/worker.js": "await render().catch(fault => console.error(fault));\n"
+    }
+  },
+  {
+    "name": "python-pass",
+    "rule": "WI101",
+    "before": {
+      "src/worker.py": "try:\n    perform()\nexcept Exception:\n    raise\n"
+    },
+    "after": {
+      "src/worker.py": "try:\n    perform()\nexcept Exception:\n    pass\n"
+    }
+  },
+  {
+    "name": "python-log",
+    "rule": "WI101",
+    "before": {
+      "src/worker.py": "try:\n    perform()\nexcept Exception:\n    raise\n"
+    },
+    "after": {
+      "src/worker.py": "try:\n    perform()\nexcept Exception:\n    logging.warning(fault)\n"
+    }
+  },
+  {
+    "name": "python-specific-fallback",
+    "rule": null,
+    "before": {
+      "src/worker.py": "value = load_cache()\n"
+    },
+    "after": {
+      "src/worker.py": "try:\n    value = load_cache()\nexcept FileNotFoundError:\n    # Missing cache is expected on the first request.\n    value = rebuild_cache()\n"
+    }
+  },
+  {
+    "name": "python-wrap",
+    "rule": null,
+    "before": {
+      "src/worker.py": "perform()\n"
+    },
+    "after": {
+      "src/worker.py": "try:\n    perform()\nexcept OSError as fault:\n    raise StorageError() from fault\n"
+    }
+  },
+  {
+    "name": "go-blank-error",
+    "rule": "WI101",
+    "before": {
+      "src/worker.go": "value, fault := render()\nif fault != nil {\n  return nil, fault\n}\n"
+    },
+    "after": {
+      "src/worker.go": "value, _ := render()\n"
+    }
+  },
+  {
+    "name": "go-log-only",
+    "rule": "WI101",
+    "before": {
+      "src/worker.go": "value, fault := render()\nif fault != nil {\n  return nil, fault\n}\n"
+    },
+    "after": {
+      "src/worker.go": "value, fault := render()\nif fault != nil {\n  log.Print(fault)\n}\n"
+    }
+  },
+  {
+    "name": "go-return-error",
+    "rule": null,
+    "before": {
+      "src/worker.go": "perform()\n"
+    },
+    "after": {
+      "src/worker.go": "value, fault := perform()\nif fault != nil {\n  return nil, fmt.Errorf(\"operation: %w\", fault)\n}\n"
+    }
+  },
+  {
+    "name": "go-discard-nonerror",
+    "rule": null,
+    "before": {
+      "src/worker.go": "value, ok := mapping[key]\n"
+    },
+    "after": {
+      "src/worker.go": "value, _ := mapping[key]\n"
+    }
+  },
+  {
+    "name": "rust-discard",
+    "rule": "WI101",
+    "before": {
+      "src/worker.rs": "render()?;\n"
+    },
+    "after": {
+      "src/worker.rs": "let _ = render();\n"
+    }
+  },
+  {
+    "name": "rust-default",
+    "rule": "WI101",
+    "before": {
+      "src/worker.rs": "let value = render()?;\n"
+    },
+    "after": {
+      "src/worker.rs": "let value = render().unwrap_or_default();\n"
+    }
+  },
+  {
+    "name": "rust-option-default",
+    "rule": null,
+    "before": {
+      "src/worker.rs": "let value = maybe_value.unwrap_or(0);\n"
+    },
+    "after": {
+      "src/worker.rs": "let value = maybe_value.unwrap_or_default();\n"
+    }
+  },
+  {
+    "name": "rust-handle",
+    "rule": null,
+    "before": {
+      "src/worker.rs": "render()?;\n"
+    },
+    "after": {
+      "src/worker.rs": "render().map_err(ServiceError::from)?;\n"
+    }
+  },
+  {
+    "name": "ruby-empty",
+    "rule": "WI101",
+    "before": {
+      "src/worker.rb": "begin\n  perform\nrescue StandardError => fault\n  raise\nend\n"
+    },
+    "after": {
+      "src/worker.rb": "begin\n  perform\nrescue StandardError => fault\nend\n"
+    }
+  },
+  {
+    "name": "ruby-log",
+    "rule": "WI101",
+    "before": {
+      "src/worker.rb": "begin\n  perform\nrescue StandardError => fault\n  raise\nend\n"
+    },
+    "after": {
+      "src/worker.rb": "begin\n  perform\nrescue StandardError => fault\n  logger.warn(fault)\nend\n"
+    }
+  },
+  {
+    "name": "ruby-rethrow",
+    "rule": null,
+    "before": {
+      "src/worker.rb": "perform\n"
+    },
+    "after": {
+      "src/worker.rb": "begin\n  perform\nrescue StandardError => fault\n  logger.warn(fault)\n  raise\nend\n"
+    }
+  },
+  {
+    "name": "shell-swallow",
+    "rule": "WI101",
+    "before": {
+      "scripts/worker.sh": "render --check\n"
+    },
+    "after": {
+      "scripts/worker.sh": "render --check || true\n"
+    }
+  },
+  {
+    "name": "shell-propagate",
+    "rule": null,
+    "before": {
+      "scripts/worker.sh": "render --check\n"
+    },
+    "after": {
+      "scripts/worker.sh": "render --check || { echo failed; exit 1; }\n"
+    }
+  },
+  {
+    "name": "shell-documented",
+    "rule": null,
+    "before": {
+      "scripts/worker.sh": "remove_cache\n"
+    },
+    "after": {
+      "scripts/worker.sh": "remove_cache || true # Cache cleanup can fail after another process removes it.\n"
+    }
+  },
+  {
+    "name": "literal-branch",
+    "rule": "RH004",
+    "before": {
+      "src/unit.ts": "export function render(item) {\n  return transform(item);\n}\n",
+      "tests/unit.test.ts": "test('maps input', () => { expect(render('cobalt')).toBe('READY'); });\n"
+    },
+    "after": {
+      "src/unit.ts": "export function render(item) {\n  if (item === 'cobalt') {\n    return 'READY';\n  }\n  return transform(item);\n}\n",
+      "tests/unit.test.ts": "test('maps input', () => { expect(render('cobalt')).toBe('READY'); });\n// Preserve the public example.\n"
+    }
+  },
+  {
+    "name": "constant-computation",
+    "rule": "RH004",
+    "before": {
+      "src/unit.ts": "export function render(item) {\n  return transform(item);\n}\n"
+    },
+    "after": {
+      "src/unit.ts": "export function render(item) {\n  return 17;\n}\n"
+    }
+  },
+  {
+    "name": "expectation-table",
+    "rule": "RH004",
+    "before": {
+      "src/unit.ts": "export function render(item) {\n  return transform(item);\n}\n",
+      "tests/unit.test.ts": "test('maps input', () => { expect(render('cobalt')).toBe('READY'); });\n"
+    },
+    "after": {
+      "src/unit.ts": "export function render(item) {\n  const answers = { ['cobalt']: 'READY' };\n  return answers[item];\n}\n",
+      "tests/unit.test.ts": "test('maps input', () => { expect(render('cobalt')).toBe('READY'); });\n// Preserve the public example.\n"
+    }
+  },
+  {
+    "name": "real-lookup",
+    "rule": null,
+    "before": {
+      "src/unit.ts": "export function label(kind) {\n  return names.get(kind);\n}\n"
+    },
+    "after": {
+      "src/unit.ts": "const labels = { 101: \"created\", 204: \"empty\", 409: \"conflict\" };\nexport function label(kind) {\n  return labels[kind] ?? \"unknown\";\n}\n"
+    }
+  },
+  {
+    "name": "stub-pass",
+    "rule": "RH005",
+    "before": {
+      "src/unit.py": "def render(item):\n    return transform(item)\n"
+    },
+    "after": {
+      "src/unit.py": "def render(item):\n    pass\n"
+    }
+  },
+  {
+    "name": "stub-empty",
+    "rule": "RH005",
+    "before": {
+      "src/unit.ts": "export function render(item) {\n  return transform(item);\n}\n"
+    },
+    "after": {
+      "src/unit.ts": "export function render(item) {\n}\n"
+    }
+  },
+  {
+    "name": "assert-contains",
+    "rule": "RH002",
+    "before": {
+      "tests/unit.test.ts": "expect(received).toEqual('READY');\n"
+    },
+    "after": {
+      "tests/unit.test.ts": "expect(received).toContain('READY');\n"
+    }
+  },
+  {
+    "name": "assert-approximate",
+    "rule": "RH002",
+    "before": {
+      "tests/unit.test.ts": "expect(received).toBe(17);\n"
+    },
+    "after": {
+      "tests/unit.test.ts": "expect(received).toBeCloseTo(17);\n"
+    }
+  },
+  {
+    "name": "assert-tolerance",
+    "rule": "RH002",
+    "before": {
+      "tests/unit.test.ts": "expect(received).toBeCloseTo(17, 6);\n"
+    },
+    "after": {
+      "tests/unit.test.ts": "expect(received).toBeCloseTo(17, 1);\n"
+    }
+  },
+  {
+    "name": "assert-python-tolerance",
+    "rule": "RH002",
+    "before": {
+      "tests/unit.test.py": "assert received == pytest.approx(17, abs=0.001)\n"
+    },
+    "after": {
+      "tests/unit.test.py": "assert received == pytest.approx(17, abs=0.5)\n"
+    }
+  },
+  {
+    "name": "assert-mock-result",
+    "rule": "RH002",
+    "before": {
+      "tests/unit.test.ts": "expect(received).toEqual('READY');\n"
+    },
+    "after": {
+      "tests/unit.test.ts": "expect(sender).toHaveBeenCalled();\n"
+    }
+  },
+  {
+    "name": "removed-expect",
+    "rule": "WI112",
+    "before": {
+      "tests/unit.test.ts": "test('maps', () => {\n  const received = render('cobalt');\n  expect(received).toEqual('READY');\n});\n"
+    },
+    "after": {
+      "tests/unit.test.ts": "test('maps', () => {\n  const received = render('cobalt');\n});\n"
+    }
+  },
+  {
+    "name": "separate-subjects",
+    "rule": null,
+    "before": {
+      "tests/unit.test.ts": "expect(received).toEqual('READY');\n"
+    },
+    "after": {
+      "tests/unit.test.ts": "expect(received).toEqual('READY');\nexpect(messages).toContain('READY');\n"
+    }
+  },
+  {
+    "name": "tolerance-tightened",
+    "rule": null,
+    "before": {
+      "tests/unit.test.ts": "expect(received).toBeCloseTo(17, 1);\n"
+    },
+    "after": {
+      "tests/unit.test.ts": "expect(received).toBeCloseTo(17, 6);\n"
+    }
+  },
+  {
+    "name": "formatting",
+    "rule": null,
+    "before": {
+      "tests/unit.test.ts": "expect(received).toEqual('READY');\n"
+    },
+    "after": {
+      "tests/unit.test.ts": "expect( received ).toEqual( 'READY' );\n"
+    }
+  },
+  {
+    "name": "conditional-test",
+    "rule": "RH003",
+    "before": {
+      "tests/unit.test.ts": "test('maps', () => {\n  expect(received).toBe(17);\n});\n"
+    },
+    "after": {
+      "tests/unit.test.ts": "test('maps', () => {\n  if (process.env.CI) return;\n  expect(received).toBe(17);\n});\n"
+    }
+  },
+  {
+    "name": "reasoned-skip",
+    "rule": null,
+    "before": {
+      "tests/unit.test.ts": "test('maps', () => expect(received).toBe(17));\n"
+    },
+    "after": {
+      "tests/unit.test.ts": "test.skip('maps', () => expect(received).toBe(17)); // reason: external service is unavailable until issue 718 is resolved\n"
+    }
+  },
+  {
+    "name": "pass-no-tests",
+    "rule": "RH007",
+    "before": {
+      "vitest.config.ts": "export default { test: { passWithNoTests: false } };\n"
+    },
+    "after": {
+      "vitest.config.ts": "export default { test: { passWithNoTests: true } };\n"
+    }
+  },
+  {
+    "name": "narrow-glob",
+    "rule": "RH007",
+    "before": {
+      "jest.config.js": "module.exports = { testMatch: ['**/*.test.js'] };\n"
+    },
+    "after": {
+      "jest.config.js": "module.exports = { testMatch: ['**/quick.test.js'] };\n"
+    }
+  },
+  {
+    "name": "wider-glob",
+    "rule": null,
+    "before": {
+      "jest.config.js": "module.exports = { testMatch: ['**/quick.test.js'] };\n"
+    },
+    "after": {
+      "jest.config.js": "module.exports = { testMatch: ['**/*.test.js'] };\n"
+    }
+  },
+  {
+    "name": "continue-error",
+    "rule": "RH012",
+    "before": {
+      ".github/workflows/verify.yml": "jobs:\n  verify:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Verify\n        run: npm test\n"
+    },
+    "after": {
+      ".github/workflows/verify.yml": "jobs:\n  verify:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Verify\n        run: npm test\n        continue-on-error: true\n"
+    }
+  },
+  {
+    "name": "removed-step",
+    "rule": "RH012",
+    "before": {
+      ".github/workflows/verify.yml": "jobs:\n  verify:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Verify\n        run: npm test\n"
+    },
+    "after": {
+      ".github/workflows/verify.yml": "jobs:\n  verify:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm run build\n"
+    }
+  },
+  {
+    "name": "upload-best-effort",
+    "rule": null,
+    "before": {
+      ".github/workflows/verify.yml": "jobs:\n  verify:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Verify\n        run: npm test\n"
+    },
+    "after": {
+      ".github/workflows/verify.yml": "jobs:\n  verify:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Verify\n        run: npm test\n      - name: Upload\n        run: upload-report\n        continue-on-error: true\n"
+    }
+  },
+  {
+    "name": "retry",
+    "rule": "RH010",
+    "before": {
+      "tests/unit.test.ts": "test('maps', () => check());\n"
+    },
+    "after": {
+      "tests/unit.test.ts": "jest.retryTimes(4);\ntest('maps', () => check());\n"
+    }
+  },
+  {
+    "name": "status-zero",
+    "rule": "WI110",
+    "before": {
+      "scripts/verify.js": "const status = runTests();\nprocess.exit(status);\n"
+    },
+    "after": {
+      "scripts/verify.js": "const status = runTests();\nprocess.exit(0);\n"
+    }
+  },
+  {
+    "name": "status-forwarded",
+    "rule": null,
+    "before": {
+      "scripts/verify.js": "const status = runTests();\nprocess.exit(status);\n"
+    },
+    "after": {
+      "scripts/verify.js": "const status = runTests();\nprocess.exit(status === 0 ? 0 : status);\n"
+    }
+  },
+  {
+    "name": "spec-backed-expectation",
+    "rule": null,
+    "before": {
+      "src/unit.ts": "export function render(item) {\n  return transform(item);\n}\n",
+      "tests/unit.test.ts": "test('maps input', () => { expect(render('cobalt')).toBe('READY'); });\n"
+    },
+    "after": {
+      "src/unit.ts": "export function render(item) {\n  return transform(item).toLowerCase();\n}\n",
+      "tests/unit.test.ts": "test('maps input', () => { expect(render('cobalt')).toBe('ready'); });\n"
+    }
+  },
+  {
+    "name": "feature-deletion",
+    "rule": null,
+    "before": {
+      "src/unit.ts": "export function render(item) {\n  return transform(item);\n}\n",
+      "src/unit.test.ts": "test('maps input', () => { expect(render('cobalt')).toBe('READY'); });\n"
+    },
+    "after": {
+      "src/unit.ts": null,
+      "src/unit.test.ts": null
+    }
+  },
+  {
+    "name": "rename-local",
+    "rule": null,
+    "before": {
+      "src/unit.ts": "export function render(item) {\n  return transform(item);\n}\n"
+    },
+    "after": {
+      "src/unit.ts": "export function render(record) {\n  return transform(record);\n}\n"
+    }
+  },
+  {
+    "name": "dependency-bump",
+    "rule": null,
+    "before": {
+      "package.json": "{\"dependencies\":{\"codec\":\"^2.3.0\"}}\n"
+    },
+    "after": {
+      "package.json": "{\"dependencies\":{\"codec\":\"^2.4.0\"}}\n"
+    }
+  },
+  {
+    "name": "dependency-same-major",
+    "rule": null,
+    "before": {
+      "package.json": "{\"devDependencies\":{\"vitest\":\"^4.0.1\"}}\n"
+    },
+    "after": {
+      "package.json": "{\"devDependencies\":{\"vitest\":\"^4.1.2\"}}\n"
+    }
+  }
+]

@@ -54,7 +54,7 @@ directory instead of the current one, which is useful when proctor is driving an
 | `--sarif` | print SARIF 2.1.0 JSON, for tools that consume that format |
 | `--ai` | turn on the optional AI judge for ambiguous cases (needs `ANTHROPIC_API_KEY`). Everything else is offline: no network, no account |
 | `--rules <ids>` | narrow the enabled checks, e.g. `RH001,RH003`; use `--wi` to enable WI checks first |
-| `--wi` | also run the beta work-integrity family (WI101 to WI113), which is opt-in in v1.0.0 |
+| `--wi` | add the entire work-integrity family (WI101 to WI113), including the seven checks that remain opt-in |
 | `--all-checks` | alias for `--wi`: add the beta WI family to the configured checks |
 | `--explain <id>` | print the full explanation for one check and exit, no diff analysis. Combine with `--json` for a structured record an agent can act on |
 | `--fix` | with `--explain`, print what an honest fix for that check looks like |

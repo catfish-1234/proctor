@@ -14,9 +14,9 @@ languages, then the 16 added in the Language Expansion II round.
 
 The work-integrity family (WI101 to WI113) has its own scoping, described in
 [its own section](#the-work-integrity-family-wi1xx) below. Coverage depends on the check and file
-type, so it does not line up with the RH tables. That family is
-**beta and opt-in** in v1.0.0: run it with `proctor check --wi` (or `--all-checks`), or list the
-IDs in `enabled` in `proctor.config.json` to have it apply everywhere, hooks included.
+type, so it does not line up with the RH tables. WI101, WI102, WI105, WI108, WI109, and WI110 run by default. The other seven checks remain
+opt-in: use `proctor check --wi` (or `--all-checks`), or an explicit `enabled` list in the
+committed config. See the [precision gate and default decisions](../bench/detection/README.md).
 
 | RH-ID | JS/TS | Python | Go | Java | Rust | Ruby | PHP | C# | Kotlin |
 |-------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
@@ -24,7 +24,7 @@ IDs in `enabled` in `proctor.config.json` to have it apply everywhere, hooks inc
 | RH002 (assertion weakened) | ✅ | ✅ | ✅ (testify only; stdlib comparison-weakening not covered) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (kotlin.test/AssertJ; Kotest flat pair unit-tested, no dedicated fixture) |
 | RH003 (skip/disable) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (JUnit5/kotlin.test; Kotest x-forms only, `enabled = false` not covered) |
 | RH004 (hardcoded fixture) | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| RH005 (gutted function) | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| RH005 (gutted function) | ✅ | ✅ | ✅ (empty `func` body) | ❌ | ✅ (empty `fn` body) | ❌ | ❌ | ❌ | ❌ |
 | RH006 (snapshot rewrite) | ✅ | n/a (no snapshot convention) | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | RH007 (config exclusion) | ✅ | ✅ | ✅ (build tag added to a `_test.go` file) | ✅ (Maven `pom.xml`) | ✅ (`Cargo.toml`) | ✅ (`.rspec`) | ✅ (`phpunit.xml`) | ✅ (`.runsettings`) | ✅ (Gradle `build.gradle.kts`) |
 | RH008 (tautological test) | ✅ | n/a | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -69,8 +69,9 @@ exclusion, Lua's fragile own-line-at-file-top form, Clojure's `.clj-kondo/config
 whole-file exclusion, and Shell/Bash's structural absence of any inline file-wide directive) would
 require forward-scanning past the diff line, which proctor's line-level model doesn't do.
 
-RH004, RH005, RH006, and RH008 are scoped to JS/TS and Python; the table distinguishes checks
-without a Python equivalent. They are not implemented for the other 25+ supported languages.
+RH004, RH006, and RH008 have their tested coverage in JS/TS and Python; the table distinguishes
+checks without a Python equivalent. RH005 also recognizes complete Go `func` and Rust `fn`
+bodies emptied by a change. A syntax match in another language is not a coverage guarantee.
 RH004 and RH005 can use the optional `--ai` judge for ambiguous cases. Extending their syntax
 patterns to other languages would need separate validation for false positives.
 
@@ -257,7 +258,7 @@ describe WI101 through WI108. The README lists all thirteen checks.
 
 | WI-ID | Scope | Coverage and gaps |
 |-------|-------|-------------------|
-| WI101 (error swallowing) | Per-language signatures | JS/TS empty catch and discarded promise rejections, Python `except: pass` and default-returning handlers, Ruby `rescue nil` and empty rescue, Go empty `if err != nil` and `_ = err`, and the braced empty catch shared by Java, C#, Kotlin, Scala, PHP and Swift. Never fires when the handler carries an explanation |
+| WI101 (error swallowing) | Per-language signatures | JS/TS, Python, Go, Java, Ruby, C#, and PHP empty or logging-only handlers, including edits with an unchanged opener. Rust discarded results and `unwrap_or_default` when replacing propagation of the same operation; Go blank bindings when replacing a checked error; shell `|| true` replacing the same checked command. Existing empty-handler signatures also cover Kotlin, Scala, and Swift. A documented deliberate fallback stays quiet |
 | WI102 (unimplemented work) | Per-language sentinels | `raise NotImplementedError`, `throw new NotImplementedException`, a not-implemented `throw new Error`, Rust `todo!()`/`unimplemented!()`, Kotlin `TODO()`, Go `panic("not implemented")`, Swift `fatalError`, and a Python `pass  # TODO`. Anchored to statement position, so the same tokens quoted in prose or metadata do not match. Abstract methods, interfaces, protocols and declaration files (`.d.ts`, `.pyi`) are exempt |
 | WI103 (validation removed) | Mostly language-agnostic | Deleted throws, raises, asserts, panics, Go error returns, and precondition helpers. Silent whenever the same change adds a named validator anywhere in the file, or rewrites a guard in the same hunk, because a false positive here lands on somebody extracting a validator |
 | WI104 (guardrail disabled) | Config files, every language | Proctor's own config and deployed rulesets, package.json, CI workflows, husky and pre-commit hooks, Makefiles, shell scripts, Claude Code settings, tsconfig strictness flags, ESLint rule config, and lint ignore files. Does not read prose, so a README that stops mentioning proctor is not a finding |
@@ -269,31 +270,40 @@ describe WI101 through WI108. The README lists all thirteen checks.
 
 **Known gaps in this family.** WI101 does not follow a handler whose braces close outside the diff
 hunk, so an empty catch split across a very large unchanged region can be missed; the check stays
-quiet rather than guessing. WI103 reads deletions only, so a guard that is weakened rather than
-deleted (a bound loosened, a condition inverted) is not covered, and neither is validation that
-lived in a decorator or a framework annotation. WI105 recognises IO from a fixed list of calls, so a
+quiet rather than guessing. WI103 recognizes selected removals and guard-weakening patterns; it
+cannot infer arbitrary condition changes, validator extraction, or validation expressed through
+framework annotations. WI105 recognises IO from a fixed list of calls, so a
 project wrapping all of its network access in an in-house client will not match it. WI106 has no
 signature for Rust or Haskell, whose escape hatches (`unsafe`, `unsafeCoerce`) mean something
 different enough that reusing the `any` framing would be misleading.
 
 ## Known limitations
 
-Testing in around 28 throwaway repositories exposed the following limits. Addressing them
-would require more context than the current line-based patterns provide.
+Proctor is a heuristic diff checker. It detects suspicious changes; it does not prevent them
+or judge intent. A determined author can write a cheat that no static diff check recognizes.
+The [measurement report](../bench/detection/README.md) separates tuned dev results, frozen
+authored validation, and human-commit precision. None establishes generalization to unseen cheats.
 
-- **Hardcoding via a lookup table.** Proctor catches a bare `return 3` replacing real logic, or a
-  one-line `if (x === fixture) return answer`. A dictionary populated with the exact expected
-  answer for each test input does the same thing but isn't caught yet. This is a good candidate
-  for the `--ai` judge, since recognizing "these values match the test's expected outputs" is a
-  judgment call, not something a regex can do safely.
-- **Weakening an assertion across two files.** Proctor compares a deleted assertion against an
-  added one within the same file. If a test's own assertion is untouched but a shared constant it
-  imports from another file gets loosened instead, that slips through. Following an import across
-  files is also better suited to `--ai`.
-- **Disabling a test with a block comment instead of `.skip()`.** Wrapping a test in `/* ... */`
-  leaves the test's own line of code completely unchanged, so it never shows up as a changed line
-  in the diff. The current line-based detector does not reliably track these comment boundaries.
-- **A reason you haven't written down yet.** Proctor reads diffs, not intent. It can't know why a
-  snapshot changed or why a test's timeout grew unless that reason is somewhere it can actually
-  read. Record the reason with an
-  [inline marker](CONFIGURATION.md#inline-suppression) in a commit before the change it covers.
+- **Literal branches and lookup tables.** RH004 now recognizes a multiline JS/TS literal branch
+  that matches an asserted input/output pair in visible test diff context while retaining the
+  same computation. It also recognizes a computed return replaced by a lookup of such a pair.
+  Real domain tables stay quiet in the new benign cases. Tests outside the diff, imported data,
+  arbitrary table layouts, and semantic hardcodes can still escape.
+- **Incomplete scope.** Structural checks need a complete handler, function, callback, or table
+  in the hunk. They mask strings, regexes, and comments but are not full language parsers.
+  Untyped newly ignored return values can be legitimate; Rust and Go discard checks need prior
+  propagation or error-check evidence. Language-specific metaprogramming can evade them.
+- **Assertions across files.** RH002 catches same-value exact-to-containment and approximate
+  changes, lower decimal precision, wider explicit pytest tolerances, result-to-mock substitutions,
+  and unused computed results whose assertions disappear. An imported tolerance or a custom
+  assertion helper changed elsewhere still needs review.
+- **Block comments.** RH003 can now catch an existing named JS/TS test made inert by a new block
+  comment when its callback and the comment boundary are visible. Boundaries outside the hunk,
+  generated test registries, and other languages still have gaps.
+- **Task graphs and CI.** RH012 recognizes preserved test invocations under launcher options;
+  WI110 follows visible called package-script helpers. Moving a command behind an unchanged
+  external task definition can still look like deletion. Dynamically assembled workflows and
+  task graphs are not resolved.
+- **Reasons and intent.** Native skip reasons and explicit explanations can make a deliberate
+  change reviewable. They do not prove correctness. A newly added `proctor-ignore` marker is
+  still subject to the committed-baseline rule and cannot suppress its own diff.

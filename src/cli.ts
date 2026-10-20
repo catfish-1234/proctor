@@ -76,8 +76,8 @@ program
   .option('--sarif', 'output SARIF 2.1.0 JSON to stdout')
   .option('--ai', 'enable the networked LLM judge (requires ANTHROPIC_API_KEY)')
   .option('--rules <ids>', 'comma-separated list of verifier IDs to run (narrows the enabled set, e.g. RH001,RH003)')
-  .option('--wi', 'also run the beta work-integrity family (WI1xx), which is opt-in by default')
-  .option('--all-checks', 'alias for --wi: add the beta WI family to the configured checks')
+  .option('--wi', 'also run the remaining opt-in work-integrity checks (WI1xx)')
+  .option('--all-checks', 'alias for --wi: add the entire WI family to the configured checks')
   .option('--explain <id>', 'print the full explanation for a verifier ID and exit, no diff analysis')
   .option('--fix', 'with --explain, print what an honest fix looks like instead of the rule description')
   .option('--markdown <file>', 'also write a Markdown summary to this file, e.g. --markdown "$GITHUB_STEP_SUMMARY"')
@@ -174,7 +174,7 @@ program
     const ctx = await buildContext(cwd, files, { configRef: options.base ?? 'HEAD' });
     ctx.files = classifyDiff(raw, files, ctx.isTestFile).accepted;
     ctx.committedDiff = Boolean(options.base);
-    // The WI family is opt-in for this release (see WI_CHECKS). A flag turns it on for one run;
+    // A flag adds the entire WI family, including the remaining opt-in checks, for one run;
     // listing the IDs in the committed config turns it on everywhere, hooks included. Added rather
     // than assigned, so a config that already enables some of them is not overwritten, and a config
     // that deliberately narrows the RH set keeps that narrowing.

@@ -219,12 +219,14 @@ describe('README.md content', () => {
     expect(docsContent).toMatch(/\|\s*RH-ID\s*\|/);
   });
 
-  it('marks RH004/RH005/RH006/RH008 as JS/TS/Python-only with a stated rationale', () => {
+  it('documents source-check scopes and the Go/Rust empty-body extension', () => {
     expect(docsContent).toContain('JS/TS/Python-only');
     expect(docsContent).toContain('RH004');
     expect(docsContent).toContain('RH005');
     expect(docsContent).toContain('RH006');
     expect(docsContent).toContain('RH008');
+    expect(docsContent).toContain('empty `func` body');
+    expect(docsContent).toContain('empty `fn` body');
   });
 
   it('documents the expanded 16-language support matrix (Language Expansion II, LANG-14)', () => {
@@ -254,7 +256,7 @@ describe('README.md content', () => {
     expect(docsContent).toMatch(/\|\s*RH-ID\s*\|\s*C\+\+\s*\|/);
   });
 
-  it('still marks RH004/RH005/RH006/RH008 as JS/TS/Python-only across the expanded 25+-language boundary', () => {
+  it('keeps the JS/TS/Python-specific checks explicit across the expanded language boundary', () => {
     expect(docsContent).toMatch(/25\+/);
     expect(docsContent).toMatch(/JS\/TS\/Python-only.*25\+|25\+.*JS\/TS\/Python-only/s);
   });

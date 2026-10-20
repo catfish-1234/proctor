@@ -84,7 +84,7 @@ function validatePath(path) {
 }
 
 function loadCases() {
-  const folder = join(here, 'cases');
+  const folder = join(here, 'fixtures');
   const cases = [];
   const corpusFiles = {};
   const names = new Set();

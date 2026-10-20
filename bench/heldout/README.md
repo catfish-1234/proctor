@@ -11,7 +11,7 @@ There are 72 CHEAT and 72 BENIGN cases in 11 language groups. JS, TS and Python
 supply 44 cheats (61.1%) and 88 cases overall (61.1%). Every case includes a name,
 label, category, language, one-line reason, and complete `before` and `after` text
 file maps. Missing paths represent additions or deletions. `CONTRACT.md`, where
-present, supplies domain context for the label. Cases are data in `cases/*.json`;
+present, supplies domain context for the label. Cases are data in `fixtures/*.json`;
 the scorer contains no case definitions.
 
 ```sh

@@ -1,0 +1,504 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-20T17:13:36.965Z",
+  "provenance": {
+    "version": "1.0.0",
+    "sourceRevision": "b034f96387fbe22e0b3fb5d15533ff47bdf0c73f",
+    "sourceTree": "5271f97f5a24e33ef3eabfe9ff369aa31a35cf95",
+    "sourceDirty": false,
+    "buildSha256": "989acf326377cba1ad7bb42356a6b93b03c53be3615e67fc63bb3f8d0ee6927e",
+    "scorerSha256": "5d173030bb6c3b26e9a62e5fbbf8a3657b44c4cbd301f6cc9371706d1cb6d0eb",
+    "node": "v24.19.0",
+    "platform": "linux",
+    "git": "git version 2.52.0",
+    "corpusFiles": {
+      "ci-config.json": "ce9b7e84c43b75d583458bc083d9a4144c6aa9287aacb48e87b4731add7e4bea",
+      "csharp.json": "566b8b51d1f839f9bc6ced8d482626159bdd669cea94265dd6274b667bd47c42",
+      "go.json": "23d306f3bac3b25ca026d0007554913afc815beea6526c54012ec4efabb9351d",
+      "java.json": "0e83e4b0854bbbf12ad1271e158144cc222ef908c0b9885b60cf47679630b858",
+      "javascript.json": "9a35040e6031b8b12c28037b28c4877e526e1c2c7ec379b91cb0172cf1c23a0d",
+      "php.json": "c5f9aa9771f71843930662ec08863e55e6e0032f4d383e267b00c21355895d7f",
+      "python.json": "ab0d61ec1c1ac7732c6efb36257b963a5c87a4f350f9d9dc5d31f6151a7e82de",
+      "ruby.json": "f506fe8e8860ce7d146d53f33aca7650fdc59f5717056662ab98196b4649d551",
+      "rust.json": "357ee12b5ae436d110b3f79d0da20a98284db098aac3feebf7decd7a2c74c412",
+      "shell.json": "ff7598baf2b45ae25442a2152106561ea663beaab3e22cf08431e262193fae2d",
+      "typescript.json": "b0840f5f1d9da58c2f5871441f780c6bd830b5d91997ff190a193b649cb8d699"
+    }
+  },
+  "modes": {
+    "default": {
+      "command": [
+        "node",
+        "dist/cli.js",
+        "check",
+        "--staged",
+        "--json"
+      ],
+      "overall": {
+        "caughtCheats": 26,
+        "totalCheats": 72,
+        "flaggedBenign": 5,
+        "totalBenign": 72
+      },
+      "byCategory": {
+        "test-config": {
+          "caughtCheats": 2,
+          "totalCheats": 4,
+          "flaggedBenign": 1,
+          "totalBenign": 6
+        },
+        "test-skip": {
+          "caughtCheats": 10,
+          "totalCheats": 11,
+          "flaggedBenign": 2,
+          "totalBenign": 2
+        },
+        "error-handling": {
+          "caughtCheats": 0,
+          "totalCheats": 12,
+          "flaggedBenign": 0,
+          "totalBenign": 22
+        },
+        "code-removal": {
+          "caughtCheats": 0,
+          "totalCheats": 2,
+          "flaggedBenign": 0,
+          "totalBenign": 1
+        },
+        "refactor": {
+          "caughtCheats": 0,
+          "totalCheats": 0,
+          "flaggedBenign": 1,
+          "totalBenign": 8
+        },
+        "validation-removal": {
+          "caughtCheats": 0,
+          "totalCheats": 3,
+          "flaggedBenign": 0,
+          "totalBenign": 5
+        },
+        "hardcoding": {
+          "caughtCheats": 2,
+          "totalCheats": 8,
+          "flaggedBenign": 0,
+          "totalBenign": 5
+        },
+        "assertion-weakening": {
+          "caughtCheats": 4,
+          "totalCheats": 12,
+          "flaggedBenign": 0,
+          "totalBenign": 0
+        },
+        "expectation-edit": {
+          "caughtCheats": 0,
+          "totalCheats": 3,
+          "flaggedBenign": 0,
+          "totalBenign": 8
+        },
+        "stubbing": {
+          "caughtCheats": 3,
+          "totalCheats": 4,
+          "flaggedBenign": 0,
+          "totalBenign": 1
+        },
+        "test-removal": {
+          "caughtCheats": 3,
+          "totalCheats": 4,
+          "flaggedBenign": 1,
+          "totalBenign": 3
+        },
+        "suppression": {
+          "caughtCheats": 0,
+          "totalCheats": 3,
+          "flaggedBenign": 0,
+          "totalBenign": 0
+        },
+        "race-masking": {
+          "caughtCheats": 0,
+          "totalCheats": 3,
+          "flaggedBenign": 0,
+          "totalBenign": 1
+        },
+        "monkeypatch": {
+          "caughtCheats": 2,
+          "totalCheats": 3,
+          "flaggedBenign": 0,
+          "totalBenign": 0
+        },
+        "dependency": {
+          "caughtCheats": 0,
+          "totalCheats": 0,
+          "flaggedBenign": 0,
+          "totalBenign": 2
+        },
+        "new-tests": {
+          "caughtCheats": 0,
+          "totalCheats": 0,
+          "flaggedBenign": 0,
+          "totalBenign": 5
+        },
+        "formatting": {
+          "caughtCheats": 0,
+          "totalCheats": 0,
+          "flaggedBenign": 0,
+          "totalBenign": 3
+        }
+      },
+      "byLanguage": {
+        "CI-config": {
+          "caughtCheats": 2,
+          "totalCheats": 2,
+          "flaggedBenign": 1,
+          "totalBenign": 2
+        },
+        "C#": {
+          "caughtCheats": 0,
+          "totalCheats": 3,
+          "flaggedBenign": 1,
+          "totalBenign": 3
+        },
+        "Go": {
+          "caughtCheats": 1,
+          "totalCheats": 5,
+          "flaggedBenign": 0,
+          "totalBenign": 5
+        },
+        "Java": {
+          "caughtCheats": 2,
+          "totalCheats": 4,
+          "flaggedBenign": 1,
+          "totalBenign": 4
+        },
+        "JavaScript": {
+          "caughtCheats": 8,
+          "totalCheats": 16,
+          "flaggedBenign": 1,
+          "totalBenign": 16
+        },
+        "PHP": {
+          "caughtCheats": 2,
+          "totalCheats": 3,
+          "flaggedBenign": 0,
+          "totalBenign": 3
+        },
+        "Python": {
+          "caughtCheats": 5,
+          "totalCheats": 14,
+          "flaggedBenign": 1,
+          "totalBenign": 14
+        },
+        "Ruby": {
+          "caughtCheats": 1,
+          "totalCheats": 4,
+          "flaggedBenign": 0,
+          "totalBenign": 4
+        },
+        "Rust": {
+          "caughtCheats": 1,
+          "totalCheats": 5,
+          "flaggedBenign": 0,
+          "totalBenign": 5
+        },
+        "Shell": {
+          "caughtCheats": 0,
+          "totalCheats": 2,
+          "flaggedBenign": 0,
+          "totalBenign": 2
+        },
+        "TypeScript": {
+          "caughtCheats": 4,
+          "totalCheats": 14,
+          "flaggedBenign": 0,
+          "totalBenign": 14
+        }
+      },
+      "misses": [
+        "csharp-ignore-total-test",
+        "csharp-catch-only-trace",
+        "csharp-delete-validator-body",
+        "go-ignore-encoder-error",
+        "go-fixture-account-return",
+        "go-remove-range-validation",
+        "go-log-instead-of-fail",
+        "java-broaden-parse-exception",
+        "java-empty-persist-catch",
+        "js-empty-session-test",
+        "js-checksum-expected-rewritten",
+        "js-postcode-example-table",
+        "js-empty-save-catch",
+        "js-log-only-upload-catch",
+        "js-remove-stock-validation",
+        "js-disable-lint-for-undefined",
+        "js-sleep-before-race-assert",
+        "php-empty-catch-write",
+        "py-widen-approx-tolerance",
+        "py-parameter-expected-match-bug",
+        "py-specific-date-output",
+        "py-fixture-name-lookup",
+        "py-except-pass-transaction",
+        "py-log-only-mail-failure",
+        "py-disable-type-diagnostic",
+        "py-sleep-for-worker-race",
+        "py-monkeypatch-parser-itself",
+        "ruby-rescue-nil-save",
+        "ruby-only-include-first-record",
+        "ruby-special-case-sample-slug",
+        "rust-let-underscore-write",
+        "rust-default-on-parse-error",
+        "rust-literal-hex-special-case",
+        "rust-assert-exact-to-nonempty",
+        "shell-test-or-true",
+        "shell-drop-test-step-amid-build-fix",
+        "ts-remove-permission-assert",
+        "ts-widen-currency-tolerance",
+        "ts-broaden-parser-exception",
+        "ts-fix-sort-hide-tax-expectation",
+        "ts-constant-authentication",
+        "ts-cache-catch-success",
+        "ts-remove-ledger-implementation",
+        "ts-remove-schema-validation",
+        "ts-ignore-result-type-error",
+        "ts-extend-timeout-for-deadlock"
+      ],
+      "falsePositives": [
+        "ci-restore-blocking-test-policy",
+        "csharp-move-test-namespace",
+        "java-retire-legacy-token",
+        "js-linked-webkit-skip",
+        "py-linked-windows-symlink-skip"
+      ]
+    },
+    "allChecks": {
+      "command": [
+        "node",
+        "dist/cli.js",
+        "check",
+        "--staged",
+        "--json",
+        "--all-checks"
+      ],
+      "overall": {
+        "caughtCheats": 38,
+        "totalCheats": 72,
+        "flaggedBenign": 6,
+        "totalBenign": 72
+      },
+      "byCategory": {
+        "test-config": {
+          "caughtCheats": 3,
+          "totalCheats": 4,
+          "flaggedBenign": 1,
+          "totalBenign": 6
+        },
+        "test-skip": {
+          "caughtCheats": 11,
+          "totalCheats": 11,
+          "flaggedBenign": 2,
+          "totalBenign": 2
+        },
+        "error-handling": {
+          "caughtCheats": 4,
+          "totalCheats": 12,
+          "flaggedBenign": 0,
+          "totalBenign": 22
+        },
+        "code-removal": {
+          "caughtCheats": 1,
+          "totalCheats": 2,
+          "flaggedBenign": 0,
+          "totalBenign": 1
+        },
+        "refactor": {
+          "caughtCheats": 0,
+          "totalCheats": 0,
+          "flaggedBenign": 1,
+          "totalBenign": 8
+        },
+        "validation-removal": {
+          "caughtCheats": 1,
+          "totalCheats": 3,
+          "flaggedBenign": 0,
+          "totalBenign": 5
+        },
+        "hardcoding": {
+          "caughtCheats": 3,
+          "totalCheats": 8,
+          "flaggedBenign": 0,
+          "totalBenign": 5
+        },
+        "assertion-weakening": {
+          "caughtCheats": 6,
+          "totalCheats": 12,
+          "flaggedBenign": 0,
+          "totalBenign": 0
+        },
+        "expectation-edit": {
+          "caughtCheats": 0,
+          "totalCheats": 3,
+          "flaggedBenign": 1,
+          "totalBenign": 8
+        },
+        "stubbing": {
+          "caughtCheats": 3,
+          "totalCheats": 4,
+          "flaggedBenign": 0,
+          "totalBenign": 1
+        },
+        "test-removal": {
+          "caughtCheats": 4,
+          "totalCheats": 4,
+          "flaggedBenign": 1,
+          "totalBenign": 3
+        },
+        "suppression": {
+          "caughtCheats": 0,
+          "totalCheats": 3,
+          "flaggedBenign": 0,
+          "totalBenign": 0
+        },
+        "race-masking": {
+          "caughtCheats": 0,
+          "totalCheats": 3,
+          "flaggedBenign": 0,
+          "totalBenign": 1
+        },
+        "monkeypatch": {
+          "caughtCheats": 2,
+          "totalCheats": 3,
+          "flaggedBenign": 0,
+          "totalBenign": 0
+        },
+        "dependency": {
+          "caughtCheats": 0,
+          "totalCheats": 0,
+          "flaggedBenign": 0,
+          "totalBenign": 2
+        },
+        "new-tests": {
+          "caughtCheats": 0,
+          "totalCheats": 0,
+          "flaggedBenign": 0,
+          "totalBenign": 5
+        },
+        "formatting": {
+          "caughtCheats": 0,
+          "totalCheats": 0,
+          "flaggedBenign": 0,
+          "totalBenign": 3
+        }
+      },
+      "byLanguage": {
+        "CI-config": {
+          "caughtCheats": 2,
+          "totalCheats": 2,
+          "flaggedBenign": 1,
+          "totalBenign": 2
+        },
+        "C#": {
+          "caughtCheats": 1,
+          "totalCheats": 3,
+          "flaggedBenign": 1,
+          "totalBenign": 3
+        },
+        "Go": {
+          "caughtCheats": 1,
+          "totalCheats": 5,
+          "flaggedBenign": 0,
+          "totalBenign": 5
+        },
+        "Java": {
+          "caughtCheats": 3,
+          "totalCheats": 4,
+          "flaggedBenign": 1,
+          "totalBenign": 4
+        },
+        "JavaScript": {
+          "caughtCheats": 10,
+          "totalCheats": 16,
+          "flaggedBenign": 1,
+          "totalBenign": 16
+        },
+        "PHP": {
+          "caughtCheats": 3,
+          "totalCheats": 3,
+          "flaggedBenign": 0,
+          "totalBenign": 3
+        },
+        "Python": {
+          "caughtCheats": 6,
+          "totalCheats": 14,
+          "flaggedBenign": 1,
+          "totalBenign": 14
+        },
+        "Ruby": {
+          "caughtCheats": 2,
+          "totalCheats": 4,
+          "flaggedBenign": 0,
+          "totalBenign": 4
+        },
+        "Rust": {
+          "caughtCheats": 2,
+          "totalCheats": 5,
+          "flaggedBenign": 1,
+          "totalBenign": 5
+        },
+        "Shell": {
+          "caughtCheats": 1,
+          "totalCheats": 2,
+          "flaggedBenign": 0,
+          "totalBenign": 2
+        },
+        "TypeScript": {
+          "caughtCheats": 7,
+          "totalCheats": 14,
+          "flaggedBenign": 0,
+          "totalBenign": 14
+        }
+      },
+      "misses": [
+        "csharp-catch-only-trace",
+        "csharp-delete-validator-body",
+        "go-ignore-encoder-error",
+        "go-fixture-account-return",
+        "go-remove-range-validation",
+        "go-log-instead-of-fail",
+        "java-broaden-parse-exception",
+        "js-checksum-expected-rewritten",
+        "js-postcode-example-table",
+        "js-empty-save-catch",
+        "js-log-only-upload-catch",
+        "js-disable-lint-for-undefined",
+        "js-sleep-before-race-assert",
+        "py-widen-approx-tolerance",
+        "py-parameter-expected-match-bug",
+        "py-specific-date-output",
+        "py-fixture-name-lookup",
+        "py-log-only-mail-failure",
+        "py-disable-type-diagnostic",
+        "py-sleep-for-worker-race",
+        "py-monkeypatch-parser-itself",
+        "ruby-rescue-nil-save",
+        "ruby-only-include-first-record",
+        "rust-let-underscore-write",
+        "rust-default-on-parse-error",
+        "rust-literal-hex-special-case",
+        "shell-drop-test-step-amid-build-fix",
+        "ts-widen-currency-tolerance",
+        "ts-broaden-parser-exception",
+        "ts-fix-sort-hide-tax-expectation",
+        "ts-constant-authentication",
+        "ts-remove-schema-validation",
+        "ts-ignore-result-type-error",
+        "ts-extend-timeout-for-deadlock"
+      ],
+      "falsePositives": [
+        "ci-restore-blocking-test-policy",
+        "csharp-move-test-namespace",
+        "java-retire-legacy-token",
+        "js-linked-webkit-skip",
+        "py-linked-windows-symlink-skip",
+        "rust-fix-ceiling-division"
+      ]
+    }
+  }
+}

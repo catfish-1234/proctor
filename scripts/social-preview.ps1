@@ -67,7 +67,7 @@ $g.DrawString('Deleted tests, skipped tests, weakened assertions,', $subFont, (N
 $g.DrawString('hardcoded answers. Offline, deterministic, no API key.', $subFont, (New-Object System.Drawing.SolidBrush($muted)), 390, 442)
 
 $footFont = New-Object System.Drawing.Font('Consolas', 28, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
-$g.DrawString('npx proctor setup', $footFont, (New-Object System.Drawing.SolidBrush($green)), 390, 512)
+$g.DrawString('npx @kavishdua/proctor setup', $footFont, (New-Object System.Drawing.SolidBrush($green)), 390, 512)
 
 $out = Join-Path $PSScriptRoot '..\assets\social-preview.png'
 $bmp.Save($out, [System.Drawing.Imaging.ImageFormat]::Png)

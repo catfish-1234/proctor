@@ -11,8 +11,8 @@ you'll be credited unless you'd rather not be.
 
 ## Supported versions
 
-There is no published npm version yet. Until the first release, the current `main` branch is the
-only supported source; there are no long-term support branches.
+The latest published npm version (currently 1.0.0) and the current `main` branch are supported;
+there are no long-term support branches.
 
 ## What proctor does on your machine
 
@@ -23,8 +23,7 @@ These operations affect the scope of a security report:
   Worktrees and `core.hooksPath` can place hooks outside the working tree. An existing foreign hook
   is copied to `pre-commit.bak` before being replaced, and you are told.
 - **The hooks prefer the repository's local Proctor binary, then a global `proctor` on PATH, then
-  `npx @kavishdua/proctor`.** The fallback cannot resolve until the first npm release; after that,
-  it is a supply-chain surface because it may fetch from the registry. A local dev dependency is
+  `npx @kavishdua/proctor`.** It is a supply-chain surface because it may fetch from the registry. A local dev dependency is
   therefore the recommended hook installation.
 - **It writes into `.claude/settings.json`,** merging a `Stop` hook entry into whatever is already
   there. Malformed settings are reported, never overwritten.

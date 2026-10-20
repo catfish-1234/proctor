@@ -1,4 +1,6 @@
 import type { Context, Finding, Verifier } from '../types.js';
+import { body, hasExplanation } from './wi-common.js';
+import { compact, sourceView, testBodies } from './structure.js';
 
 // Strong assertion patterns (specific value assertions)
 const STRONG_PATTERNS = [
@@ -104,7 +106,7 @@ const SOLE_ANYTHING = /\.(?:toBe|toEqual|toStrictEqual)\(\s*expect\.anything\(\)
  * to include a fragment of it. Found by adversarial probing, where exactly that substitution walked
  * past every existing pattern because `toContain` is not weak in absolute terms.
  */
-const CONTAINMENT_WEAK = /\.(?:toContain|toContainEqual|toMatch|toHaveProperty)\(/;
+const CONTAINMENT_WEAK = /\.(?:toContain|toContainEqual|toMatch|toHaveProperty|toBeCloseTo)\(/;
 
 /**
  * GROUP B strong assertions, scoped to the languages that own them.
@@ -710,6 +712,25 @@ function run(context: Context): Finding[] {
     const filePath = file.to ?? file.from ?? '';
 
     for (const chunk of file.chunks) {
+      if (context.isTestFile(filePath) && /\.[cm]?[jt]sx?$/.test(filePath)) {
+        const before = sourceView(chunk,'before');
+        const after = sourceView(chunk,'after');
+        const priorTests = testBodies(before);
+        for (const next of testBodies(after)) {
+          const prior = priorTests.find(test=>test.key===next.key);
+          if (!prior || !after.touched(next.open,next.end)) continue;
+          for (const assertion of prior.body.matchAll(/\bexpect\s*\(\s*([A-Za-z_$][\w$]*)\s*\)\s*\.(?:toBe|toEqual|toStrictEqual|toBeCloseTo)\s*\(/g)) {
+            const subject = assertion[1]!;
+            // The computed value still exists, but nothing in the test consumes it anymore.
+            const binding = new RegExp(`\\b(?:const|let)\\s+${subject}\\s*=\\s*[^;\\n]+\\(`);
+            if (!binding.test(prior.body) || !binding.test(next.body)) continue;
+            if ([...next.body.matchAll(new RegExp(`\\b${subject}\\b`,'g'))].length !== 1) continue;
+            findings.push({verifierId:'RH002',severity:'error',file:filePath,line:after.lineAt(next.open),
+              message:'A computed test result is still assigned, but its value assertion was removed and the value is no longer used.',
+              suggestion:'Restore the result assertion or replace it with an equivalent check of that value.'});
+          }
+        }
+      }
       const dels = chunk.changes.filter(c => c.type === 'del');
       const adds = chunk.changes.filter(c => c.type === 'add');
       // Position within the chunk, for the locality test on the pairing below. Line numbers cannot
@@ -778,6 +799,40 @@ function run(context: Context): Finding[] {
           message: `Assertion weakened from ${fromLabel} to ${toLabel}.`,
           suggestion: 'Restore the specific value assertion to preserve test coverage strength.',
         });
+      }
+
+      if (context.isTestFile(filePath)) for (const added of adds) {
+        if (reported.has(added.ln) || hasExplanation(added.content)) continue;
+        const next = body(added.content);
+        const nextSubject = extractSubject(next);
+        const prior = dels.find(del => {
+          if (!nearby(del,added)) return false;
+          const old = body(del.content);
+          const subject = extractSubject(old);
+          if (subject && subject === nextSubject) {
+            const a = /\.toBeCloseTo\(\s*([^,]+),\s*(\d+)\s*\)/.exec(old);
+            const b = /\.toBeCloseTo\(\s*([^,]+),\s*(\d+)\s*\)/.exec(next);
+            if (a && b && compact(a[1]!) === compact(b[1]!) && Number(b[2]) < Number(a[2])) return true;
+          }
+          if (subject && isStrongAssertion(old,filePath) && /\.toHaveBeenCalled(?:Times|With)?\(/.test(next)) {
+            // A neighboring interaction assertion replaced the result contract, rather than
+            // supplementing it. Retained result assertions make this a harmless addition.
+            return !chunk.changes.some(c => c.type !== 'del' && extractSubject(c.content) === subject && isStrongAssertion(c.content,filePath));
+          }
+          if (filePath.endsWith('.py')) {
+            const pattern = /\bassert\s+(.+?)==\s*pytest\.approx\(\s*([^,]+),\s*(abs|rel)\s*=\s*([0-9.eE+-]+)\s*\)/;
+            const a = pattern.exec(old);
+            const b = pattern.exec(next);
+            return !!a && !!b && compact(a[1]!) === compact(b[1]!) && compact(a[2]!) === compact(b[2]!)
+              && a[3] === b[3] && Number(b[4]) > Number(a[4]);
+          }
+          return false;
+        });
+        if (!prior) continue;
+        reported.add(added.ln);
+        findings.push({verifierId:'RH002',severity:'error',file:filePath,line:added.ln,
+          message:'A result assertion was replaced by a wider tolerance or an assertion on mock interactions.',
+          suggestion:'Preserve the result contract and its precision, or document the specification change.'});
       }
 
       // Python assertAlmostEqual tolerance-widening: detect when places= value is reduced

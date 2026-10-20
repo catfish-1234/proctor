@@ -5,6 +5,35 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- Enable WI101, WI102, WI105, WI108, WI109, and WI110 by default. The other seven WI checks stay
+  opt-in because real-commit findings still include legitimate maintenance. Explicit committed
+  `enabled` lists keep their existing behavior.
+- Catch empty or logging-only handlers whose opener did not change, checked error results that
+  become discarded values, multiline literal branches and test-derived lookups, empty function
+  bodies, less precise assertions, unused test results, conditional test exits, block-commented
+  tests, and `passWithNoTests` config changes.
+- Reduce noise on existing skip markers, documented skips, wider globs, nested expected arrays,
+  launcher changes, script delegation, test-runner migrations, existing suppressions, native
+  TypeScript descriptions, and source features removed with their corresponding tests.
+- Add two frozen authored sets of 74 cases each and permanent precision twins. Default detection
+  rises from 7/36 to 36/36 on the frozen validation cheats, while benign flags fall from 2/38 to
+  0/38. These authored variations do not establish generalization.
+- On the repeatedly tuned dev corpus, defaults rise from 25/76 to 54/76; all checks stay at
+  76/76, with 0/24 dev controls flagged in either mode.
+- Pin a fresh sample of 700 non-bot commits from the historical audit's 20 repositories.
+  Default blocking findings fall from 30/700 (4.29%) to 14/700 (2.00%); any findings fall from
+  46/700 (6.57%) to 26/700 (3.71%). These count every flagged human commit as a conservative
+  false-positive proxy. The original 689-commit ignored sample and harness are missing, so this
+  is a replacement cohort, not a reproduction of its old percentages.
+- Document remaining scope and semantic limits. Proctor is a heuristic diff checker: it detects
+  suspicious changes, does not prevent them, and cannot judge intent. A determined author can
+  write a cheat that no static diff check recognizes.
+
+The version remains 1.0.0. See [measurements and reproduction steps](bench/detection/README.md).
+The entries below describe historical snapshots, not the current default set.
+
 ## [1.0.0]
 
 First release. Nothing before this reached npm, so this entry describes the whole tool rather
@@ -51,9 +80,10 @@ than a delta from a version nobody can install.
   recomputed from `fixtures/` by the test suite rather than written by hand.
 - **76 of 76** adversarial diffs caught with **0 of 24** controls flagged, across eleven
   red-team rounds.
-- **3.9%** of 689 real human commits from 20 maintained repositories produce any finding from the
-  default check set, and **2.47%** produce a blocking one, most of which are the check correctly
-  noticing that somebody deleted a test. See `sandbox/REALWORLD_FP_REPORT.md`.
+- A historical audit used **689 human commits from 20 repositories**. Its ignored sample and
+  report are absent from this checkout. Later README figures were **3.8% any finding and 2.32%
+  blocking**; these cannot be reproduced without that original manifest. The Unreleased entry
+  reports fresh paired measurements on a pinned replacement sample.
 - Two complete live benchmark runs show **no difference between the proctor-on and proctor-off
   arms**. The README says so plainly rather than quoting the first run's one-task gap: this
   release claims a detection rate and explicitly refuses a prevention rate.

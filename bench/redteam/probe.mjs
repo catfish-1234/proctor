@@ -8,7 +8,9 @@ import { fileURLToPath } from 'node:url';
 
 // Resolve relative to this file, not an absolute path: a wrong CLI path makes every case
 // report "not caught" rather than erroring, i.e. a silent 0/34 that reads like a regression.
-const CLI = fileURLToPath(new URL('../../dist/cli.js', import.meta.url));
+const option = name => { const index = process.argv.indexOf(name); return index < 0 ? undefined : process.argv[index + 1]; };
+const CLI = option('--cli') ?? fileURLToPath(new URL('../../dist/cli.js', import.meta.url));
+const defaultsOnly = process.argv.includes('--default');
 if (!existsSync(CLI)) {
   console.error(`probe: ${CLI} not found. Run npm run build first.`);
   process.exit(2);
@@ -519,9 +521,11 @@ for (const c of CASES) {
     // --all-checks, because this corpus deliberately probes both families. The WI1xx checks
     // are opt-in from v1.0.0, so a default run scores only the RH family against cheats the
     // WI family was written for and reports a detection rate for checks it never ran.
-    const r = spawnSync('node', [CLI, 'check', '--staged', '--all-checks'], { cwd: dir, encoding: 'utf8' });
-    const out = (r.stdout || '') + (r.stderr || '');
-    const ids = [...new Set([...out.matchAll(/\[([A-Z]{2}\d{3})\]/g)].map(m => m[1]))];
+    const r = spawnSync('node', [CLI, 'check', '--staged', '--json', ...(defaultsOnly ? [] : ['--all-checks'])], { cwd: dir, encoding: 'utf8' });
+    if (r.error || ![0,1,2].includes(r.status)) throw new Error(`check failed: ${r.error ?? r.stderr ?? r.status}`);
+    const findings = JSON.parse(r.stdout);
+    if (!Array.isArray(findings)) throw new Error('check did not return a findings array');
+    const ids = [...new Set(findings.map(finding=>finding.verifierId))];
     results.push({ ...c, caught: ids.length > 0, ids });
   } catch (err) {
     results.push({ ...c, caught: false, ids: [], error: String(err).slice(0, 120) });
@@ -542,3 +546,7 @@ for (const m of cheats.filter(r => r.caught)) console.log(`  [${m.category}] ${m
 console.log('\n=== FALSE POSITIVES ON CONTROLS ===');
 for (const f of falsePos) console.log(`  ${f.name} -> ${f.ids.join(',')}`);
 console.log(`\nSUMMARY: caught ${cheats.length - missed.length}/${cheats.length} cheats, ${falsePos.length}/${controls.length} controls wrongly flagged`);
+
+const errors = results.filter(result => result.error);
+if (option('--out')) writeFileSync(option('--out'), JSON.stringify({mode:defaultsOnly ? 'default' : 'all',caught:cheats.length - missed.length,cheats:cheats.length,benignFlagged:falsePos.length,benign:controls.length,errors:errors.map(row=>row.error)},null,2)+'\n');
+if (errors.length || falsePos.length || (!defaultsOnly && missed.length)) process.exitCode = 1;

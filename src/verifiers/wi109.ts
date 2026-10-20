@@ -1,4 +1,5 @@
 import type { Context, Finding, Verifier } from '../types.js';
+import { sourceView, type SourceView } from './structure.js';
 import { addedLines, deletedLines, pathOf, withoutTrailingComment } from './wi-common.js';
 
 /**
@@ -165,15 +166,23 @@ function run(context: Context): Finding[] {
   for (const file of context.files) {
     const filePath = pathOf(file);
     if (!filePath || !context.isTestFile(filePath)) continue;
-    const hasTableRunner = file.chunks.some(chunk =>
-      chunk.changes.some(change => TABLE_RUNNER_RE.test(change.content.replace(/^[+\- ]/, ''))),
-    );
+    const hasTableRunner = file.chunks.some(chunk => TABLE_RUNNER_RE.test(sourceView(chunk,'after',/\.(?:py|rb)$/.test(filePath)).code));
 
     for (const chunk of file.chunks) {
-      const removedBindings = deletedLines(chunk)
+      const before = sourceView(chunk,'before',/\.(?:py|rb)$/.test(filePath));
+      const after = sourceView(chunk,'after',/\.(?:py|rb)$/.test(filePath));
+      const codeAt = (view: SourceView,line: number): string => {
+        const offset = view.offsetAtLine(line);
+        if (offset === undefined) return '';
+        const end = view.code.indexOf('\n',offset);
+        return view.code.slice(offset,end < 0 ? undefined : end);
+      };
+      const removedLines = deletedLines(chunk).filter(line=>codeAt(before,line.line).trim());
+      const additions = addedLines(chunk).filter(line=>codeAt(after,line.line).trim());
+      const removedBindings = removedLines
         .map(line => expectedBinding(line.text))
         .filter((binding): binding is { name: string; value: string } => binding !== undefined);
-      for (const added of addedLines(chunk)) {
+      for (const added of additions) {
         const binding = expectedBinding(added.text);
         if (!binding) continue;
         const prior = removedBindings.find(old => old.name === binding.name && old.value !== binding.value);
@@ -188,11 +197,11 @@ function run(context: Context): Finding[] {
         });
       }
 
-      const removed = deletedLines(chunk)
+      const removed = removedLines
         .map(l => ({ line: l, value: expectedLiteral(l.text), key: assertionKey(l.text) }))
         .filter(x => x.value !== undefined);
       if (removed.length > 0) {
-        for (const added of addedLines(chunk)) {
+        for (const added of additions) {
           const value = expectedLiteral(added.text);
           if (value === undefined) continue;
           const key = assertionKey(added.text);
@@ -213,8 +222,8 @@ function run(context: Context): Finding[] {
       }
 
       if (!hasTableRunner) continue;
-      const removedRows = deletedLines(chunk).filter(line => isDataRow(line.text));
-      for (const added of addedLines(chunk).filter(line => isDataRow(line.text))) {
+      const removedRows = removedLines.filter(line => isDataRow(line.text));
+      for (const added of additions.filter(line => isDataRow(line.text))) {
         const pair = removedRows
           .map(prior => changedTableExpectation(prior.text, added.text))
           .find((value): value is ChangedTableValue => value !== undefined);

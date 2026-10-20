@@ -29,7 +29,7 @@ describe('CLI smoke tests', () => {
     expect(result.stdout).toContain('--all-checks');
   });
 
-  describe('the beta WI family is opt-in', () => {
+  describe('the remaining WI103 check is opt-in', () => {
     /** A repo whose only change is a WI103 signature: a guard deleted from shipped code. */
     function repoWithGuardRemoved(): string {
       const dir = mkdtempSync(join(tmpdir(), 'proctor-wi-optin-'));
@@ -56,7 +56,7 @@ describe('CLI smoke tests', () => {
       return dir;
     }
 
-    it('stays silent on a WI-only change by default', () => {
+    it('stays silent on a WI103-only change by default', () => {
       const dir = repoWithGuardRemoved();
       try {
         const result = spawnSync('node', [CLI, 'check', '--json'], { cwd: dir, encoding: 'utf8' });

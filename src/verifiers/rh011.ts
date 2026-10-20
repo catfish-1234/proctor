@@ -1,5 +1,5 @@
 import type { Context, Finding, Verifier } from '../types.js';
-import { withoutLiterals } from './wi-common.js';
+import { body, withoutLiterals } from './wi-common.js';
 
 const SUPPRESSION_PATTERNS = [
   /@ts-ignore\b/,
@@ -202,7 +202,10 @@ function isJustified(content: string): boolean {
     (m): m is RegExpExecArray => m !== null,
   );
   if (!match) return false;
-  return JUSTIFICATION_RE.test(content.slice(match.index + match[0].length));
+  const tail = content.slice(match.index + match[0].length);
+  // TypeScript directives take a description directly, unlike lint rule lists and pragmas.
+  if (/^\s*(?:\/\/|\/\*)\s*@ts-(?:expect-error|ignore)\b/.test(body(content)) && tail.trim().split(/\s+/).filter(Boolean).length >= 3) return true;
+  return JUSTIFICATION_RE.test(tail);
 }
 
 function isFilewideSuppression(content: string): boolean {
@@ -280,9 +283,19 @@ function run(context: Context): Finding[] {
     if (VENDORED_PATH_RE.test(filePath.replace(/\\/g, '/'))) continue;
 
     const occurrences: Array<{ file: string; line: number }> = [];
+    // Adding a justification or reformatting a preexisting directive is not a new suppression.
+    const identity = (text: string) => body(text).trim().replace(/\s*(?:\/\/|#)\s+(?:for|because|reason:)\b.*$/,'').trim();
+    const removed = new Map<string,number>();
+    for (const change of file.chunks.flatMap(chunk=>chunk.changes).filter(c=>c.type==='del')) {
+      const key = identity(change.content);
+      removed.set(key,(removed.get(key) ?? 0) + 1);
+    }
 
     for (const chunk of file.chunks) {
       for (const add of chunk.changes.filter(c => c.type === 'add')) {
+        const key = identity(add.content);
+        const remaining = removed.get(key) ?? 0;
+        if (remaining > 0) { removed.set(key,remaining - 1); continue; }
         const line = (add as { ln: number }).ln;
         if (filewideInCode(add.content)) {
           // A file-wide directive is reported on its own, whatever the count: its blast radius is

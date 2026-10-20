@@ -1,4 +1,5 @@
 import type { Context, Finding, Verifier } from '../types.js';
+import { closingDelimiter, compact, sourceView, type SourceView } from './structure.js';
 import { addedLines, afterLines, deletedLines, hasExplanation, insideTemplateLiteral, isCommentLine, isWatchedSource, pathOf, withoutLiterals, withoutTrailingComment } from './wi-common.js';
 
 /**
@@ -212,6 +213,114 @@ function bareCall(text: string): string | undefined {
   return match?.[1]?.replace(/\s+/g, '');
 }
 
+interface Handler { start: number; end: number; key: string; code: string; raw: string }
+
+function handlers(view: SourceView, indented: boolean): Handler[] {
+  const result: Handler[] = [];
+  const opener = indented ? /^([ \t]*)(?:except\b[^:\n]*:|rescue\b[^\n]*)/gm
+    : /\bcatch\s*(?:\([^)]*\))?\s*\{|\bif\s+([A-Za-z_]\w*)\s*!=\s*nil\s*\{/g;
+  for (const match of view.code.matchAll(opener)) {
+    const start = match.index!;
+    const bodyStart = start + match[0].length;
+    let end: number;
+    if (!indented) end = closingDelimiter(view.code, bodyStart - 1);
+    else {
+      end = view.code.length;
+      const indent = match[1]!.replace(/\n/g, '').length;
+      const tail = view.code.slice(bodyStart);
+      const boundary = /\n([ \t]*)(\S)/g;
+      for (const line of tail.matchAll(boundary)) {
+        if (line[1]!.length <= indent) { end = bodyStart + line.index! + 1; break; }
+      }
+    }
+    if (end < 0) continue;
+    result.push({ start, end, key: compact(match[0]), code: view.code.slice(bodyStart,end), raw: view.text.slice(start,end + 1) });
+  }
+  // Promise callbacks are expressions as well as braced bodies.
+  if (!indented) for (const match of view.code.matchAll(/\.catch\s*\(\s*(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>\s*/g)) {
+    const start = match.index!;
+    const bodyStart = start + match[0].length;
+    const open = view.code.indexOf('(', start);
+    const end = closingDelimiter(view.code, open, '(', ')');
+    if (end < 0) continue;
+    const code = view.code.slice(bodyStart,end).replace(/^\{([\s\S]*)\}$/, '$1');
+    result.push({ start, end, key: compact(match[0]), code, raw:view.text.slice(start,end + 1) });
+  }
+  return result;
+}
+
+/** Only complete diagnostic statements may be removed from an otherwise empty handler. */
+function discardedHandler(code: string): boolean {
+  let rest = code;
+  const logging = /\b(?:(?:console|logger|logging|log|Console|System\.err)\.(?:error|warn|warning|info|debug|trace|log|Print|Printf|Println|WriteLine|println)|error_log)\s*\(/g;
+  const ranges: Array<[number,number]> = [];
+  for (const match of rest.matchAll(logging)) {
+    const open = match.index! + match[0].lastIndexOf('(');
+    const end = closingDelimiter(rest,open,'(',')');
+    if (end < 0) return false;
+    ranges.push([match.index!,end + 1]);
+  }
+  for (const [start,end] of ranges.reverse()) rest = rest.slice(0,start) + rest.slice(end);
+  return /^(?:\s|;|pass\b)*$/.test(rest);
+}
+
+function structuralSwallows(context: Context): Finding[] {
+  const findings: Finding[] = [];
+  for (const file of context.files) {
+    const path = pathOf(file);
+    if (!isWatchedSource(context,path) || !/\.(?:[cm]?[jt]sx?|py|go|rs|java|rb|cs|php|sh|bash)$/.test(path)) continue;
+    const indented = /\.(?:py|rb)$/.test(path);
+    for (const chunk of file.chunks) {
+      const before = sourceView(chunk,'before',indented);
+      const after = sourceView(chunk,'after',indented);
+      const prior = handlers(before,indented);
+      for (const handler of handlers(after,indented)) {
+        if (!after.touched(handler.start,handler.end) || !discardedHandler(handler.code)) continue;
+        if (handler.raw.split('\n').some(hasExplanation)) continue;
+        // Moving or formatting an existing silent handler does not introduce swallowed errors.
+        const retainedOpener = chunk.changes.find(change=>change.type==='normal' && change.ln2===after.lineAt(handler.start));
+        const previous = retainedOpener?.type === 'normal'
+          ? prior.filter(old=>before.lineAt(old.start)===retainedOpener.ln1) : prior;
+        if (previous.some(old => old.key === handler.key && discardedHandler(old.code))) continue;
+        findings.push({ verifierId:'WI101',severity:'error',file:path,line:after.lineAt(handler.start),
+          message:'Error handling was added or changed to an empty or logging-only handler, so failures no longer propagate.',
+          suggestion:'Return an error, retry, or propagate the failure. Document a specific, deliberate fallback.' });
+      }
+      const removed = deletedLines(chunk);
+      for (const added of addedLines(chunk)) {
+        if (isCommentLine(added.text) || hasExplanation(added.text)) continue;
+        let discarded = false;
+        if (path.endsWith('.rs')) {
+          const operation = (text: string) => compact(text.replace(/^\s*(?:let\s+[^=]+\s*=|return\s+)/,'').replace(/\?\s*;?\s*$/,'').replace(/;\s*$/,''));
+          const lost = removed.filter(line => /\?\s*;?\s*$/.test(line.text));
+          const replacement = added.text.replace(/^\s*let\s+_\s*=\s*/,'').replace(/\.unwrap_or_default\(\)/,'');
+          discarded = /\blet\s+_\s*=|\.unwrap_or_default\(\)/.test(added.text)
+            && lost.some(line => operation(line.text) === operation(replacement));
+        } else if (path.endsWith('.go')) {
+          const assignment = /^\s*([^:=]+)(?::=|=)\s*(.+?)\s*;?\s*$/;
+          const next = assignment.exec(added.text);
+          if (next && next[1]!.split(',').some(binding => binding.trim() === '_')) {
+            discarded = removed.some(line => {
+              const old = assignment.exec(line.text);
+              if (!old || compact(old[2]!) !== compact(next[2]!)) return false;
+              const names = old[1]!.split(',').map(binding => binding.trim());
+              const slots = next[1]!.split(',').map(binding => binding.trim());
+              return names.some((name,i) => slots[i] === '_' && name !== '_' && new RegExp(`\\bif\\s+${name}\\s*!=\\s*nil\\b`).test(before.code));
+            });
+          }
+        } else if (/\.(?:sh|bash)$/.test(path)) {
+          const swallow = /\s*\|\|\s*(?:true|:|exit\s+0)\s*$/.exec(added.text);
+          discarded = !!swallow && removed.some(line => compact(line.text) === compact(added.text.slice(0,swallow.index)));
+        }
+        if (discarded) findings.push({verifierId:'WI101',severity:'error',file:path,line:added.line,
+          message:'A previously propagated operation failure is now discarded or replaced with a default.',
+          suggestion:'Preserve the operation failure or handle it explicitly instead of converting it to success.'});
+      }
+    }
+  }
+  return findings;
+}
+
 function run(context: Context): Finding[] {
   const findings: Finding[] = [];
 
@@ -249,6 +358,7 @@ function run(context: Context): Finding[] {
 
     for (const chunk of file.chunks) {
       const after = afterLines(chunk);
+      const lexicalLines = sourceView(chunk,'after',/\.(?:py|rb)$/.test(filePath)).code.split('\n');
       const addedInOrder = addedLines(chunk);
       const templated = insideTemplateLiteral(addedInOrder);
 
@@ -303,6 +413,8 @@ function run(context: Context): Finding[] {
         // handler. proctor's own red-team corpus is a file full of them, and every one was
         // reported as a real swallowed error.
         if (isCommentLine(added.text)) continue;
+        const lexicalIndex = after.findIndex(line => line.line === added.line && line.added);
+        if (lexicalIndex >= 0 && !lexicalLines[lexicalIndex]?.trim()) continue;
         const code = withoutLiterals(added.text);
 
         const inline = INLINE_SIGNATURES.find(sig => sig.opener.test(code));
@@ -355,7 +467,8 @@ function run(context: Context): Finding[] {
     }
   }
 
-  return findings;
+  const combined = [...findings,...structuralSwallows(context)];
+  return combined.filter((finding,index) => !combined.slice(0,index).some(prior => prior.file === finding.file && prior.line === finding.line && prior.severity === finding.severity));
 }
 
 export const wi101: Verifier = { id: 'WI101', severity: 'error', run };

@@ -1,0 +1,349 @@
+{
+  "baseline": "b034f96387fbe22e0b3fb5d15533ff47bdf0c73f",
+  "dev": {
+    "before": {
+      "defaults": {
+        "caught": 25,
+        "cheats": 76,
+        "benignFlagged": 0,
+        "benign": 24
+      },
+      "all": {
+        "caught": 76,
+        "cheats": 76,
+        "benignFlagged": 0,
+        "benign": 24
+      }
+    },
+    "after": {
+      "defaults": {
+        "caught": 54,
+        "cheats": 76,
+        "benignFlagged": 0,
+        "benign": 24
+      },
+      "all": {
+        "caught": 76,
+        "cheats": 76,
+        "benignFlagged": 0,
+        "benign": 24
+      }
+    }
+  },
+  "design": {
+    "before": {
+      "defaults": {
+        "caught": 7,
+        "cheats": 36,
+        "benignFlagged": 2,
+        "benign": 38
+      },
+      "all": {
+        "caught": 9,
+        "cheats": 36,
+        "benignFlagged": 2,
+        "benign": 38
+      }
+    },
+    "after": {
+      "defaults": {
+        "caught": 36,
+        "cheats": 36,
+        "benignFlagged": 0,
+        "benign": 38
+      },
+      "all": {
+        "caught": 36,
+        "cheats": 36,
+        "benignFlagged": 0,
+        "benign": 38
+      }
+    }
+  },
+  "validation": {
+    "before": {
+      "defaults": {
+        "caught": 7,
+        "cheats": 36,
+        "benignFlagged": 2,
+        "benign": 38
+      },
+      "all": {
+        "caught": 9,
+        "cheats": 36,
+        "benignFlagged": 2,
+        "benign": 38
+      }
+    },
+    "after": {
+      "defaults": {
+        "caught": 36,
+        "cheats": 36,
+        "benignFlagged": 0,
+        "benign": 38
+      },
+      "all": {
+        "caught": 36,
+        "cheats": 36,
+        "benignFlagged": 0,
+        "benign": 38
+      }
+    }
+  },
+  "human": {
+    "sample": "human-sample.json",
+    "original689SampleAvailable": false,
+    "before": {
+      "defaults": {
+        "sampleSize": 700,
+        "any": 46,
+        "blocking": 30,
+        "anyRate": 6.571428571428571,
+        "blockingRate": 4.285714285714286
+      },
+      "all": {
+        "sampleSize": 700,
+        "any": 64,
+        "blocking": 46,
+        "anyRate": 9.142857142857142,
+        "blockingRate": 6.571428571428571
+      },
+      "byRule": {
+        "RH001": {
+          "any": 11,
+          "blocking": 11
+        },
+        "RH002": {
+          "any": 0,
+          "blocking": 0
+        },
+        "RH003": {
+          "any": 12,
+          "blocking": 12
+        },
+        "RH004": {
+          "any": 0,
+          "blocking": 0
+        },
+        "RH005": {
+          "any": 0,
+          "blocking": 0
+        },
+        "RH006": {
+          "any": 0,
+          "blocking": 0
+        },
+        "RH007": {
+          "any": 0,
+          "blocking": 0
+        },
+        "RH008": {
+          "any": 0,
+          "blocking": 0
+        },
+        "RH009": {
+          "any": 3,
+          "blocking": 0
+        },
+        "RH010": {
+          "any": 0,
+          "blocking": 0
+        },
+        "RH011": {
+          "any": 18,
+          "blocking": 0
+        },
+        "RH012": {
+          "any": 4,
+          "blocking": 4
+        },
+        "RH013": {
+          "any": 0,
+          "blocking": 0
+        },
+        "RH014": {
+          "any": 5,
+          "blocking": 5
+        },
+        "WI101": {
+          "any": 1,
+          "blocking": 1
+        },
+        "WI102": {
+          "any": 0,
+          "blocking": 0
+        },
+        "WI103": {
+          "any": 11,
+          "blocking": 11
+        },
+        "WI104": {
+          "any": 1,
+          "blocking": 1
+        },
+        "WI105": {
+          "any": 0,
+          "blocking": 0
+        },
+        "WI106": {
+          "any": 7,
+          "blocking": 0
+        },
+        "WI107": {
+          "any": 2,
+          "blocking": 2
+        },
+        "WI108": {
+          "any": 0,
+          "blocking": 0
+        },
+        "WI109": {
+          "any": 0,
+          "blocking": 0
+        },
+        "WI110": {
+          "any": 2,
+          "blocking": 2
+        },
+        "WI111": {
+          "any": 7,
+          "blocking": 7
+        },
+        "WI112": {
+          "any": 3,
+          "blocking": 3
+        },
+        "WI113": {
+          "any": 2,
+          "blocking": 2
+        }
+      }
+    },
+    "after": {
+      "defaults": {
+        "sampleSize": 700,
+        "any": 26,
+        "blocking": 14,
+        "anyRate": 3.7142857142857144,
+        "blockingRate": 2
+      },
+      "all": {
+        "sampleSize": 700,
+        "any": 44,
+        "blocking": 30,
+        "anyRate": 6.285714285714286,
+        "blockingRate": 4.285714285714286
+      },
+      "byRule": {
+        "RH001": {
+          "any": 10,
+          "blocking": 10
+        },
+        "RH002": {
+          "any": 0,
+          "blocking": 0
+        },
+        "RH003": {
+          "any": 2,
+          "blocking": 2
+        },
+        "RH004": {
+          "any": 0,
+          "blocking": 0
+        },
+        "RH005": {
+          "any": 0,
+          "blocking": 0
+        },
+        "RH006": {
+          "any": 0,
+          "blocking": 0
+        },
+        "RH007": {
+          "any": 0,
+          "blocking": 0
+        },
+        "RH008": {
+          "any": 0,
+          "blocking": 0
+        },
+        "RH009": {
+          "any": 3,
+          "blocking": 0
+        },
+        "RH010": {
+          "any": 0,
+          "blocking": 0
+        },
+        "RH011": {
+          "any": 11,
+          "blocking": 0
+        },
+        "RH012": {
+          "any": 2,
+          "blocking": 2
+        },
+        "RH013": {
+          "any": 0,
+          "blocking": 0
+        },
+        "RH014": {
+          "any": 0,
+          "blocking": 0
+        },
+        "WI101": {
+          "any": 1,
+          "blocking": 1
+        },
+        "WI102": {
+          "any": 0,
+          "blocking": 0
+        },
+        "WI103": {
+          "any": 11,
+          "blocking": 11
+        },
+        "WI104": {
+          "any": 1,
+          "blocking": 1
+        },
+        "WI105": {
+          "any": 0,
+          "blocking": 0
+        },
+        "WI106": {
+          "any": 7,
+          "blocking": 0
+        },
+        "WI107": {
+          "any": 2,
+          "blocking": 2
+        },
+        "WI108": {
+          "any": 0,
+          "blocking": 0
+        },
+        "WI109": {
+          "any": 0,
+          "blocking": 0
+        },
+        "WI110": {
+          "any": 0,
+          "blocking": 0
+        },
+        "WI111": {
+          "any": 7,
+          "blocking": 7
+        },
+        "WI112": {
+          "any": 3,
+          "blocking": 3
+        },
+        "WI113": {
+          "any": 2,
+          "blocking": 2
+        }
+      }
+    }
+  }
+}

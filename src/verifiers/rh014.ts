@@ -1,4 +1,5 @@
 import type { Context, Finding, Verifier } from '../types.js';
+import { closingDelimiter, compact, sourceView, type SourceView } from './structure.js';
 import { addedLines, deletedLines, hasExplanation, isCommentLine, pathOf, withoutTrailingComment } from './wi-common.js';
 
 /**
@@ -48,12 +49,60 @@ function withoutFilter(text: string): string {
   return withoutTrailingComment(text).replace(/\.filter\([^)]*\)/, '').replace(/\s+/g, ' ').trim();
 }
 
-const PARAMETERIZED_RUNNER_RE = /\b(?:it|test)\.each\s*\(|pytest\.mark\.parametrize\b/;
-const TABLE_ROW_RE = /^\s*\[[^\]]+\],?\s*$/;
 const LOOP_BOUND_RE = /\bfor\s*\([^;]*;\s*([A-Za-z_$][\w$]*)\s*<\s*(\d+)\s*;/;
 
-function inlineRowCount(text: string): number {
-  return [...withoutTrailingComment(text).matchAll(/\[[^\[\]]+\]/g)].length;
+function elements(view: SourceView, open: number, end: number): number {
+  let depth = 0;
+  let start = open + 1;
+  let count = 0;
+  const present = (from: number,to: number) => !!view.code.slice(from,to).trim() || /^\s*['"`]/.test(view.text.slice(from,to));
+  for (let i = start; i < end; i++) {
+    const ch = view.code[i]!;
+    if ('[{('.includes(ch)) depth++;
+    else if (']})'.includes(ch)) depth--;
+    else if (ch === ',' && depth === 0) { if (present(start,i)) count++; start = i + 1; }
+  }
+  return count + Number(present(start,end));
+}
+
+function parameterTables(view: SourceView): Array<{key:string;count:number;start:number;end:number}> {
+  const tables: Array<{key:string;count:number;start:number;end:number}> = [];
+  const runner = /\b(?:it|test)\.each\s*\(|\bpytest\.mark\.parametrize\s*\(/g;
+  for (const match of view.code.matchAll(runner)) {
+    const args = match.index! + match[0].length - 1;
+    const argsEnd = closingDelimiter(view.code,args,'(',')');
+    if (argsEnd < 0) continue;
+    let open = args + 1;
+    while (/\s/.test(view.code[open] ?? '') && open < argsEnd) open++;
+    let key = '';
+    if (match[0].includes('parametrize')) {
+      // The first argument names the parameters, the second is the case collection.
+      const comma = view.code.indexOf(',',open);
+      if (comma < 0 || comma >= argsEnd) continue;
+      key = 'python:' + compact(view.text.slice(open,comma));
+      open = comma + 1;
+      while (/\s/.test(view.code[open] ?? '') && open < argsEnd) open++;
+    } else {
+      const reference = /^[A-Za-z_$][\w$]*/.exec(view.code.slice(open,argsEnd));
+      if (reference) {
+        key = 'binding:' + reference[0];
+        const binding = new RegExp(`\\b(?:const|let|var)\\s+${reference[0]}\\s*=\\s*\\[`).exec(view.code);
+        if (!binding) continue;
+        open = binding.index + binding[0].length - 1;
+      } else {
+        // An inline collection belongs to its own test title, not another nearby array.
+        const title = /^\s*\(\s*(['"`])([^'"`]+)\1/.exec(view.text.slice(argsEnd + 1));
+        if (!title) continue;
+        key = 'inline:' + title[2];
+      }
+    }
+    const left = view.code[open];
+    if (left !== '[' && left !== '(') continue;
+    const end = closingDelimiter(view.code,open,left,left === '[' ? ']' : ')');
+    if (end < 0) continue;
+    tables.push({key,count:elements(view,open,end),start:open,end});
+  }
+  return tables;
 }
 
 function run(context: Context): Finding[] {
@@ -63,30 +112,19 @@ function run(context: Context): Finding[] {
     const filePath = pathOf(file);
     if (!context.isTestFile(filePath)) continue;
 
-    const allChanges = file.chunks.flatMap(chunk => chunk.changes);
-    const parameterized = allChanges.some(change => PARAMETERIZED_RUNNER_RE.test(change.content));
-    if (parameterized) {
-      const removedRows = file.chunks.flatMap(deletedLines).filter(line => TABLE_ROW_RE.test(line.text));
-      const addedRows = file.chunks.flatMap(addedLines).filter(line => TABLE_ROW_RE.test(line.text));
-      const netRemoved = removedRows.filter(row => !addedRows.some(next => next.text.trim() === row.text.trim()));
-      if (netRemoved.length > addedRows.filter(row => !removedRows.some(prior => prior.text.trim() === row.text.trim())).length) {
-        findings.push({
-          verifierId: 'RH014', severity: 'error', file: filePath, line: netRemoved[0]!.line,
-          message: 'Test workload reduced: a row was removed from a parameterized test table while the test itself still runs.',
-          suggestion: 'Restore the removed case and fix the behavior it exposed.',
-        });
-      }
-
-      for (const added of file.chunks.flatMap(addedLines)) {
-        const nextCount = inlineRowCount(added.text);
-        if (nextCount === 0) continue;
-        const prior = file.chunks.flatMap(deletedLines).find(line => inlineRowCount(line.text) > nextCount);
-        if (!prior || hasExplanation(added.text)) continue;
-        findings.push({
-          verifierId: 'RH014', severity: 'error', file: filePath, line: added.line,
-          message: `Test workload reduced: an inline parameter table fell from ${inlineRowCount(prior.text)} cases to ${nextCount}.`,
-          suggestion: 'Restore the removed inline cases and fix the behavior they expose.',
-        });
+    if (file.deleted) continue;
+    for (const chunk of file.chunks) {
+      const before = sourceView(chunk,'before',filePath.endsWith('.py'));
+      const after = sourceView(chunk,'after',filePath.endsWith('.py'));
+      const old = parameterTables(before);
+      for (const next of parameterTables(after)) {
+        const prior = old.find(table => table.key === next.key);
+        if (!prior || next.count >= prior.count || !after.touched(next.start,next.end)) continue;
+        if (after.text.slice(next.start,next.end).split('\n').some(hasExplanation)) continue;
+        const inline = !after.text.slice(next.start,next.end).includes('\n');
+        findings.push({verifierId:'RH014',severity:'error',file:filePath,line:after.lineAt(next.start),
+          message:inline ? `Test workload reduced: an inline parameter table fell from ${prior.count} cases to ${next.count}.` : 'Test workload reduced: a row was removed from a parameterized test table while the test itself still runs.',
+          suggestion:inline ? 'Restore the removed inline cases and fix the behavior they expose.' : 'Restore the removed case and fix the behavior it exposed.'});
       }
     }
 

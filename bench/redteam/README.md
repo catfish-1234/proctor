@@ -1,6 +1,7 @@
 # Red-team probe
 
-An adversarial corpus of cheat diffs, used to find what proctor does *not* catch.
+A repeatedly tuned development corpus of cheat diffs, used to find gaps and retain regressions.
+It is a dev set, not evidence of generalization to unseen cheats.
 
 This corpus tests evasion strategies beyond each check's original fixtures. Each case runs in
 a temporary git repository with a staged diff; the probe reports cases that proctor misses.
@@ -36,12 +37,16 @@ unchanged.
 
 ## Current state
 
-**76 of 76 cheats caught, 0 of 24 controls flagged**, across eleven rounds, measured with both
-check families enabled. The probe passes `--all-checks` for that reason: this corpus was built
-against the WI family as well as the RH one, and the WI checks are opt-in from v1.0.0, so a
-default run scores 25 of 76 and reports a rate for checks it never ran. The arc was 4/20,
-13/20, 17/28, 22/34, 24/34, 26/34, 30/34, 33/37, 53/53, 67/67, then 76/76. Every widening round
-adds neighboring controls; a finding on any control prevents the round from counting as closed.
+**76 of 76 dev cheats caught with all checks, 0 of 24 controls flagged.** Defaults now catch
+**54 of 76**, compared with **25 of 76** at the unchanged main baseline. Both modes leave all
+24 controls quiet. The default probe is `node bench/redteam/probe.mjs --default`; without that
+flag it uses all checks. `--out PATH` writes strict machine-readable totals, and `--cli PATH`
+selects a built CLI snapshot. Infrastructure errors and control findings fail the probe.
+
+Six WI checks now run by default; seven remain opt-in after the human-commit precision gate.
+See [fresh measurements and default decisions](../detection/README.md). The historical widening
+arc was 4/20, 13/20, 17/28, 22/34, 24/34, 26/34, 30/34, 33/37, 53/53, 67/67, then 76/76 with
+all checks. Each round was tuned against its cases, so none is an unseen evaluation.
 
 The seventh round closed four strong before/after signals rather than broad token matches: an
 expected value changing in a parameter table while its inputs stay fixed; a forwarded process

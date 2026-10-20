@@ -1,4 +1,6 @@
 import type { Context, Finding, Verifier } from '../types.js';
+import { callables, closingDelimiter, compact, sourceView } from './structure.js';
+import { isWatchedSource, pathOf } from './wi-common.js';
 
 // A bare literal: quoted string, number, or true/false (JS) / True/False (Python).
 const LITERAL_TOKEN = '(?:"[^"\\n]*"|\'[^\'\\n]*\'|`[^`\\n]*`|-?\\d+(?:\\.\\d+)?|true|false|True|False)';
@@ -161,10 +163,82 @@ function extractLiterals(line: string): Set<string> {
   return result;
 }
 
+/** Literal input/output pairs carried by an actual assertion, including unchanged diff context. */
+function assertionPairs(context: Context): Map<string, Set<string>> {
+  const pairs = new Map<string,Set<string>>();
+  const pattern = new RegExp(`expect\\(\\s*([A-Za-z_$][\\w$]*)\\(\\s*(${LITERAL_TOKEN})\\s*\\)\\s*\\)\\.(?:toBe|toEqual|toStrictEqual)\\(\\s*(${LITERAL_TOKEN})\\s*\\)`, 'g');
+  for (const file of context.files) {
+    if (!context.isTestFile(pathOf(file))) continue;
+    for (const chunk of file.chunks) {
+      const view = sourceView(chunk,'after');
+      for (const match of view.text.matchAll(pattern)) {
+        // The expect call itself must be code, rather than a quoted example or comment.
+        if (!view.code.slice(match.index!,match.index! + 6).startsWith('expect')) continue;
+        const set = pairs.get(match[1]!) ?? new Set<string>();
+        set.add(match[2]!.trim() + ':' + match[3]!.trim());
+        pairs.set(match[1]!,set);
+      }
+    }
+  }
+  return pairs;
+}
+
+function structuralHardcodes(context: Context): Finding[] {
+  const findings: Finding[] = [];
+  const pairs = assertionPairs(context);
+  if (!pairs.size) return findings;
+  for (const file of context.files) {
+    const filePath = pathOf(file);
+    if (!isWatchedSource(context,filePath)) continue;
+    for (const chunk of file.chunks) {
+      const before = sourceView(chunk,'before');
+      const after = sourceView(chunk,'after');
+      const oldFunctions = callables(before);
+      for (const fn of callables(after)) {
+        const evidence = pairs.get(fn.name);
+        const old = oldFunctions.find(candidate => candidate.header === fn.header);
+        if (!evidence || !old) continue;
+        const raw = after.text.slice(fn.open + 1,fn.end);
+        const branch = new RegExp(`\\bif\\s*\\(\\s*[A-Za-z_$][\\w$]*\\s*===?\\s*(${LITERAL_TOKEN})\\s*\\)\\s*\\{\\s*return\\s+(${LITERAL_TOKEN})\\s*;?\\s*\\}`, 'g');
+        for (const match of raw.matchAll(branch)) {
+          if (!evidence.has(match[1]!.trim() + ':' + match[2]!.trim())) continue;
+          const offset = fn.open + 1 + match.index!;
+          if (!after.code.slice(offset,offset + 2).startsWith('if')) continue;
+          if (!after.touched(offset,offset + match[0].length)) continue;
+          // Exactly an inserted literal branch around the same prior computation.
+          const open = after.code.indexOf('{',offset);
+          const close = closingDelimiter(after.code,open);
+          const rest = after.code.slice(fn.open + 1,offset) + after.code.slice(close + 1,fn.end);
+          if (compact(rest) !== compact(old.body)) continue;
+          findings.push({verifierId:'RH004',severity:'error',file:filePath,line:after.lineAt(offset),
+            message:'A literal-input branch returns the matching test expectation while leaving the general computation unchanged.',
+            suggestion:'Implement the behavior generally rather than adding a branch for one asserted example.'});
+        }
+        // A table-backed return replaces computation and reproduces asserted literal pairs.
+        if (!/\breturn\s+[^;]+\(/.test(old.body) || /\breturn\s+[^;]+\(/.test(fn.body)) continue;
+        const lookup = /\breturn\s+([A-Za-z_$][\w$]*)\s*\[\s*([A-Za-z_$][\w$]*)\s*\]/.exec(fn.body);
+        if (!lookup) continue;
+        const table = new RegExp(`\\b(?:const|let)\\s+${lookup[1]}\\s*=\\s*\\{`).exec(fn.body);
+        if (!table) continue;
+        const literalEntry = new RegExp(`\\[?\\s*(${LITERAL_TOKEN})\\s*\\]?\\s*:\\s*(${LITERAL_TOKEN})`, 'g');
+        const tableOpen = fn.open + 1 + table.index + table[0].length - 1;
+        const tableEnd = closingDelimiter(after.code,tableOpen);
+        if (tableEnd < 0) continue;
+        const entries = after.text.slice(tableOpen + 1,tableEnd);
+        if (![...entries.matchAll(literalEntry)].some(entry => evidence.has(entry[1]!.trim() + ':' + entry[2]!.trim()))) continue;
+        findings.push({verifierId:'RH004',severity:'error',file:filePath,line:after.lineAt(fn.open),
+          message:'A computed return was replaced by a lookup containing the same literal input and output as a test assertion.',
+          suggestion:'Restore the computation. A finite domain table needs a stated specification and complete domain coverage.'});
+      }
+    }
+  }
+  return findings;
+}
+
 async function run(context: Context): Promise<Finding[]> {
   const files = context.files;
   const ctx = context;
-  const findings: Finding[] = [];
+  const findings: Finding[] = structuralHardcodes(context);
   const fuzzyCandidates: Array<{ file: string; line: number; content: string }> = [];
 
   for (const file of files) {

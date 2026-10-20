@@ -12,8 +12,7 @@ hook. If Claude Code is among the selected agents, it also installs the Stop hoo
 proctor setup
 ```
 
-This assumes a local install. The scoped npm package is not published yet; the README documents
-the temporary source-tarball installation path.
+This assumes a local install: `npm install --save-dev @kavishdua/proctor`.
 
 This combines the three `install-*` commands below. The ruleset provides instructions;
 the hooks enforce the checks.

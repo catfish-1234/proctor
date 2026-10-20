@@ -87,21 +87,14 @@ The approval makes them non-blocking.
 npm error could not determine executable to run
 ```
 
-The package has not been published to npm yet, so registry-based `npx @kavishdua/proctor` commands
-currently return 404. Build a tarball from a Proctor checkout and install it in the guarded
-repository first:
+The package is on npm, so this usually means npm cannot reach the registry. Check
+`npm config get registry` and whether a proxy or private registry blocks `@kavishdua/proctor`.
+You can also install it into the guarded repository and run it locally:
 
 ```bash
-npm ci
-npm run build
-npm pack
-# Then, in the guarded repository:
-npm install --save-dev /absolute/path/to/kavishdua-proctor-*.tgz
+npm install --save-dev @kavishdua/proctor
 npx proctor check
 ```
-
-After the first public release, a 404 should instead prompt a registry check with
-`npm config get registry` and a check for a proxy that blocks npm.
 
 ## `proctor bench` says there are no tasks
 

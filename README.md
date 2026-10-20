@@ -53,9 +53,14 @@ source needs Node 20.19+ or 22.12+.
 
 ## Quickstart
 
-The npm package is not published yet: `npm view @kavishdua/proctor` currently returns 404, so an
-`npx @kavishdua/proctor ...` command from the registry will not work. Until the first release, run
-the checked-out source against any git repository:
+Check the changes in any git repository, with nothing to install first:
+
+```bash
+cd /path/to/repository
+npx @kavishdua/proctor check
+```
+
+To run it from source instead:
 
 ```bash
 git clone https://github.com/catfish-1234/proctor.git
@@ -91,16 +96,10 @@ qwen extensions install https://github.com/catfish-1234/proctor
 
 **Other agents, or CLI use without an agent** (30 agents supported)
 
-Until the npm package is published, build its installable tarball from source:
+Add it to the repository as a dev dependency:
 
 ```bash
-# In the proctor checkout
-npm ci
-npm run build
-npm pack
-
-# In the repository proctor should guard; use the .tgz path printed above
-npm install --save-dev /absolute/path/to/kavishdua-proctor-*.tgz
+npm install --save-dev @kavishdua/proctor
 ```
 
 **Proctor does not install guards during npm installation by default.** npm still updates your
@@ -338,12 +337,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with: { fetch-depth: 0 }
-      - uses: catfish-1234/proctor@1bfd0b192ea214a0ed349b27822b11b8ccf23e07
+      - uses: catfish-1234/proctor@ede7e0ec0d9a91c241af1b181b74b1a6af67df07 # v1.0.0
 ```
 
-No release tags exist yet, so the example pins an existing source commit. After the first release,
-`catfish-1234/proctor@v1` will be the moving tag for the newest `1.x` release. To keep builds
-reproducible, use a full commit SHA as above; a full SHA is immutable.
+The example pins the commit behind the `v1.0.0` release. You can use the `v1.0.0` tag instead, but
+a full commit SHA is immutable, so it keeps builds reproducible.
 
 ## How it works
 

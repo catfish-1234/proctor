@@ -277,6 +277,8 @@ function structuralSwallows(context: Context): Finding[] {
       for (const handler of handlers(after,indented)) {
         if (!after.touched(handler.start,handler.end) || !discardedHandler(handler.code)) continue;
         if (handler.raw.split('\n').some(hasExplanation)) continue;
+        // `except E: pass` followed by `else:` is a control-flow branch of try/except/else.
+        if (indented && /^[ \t]*\r?\n?[ \t]*else[ \t]*:/.test(after.text.slice(handler.end))) continue;
         // Moving or formatting an existing silent handler does not introduce swallowed errors.
         const retainedOpener = chunk.changes.find(change=>change.type==='normal' && change.ln2===after.lineAt(handler.start));
         const previous = retainedOpener?.type === 'normal'
@@ -319,6 +321,18 @@ function structuralSwallows(context: Context): Finding[] {
     }
   }
   return findings;
+}
+
+function followedByElse(lines: Array<{ text: string }>, index: number): boolean {
+  if (index < 0) return false;
+  const indent = (text: string) => text.length - text.trimStart().length;
+  const base = indent(lines[index]!.text);
+  for (const line of lines.slice(index + 1)) {
+    if (!line.text.trim()) continue;
+    if (indent(line.text) > base) continue;
+    return indent(line.text) === base && /^\s*else\s*:/.test(line.text);
+  }
+  return false;
 }
 
 function run(context: Context): Finding[] {
@@ -416,6 +430,10 @@ function run(context: Context): Finding[] {
         const lexicalIndex = after.findIndex(line => line.line === added.line && line.added);
         if (lexicalIndex >= 0 && !lexicalLines[lexicalIndex]?.trim()) continue;
         const code = withoutLiterals(added.text);
+
+        // Python `try: ... except E: pass ... else: ...` runs the else body when nothing was raised,
+        // so the empty handler is a control-flow branch, not a discarded failure.
+        if (/^\s*except\b/.test(code) && followedByElse(after, after.findIndex(l => l.line === added.line && l.added))) continue;
 
         const inline = INLINE_SIGNATURES.find(sig => sig.opener.test(code));
         if (inline) {

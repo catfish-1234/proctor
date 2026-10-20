@@ -107,6 +107,8 @@ const TABLE_RUNNER_RE =
 /** True when a line is table data rather than executable test logic: literals inside a collection. */
 function isDataRow(text: string): boolean {
   const stripped = withoutTrailingComment(text);
+  // An executable call statement (`program.parse(['a', 'b'])`) carries literals but is not a table row.
+  if (/^\s*[A-Za-z_$][\w$.]*\s*\(/.test(stripped) && !TABLE_RUNNER_RE.test(stripped)) return false;
   if (!/[[{]/.test(stripped)) return false;
   const literals = stripped.match(/-?\d+(?:\.\d+)?|'[^']*'|"[^"]*"|`[^`]*`|\btrue\b|\bfalse\b|\bTrue\b|\bFalse\b/g);
   return (literals?.length ?? 0) >= 2;
@@ -223,7 +225,8 @@ function run(context: Context): Finding[] {
 
       if (!hasTableRunner) continue;
       const removedRows = removedLines.filter(line => isDataRow(line.text));
-      for (const added of additions.filter(line => isDataRow(line.text))) {
+      const removedTexts = new Set(removedLines.map(line => line.text.trim()));
+      for (const added of additions.filter(line => isDataRow(line.text) && !removedTexts.has(line.text.trim()))) {
         const pair = removedRows
           .map(prior => changedTableExpectation(prior.text, added.text))
           .find((value): value is ChangedTableValue => value !== undefined);

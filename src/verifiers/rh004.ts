@@ -308,6 +308,9 @@ async function run(context: Context): Promise<Finding[]> {
         const branchMatch = add.content.match(BRANCH_LITERAL_RE) ?? add.content.match(PY_BRANCH_LITERAL_RE);
         if (!branchMatch) continue;
         if (EMPTINESS_GUARD_RE.test(add.content) || TYPEOF_GUARD_RE.test(add.content)) continue;
+        // A lone punctuation character is a lexical class test (a tokenizer or parser predicate),
+        // not a fixture value.
+        if (/^(['"`])[^\w\s]\1$/.test(branchMatch[1]!)) continue;
         findings.push({
           verifierId: 'RH004',
           severity: 'error',

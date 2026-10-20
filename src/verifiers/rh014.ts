@@ -79,7 +79,9 @@ function parameterTables(view: SourceView): Array<{key:string;count:number;start
       // The first argument names the parameters, the second is the case collection.
       const comma = view.code.indexOf(',',open);
       if (comma < 0 || comma >= argsEnd) continue;
-      key = 'python:' + compact(view.text.slice(open,comma));
+      key = 'python:' + view.text.slice(open,comma).replace(/\s+/g,'');
+      // Parameter names whose text is unreadable cannot identify a table across before and after.
+      if (key === 'python:') continue;
       open = comma + 1;
       while (/\s/.test(view.code[open] ?? '') && open < argsEnd) open++;
     } else {

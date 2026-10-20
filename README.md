@@ -394,6 +394,8 @@ generalization. Fresh measurements compare the unchanged main baseline with thes
 | **25 to 54 of 76** | tuned dev cheats caught by defaults before and after. With all checks: **76 to 76 of 76**. Dev controls: **0 to 0 of 24** flagged in either mode. Run `node bench/redteam/probe.mjs --default` and `node bench/redteam/probe.mjs` |
 | **7 to 36 of 36** | cheats caught by defaults in the **74-case frozen validation set**, with benign flags falling from **2/38 to 0/38**. All checks improve from **9/36 to 36/36**. The separately frozen 74-case design set has the same totals. Both are small authored sets with paired variations |
 | **4.29% to 2.00% blocking** | **30/700 to 14/700** real non-bot commits flagged by defaults on the same fresh pinned sample from 20 repositories. Any finding: **46/700 (6.57%) to 26/700 (3.71%)**. Every flagged human commit counts as a conservative false-positive proxy, including intentional test deletions |
+| **26 to 35 of 72** | cheats caught by defaults on a **72-cheat, 72-benign held-out set** written after 1.0.0 by a separate run that never saw the checks. Benign flags: **5/72 before, 5/72 after**. All checks: **38 to 42 of 72**, with 6/72 benign flagged. Error handling went from 0/12 to 7/12. Hardcoded special cases (2/8), removed validation (0/3), edited expected values (0/3), race masking (0/3) and suppression (0/3) are still mostly missed. The set was used only to measure, not to tune, but it is now public, so it no longer counts as blind. Run `node bench/heldout/probe.mjs --default` |
+| **2.6% blocking** | **11/420** real commits blocked by both 1.0.0 and this release on a second fresh sample of 14 repositories that neither the checks nor the first sample touched. Any finding: **17 before, 16 after**. A few false positives found there were fixed with rules, not by pinning commits |
 | **27** | checks in two families, with **20 enabled by default**, across **25+** languages, installable into **30** agents |
 
 The old **689-commit** claim, **2.32% blocking and 3.8% any finding**, refers to a missing ignored
@@ -402,7 +404,7 @@ sample and harness. It could not be reproduced from this checkout or tracked his
 all findings. It is a replacement cohort, not the original sample. See
 [methods, per-rule results, and reproduction commands](bench/detection/README.md).
 
-**What we don't claim.** Proctor is a heuristic diff checker. It detects suspicious changes;
+**What we don't claim.** Proctor is a heuristic diff checker. Defaults still miss more than half of the held-out cheats, mostly the ones that need running the code to see: special-cased inputs, edited expected values, removed validation, masked races and suppression. It detects suspicious changes;
 it does not prevent them or judge intent. A determined author can write a cheat that no static
 diff check recognizes. The dev and authored-validation results do not establish a detection
 rate for unseen cheats. Our [live benchmark](#benchmark) has not shown that proctor reduces

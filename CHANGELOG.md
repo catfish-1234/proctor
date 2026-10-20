@@ -7,6 +7,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-20
+
+- Fix false positives found on fresh public commits: a character-class predicate returning true, a Python `except: pass` followed by `else:`, tests wrapped in a `describe` block, and a new parametrized test beside an older table.
+- Add a 72-cheat, 72-benign held-out set under `bench/heldout`, written after 1.0.0 and used only to measure. It is public now, so it no longer counts as blind.
 - Enable WI101, WI102, WI105, WI108, WI109, and WI110 by default. The other seven WI checks stay
   opt-in because real-commit findings still include legitimate maintenance. Explicit committed
   `enabled` lists keep their existing behavior.

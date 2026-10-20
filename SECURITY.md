@@ -11,7 +11,7 @@ you'll be credited unless you'd rather not be.
 
 ## Supported versions
 
-The latest published npm version (currently 1.0.0) and the current `main` branch are supported;
+The latest published npm version (currently 1.1.0) and the current `main` branch are supported;
 there are no long-term support branches.
 
 ## What proctor does on your machine

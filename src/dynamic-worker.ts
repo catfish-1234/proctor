@@ -4,7 +4,8 @@ import { spawnSync } from 'node:child_process';
 import picomatch from 'picomatch';
 import { loadSnapshots, materialize, type Snapshot } from './dynamic/snapshots.js';
 import { detectAdapter, runTests } from './dynamic/adapters.js';
-import { documentedIntent, expectedEdits, expectationChanges, expectationOnlyEdit, findProbes, locateTest } from './dynamic/signals.js';
+import { documentedIntent, expectedEdits, expectationChanges, expectationOnlyEdit, findProbes, locateTest, probeInputs, type ProbeValue } from './dynamic/signals.js';
+import { coverageEnvironment, jsMutations, MUTATION_LIMIT, pythonMutations, readCalls } from './dynamic/mutations.js';
 import type { DynamicOptions, DynamicResult, TestRun } from './dynamic/runner.js';
 import type { Finding } from './types.js';
 
@@ -78,8 +79,8 @@ try {
   // can intentionally introduce an exception, so this prototype gives it the benefit of doubt.
   if (current.run.exitCode === 0 && !testChanges.length && !intent) {
     for (const probe of findProbes(old, next, isTest)) {
-      const values = [probe.input - 1, probe.input, probe.input + 1];
-      const observed: number[][] = [];
+      const values = probeInputs(probe.input);
+      const observed: ProbeValue[][] = [];
       const probeRuns: TestRun[] = [];
       for (const [tree, label] of [[old, 'probe / original code'], [next, 'probe / new code']] as const) {
         const dir = join(scratch, `probe-${result.runs.length + 1}`);
@@ -90,23 +91,66 @@ try {
           writeFileSync(join(dir, '.proctor-probe.mjs'), script);
           command = process.execPath; args = ['.proctor-probe.mjs'];
         } else {
-          const script = `import importlib.util,json\ns=importlib.util.spec_from_file_location('probe',${JSON.stringify(probe.file)})\nm=importlib.util.module_from_spec(s)\ns.loader.exec_module(m)\nprint(json.dumps([getattr(m,${JSON.stringify(probe.name)})(x) for x in ${JSON.stringify(values)}]))\n`;
+          const script = `import importlib.util,json\ns=importlib.util.spec_from_file_location('probe',${JSON.stringify(probe.file)})\nm=importlib.util.module_from_spec(s)\ns.loader.exec_module(m)\nprint(json.dumps([getattr(m,${JSON.stringify(probe.name)})(x) for x in json.loads(${JSON.stringify(JSON.stringify(values))})]))\n`;
           writeFileSync(join(dir, '.proctor-probe.py'), script);
           command = 'python3'; args = ['.proctor-probe.py'];
         }
         const r = spawnSync(command, args, { cwd: dir, encoding: 'utf8', maxBuffer: 128 * 1024 });
         if (r.status !== 0) { observed.length = 0; break; }
-        let outputs: number[];
+        let outputs: ProbeValue[];
         try { outputs = JSON.parse(r.stdout); } catch { observed.length = 0; break; }
-        if (!Array.isArray(outputs) || outputs.length !== 3 || outputs.some(n => typeof n !== 'number' || !Number.isFinite(n))) { observed.length = 0; break; }
+        if (!Array.isArray(outputs) || outputs.length !== values.length || outputs.some(n => !['number', 'string', 'boolean'].includes(typeof n) || (typeof n === 'number' && !Number.isFinite(n)))) { observed.length = 0; break; }
         observed.push(outputs);
         const pr: TestRun = { label, command: `${command} ${args.join(' ')} (${probe.file}:${probe.name}, inputs ${JSON.stringify(values)})`, exitCode: 0, passed: [], failed: [], detail: `outputs ${JSON.stringify(outputs)}` };
         result.runs.push(pr); probeRuns.push(pr);
       }
-      if (observed.length === 2 && observed[0]![0] === observed[1]![0] && observed[0]![2] === observed[1]![2] && observed[0]![1] !== observed[1]![1]) {
-        finding('DY002', probe.file, `Literal branch in ${probe.name} contradicts the original arithmetic reference only at ${probe.input}: old ${JSON.stringify(observed[0])}, new ${JSON.stringify(observed[1])}, inputs ${JSON.stringify(values)}`, [original, current.run, ...probeRuns], probe.line);
+      if (observed.length === 2 && values.every((_, i) => i === 1 || observed[0]![i] === observed[1]![i]) && observed[0]![1] !== observed[1]![1]) {
+        finding('DY002', probe.file, `Literal branch in ${probe.name} contradicts the original simple reference only at ${JSON.stringify(probe.input)}: old ${JSON.stringify(observed[0])}, new ${JSON.stringify(observed[1])}, inputs ${JSON.stringify(values)}`, [original, current.run, ...probeRuns], probe.line);
       }
     }
+  }
+  // A red baseline with unchanged tests is the fix shape where cross-runs have no extra information.
+  // Mutations are advisory coverage evidence, limited to functions observed in a separate green run.
+  if (original.failed.length && current.run.exitCode === 0 && !testChanges.length && !intent) {
+    try {
+      const coverage = coverageEnvironment(current.dir);
+      const control = runTests(nextAdapter, current.dir, 'new tests / new code coverage control', coverage.env);
+      result.runs.push(control);
+      const samePasses = (a: TestRun, b: TestRun) => a.exitCode === 0 && b.exitCode === 0 && !a.failed.length && !b.failed.length &&
+        a.passed.length > 0 && a.passed.length === b.passed.length && a.passed.every(id => b.passed.includes(id));
+      if (samePasses(current.run, control)) {
+        const calls = readCalls(coverage.path, current.dir);
+        let count = 0;
+        for (const [file, entry] of next) {
+          if (count >= MUTATION_LIMIT) break;
+          if (isTest(file) || !/\.(?:js|mjs|cjs|py)$/.test(file)) continue;
+          const before = old.get(file)?.data.toString() ?? '', source = entry.data.toString();
+          if (before === source) continue;
+          const path = join(current.dir, file);
+          const candidates = file.endsWith('.py') ? pythonMutations(before, source, calls.python.get(path) ?? [], current.dir) : jsMutations(before, source, calls.js.get(path) ?? []);
+          for (const mutation of candidates) {
+            if (count >= MUTATION_LIMIT) break;
+            count++;
+            let mutant: TestRun | undefined;
+            try {
+              writeFileSync(path, mutation.source);
+              mutant = runTests(nextAdapter, current.dir, `mutation ${count}: ${mutation.operation}, ${file}:${mutation.line} (${mutation.functionName})`);
+              result.runs.push(mutant);
+            } catch { /* Invalid or unreadable mutant outcomes cannot justify a coverage warning. */ }
+            finally { writeFileSync(path, source); }
+            if (mutant && samePasses(current.run, mutant)) {
+              // Confirm the restored suite is still green before attributing a survivor to missing coverage.
+              const restored = runTests(nextAdapter, current.dir, `mutation ${count}: restored control`);
+              result.runs.push(restored);
+              if (samePasses(current.run, restored)) finding('DY004', file,
+                `${mutation.operation} at ${file}:${mutation.line} in called function ${mutation.functionName} left every named test passing; this changed statement has no demonstrated test protection`,
+                [original, current.run, control, mutant, restored], mutation.line);
+            }
+          }
+        }
+        result.notes.push(`Mutation-lite: ${Math.min(count, MUTATION_LIMIT)} candidates run, cap ${MUTATION_LIMIT}; only parser-confirmed statements in called functions are eligible.`);
+      } else result.notes.push('not run: mutation-lite coverage control did not reproduce the green suite');
+    } catch (error) { result.notes.push(`not run: mutation-lite could not establish reliable evidence: ${String(error)}`); }
   }
   const raceFiles = testChanges.filter(p => /(?:sleep\s*\(|setTimeout\s*\(|\bretry\b|\bretries\b)/.test(next.get(p)?.data.toString() ?? '') &&
     (next.get(p)?.data.toString().match(/sleep\s*\(|setTimeout\s*\(|\bretry\b|\bretries\b/g)?.length ?? 0) > (old.get(p)?.data.toString().match(/sleep\s*\(|setTimeout\s*\(|\bretry\b|\bretries\b/g)?.length ?? 0));

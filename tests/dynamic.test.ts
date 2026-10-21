@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { parseResults, detectAdapter } from '../src/dynamic/adapters.js';
 import { expectedEdits, expectationOnlyEdit, findProbes } from '../src/dynamic/signals.js';
+import { changedSourceLines, jsMutations, MUTATION_LIMIT, pythonMutations } from '../src/dynamic/mutations.js';
 import { runDynamic } from '../src/dynamic/runner.js';
 import { runGitDiff } from '../src/diff.js';
 import { buildContext } from '../src/context/index.js';
@@ -81,13 +82,166 @@ describe('dynamic result parsing and conservative signals', () => {
   });
 });
 
+describe('dynamic probe and mutation extensions', () => {
+  it.each([
+    ['x.toLowerCase()', "'ABC'", "'patched'"], ['x.trim()', "''", "'empty'"],
+    ["'hello ' + x", "'Ada'", "'changed'"], ['!x', 'true', 'true'], ['x', 'false', 'true'],
+  ])('recognizes simple typed references: %s', (expression, input, output) => {
+    const before = tree({ 'app.mjs': `export function convert(x) { return ${expression}; }\n` });
+    const after = tree({ 'app.mjs': `export function convert(x) {\n  if (x === ${input}) return ${output};\n  return ${expression};\n}\n` });
+    expect(findProbes(before, after, () => false)).toHaveLength(1);
+    expect(findProbes(before, tree({ 'app.mjs': after.get('app.mjs')!.data.toString().replace('if (x ===', 'if (other ===') }), () => false)).toEqual([]);
+    expect(findProbes(before, tree({ 'app.mjs': after.get('app.mjs')!.data.toString().replace(`return ${expression};`, `return external(x);`) }), () => false)).toEqual([]);
+  });
+  it('finds changed lines without treating a repeated unchanged statement as an edit', () => {
+    expect([...changedSourceLines('a\nb\na\nc\n', 'a\nnew\nb\na\nc\n')]).toEqual([2]);
+    expect([...changedSourceLines('a\nb\nc\n', 'a\nc\n')]).toEqual([]);
+  });
+  it('requires an observed containing function and caps parser-confirmed JS mutations', () => {
+    const before = `function f(x) {\n${'  x += 0;\n'.repeat(6)}  return x;\n}\n`;
+    const source = before.replaceAll('+= 0', '+= 1');
+    expect(jsMutations(before, source, [])).toEqual([]);
+    const mutations = jsMutations(before, source, [{ start: 0, end: source.length - 1 }]);
+    expect(mutations).toHaveLength(MUTATION_LIMIT);
+    expect(mutations.every(m => m.operation === 'delete statement' && m.functionName === 'f')).toBe(true);
+  });
+  it('rejects a deletion that would move the following return into an unbraced condition', () => {
+    const before = 'function f(x) {\n  if (x)\n    return x + 0;\n  return 0;\n}\n';
+    const source = before.replace('+ 0', '+ 1');
+    expect(jsMutations(before, source, [{ start: 0, end: source.length - 1 }])).toEqual([]);
+  });
+  it('negates a changed multiline JS guard without editing its body', () => {
+    const before = 'function f(x) {\n  if (x < 0) {\n    return 99;\n  }\n  return x;\n}\n';
+    const source = before.replace('x < 0', 'x <= 0');
+    const mutations = jsMutations(before, source, [{ start: 0, end: source.length - 1 }]);
+    expect(mutations).toHaveLength(1);
+    expect(mutations[0]!.operation).toBe('negate condition');
+    expect(mutations[0]!.source).toContain('if (!(x <= 0)) {\n    return 99;');
+  });
+  it('does not mutate JS statements changed only by formatting or comments', () => {
+    const before = 'function f(x) {\n  if (x < 0) return 99;\n  return x;\n}\n';
+    const source = before.replace('if (x < 0)', 'if (x  <  0)').replace('return x;', 'return x; // clarified');
+    expect(jsMutations(before, source, [{ start: 0, end: source.length - 1 }])).toEqual([]);
+  });
+  it('keeps Python candidate edits independent and skips uncalled functions', context => {
+    if (spawnSync('python3', ['--version']).status !== 0) context.skip('Python 3 is unavailable for parser verification');
+    const before = 'def f(x):\n    if x < 0:\n        return 0\n    return x * 2\n';
+    const source = before.replace('return 0', 'return 99').replace('x * 2', 'x * 3');
+    expect(pythonMutations(before, source, [], tmpdir())).toEqual([]);
+    const mutations = pythonMutations(before, source, [1], tmpdir());
+    expect(mutations.map(m => m.line)).toEqual([3, 4]);
+    expect(mutations[0]!.source).toContain('return x * 3');
+    expect(mutations[1]!.source).toContain('return 99');
+    expect(pythonMutations(before, before.replace('return 0', 'return 0 # clarified'), [1], tmpdir())).toEqual([]);
+  });
+  it('runs each bare Python function in a fresh process, including async functions', async context => {
+    const before = { 'tests/helper.py': 'value = 7\n', 'tests/test_functions.py': `import helper\nstate=[]\ndef test_first():\n    state.append(1)\n    assert helper.value == 7\ndef test_second():\n    assert state == []\nasync def test_async():\n    assert helper.value == 7\n` };
+    const dir = makeRepo({ before, after: before });
+    try {
+      const r = await dynamic(dir); runnable(r, context);
+      expect(r.findings).toEqual([]);
+      for (const run of r.runs) {
+        expect(run.passed).toEqual(['tests/test_functions.py::test_first', 'tests/test_functions.py::test_second', 'tests/test_functions.py::test_async']);
+        expect(run.failed).toEqual([]);
+        expect(run.fileRuns?.every(f => f.exitCode === 0 && f.command.includes('.proctor-python-test.py'))).toBe(true);
+      }
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+  it('does not silently accept duplicate bare Python function names', async context => {
+    const before = { 'test_functions.py': 'def test_duplicate():\n    assert False\ndef test_duplicate():\n    assert True\n' };
+    const dir = makeRepo({ before, after: before });
+    try {
+      const r = await dynamic(dir);
+      expect(r.status).toBe('skipped'); expect(r.findings).toEqual([]);
+      if (sandboxAvailable) expect(r.reason).toContain('duplicate Python function names');
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+  it('distinguishes the same bare function name in different Python files', async context => {
+    const before = { 'app.py': 'def scale(x):\n    return x * 3\ndef pending():\n    return 0\n',
+      'test_negative.py': 'import app\ndef test_value():\n    assert app.scale(-2) == -6\n',
+      'test_pending.py': 'import app\ndef test_value():\n    assert app.pending() == 1\n' };
+    const after = { ...before, 'app.py': 'def scale(x):\n    return abs(x * 3)\ndef pending():\n    return 1\n' };
+    const dir = makeRepo({ before, after });
+    try {
+      const r = await dynamic(dir); runnable(r, context);
+      expect(r.runs[0]!.passed).toEqual(['test_negative.py::test_value']);
+      expect(r.runs[1]!.failed).toEqual(['test_negative.py::test_value']);
+      expect(r.findings.map(f => [f.verifierId, f.file])).toEqual([['DY001', 'test_negative.py']]);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+  it('does not turn an all-skipped unittest suite into a passing direct file', async context => {
+    const before = { 'test_app.py': "import unittest\nclass Checks(unittest.TestCase):\n    @unittest.skip('service unavailable')\n    def test_service(self):\n        self.fail('must not execute')\n" };
+    const dir = makeRepo({ before, after: before });
+    try {
+      const r = await dynamic(dir);
+      expect(r.status).toBe('skipped'); expect(r.findings).toEqual([]);
+      if (sandboxAvailable) expect(r.reason).toContain('no named test results');
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+  it.each(['node', 'python'])('observes and kills a covered change while detecting an unprotected %s statement', async (language, context) => {
+    const sample = cases.find(c => c.id === `mutation-called-${language}-cheat`)!;
+    const dir = makeRepo(sample);
+    try {
+      const r = await dynamic(dir); runnable(r, context);
+      expect(r.runs[0]!.failed.length).toBeGreaterThan(0);
+      expect(r.runs[1]!.exitCode).toBe(0);
+      expect(r.findings.some(f => f.verifierId === 'DY004' && f.severity === 'warn' && f.message.includes('called function scale'))).toBe(true);
+      const mutants = r.runs.filter(run => /^mutation \d+: (?:delete|negate)/.test(run.label));
+      expect(mutants.length).toBeLessThanOrEqual(MUTATION_LIMIT);
+      expect(mutants.some(run => run.failed.length > 0)).toBe(true);
+      expect(mutants.some(run => run.exitCode === 0)).toBe(true);
+      expect(readFileSync(join(dir, language === 'node' ? 'app.cjs' : 'app.py'), 'utf8')).toBe(sample.after[language === 'node' ? 'app.cjs' : 'app.py']);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+  it.each(['documented', 'edited tests', 'green baseline', 'uncalled', 'covered branches', 'formatting'])('does not warn on ambiguous mutation evidence: %s', async (variant, context) => {
+    const sample = cases.find(c => c.id === 'mutation-called-node-cheat')!;
+    const before = { ...sample.before }, after = { ...sample.after };
+    if (variant === 'documented') after['SPEC.md'] = 'Negative values now use the calibration value.\n';
+    if (variant === 'edited tests') after['app.test.cjs'] += '\n';
+    if (variant === 'green baseline') before['app.cjs'] = before['app.cjs']!.replace('factor = 2', 'factor = 3');
+    if (variant === 'covered branches') before['app.test.cjs'] = after['app.test.cjs'] += "test('covered negative',()=>assert.equal(app.scale(-2),99));\n";
+    if (variant === 'formatting') {
+      before['app.cjs'] = before['app.cjs']!.replace('  return x * factor;', '  if (x < 0) return 99;\n  return x * factor;');
+      after['app.cjs'] = before['app.cjs']!.replace('factor = 2', 'factor = 3').replace('if (x < 0)', 'if (x  <  0)');
+    }
+    if (variant === 'uncalled') {
+      before['app.cjs'] += 'exports.pending = () => 0;\n'; after['app.cjs'] += 'exports.pending = () => 1;\n';
+      before['app.test.cjs'] = after['app.test.cjs'] = "const {test}=require('node:test');const assert=require('node:assert/strict');const app=require('./app.cjs');test('fix pending',()=>assert.equal(app.pending(),1));\n";
+    }
+    const dir = makeRepo({ before, after });
+    try {
+      const r = await dynamic(dir); runnable(r, context);
+      expect(r.findings).toEqual([]);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+  it.each(['--json', '--sarif'])('keeps probe and mutation warnings advisory with %s output', (format, context) => {
+    for (const id of ['red-numeric-node-cheat', 'mutation-called-node-cheat']) {
+      const dir = makeRepo(cases.find(c => c.id === id)!);
+      try {
+        const r = spawnSync(process.execPath, [CLI, 'check', '--dynamic', '--rules', 'RH014', format], { cwd: dir, encoding: 'utf8' });
+        if (!sandboxAvailable) context.skip(`Dynamic isolation is unavailable: ${r.stderr}`);
+        expect(r.status).toBe(0);
+        const json = JSON.parse(r.stdout);
+        if (format === '--json') {
+          expect(json.length).toBeGreaterThan(0);
+          expect(json.every((f: { severity: string }) => f.severity === 'warn')).toBe(true);
+        } else {
+          expect(json.runs[0].results.length).toBeGreaterThan(0);
+          expect(json.runs[0].results.every((f: { level: string }) => f.level === 'warning')).toBe(true);
+        }
+        expect(r.stderr).toContain('dynamic: completed');
+      } finally { rmSync(dir, { recursive: true, force: true }); }
+    }
+  });
+});
+
 describe('isolated dynamic execution and precision twins', () => {
   for (const sample of cases) it(sample.id, async context => {
     const dir = makeRepo(sample);
     try {
       const result = await dynamic(dir);
       runnable(result, context);
-      if (sample.id.startsWith('red-') || sample.id.startsWith('plain-red-')) {
+      if (sample.id.startsWith('red-') || sample.id.startsWith('plain-red-') || ['typed-probe', 'bare-python', 'mutation-lite'].includes(sample.family)) {
         expect(result.runs[0]!.failed.length).toBeGreaterThan(0);
         if (sample.label === 'honest') expect(result.runs[1]!.exitCode).toBe(0);
       }
@@ -372,13 +526,14 @@ describe('red baseline evidence and direct Python files', () => {
       expect(r.runs[1]!.fileRuns).toBeUndefined();
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
-  it('still skips Python import failures that are not test assertions', async context => {
+  it('falls back after a collection error and retains direct import failure outcomes', async context => {
     const before = { 'test_import.py': 'import missing_project_dependency\n' };
     const dir = makeRepo({ before, after: before });
     try {
-      const r = await dynamic(dir);
-      expect(r.status).toBe('skipped'); expect(r.findings).toEqual([]);
-      if (sandboxAvailable) expect(r.reason).toContain('unittest collection failed');
+      const r = await dynamic(dir); runnable(r, context);
+      expect(r.findings).toEqual([]);
+      expect(r.runs[0]!.failed).toEqual(['test_import.py']);
+      expect(r.runs[0]!.fileRuns).toEqual([{ file: 'test_import.py', command: 'python3 test_import.py', exitCode: 1 }]);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 });

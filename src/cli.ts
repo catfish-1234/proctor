@@ -254,7 +254,7 @@ program
     if (options.sarif) {
       const sarif = sarifReport(findings);
       const hasError = findings.some(f => f.severity === 'error');
-      const hasWarn = findings.some(f => f.severity === 'warn');
+      const hasWarn = findings.some(f => f.severity === 'warn' && !['DY002', 'DY004'].includes(f.verifierId));
       await new Promise<void>((resolve) => {
         process.stdout.write(sarif + '\n', () => {
           // Same --ci contract as the non-SARIF path below: warnings only affect the exit
@@ -275,7 +275,8 @@ program
       if (receipt.status === 'honest-pass' && receipt.approvedCount === 0 && !options.ci) process.stdout.write(badgeLine(receipt) + '\n');
     }
     const hasError = findings.some(f => f.severity === 'error');
-    const hasWarn = findings.some(f => f.severity === 'warn');
+    // Probe and mutation warnings are advisory, including outside CI. Other exit behavior is unchanged.
+    const hasWarn = findings.some(f => f.severity === 'warn' && !['DY002', 'DY004'].includes(f.verifierId));
     // Set exitCode and return (rather than process.exit) so pending stdout pipe writes drain
     // before the process ends, same hazard the SARIF branch above guards against.
     // Under --ci, warnings do not affect the exit code ("exit nonzero on error only").

@@ -1,6 +1,6 @@
 # Dynamic development set
 
-These 52 authored cases are a tuned development set: 26 cheats and 26 honest twins.
+These 72 authored cases are a tuned development set: 36 cheats and 36 honest twins.
 They are small generated Git repositories using Node or Python standard-library tests.
 The cases and implementation were developed together. These numbers do not establish
 accuracy on other repositories. No separate evaluation corpus was used.
@@ -15,7 +15,8 @@ Execution needs Node, Python 3, Git and Linux bubblewrap with working namespaces
 projects need no installed test packages. The harness exits nonzero for a skipped case, a
 missing expected finding or a flagged honest case. `results.json` records the measured run.
 
-Rows use disjoint case families; red-baseline and plain-Python rows contain the 16 additions.
+Rows use disjoint case families. Twenty added cases cover typed probes, bare Python functions,
+discovery errors and mutation-lite. All cases remain part of the same tuning process.
 
 | Idea | Kept behavior | Tuned development results |
 |------|---------------|---------------------------|
@@ -27,13 +28,17 @@ Rows use disjoint case families; red-baseline and plain-Python rows contain the 
 | Red-baseline cross-run | Compare passing old tests even beside other old failures | 1/1 cheat found, 0/1 honest fix flagged |
 | Red-baseline expectations | Gate on the edited test itself, including old failures made green by changing expectations | 2/2 cheats found, 0/2 honest fixes flagged |
 | Plain Python files | Use file ids and direct exit codes when discovery finds no real cases | 3/3 cheats found, 0/3 honest fixes flagged |
+| String and boolean probes | DY002 compares an executed simple reference at a string literal and two variants, or both boolean values | 5/5 cheats found, 0/5 honest fixes flagged |
+| Bare Python functions and discovery errors | Isolate top-level functions with file/function ids; execute scripts after collection errors | 3/3 cheats found, 0/3 honest fixes flagged |
+| Mutation-lite | DY004 deletes or negates parser-confirmed changed statements in functions observed during a green control run | 2/2 cheats found, 0/2 honest fixes flagged |
 | Guard restoration | Dropped as a verdict; the harness restores each removed guard experimentally | Restoring a guard makes the new tests red for 3/3 cheats and 3/3 honest API relaxations |
 | Sleep or retry repetition | DY005 compares four runs, requiring a passing result and at least two failures for the same named test | 3/3 cheats found, 0/3 honest twins flagged |
 
-Sixteen cases cover red baselines, including eight cheat/fix twins. These were added during
-the same tuning process; their results are still dev-set numbers.
+An earlier expansion added 16 red-baseline cases, including eight cheat/fix pairs. The latest
+20 cases also start red and exercise typed branches, plain Python and mutation-lite. All were
+added during the same tuning process; their results are still dev-set numbers.
 
-Overall: **22/26 cheats found, 0/26 honest cases flagged, 0 skipped** on this tuned dev set.
+Overall: **32/36 cheats found, 0/36 honest cases flagged, 0 skipped** on this tuned dev set.
 The four misses are the three guard-removal cases and the coverage-only case. A red restored
 variant is evidence that tests depend on a guard being absent; it does not establish whether
 removing that guard was legitimate. The repeat fixtures deliberately exercise persistent
@@ -49,11 +54,11 @@ runs per revision, interleaved after five warm-ups each. To compare two built re
 node bench/dynamic-dev/measure-static.mjs /path/to/baseline/dist/cli.js dist/cli.js
 ```
 
-The baseline is the previous PR head at `46c18161f39b3bad04347de4d4cf5e5d647fc75a`, version
-1.1.0, before the red-baseline and Python discovery fixes.
-The measured medians were **201 ms before and 200 ms after** without dynamic opt-in. This is
+The baseline is the previous PR head at `807474a6114827e1c61bb408e1fe20ea024f35e8`, version
+1.1.0, before the typed-probe, function-fallback and mutation-lite additions.
+The measured medians were **206 ms before and 209 ms after** without dynamic opt-in. This is
 one fixture on one Linux host, within run-to-run variation, not a general speed claim.
-The measured dynamic CLI median was **653 ms** across the 52 toy cases, with **32.10 seconds**
+The measured dynamic CLI median was **689 ms** across the 72 toy cases, with **53.10 seconds**
 for all case CLI invocations combined. This includes CLI startup and static checking. Dependency-heavy
 suites can cost much more and can exhaust the budget. Individual case timings are in `results.json`.
 Absolute host Node executable paths in the recorded commands are normalized to `node`.
@@ -66,18 +71,20 @@ Absolute host Node executable paths in the recorded commands are normalized to `
   script. Jest and Vitest run through that script with JSON reporters and single-run options.
   Node scripts use `NODE_OPTIONS=--test-reporter=tap`. Python supports unittest discovery
   from the repository root and pytest through `python3 -m pytest` with a JUnit report.
-  When unittest reports zero tests (exit 0 or 5), run each discovered Python test file directly.
-  An assertion raised during discovery import with no real unittest cases also triggers direct
-  execution. Each filename is one test id and its actual process exit code is retained in evidence.
-  Direct execution reruns top-level code after discovery, and file-level success cannot prove that
-  every function or assertion inside a file ran. Mixed suites with real unittest cases do not add
-  separate outcomes for plain files. Python plugin autoload is disabled. Custom discovery,
+  With no real unittest cases, zero discovery or collection errors trigger direct execution.
+  Files with top-level `test_*` functions run one function per fresh process by importing the module
+  and calling it, including async functions. Each `file::function` is a test id. Other scripts run
+  as `python3 <file>`, using the filename as id. Commands and actual exit codes remain in evidence.
+  Duplicate function names in one file skip. Direct execution reruns top-level code after discovery;
+  functions requiring fixtures or custom arguments are unsupported. Mixed suites with real unittest
+  cases do not add separate outcomes for plain files; collection errors beside real cases still skip.
+  Python plugin autoload is disabled. Custom discovery,
   delegated scripts and monorepos can skip.
 - Tests must be runnable without network or credentials; an old named failure is evidence, not
   a reason to skip the whole case. Dependencies must
   already be installed. Changed dependency manifests, unreadable reporters, duplicate test
-  names, dependency or syntax failures during collection and unavailable runners cause a skip,
-  with no dynamic findings.
+  names and unavailable runners cause a skip. Plain-script dependency or syntax errors become
+  direct-file failures, without manufacturing a green result or a finding merely for being red.
   The runner does not install anything. Unsupported languages report a not-run note.
 - Snapshots use the index for `--staged`, HEAD plus the reported files for working changes, and
   the merge base with HEAD for `--base`. Hybrid snapshots replace test files, not whole source
@@ -93,19 +100,36 @@ Absolute host Node executable paths in the recorded commands are normalized to `
   a scratch directory because the parent cannot perform filesystem cleanup after being killed.
 - Windows and macOS report a skip until equivalent isolation is implemented. Missing or
   restricted bubblewrap also skips. There is no unconfined fallback.
-- Numeric probes cover only named exported JavaScript functions or top-level Python functions
-  with an old unary arithmetic return and a newly added numeric literal branch. At most eight
-  candidates are probed. Both neighbors must match the old reference and the special input must
-  differ. Only the new suite must be green; a red old suite does not block probing. Changed tests disable probing. Strings, classes, complex logic and TypeScript probes
-  are outside this prototype.
+- Literal probes cover named exported JavaScript functions or top-level Python functions with
+  a simple unary return: arithmetic, identity, boolean negation, string concatenation or selected
+  case/whitespace methods. Branch inputs and results can be numbers, strings or booleans.
+  At most eight candidates are probed. Two string/numeric variants, or the other boolean, must
+  match the old reference; only the special input may differ. The new suite must be green and
+  tests unchanged; a red old suite does not block probing. Escaped string literals, classes,
+  complex expressions and TypeScript are outside this scope.
+- Mutation-lite runs only for a red old suite and green new suite with unchanged tests and no
+  documented intent. A separate green control records called functions using native V8 coverage
+  or Python's profile hook. At most four added/modified statement lines are deleted or negated,
+  one at a time in the same scratch copy, with the source restored after each run. JavaScript uses
+  Acorn; Python uses `ast` and an unparse/parse round trip. Parsed trees must differ only by the
+  intended mutation. Statements and conditions already present in the old parsed tree are skipped,
+  including formatting and comment edits. Only whole single-line statements and simple conditions/returns qualify.
+  Removed lines, unsupported syntax, decorated Python functions, missing coverage and large
+  line diffs are skipped. Transforms and custom profilers can hide function ranges. The suite
+  must preserve exactly the same named passing results under a mutation and a restored control.
+  Surviving mutations show no demonstrated test protection, which can also mean redundant code
+  or behavior deliberately outside the test contract. They cannot prove intent. All control and
+  mutation runs share the existing overall timeout; timeout still discards incomplete findings.
 - A changed literal equality in the same test file suppresses the cross-run regression warning.
   Expectation-only findings require a single changed test file with no edits except equality
-  literals, and no changed non-test inputs or source. A newly added non-heading SPEC or CHANGELOG line suppresses regression, probe and expectation
-  findings for the diff. This broad intent allowance favors silence and can hide unrelated bugs.
+  literals, and no changed non-test inputs or source. A newly added non-heading SPEC or CHANGELOG
+  line suppresses regression, probe, expectation and mutation findings for the diff. This broad
+  intent allowance favors silence and can hide unrelated bugs.
   It cannot establish whether a note actually justifies a behavior change.
 - Repeats keep the same scratch copy and can reveal order dependence. A consistent race mask
   can pass all four runs. An initial failing new suite does not trigger repetition.
 - Findings are warnings, carrying command, run label and named outcomes in their message.
   They appear in text, JSON, SARIF and Markdown; skips are reported on stderr. Static severity,
   ignore, approval and suppression settings do not currently filter dynamic findings. Warnings
+  from DY002 and DY004 are advisory and never change the exit code on their own. Other warnings
   follow existing CLI exit behavior, including `--ci`. No dynamic finding proves intent.

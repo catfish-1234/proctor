@@ -48,6 +48,8 @@ function definesPythonFunction(text: string, name: string): boolean {
 }
 export function locateTest(id: string, tree: Snapshot, tests: string[]): string | undefined {
   if (tests.includes(id) && tree.has(id)) return id;
+  const [plainFile, plainFunction] = id.split('::');
+  if (plainFunction && plainFile && tests.includes(plainFile) && tree.has(plainFile)) return plainFile;
   const python = (/^(test\w+) \(/.exec(id)?.[1] ?? id.split('::').at(-1))?.replace(/\[.*$/, '');
   const exact = tests.filter(p => {
     const text = tree.get(p)?.data.toString() ?? '';
@@ -58,10 +60,30 @@ export function locateTest(id: string, tree: Snapshot, tests: string[]): string 
     .some(m => id.endsWith(' ' + m[2])));
   return nested.length === 1 ? nested[0] : undefined;
 }
-export interface Probe { file: string; name: string; input: number; returned: number; line: number; language: 'js' | 'python' }
+export type ProbeValue = number | string | boolean;
+export interface Probe { file: string; name: string; input: ProbeValue; returned: ProbeValue; line: number; language: 'js' | 'python' }
 const UNARY_ARITHMETIC = /^(\w+)\s*[*+\/-]\s*-?\d+(?:\.\d+)?$/;
-const PY_BRANCH = /if\s+(\w+)\s*==\s*(-?\d+(?:\.\d+)?)\s*:\s*return\s+(-?\d+(?:\.\d+)?)/;
-const JS_BRANCH = /if\s*\(\s*(\w+)\s*===?\s*(-?\d+(?:\.\d+)?)\s*\)\s*(?:\{\s*)?return\s+(-?\d+(?:\.\d+)?);?\s*\}?/;
+const PY_BRANCH = /if\s+(\w+)\s*==\s*(-?\d+(?:\.\d+)?|True|False|"[^"\\\n]*"|'[^'\\\n]*')\s*:\s*return\s+(-?\d+(?:\.\d+)?|True|False|"[^"\\\n]*"|'[^'\\\n]*')/;
+const JS_BRANCH = /if\s*\(\s*(\w+)\s*===?\s*(-?\d+(?:\.\d+)?|true|false|"[^"\\\n]*"|'[^'\\\n]*')\s*\)\s*(?:\{\s*)?return\s+(-?\d+(?:\.\d+)?|true|false|"[^"\\\n]*"|'[^'\\\n]*');?\s*\}?/;
+function simpleReference(expression: string, arg: string, py: boolean): boolean {
+  if (expression === arg) return true;
+  const numeric = UNARY_ARITHMETIC.exec(expression);
+  const method = /^(\w+)\.(\w+)\(\)$/.exec(expression);
+  const negate = /^(?:!\s*|not\s+)(\w+)$/.exec(expression);
+  const concat = /^(?:(\w+)\s*\+\s*(?:"[^"\\\n]*"|'[^'\\\n]*')|(?:"[^"\\\n]*"|'[^'\\\n]*')\s*\+\s*(\w+))$/.exec(expression);
+  return numeric?.[1] === arg || negate?.[1] === arg || concat?.[1] === arg || concat?.[2] === arg ||
+    (method?.[1] === arg && (py ? ['lower', 'upper', 'strip'] : ['toLowerCase', 'toUpperCase', 'trim']).includes(method[2]!));
+}
+function probeLiteral(text: string): ProbeValue {
+  if (text.startsWith('"') || text.startsWith("'")) return text.slice(1, -1);
+  if (/^(?:true|True|false|False)$/.test(text)) return text === 'true' || text === 'True';
+  return Number(text);
+}
+export function probeInputs(input: ProbeValue): ProbeValue[] {
+  if (typeof input === 'boolean') return [!input, input];
+  if (typeof input === 'string') return [`${input}a`, input, `b${input}`];
+  return [input - 1, input, input + 1];
+}
 /** Body of a simple Python def, parsed line by line so no name ever enters a pattern. */
 function pythonBody(text: string, name: string, arg: string): string | undefined {
   const header = `def ${name}(${arg}):`;
@@ -89,7 +111,7 @@ function jsBody(text: string, name: string, arg: string): string | undefined {
   }
   return undefined;
 }
-/** Deliberately narrow: named, exported unary arithmetic functions with a new numeric branch. */
+/** Named unary references only: arithmetic, string operations, identity and boolean negation. */
 export function findProbes(old: Snapshot, next: Snapshot, isTest: (path: string) => boolean): Probe[] {
   const probes: Probe[] = [];
   for (const [file, entry] of next) {
@@ -102,8 +124,7 @@ export function findProbes(old: Snapshot, next: Snapshot, isTest: (path: string)
       : [...before.matchAll(/(?:export\s+)?function (\w+)\((\w+)\)\s*\{\s*return\s+([^;{}\n]+);?\s*\}/g)];
     for (const fn of functions) {
       const [, name, arg, expression] = fn;
-      const arithmetic = UNARY_ARITHMETIC.exec(expression!.trim());
-      if (!arithmetic || arithmetic[1] !== arg) continue;
+      if (!simpleReference(expression!.trim(), arg!, py)) continue;
       if (!py && !before.includes(`export function ${name}`) && !before.includes('module.exports') && !before.includes(`exports.${name}`)) continue;
       const body = py ? pythonBody(after, name!, arg!) : jsBody(after, name!, arg!);
       if (!body) continue;
@@ -113,7 +134,7 @@ export function findProbes(old: Snapshot, next: Snapshot, isTest: (path: string)
       // No extra statements, calls, assignments or comments: no claim about arbitrary functions.
       const remainder = body.replace(branch[0], '').replace(/return\s+/, '').replace(/[;\s]/g, '');
       if (remainder !== expression!.replace(/\s/g, '')) continue;
-      probes.push({ file, name: name!, input: Number(branch[2]), returned: Number(branch[3]), line: after.slice(0, after.indexOf(branch[0])).split('\n').length, language: py ? 'python' : 'js' });
+      probes.push({ file, name: name!, input: probeLiteral(branch[2]!), returned: probeLiteral(branch[3]!), line: after.slice(0, after.indexOf(branch[0])).split('\n').length, language: py ? 'python' : 'js' });
     }
   }
   return probes.slice(0, 8);

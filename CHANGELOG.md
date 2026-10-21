@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Extend plain Python fallback to discovery errors and run each top-level `test_*` function in
+  its own process, retaining per-test ids. Preserve unittest and pytest when they collect cases.
+- Extend dynamic literal probes to simple string and boolean references. Add DY004 mutation-lite
+  for red-to-green fixes with unchanged tests: at most four parser-confirmed mutations in called
+  functions, within the existing sandbox and overall budget. DY002 and DY004 remain warnings
+  and do not change the exit code on their own. Add ten cheat/honest dev-case pairs.
 - Keep meaningful dynamic checks running on red original suites. Compare named test outcomes
   independently, probe numeric branches when the new suite passes, and detect expectation-only
   edits that already turn an old failure green without changing code.

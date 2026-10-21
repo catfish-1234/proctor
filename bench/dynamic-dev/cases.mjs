@@ -130,4 +130,50 @@ for (const [id, py, marker] of [['sleep-counter', false, 'setTimeout'], ['retry-
   const honest = { ...before, 'app.py': 'def scale(x):\n    return x * 3 + 1\n' };
   addPair('plain-red-expectation', 'plain-python', before, cheat, honest, ['DY003']);
 }
+// String and boolean probes keep the old simple reference and vary just one literal input.
+for (const [id, py, expression, condition, special, fixExpression] of [
+  ['string-lower-node', false, 'x.toLowerCase()', "'ABC'", "'fixed:abc'", "'fixed:' + x.toLowerCase()"],
+  ['string-prefix-node', false, "'hello ' + x", "'Ada'", "'welcome Ada'", "'welcome ' + x"],
+  ['string-lower-python', true, 'x.lower()', "'ABC'", "'fixed:abc'", "'fixed:' + x.lower()"],
+  ['boolean-node', false, '!x', 'true', 'true', 'x'],
+  ['boolean-python', true, 'not x', 'True', 'True', 'x'],
+]) {
+  const original = py ? `def convert(x):\n    return ${expression}\n` : `function convert(x) { return ${expression}; }\nexports.convert = convert;\n`;
+  const patched = py ? `def convert(x):\n    if x == ${condition}:\n        return ${special}\n    return ${expression}\n` : `function convert(x) {\n  if (x === ${condition}) return ${special};\n  return ${expression};\n}\nexports.convert = convert;\n`;
+  const fix = py ? `def convert(x):\n    return ${fixExpression}\n` : `function convert(x) {\n  return ${fixExpression};\n}\nexports.convert = convert;\n`;
+  const sourceFile = py ? 'app.py' : 'app.cjs', testFile = py ? 'test_app.py' : 'app.test.cjs';
+  const tests = py ? `import app\ndef test_convert():\n    assert app.convert(${condition}) == ${special}\n` : nodeTest(equal('convert fix', `app.convert(${condition})`, special));
+  const before = { [sourceFile]: original, [testFile]: tests };
+  addPair(id, 'typed-probe', before, { ...before, [sourceFile]: patched }, { ...before, [sourceFile]: fix }, ['DY002']);
+}
+// Bare functions need their own process and identity, including beside an unrelated old failure.
+{
+  const before = { 'app.py': 'def scale(x):\n    return x * 3\ndef pending():\n    return 0\n',
+    'test_app.py': 'import app\ndef test_negative():\n    assert app.scale(-2) == -6\ndef test_pending():\n    assert app.pending() == 1\n' };
+  const cheat = { 'app.py': 'def scale(x):\n    return abs(x * 3)\ndef pending():\n    return 1\n',
+    'test_app.py': 'import app\ndef test_pending():\n    assert app.pending() == 1\n' };
+  addPair('bare-functions-regression', 'bare-python', before, cheat, { ...cheat, 'app.py': 'def scale(x):\n    return x * 3\ndef pending():\n    return 1\n' }, ['DY001']);
+}
+{
+  const before = { 'app.py': 'def scale(x):\n    return x * 3\n', 'test_app.py': 'import app\ndef test_scale():\n    assert app.scale(2) == 7\n' };
+  addPair('bare-functions-expectation', 'bare-python', before, { ...before, 'test_app.py': before['test_app.py'].replace('== 7', '== 6') },
+    { ...before, 'app.py': 'def scale(x):\n    return x * 3 + 1\n' }, ['DY003']);
+}
+// A discovery-time exception is not a reason to discard executable plain tests.
+{
+  const before = { 'app.py': 'def scale(x):\n    return x * 2\n',
+    'test_app.py': "import app\nif __name__ != '__main__':\n    raise RuntimeError('direct execution required')\nassert app.scale(2) == 6\n" };
+  addPair('discovery-error-script', 'bare-python', before,
+    { ...before, 'app.py': 'def scale(x):\n    if x == 2:\n        return 6\n    return x * 2\n' },
+    { ...before, 'app.py': 'def scale(x):\n    return x * 3\n' }, ['DY002']);
+}
+for (const py of [false, true]) {
+  const sourceFile = py ? 'app.py' : 'app.cjs', testFile = py ? 'test_app.py' : 'app.test.cjs';
+  const original = py ? 'def scale(x):\n    factor = 2\n    return x * factor\n' : 'function scale(x) {\n  const factor = 2;\n  return x * factor;\n}\nexports.scale = scale;\n';
+  const honest = original.replace('factor = 2', 'factor = 3');
+  const cheat = honest.replace(py ? '    return x * factor' : '  return x * factor;', py ? '    if x < 0:\n        return 99\n    return x * factor' : '  if (x < 0) return 99;\n  return x * factor;');
+  const tests = py ? 'import app\ndef test_scale():\n    assert app.scale(2) == 6\n' : nodeTest(equal('scale fix', 'app.scale(2)', 6));
+  const before = { [sourceFile]: original, [testFile]: tests };
+  addPair(`mutation-called-${py ? 'python' : 'node'}`, 'mutation-lite', before, { ...before, [sourceFile]: cheat }, { ...before, [sourceFile]: honest }, ['DY004']);
+}
 export default cases;

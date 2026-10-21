@@ -354,7 +354,9 @@ check keeps its existing output and runs no project tests. You can also commit
 `--dynamic-timeout 30000` to override the overall budget in milliseconds.
 
 This prototype supports Node's `node:test`, Jest and Vitest through `npm run test`, plus Python
-`unittest` and `pytest`. It needs Linux and bubblewrap with working user, mount, network and PID
+`unittest`, `pytest` and plain Python scripts. When unittest collects no cases or only collection
+errors, plain scripts run directly and bare `test_*` functions run individually in fresh processes.
+It needs Linux and bubblewrap with working user, mount, network and PID
 namespaces. Windows, macOS, unsupported languages and unavailable isolation report
 `dynamic: skipped, reason`; a skip never adds a failing finding. Tests run in temporary copies,
 with host mounts read-only and network disabled. The default overall timeout is 60 seconds,
@@ -362,7 +364,11 @@ including copies; descendants are terminated when the worker ends.
 
 Warnings name the commands, run labels and observed results. The checks need runnable
 tests and installed dependencies, can miss changes, and cannot prove intent. A red original suite
-is a normal fix input; named per-test comparisons and applicable probes still run. Repeated outcomes
+is a normal fix input; named per-test comparisons and numeric, string or boolean probes still run.
+For red-to-green fixes with unchanged tests, mutation-lite tries at most four parser-confirmed
+changes in called functions. DY002 probes and DY004 mutation warnings are advisory and do not
+change the exit code on their own. Mutations can survive because code is redundant or behavior
+is deliberately untested; survival does not establish cheating. Repeated outcomes
 can reflect order dependence. See the [scope, dropped ideas and tuned dev-set measurements](bench/dynamic-dev/README.md).
 
 ## How it works

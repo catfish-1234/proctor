@@ -369,7 +369,15 @@ For red-to-green fixes with unchanged tests, mutation-lite tries at most four pa
 changes in called functions. DY002 probes and DY004 mutation warnings are advisory and do not
 change the exit code on their own. Mutations can survive because code is redundant or behavior
 is deliberately untested; survival does not establish cheating. Repeated outcomes
-can reflect order dependence. See the [scope, dropped ideas and tuned dev-set measurements](bench/dynamic-dev/README.md).
+can reflect order dependence.
+
+Measured limits: dynamic checks are opt-in and advisory only. They do not change which findings
+block a commit. Mutation-lite reports missing test coverage, not cheating, and it can fire on
+honest changes whose tests do not cover every changed line. On a private 80-case corpus (40
+cheating changes, 40 honest ones) that informed this iteration, dynamic warnings surfaced 4
+cheating changes the static checks missed and flagged 1 honest change. Because the same corpus
+informed the checks, these are not clean held-out numbers.
+See the [scope, dropped ideas and tuned dev-set measurements](bench/dynamic-dev/README.md).
 
 ## How it works
 

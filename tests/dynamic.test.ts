@@ -178,7 +178,7 @@ describe('dynamic probe and mutation extensions', () => {
       if (sandboxAvailable) expect(r.reason).toContain('no named test results');
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
-  it.each(['node', 'python'])('observes and kills a covered change while detecting an unprotected %s statement', async (language, context) => {
+  for (const language of ['node', 'python']) it(`observes and kills a covered change while detecting an unprotected ${language} statement`, async context => {
     const sample = cases.find(c => c.id === `mutation-called-${language}-cheat`)!;
     const dir = makeRepo(sample);
     try {
@@ -193,7 +193,7 @@ describe('dynamic probe and mutation extensions', () => {
       expect(readFileSync(join(dir, language === 'node' ? 'app.cjs' : 'app.py'), 'utf8')).toBe(sample.after[language === 'node' ? 'app.cjs' : 'app.py']);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
-  it.each(['documented', 'edited tests', 'green baseline', 'uncalled', 'covered branches', 'formatting'])('does not warn on ambiguous mutation evidence: %s', async (variant, context) => {
+  for (const variant of ['documented', 'edited tests', 'green baseline', 'uncalled', 'covered branches', 'formatting']) it(`does not warn on ambiguous mutation evidence: ${variant}`, async context => {
     const sample = cases.find(c => c.id === 'mutation-called-node-cheat')!;
     const before = { ...sample.before }, after = { ...sample.after };
     if (variant === 'documented') after['SPEC.md'] = 'Negative values now use the calibration value.\n';
@@ -214,7 +214,7 @@ describe('dynamic probe and mutation extensions', () => {
       expect(r.findings).toEqual([]);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
-  it.each(['--json', '--sarif'])('keeps probe and mutation warnings advisory with %s output', (format, context) => {
+  for (const format of ['--json', '--sarif']) it(`keeps probe and mutation warnings advisory with ${format} output`, context => {
     for (const id of ['red-numeric-node-cheat', 'mutation-called-node-cheat']) {
       const dir = makeRepo(cases.find(c => c.id === id)!);
       try {

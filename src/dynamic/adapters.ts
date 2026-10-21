@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import type { Snapshot } from './snapshots.js';
 import type { TestRun } from './runner.js';
 
-export interface Adapter { command: string; args: string[]; kind: 'tap' | 'jest' | 'vitest' | 'unittest' | 'pytest' }
+export interface Adapter { command: string; args: string[]; kind: 'tap' | 'jest' | 'vitest' | 'unittest' | 'pytest'; testFiles?: string[] }
 export function detectAdapter(tree: Snapshot, tests: string[]): Adapter {
   const pkgText = tree.get('package.json')?.data.toString();
   if (pkgText) {
@@ -27,7 +27,7 @@ export function detectAdapter(tree: Snapshot, tests: string[]): Adapter {
       py.some(p => /(?:^|\n)\s*(?:import pytest|from pytest\b)/.test(tree.get(p)?.data.toString() ?? ''));
     return pytest
       ? { command: 'python3', args: ['-m', 'pytest', '-q', '--tb=short', '--junitxml=.proctor-junit.xml'], kind: 'pytest' }
-      : { command: 'python3', args: ['-m', 'unittest', 'discover', '-v'], kind: 'unittest' };
+      : { command: 'python3', args: ['-m', 'unittest', 'discover', '-v'], kind: 'unittest', testFiles: py };
   }
   throw Error('not run: no supported Node or Python tests found');
 }
@@ -76,6 +76,20 @@ export function parseResults(kind: Adapter['kind'], stdout: string, stderr: stri
   }
   return uniqueOutcomes(rows);
 }
+function runPythonFiles(adapter: Adapter, dir: string, label: string, discovery: string): TestRun {
+  if (!adapter.testFiles?.length) throw Error(`cannot run ${label}: no Python files for direct execution`);
+  const passed: string[] = [], failed: string[] = [], details: string[] = [];
+  const fileRuns: NonNullable<TestRun['fileRuns']> = [];
+  for (const file of adapter.testFiles) {
+    const r = spawnSync(adapter.command, [file], { cwd: dir, encoding: 'utf8', maxBuffer: 2 * 1024 * 1024, env: { ...process.env, PWD: dir } });
+    if (r.error || r.signal || r.status === null) throw Error(`cannot run ${label}, ${file}: ${r.error?.message ?? r.signal ?? 'no exit code'}`);
+    fileRuns.push({ file, command: `${adapter.command} ${file}`, exitCode: r.status });
+    (r.status === 0 ? passed : failed).push(file);
+    details.push(`${file}: exit ${r.status}\n${r.stdout ?? ''}${r.stderr ?? ''}`);
+  }
+  return { label, command: `${adapter.command} -m unittest discover -v, then direct Python files`, exitCode: failed.length ? 1 : 0,
+    passed, failed, fileRuns, detail: stripVTControlCharacters(`${discovery}\n${details.join('\n')}`).slice(-1200) };
+}
 export function runTests(adapter: Adapter, dir: string, label: string): TestRun {
   const artifact = join(dir, '.proctor-junit.xml');
   if (adapter.kind === 'pytest') rmSync(artifact, { force: true });
@@ -83,6 +97,15 @@ export function runTests(adapter: Adapter, dir: string, label: string): TestRun 
   if (r.error || r.signal) throw Error(`cannot run ${label}: ${r.error?.message ?? r.signal}`);
   const stdout = r.stdout ?? '', stderr = r.stderr ?? '';
   const outcomes = parseResults(adapter.kind, stdout, stderr, existsSync(artifact) ? readFileSync(artifact, 'utf8') : '');
+  if (adapter.kind === 'unittest') {
+    const zeroDiscovered = (r.status === 0 || r.status === 5) && /^Ran 0 tests? in /m.test(stderr);
+    // A top-level plain assert can fail during discovery import, before any real unittest case exists.
+    const onlyImportAssertions = !outcomes.passed.length && outcomes.failed.length > 0 &&
+      outcomes.failed.every(id => id.includes('unittest.loader._FailedTest')) && /^AssertionError(?:[:\s]|$)/m.test(stderr) &&
+      !/ModuleNotFoundError|SyntaxError/.test(stderr);
+    if (zeroDiscovered || onlyImportAssertions) return runPythonFiles(adapter, dir, label, stdout + stderr);
+    if (outcomes.failed.some(id => id.includes('unittest.loader._FailedTest'))) throw Error(`cannot run ${label}: unittest collection failed`);
+  }
   if (outcomes.passed.length + outcomes.failed.length === 0) throw Error(`cannot run ${label}: no named test results (exit ${r.status}); ${String(stdout + stderr).replace(/\s+/g, ' ').slice(-300)}`);
   if (r.status !== 0 && outcomes.failed.length === 0) throw Error(`cannot run ${label}: command exited ${r.status} without a named failing test`);
   if (r.status === 0 && outcomes.failed.length) throw Error(`cannot run ${label}: reporter and exit code disagree`);

@@ -12,7 +12,7 @@ const options = JSON.parse(readFileSync(process.argv[2]!, 'utf8')) as DynamicOpt
 const scratch = dirname(process.argv[2]!);
 const result: DynamicResult = { status: 'completed', findings: [], runs: [], notes: [], elapsedMs: 0 };
 function evidence(...runs: TestRun[]): string {
-  return runs.map(r => `${r.label}: \`${r.command}\`, exit ${r.exitCode}, ${r.passed.length} passed, ${r.failed.length} failed${r.failed.length ? ` (${r.failed.join(', ')})` : ''}`).join('; ');
+  return runs.map(r => `${r.label}: \`${r.command}\`, exit ${r.exitCode}, ${r.passed.length} passed, ${r.failed.length} failed${r.failed.length ? ` (${r.failed.join(', ')})` : ''}${r.fileRuns ? '; ' + r.fileRuns.map(f => `\`${f.command}\`, exit ${f.exitCode}, file ${f.file}`).join('; ') : ''}`).join('; ');
 }
 function finding(id: string, file: string, message: string, runs: TestRun[], line = 1): void {
   result.findings.push({ verifierId: id, severity: 'warn', file, line, message: `${message} Evidence: ${evidence(...runs)}.`, suggestion: 'Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.' });
@@ -36,8 +36,10 @@ try {
     return { run: testRun, dir };
   }
   const original = run(old, 'original tests / original code').run;
-  if (original.exitCode !== 0 || original.failed.length) throw Error('original test suite is not green');
   const current = run(next, 'new tests / new code');
+  if (original.failed.length && current.run.exitCode === 0) {
+    result.notes.push('Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.');
+  }
   const testChanges = [...new Set([...oldTests, ...nextTests])].filter(p => old.get(p)?.data.toString() !== next.get(p)?.data.toString());
   const changedSource = [...new Set([...old.keys(), ...next.keys()])].some(p => !isTest(p) && !/\.(?:md|rst|txt)$/i.test(p) && old.get(p)?.data.toString() !== next.get(p)?.data.toString());
   const intent = documentedIntent(old, next);
@@ -49,7 +51,7 @@ try {
     return hybrid;
   }
   const cross = testChanges.length ? run(withTests(next, old), 'original tests / new code').run : current.run;
-  if (current.run.exitCode === 0 && !intent) {
+  if (!intent) {
     for (const id of cross.failed.filter(id => original.passed.includes(id))) {
       const file = locateTest(id, old, oldTests);
       if (file && !edits.includes(file)) finding('DY001', file, `Previously passing original test ${JSON.stringify(id)} fails against the new code`, [original, current.run, cross]);
@@ -60,14 +62,19 @@ try {
     reverse = run(withTests(old, next), 'new tests / original code').run;
     const both = current.run.passed.filter(id => reverse!.passed.includes(id));
     if (both.length) result.notes.push(`${both.length} named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.`);
-    if (!changedSource && !intent && testChanges.length === 1 && edits.length && expectationOnlyEdit(old.get(edits[0]!)?.data.toString() ?? '', next.get(edits[0]!)?.data.toString() ?? '') && reverse.failed.length && /AssertionError|AssertionError:|Expected|expected|Assertion failed/.test(reverse.detail)) {
-      for (const id of reverse.failed.filter(id => original.passed.includes(id))) {
+    if (!changedSource && !intent && testChanges.length === 1 && edits.length && expectationOnlyEdit(old.get(edits[0]!)?.data.toString() ?? '', next.get(edits[0]!)?.data.toString() ?? '')) {
+      const rejected = reverse.failed.filter(id => original.passed.includes(id));
+      const accepted = reverse.passed.filter(id => original.failed.includes(id));
+      for (const id of [...rejected, ...accepted]) {
         const file = locateTest(id, old, oldTests);
-        if (file && edits.includes(file)) finding('DY003', file, `Only the expected literal changed (${expectationChanges(old.get(file)?.data.toString() ?? '', next.get(file)?.data.toString() ?? '').map(e => `${e.before} to ${e.after}`).join(', ')}): original test ${JSON.stringify(id)} passed with the old expected value on original code and the edited test fails on that same code`, [original, current.run, reverse]);
+        const mismatch = accepted.includes(id)
+          ? 'failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior'
+          : 'passed with the original expectation, but the edited expectation fails on that same old code';
+        if (file && edits.includes(file)) finding('DY003', file, `Only the expected literal changed (${expectationChanges(old.get(file)?.data.toString() ?? '', next.get(file)?.data.toString() ?? '').map(e => `${e.before} to ${e.after}`).join(', ')}): test ${JSON.stringify(id)} ${mismatch}`, [original, current.run, reverse]);
       }
     }
   }
-  // Probe only when tests are unchanged and both complete suites pass. An added test or spec
+  // Probes need unchanged tests and a passing new suite, even when the old suite is red. An added test or spec
   // can intentionally introduce an exception, so this prototype gives it the benefit of doubt.
   if (current.run.exitCode === 0 && !testChanges.length && !intent) {
     for (const probe of findProbes(old, next, isTest)) {

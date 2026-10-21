@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Keep meaningful dynamic checks running on red original suites. Compare named test outcomes
+  independently, probe numeric branches when the new suite passes, and detect expectation-only
+  edits that already turn an old failure green without changing code.
+- Fall back from zero unittest discovery to direct Python test-file execution, preserving file
+  ids and exit codes. Report unavailable integration tests as explicit skips with reasons.
+
 - Add opt-in `proctor check --dynamic`, committed `dynamic` configuration and a configurable
   60-second overall budget. Isolated test runs can report original-test regressions, narrow
   numeric branch contradictions, expectation-only contradictions and inconsistent sleep/retry

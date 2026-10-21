@@ -360,8 +360,9 @@ namespaces. Windows, macOS, unsupported languages and unavailable isolation repo
 with host mounts read-only and network disabled. The default overall timeout is 60 seconds,
 including copies; descendants are terminated when the worker ends.
 
-Warnings name the commands, run labels and observed results. The checks need passing original
-tests and installed dependencies, can miss changes, and cannot prove intent. Repeated outcomes
+Warnings name the commands, run labels and observed results. The checks need runnable
+tests and installed dependencies, can miss changes, and cannot prove intent. A red original suite
+is a normal fix input; named per-test comparisons and applicable probes still run. Repeated outcomes
 can reflect order dependence. See the [scope, dropped ideas and tuned dev-set measurements](bench/dynamic-dev/README.md).
 
 ## How it works

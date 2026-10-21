@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, type TestContext } from 'vitest';
 import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, rmSync, existsSync, readdirSync, cpSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -21,14 +21,14 @@ const cases = samples as Sample[];
 const CLI = resolve('dist/cli.js');
 const workerPath = resolve('dist/dynamic-worker.js');
 const sandboxAvailable = process.platform === 'linux' && spawnSync('bwrap', ['--ro-bind', '/', '/', '--unshare-net', '--unshare-pid', '--proc', '/proc', '--dev', '/dev', '--', 'true']).status === 0;
-function runnable(result: Awaited<ReturnType<typeof runDynamic>>): boolean {
+function runnable(result: Awaited<ReturnType<typeof runDynamic>>, context: TestContext): void {
   if (!sandboxAvailable) {
     expect(result.status).toBe('skipped'); expect(result.reason).toBeTruthy(); expect(result.findings).toEqual([]);
-    return false;
+    context.skip(`Dynamic isolation is unavailable: ${result.reason}`);
   }
   expect(result.status, result.reason).toBe('completed');
-  return true;
 }
+
 function dynamic(dir: string, extra = {}) {
   const { files } = runGitDiff(['HEAD'], dir, { includeUntracked: true });
   return runDynamic({ cwd: dir, workerPath, files, testPathGlobs: ['**/*.test.{js,mjs,cjs}', '**/test_*.py'], ...extra });
@@ -82,11 +82,15 @@ describe('dynamic result parsing and conservative signals', () => {
 });
 
 describe('isolated dynamic execution and precision twins', () => {
-  it.each(cases)('$id', async sample => {
+  for (const sample of cases) it(sample.id, async context => {
     const dir = makeRepo(sample);
     try {
       const result = await dynamic(dir);
-      if (!runnable(result)) return;
+      runnable(result, context);
+      if (sample.id.startsWith('red-') || sample.id.startsWith('plain-red-')) {
+        expect(result.runs[0]!.failed.length).toBeGreaterThan(0);
+        if (sample.label === 'honest') expect(result.runs[1]!.exitCode).toBe(0);
+      }
       const ids = result.findings.map(f => f.verifierId);
       if (sample.label === 'honest' || sample.expected.length === 0) expect(ids).toEqual([]);
       for (const id of sample.expected) expect(ids).toContain(id);
@@ -107,7 +111,7 @@ describe('isolated dynamic execution and precision twins', () => {
       expect(result.stderr).not.toContain('dynamic:'); expect(existsSync(join(dir, 'executed'))).toBe(false);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
-  it('reads dynamic opt-in and budget from the committed config', async () => {
+  it('reads dynamic opt-in and budget from the committed config', async context => {
     const dir = makeRepo(cases[0]!);
     try {
       writeFileSync(join(dir, 'proctor.config.json'), '{"dynamic":true,"dynamicTimeoutMs":1234}');
@@ -120,31 +124,30 @@ describe('isolated dynamic execution and precision twins', () => {
       expect(result.stderr).toContain('dynamic:');
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
-  it('uses the index for --staged and the merge base for --base', async () => {
+  it('uses the index for --staged and the merge base for --base', async context => {
     const dir = makeRepo(cases[0]!);
     try {
       spawnSync('git', ['add', '.'], { cwd: dir });
       writeTree(dir, cases[0]!.before, cases[0]!.after);
       const staged = await dynamic(dir, { staged: true });
-      if (!runnable(staged)) return; expect(staged.findings.some(f => f.verifierId === 'DY001')).toBe(true);
+      runnable(staged, context); expect(staged.findings.some(f => f.verifierId === 'DY001')).toBe(true);
       spawnSync('git', ['commit', '-qm', 'Change behavior'], { cwd: dir });
       const committed = await dynamic(dir, { base: 'HEAD^' });
-      if (!runnable(committed)) return; expect(committed.findings.some(f => f.verifierId === 'DY001')).toBe(true);
+      runnable(committed, context); expect(committed.findings.some(f => f.verifierId === 'DY001')).toBe(true);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
-  it('runs the original test file even when the entire file is deleted', async () => {
+  it('runs the original test file even when the entire file is deleted', async context => {
     const sample = cases[0]!;
     const before = { ...sample.before, 'negative.test.cjs': "const {test}=require('node:test'); const assert=require('node:assert/strict'); const app=require('./app.cjs'); test('separate negative',()=>assert.equal(app.scale(-2),-6));\n" };
     const dir = makeRepo({ before, after: sample.after });
     try {
       const result = await dynamic(dir);
-      if (!runnable(result)) return; expect(result.findings.some(f => f.file === 'negative.test.cjs')).toBe(true);
+      runnable(result, context); expect(result.findings.some(f => f.file === 'negative.test.cjs')).toBe(true);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
-  it('fails open on missing runners, red baseline, unsupported language and dependency drift', async () => {
+  it('fails open on missing runners, unsupported language and dependency drift', async context => {
     const variants = [
       { 'app.go': 'package main\n' },
-      { 'app.test.cjs': "const {test}=require('node:test');test('red',()=>{throw Error('red')});\n" },
     ];
     for (const before of variants) {
       const dir = makeRepo({ before, after: before });
@@ -157,7 +160,7 @@ describe('isolated dynamic execution and precision twins', () => {
       const r = await dynamic(dir); expect(r.status).toBe('skipped'); if (sandboxAvailable) expect(r.reason).toContain('manifest changed');
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
-  it('bounds the whole worker and cleans scratch directories', async () => {
+  it('bounds the whole worker and cleans scratch directories', async context => {
     const dir = makeRepo(cases[0]!);
     const before = new Set(readdirSync(tmpdir()).filter(n => n.startsWith('proctor-dynamic-')));
     try {
@@ -167,35 +170,35 @@ describe('isolated dynamic execution and precision twins', () => {
       expect(readdirSync(tmpdir()).filter(n => n.startsWith('proctor-dynamic-') && !before.has(n))).toEqual([]);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
-  it('denies writes to the original tree and denies access to host network', async () => {
+  it('denies writes to the original tree and denies access to host network', async context => {
     const before = { 'isolation.test.cjs': `const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');\ntest('write confined',()=>assert.throws(()=>fs.writeFileSync(${JSON.stringify(join(tmpdir(), 'proctor-dynamic-outside-marker'))},'bad')));\ntest('network confined',async()=>{await assert.rejects(fetch('http://192.0.2.1:9',{signal:AbortSignal.timeout(500)}));});\n` };
     const dir = makeRepo({ before, after: before });
     try {
-      const r = await dynamic(dir); if (!runnable(r)) return; expect(r.runs[0]!.passed).toHaveLength(2);
+      const r = await dynamic(dir); runnable(r, context); expect(r.runs[0]!.passed).toHaveLength(2);
       expect(existsSync(join(tmpdir(), 'proctor-dynamic-outside-marker'))).toBe(false);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 });
 
 describe('dynamic runner scripts and lifecycle', () => {
-  it('uses the project node:test script', async () => {
+  it('uses the project node:test script', async context => {
     const sample = cases[0]!;
     const packageJson = JSON.stringify({ scripts: { test: 'node --test' } });
     const dir = makeRepo({ before: { ...sample.before, 'package.json': packageJson }, after: { ...sample.after, 'package.json': packageJson } });
     try {
-      const r = await dynamic(dir); if (!runnable(r)) return;
+      const r = await dynamic(dir); runnable(r, context);
       expect(r.runs.every(run => run.command === 'NODE_OPTIONS=--test-reporter=tap npm run test')).toBe(true);
       expect(r.findings.some(f => f.verifierId === 'DY001')).toBe(true);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
-  it('ends detached descendants on normal completion and timeout', async () => {
+  it('ends detached descendants on normal completion and timeout', async context => {
     for (const hang of [false, true]) {
       const token = `proctor-dynamic-child-${Date.now()}-${hang}`;
       const body = `const {test}=require('node:test');const {spawn}=require('node:child_process');\ntest('child lifecycle',async()=>{const c=spawn(process.execPath,['-e',${JSON.stringify(`process.title=${JSON.stringify(token)};setInterval(()=>{},1000);`)}],{detached:true,stdio:'ignore'});c.unref();await new Promise(r=>setTimeout(r,${hang ? 10000 : 100}));});\n`;
       const before = { 'lifecycle.test.cjs': body }, dir = makeRepo({ before, after: before });
       try {
         const r = await dynamic(dir, { timeoutMs: hang ? 1500 : 6000 });
-        if (!sandboxAvailable) { expect(r.status).toBe('skipped'); continue; }
+        if (!sandboxAvailable) { expect(r.status).toBe('skipped'); context.skip(`Dynamic isolation is unavailable: ${r.reason}`); }
         expect(r.status, r.reason).toBe(hang ? 'skipped' : 'completed');
         if (hang) expect(r.reason).toContain('timeout');
         const processes = spawnSync('ps', ['-eo', 'args='], { encoding: 'utf8' }).stdout.split('\n').map(p => p.trim());
@@ -203,7 +206,7 @@ describe('dynamic runner scripts and lifecycle', () => {
       } finally { rmSync(dir, { recursive: true, force: true }); }
     }
   });
-  it('reports sandbox startup failures as skips without executing project code', async () => {
+  it('reports sandbox startup failures as skips without executing project code', async context => {
     const dir = makeRepo(cases[0]!);
     const pathValue = process.env['PATH'];
     try {
@@ -217,7 +220,7 @@ describe('dynamic runner scripts and lifecycle', () => {
 
 
 describe('framework execution and interruption', () => {
-  it('executes the project Vitest script, including nested test names', async () => {
+  it('executes the project Vitest script, including nested test names', async context => {
     const pkg = JSON.stringify({ type: 'module', scripts: { test: 'vitest run' } });
     const before = { 'package.json': pkg, 'app.js': 'export const scale = x => x * 3;\n',
       'app.test.js': "import {describe,test,expect} from 'vitest';\nimport {scale} from './app.js';\ndescribe('scale',()=>{test('positive',()=>expect(scale(2)).toBe(6));test('negative',()=>expect(scale(-2)).toBe(-6));});\n" };
@@ -226,24 +229,27 @@ describe('framework execution and interruption', () => {
     const dir = makeRepo({ before, after });
     try {
       cpSync(resolve('node_modules'), join(dir, 'node_modules'), { recursive: true, verbatimSymlinks: true });
-      const r = await dynamic(dir); if (!runnable(r)) return;
+      const r = await dynamic(dir); runnable(r, context);
       expect(r.runs[0]!.command).toBe('npm run test -- --run --reporter=json');
       expect(r.findings.some(f => f.verifierId === 'DY001' && f.message.includes('scale negative'))).toBe(true);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   }, 60_000);
-  it('executes pytest when installed and otherwise reports a skip', async () => {
+  it('executes pytest when installed and otherwise reports a skip', async context => {
     const sample = cases.find(c => c.id === 'python-removed-test-cheat')!;
     const dir = makeRepo({ before: { ...sample.before, 'pytest.ini': '[pytest]\n' }, after: { ...sample.after, 'pytest.ini': '[pytest]\n' } });
     const installed = spawnSync('python3', ['-c', 'import pytest']).status === 0;
     try {
       const r = await dynamic(dir);
-      if (!sandboxAvailable || !installed) { expect(r.status).toBe('skipped'); expect(r.findings).toEqual([]); return; }
+      if (!sandboxAvailable || !installed) {
+        expect(r.status).toBe('skipped'); expect(r.findings).toEqual([]);
+        context.skip(r.reason ?? 'Python pytest is unavailable');
+      }
       expect(r.status, r.reason).toBe('completed');
       expect(r.runs[0]!.command).toContain('python3 -m pytest'); expect(r.findings.some(f => f.verifierId === 'DY001')).toBe(true);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
-  it.each(['SIGTERM', 'SIGKILL'] as const)('ends descendants if the CLI receives %s', async signal => {
-    if (!sandboxAvailable) { expect(process.platform !== 'linux' || !sandboxAvailable).toBe(true); return; }
+  for (const signal of ['SIGTERM', 'SIGKILL'] as const) it(`ends descendants if the CLI receives ${signal}`, async context => {
+    if (!sandboxAvailable) context.skip('Lifecycle checks need Linux bubblewrap with working namespaces');
     const token = `proctor-interrupt-child-${Date.now()}`;
     const body = `const {test}=require('node:test');const {spawn}=require('node:child_process');\ntest('interrupted child',async()=>{const c=spawn(process.execPath,['-e',${JSON.stringify(`process.title=${JSON.stringify(token)};setInterval(()=>{},1000);`)}],{detached:true,stdio:'ignore'});c.unref();await new Promise(r=>setTimeout(r,10000));});\n`;
     const before = { 'lifecycle.test.cjs': body }, dir = makeRepo({ before, after: before });
@@ -275,12 +281,104 @@ describe('dynamic option validation', () => {
     const r = spawnSync(process.execPath, [CLI, 'check', '--dynamic', '--dynamic-timeout', value], { encoding: 'utf8' });
     expect(r.status).toBe(2); expect(r.stderr).toContain('--dynamic-timeout must be');
   });
-  it('does not enable execution from malformed dynamic config', async () => {
+  it('does not enable execution from malformed dynamic config', async context => {
     const dir = makeRepo(cases[0]!);
     try {
       writeFileSync(join(dir, 'proctor.config.json'), '{"dynamic":"yes","dynamicTimeoutMs":0}');
       const ctx = await buildContext(dir, []);
       expect(ctx.dynamic).toBeUndefined(); expect(ctx.dynamicTimeoutMs).toBeUndefined();
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+});
+
+describe('red baseline evidence and direct Python files', () => {
+  it('keeps a red unchanged named suite as completed evidence', async context => {
+    const before = { 'app.test.cjs': "const {test}=require('node:test');test('known failure',()=>{throw Error('red')});\n" };
+    const dir = makeRepo({ before, after: before });
+    try {
+      const r = await dynamic(dir); runnable(r, context);
+      expect(r.findings).toEqual([]);
+      expect(r.runs[0]!.failed).toEqual(['known failure']);
+      expect(r.runs[1]!.failed).toEqual(['known failure']);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+  it('finds a per-test regression when both whole suites are red', async context => {
+    const sample = cases.find(c => c.id === 'red-with-regression-cheat')!;
+    const dir = makeRepo({ before: sample.before, after: { ...sample.after, 'app.test.cjs': sample.before['app.test.cjs'] } });
+    try {
+      const r = await dynamic(dir); runnable(r, context);
+      expect(r.runs[0]!.failed).toEqual(['fix pending']);
+      expect(r.runs[1]!.failed).toEqual(['negative still works']);
+      expect(r.findings.map(f => f.verifierId)).toEqual(['DY001']);
+      expect(r.findings[0]!.message).toContain('negative still works');
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+  it('stays silent when the edited test fails on both code revisions', async context => {
+    const before = { 'app.cjs': 'exports.scale = x => 6;\n',
+      'app.test.cjs': "const {test}=require('node:test');\nconst assert=require('node:assert/strict');\nconst app=require('./app.cjs');\ntest('still red',()=>{\n  assert.equal(app.scale(2), 7);\n});\n" };
+    const after = { ...before, 'app.test.cjs': before['app.test.cjs'].replace('), 7)', '), 8)') };
+    const dir = makeRepo({ before, after });
+    try {
+      const r = await dynamic(dir); runnable(r, context);
+      expect(r.findings).toEqual([]);
+      expect(r.runs[0]!.failed).toEqual(['still red']);
+      expect(r.runs.find(run => run.label === 'new tests / original code')!.failed).toEqual(['still red']);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+  it('respects documented expectation corrections on red baselines', async context => {
+    const sample = cases.find(c => c.id === 'red-rewritten-expectation-cheat')!;
+    const dir = makeRepo({ before: sample.before, after: { ...sample.after, 'SPEC.md': 'Scale returns three times its input; correct the mistaken expectation.\n' } });
+    try {
+      const r = await dynamic(dir); runnable(r, context);
+      expect(r.findings).toEqual([]);
+      expect(r.runs[0]!.failed).toHaveLength(1);
+      expect(r.runs[1]!.passed).toHaveLength(1);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+  it('uses filenames as stable ids after zero unittest discovery', async context => {
+    const before = { 'test_first.py': 'assert 2 + 2 == 4\n', 'test_second.py': 'assert 3 * 3 == 9\n' };
+    const dir = makeRepo({ before, after: before });
+    try {
+      const r = await dynamic(dir); runnable(r, context);
+      expect(r.findings).toEqual([]);
+      for (const run of r.runs) {
+        expect(run.passed).toEqual(['test_first.py', 'test_second.py']);
+        expect(run.fileRuns).toEqual([
+          { file: 'test_first.py', command: 'python3 test_first.py', exitCode: 0 },
+          { file: 'test_second.py', command: 'python3 test_second.py', exitCode: 0 },
+        ]);
+      }
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+  it('records each direct file exit code without treating it as an infrastructure skip', async context => {
+    const before = { 'test_exit.py': "if __name__ == '__main__':\n    raise SystemExit(7)\n" };
+    const dir = makeRepo({ before, after: before });
+    try {
+      const r = await dynamic(dir); runnable(r, context);
+      expect(r.findings).toEqual([]);
+      expect(r.runs[0]!.failed).toEqual(['test_exit.py']);
+      expect(r.runs[0]!.fileRuns).toEqual([{ file: 'test_exit.py', command: 'python3 test_exit.py', exitCode: 7 }]);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+  it('does not replace real unittest cases with file outcomes', async context => {
+    const sample = cases.find(c => c.id === 'red-numeric-unittest-honest')!;
+    const dir = makeRepo(sample);
+    try {
+      const r = await dynamic(dir); runnable(r, context);
+      expect(r.findings).toEqual([]);
+      expect(r.runs[0]!.failed).toHaveLength(1);
+      expect(r.runs[0]!.fileRuns).toBeUndefined();
+      expect(r.runs[1]!.passed).toHaveLength(1);
+      expect(r.runs[1]!.fileRuns).toBeUndefined();
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+  it('still skips Python import failures that are not test assertions', async context => {
+    const before = { 'test_import.py': 'import missing_project_dependency\n' };
+    const dir = makeRepo({ before, after: before });
+    try {
+      const r = await dynamic(dir);
+      expect(r.status).toBe('skipped'); expect(r.findings).toEqual([]);
+      if (sandboxAvailable) expect(r.reason).toContain('unittest collection failed');
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 });

@@ -21,6 +21,7 @@ export interface TestRun {
   passed: string[];
   failed: string[];
   detail: string;
+  fileRuns?: { file: string; command: string; exitCode: number }[];
 }
 export interface DynamicResult {
   status: 'completed' | 'skipped';
@@ -44,7 +45,12 @@ export async function runDynamic(options: DynamicOptions): Promise<DynamicResult
   let scratch: string;
   try { scratch = mkdtempSync(join(tmpdir(), 'proctor-dynamic-')); }
   catch { return skipped('cannot create scratch directory'); }
-  const clean = () => { try { rmSync(scratch, { recursive: true, force: true }); } catch {} };
+  const clean = () => {
+    try { rmSync(scratch, { recursive: true, force: true }); }
+    catch {
+      // Scratch removal is best effort after termination; cleanup failure must not turn an optional run into a check failure.
+    }
+  };
   try {
     mkdirSync(join(scratch, 'tmp'));
     writeFileSync(join(scratch, 'input.json'), JSON.stringify({ ...options, files: options.files.map(({ from, to }) => ({ from, to })) }));
@@ -66,7 +72,14 @@ export async function runDynamic(options: DynamicOptions): Promise<DynamicResult
       const child = spawn('bwrap', namespaceArgs, {
         cwd: scratch, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'],
       });
-      const kill = () => { if (child.pid) { try { process.kill(-child.pid, 'SIGKILL'); } catch {} } };
+      const kill = () => {
+        if (child.pid) {
+          try { process.kill(-child.pid, 'SIGKILL'); }
+          catch {
+            // The isolated group may already be gone; repeated cleanup must remain safe on exit and signals.
+          }
+        }
+      };
       const onExit = () => { kill(); clean(); };
       const onInt = () => { onExit(); process.exit(130); };
       const onTerm = () => { onExit(); process.exit(143); };

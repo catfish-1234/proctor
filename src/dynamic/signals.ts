@@ -4,6 +4,7 @@ const LITERAL = String.raw`(?:-?\d+(?:\.\d+)?|true|false|None|True|False|null|"[
 const ASSERTION_PATTERNS = [
   new RegExp(String.raw`^\s*((?:assert\.(?:strictEqual|equal|deepEqual|deepStrictEqual)|self\.assertEqual)\(.+?,\s*)(${LITERAL})(\s*\)\s*;?\s*)$`),
   new RegExp(String.raw`^\s*(expect\(.+?\)\.to(?:Be|Equal|StrictEqual)\(\s*)(${LITERAL})(\s*\)\s*;?\s*)$`),
+  new RegExp(String.raw`^(\s*assert\s+.+?\s*==\s*)(${LITERAL})(\s*)$`),
 ];
 const assertion = (line: string) => ASSERTION_PATTERNS.map(pattern => pattern.exec(line)).find(Boolean);
 /** Only literal equality edits with exactly the same actual expression count as intent evidence. */
@@ -39,6 +40,7 @@ export function documentedIntent(old: Snapshot, next: Snapshot): boolean {
   return false;
 }
 export function locateTest(id: string, tree: Snapshot, tests: string[]): string | undefined {
+  if (tests.includes(id) && tree.has(id)) return id;
   const python = (/^(test\w+) \(/.exec(id)?.[1] ?? id.split('::').at(-1))?.replace(/\[.*$/, '');
   const exact = tests.filter(p => {
     const text = tree.get(p)?.data.toString() ?? '';

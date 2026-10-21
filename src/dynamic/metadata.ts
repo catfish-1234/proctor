@@ -3,7 +3,7 @@ import type { RuleMeta } from '../rules.js';
 export const DYNAMIC_METADATA: Record<string, RuleMeta> = Object.fromEntries([
   ['DY001', 'OriginalTestRegression', 'Previously passing original tests fail on new code'],
   ['DY002', 'NumericBranchContradiction', 'A numeric literal branch contradicts an executed reference'],
-  ['DY003', 'ExpectedLiteralContradiction', 'An expectation-only edit fails against unchanged code'],
+  ['DY003', 'ExpectedLiteralContradiction', 'An expectation-only edit changes a test outcome on unchanged code'],
   ['DY005', 'InconsistentRepeatedTest', 'A test with a new sleep or retry has inconsistent outcomes'],
 ].map(([id, name, description]) => [id, {
   name: name!, shortDescription: description!, fullDescription: `${description}. Opt-in runtime evidence is heuristic and cannot establish intent. See README for the exact scope and limits.`,

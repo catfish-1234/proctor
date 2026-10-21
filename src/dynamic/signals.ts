@@ -39,12 +39,19 @@ export function documentedIntent(old: Snapshot, next: Snapshot): boolean {
   }
   return false;
 }
+/** Identifier comparison stays string equality; names are parsed with literal patterns, never interpolated. */
+function definesPythonFunction(text: string, name: string): boolean {
+  for (const match of text.matchAll(/^\s*def (\w+)\s*\(/gm)) {
+    if (match[1] === name) return true;
+  }
+  return false;
+}
 export function locateTest(id: string, tree: Snapshot, tests: string[]): string | undefined {
   if (tests.includes(id) && tree.has(id)) return id;
   const python = (/^(test\w+) \(/.exec(id)?.[1] ?? id.split('::').at(-1))?.replace(/\[.*$/, '');
   const exact = tests.filter(p => {
     const text = tree.get(p)?.data.toString() ?? '';
-    return text.includes(`'${id}'`) || text.includes(`"${id}"`) || (p.endsWith('.py') && !!python && new RegExp(`\\bdef ${python.replace(/[^\w]/g, '')}\\(`).test(text));
+    return text.includes(`'${id}'`) || text.includes(`"${id}"`) || (p.endsWith('.py') && !!python && definesPythonFunction(text, python));
   });
   if (exact.length) return exact.length === 1 ? exact[0] : undefined;
   const nested = tests.filter(p => [...(tree.get(p)?.data.toString() ?? '').matchAll(/\b(?:test|it)\s*\(\s*(['"])([^'"\n]+)\1/g)]
@@ -52,6 +59,36 @@ export function locateTest(id: string, tree: Snapshot, tests: string[]): string 
   return nested.length === 1 ? nested[0] : undefined;
 }
 export interface Probe { file: string; name: string; input: number; returned: number; line: number; language: 'js' | 'python' }
+const UNARY_ARITHMETIC = /^(\w+)\s*[*+\/-]\s*-?\d+(?:\.\d+)?$/;
+const PY_BRANCH = /if\s+(\w+)\s*==\s*(-?\d+(?:\.\d+)?)\s*:\s*return\s+(-?\d+(?:\.\d+)?)/;
+const JS_BRANCH = /if\s*\(\s*(\w+)\s*===?\s*(-?\d+(?:\.\d+)?)\s*\)\s*(?:\{\s*)?return\s+(-?\d+(?:\.\d+)?);?\s*\}?/;
+/** Body of a simple Python def, parsed line by line so no name ever enters a pattern. */
+function pythonBody(text: string, name: string, arg: string): string | undefined {
+  const header = `def ${name}(${arg}):`;
+  const start = text.indexOf(header);
+  if (start < 0 || (start > 0 && text[start - 1] !== '\n')) return undefined;
+  const lines = text.slice(start + header.length).split('\n');
+  const body: string[] = [];
+  for (const line of lines.slice(1)) {
+    if (line.trim() === '') { body.push(line); continue; }
+    if (/^[ \t]/.test(line)) { body.push(line); continue; }
+    break;
+  }
+  return body.length ? body.join('\n') : undefined;
+}
+/** Body of a simple JS function, located by string search and balanced to the first closing brace at column 0. */
+function jsBody(text: string, name: string, arg: string): string | undefined {
+  for (const marker of [`export function ${name}(${arg})`, `function ${name}(${arg})`]) {
+    const start = text.indexOf(marker);
+    if (start < 0) continue;
+    const open = text.indexOf('{', start + marker.length);
+    if (open < 0) return undefined;
+    const close = text.indexOf('\n}', open);
+    if (close < 0) return undefined;
+    return text.slice(open + 1, close);
+  }
+  return undefined;
+}
 /** Deliberately narrow: named, exported unary arithmetic functions with a new numeric branch. */
 export function findProbes(old: Snapshot, next: Snapshot, isTest: (path: string) => boolean): Probe[] {
   const probes: Probe[] = [];
@@ -65,20 +102,18 @@ export function findProbes(old: Snapshot, next: Snapshot, isTest: (path: string)
       : [...before.matchAll(/(?:export\s+)?function (\w+)\((\w+)\)\s*\{\s*return\s+([^;{}\n]+);?\s*\}/g)];
     for (const fn of functions) {
       const [, name, arg, expression] = fn;
-      if (!new RegExp(`^${arg}\\s*[*+/-]\\s*-?\\d+(?:\\.\\d+)?$`).test(expression!.trim())) continue;
-      if (!py && !before.includes(`export function ${name}`) && !new RegExp(`(?:module\\.exports|exports\\.${name})`).test(before)) continue;
-      const body = py
-        ? new RegExp(`^def ${name}\\(${arg}\\):\\n((?:[ \\t]+[^\\n]*\\n?)+)`, 'm').exec(after)?.[1]
-        : new RegExp(`(?:export\\s+)?function ${name}\\(${arg}\\)\\s*\\{([\\s\\S]*?)\\n?\\}`).exec(after)?.[1];
+      const arithmetic = UNARY_ARITHMETIC.exec(expression!.trim());
+      if (!arithmetic || arithmetic[1] !== arg) continue;
+      if (!py && !before.includes(`export function ${name}`) && !before.includes('module.exports') && !before.includes(`exports.${name}`)) continue;
+      const body = py ? pythonBody(after, name!, arg!) : jsBody(after, name!, arg!);
       if (!body) continue;
-      const branch = py
-        ? new RegExp(`if ${arg} == (-?\\d+(?:\\.\\d+)?):\\s*return (-?\\d+(?:\\.\\d+)?)`).exec(body)
-        : new RegExp(`if\\s*\\(\\s*${arg}\\s*===?\\s*(-?\\d+(?:\\.\\d+)?)\\s*\\)\\s*(?:\\{\\s*)?return\\s+(-?\\d+(?:\\.\\d+)?);?\\s*\\}?`).exec(body);
+      const branchMatch = (py ? PY_BRANCH : JS_BRANCH).exec(body);
+      const branch = branchMatch && branchMatch[1] === arg ? branchMatch : undefined;
       if (!branch || !body.includes(expression!.trim())) continue;
       // No extra statements, calls, assignments or comments: no claim about arbitrary functions.
       const remainder = body.replace(branch[0], '').replace(/return\s+/, '').replace(/[;\s]/g, '');
       if (remainder !== expression!.replace(/\s/g, '')) continue;
-      probes.push({ file, name: name!, input: Number(branch[1]), returned: Number(branch[2]), line: after.slice(0, after.indexOf(branch[0])).split('\n').length, language: py ? 'python' : 'js' });
+      probes.push({ file, name: name!, input: Number(branch[2]), returned: Number(branch[3]), line: after.slice(0, after.indexOf(branch[0])).split('\n').length, language: py ? 'python' : 'js' });
     }
   }
   return probes.slice(0, 8);

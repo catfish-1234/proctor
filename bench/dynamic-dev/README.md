@@ -1,6 +1,6 @@
 # Dynamic development set
 
-These 36 authored cases are a tuned development set: 18 cheats and 18 honest twins.
+These 52 authored cases are a tuned development set: 26 cheats and 26 honest twins.
 They are small generated Git repositories using Node or Python standard-library tests.
 The cases and implementation were developed together. These numbers do not establish
 accuracy on other repositories. No separate evaluation corpus was used.
@@ -15,16 +15,25 @@ Execution needs Node, Python 3, Git and Linux bubblewrap with working namespaces
 projects need no installed test packages. The harness exits nonzero for a skipped case, a
 missing expected finding or a flagged honest case. `results.json` records the measured run.
 
+Rows use disjoint case families; red-baseline and plain-Python rows contain the 16 additions.
+
 | Idea | Kept behavior | Tuned development results |
 |------|---------------|---------------------------|
-| Original tests on new code | DY001 warns when a previously passing named original test fails while the new suite passes | 5/5 cheat cases found, 0/5 honest cases flagged |
+| Original tests on new code | DY001 compares each named original test independently, including red baselines and new suites | 5/5 cheat cases found, 0/5 honest cases flagged |
 | New tests on original code | Run it and note tests passing on both revisions; drop this as a standalone finding | 0/1 cheat found, 0/1 honest flagged; both outcomes are ambiguous |
 | Perturbed inputs | DY002 executes an old unary arithmetic function and its new numeric literal branch at the literal and its two neighbors | 3/3 cheats found, 0/3 honest twins flagged |
-| Expected-value edits | DY003 compares an original passing literal equality with the edited failing equality on unchanged source | 3/3 cheats found, 0/3 honest twins flagged |
+| Expected-value edits | DY003 compares the edited test on old code: pass to fail or fail to pass with only an equality-literal edit | 3/3 cheats found, 0/3 honest twins flagged |
+| Red-baseline probes | The new suite must pass; the old suite can fail | 2/2 cheats found, 0/2 honest fixes flagged |
+| Red-baseline cross-run | Compare passing old tests even beside other old failures | 1/1 cheat found, 0/1 honest fix flagged |
+| Red-baseline expectations | Gate on the edited test itself, including old failures made green by changing expectations | 2/2 cheats found, 0/2 honest fixes flagged |
+| Plain Python files | Use file ids and direct exit codes when discovery finds no real cases | 3/3 cheats found, 0/3 honest fixes flagged |
 | Guard restoration | Dropped as a verdict; the harness restores each removed guard experimentally | Restoring a guard makes the new tests red for 3/3 cheats and 3/3 honest API relaxations |
 | Sleep or retry repetition | DY005 compares four runs, requiring a passing result and at least two failures for the same named test | 3/3 cheats found, 0/3 honest twins flagged |
 
-Overall: **14/18 cheats found, 0/18 honest cases flagged, 0 skipped** on this tuned dev set.
+Sixteen cases cover red baselines, including eight cheat/fix twins. These were added during
+the same tuning process; their results are still dev-set numbers.
+
+Overall: **22/26 cheats found, 0/26 honest cases flagged, 0 skipped** on this tuned dev set.
 The four misses are the three guard-removal cases and the coverage-only case. A red restored
 variant is evidence that tests depend on a guard being absent; it does not establish whether
 removing that guard was legitimate. The repeat fixtures deliberately exercise persistent
@@ -40,10 +49,11 @@ runs per revision, interleaved after five warm-ups each. To compare two built re
 node bench/dynamic-dev/measure-static.mjs /path/to/baseline/dist/cli.js dist/cli.js
 ```
 
-The baseline is main at `d2ae15756c9fe474772859ece4a80d22a9d82be1`, version 1.1.0.
-The measured medians were **209 ms before and 208 ms after** without dynamic opt-in. This is
+The baseline is the previous PR head at `46c18161f39b3bad04347de4d4cf5e5d647fc75a`, version
+1.1.0, before the red-baseline and Python discovery fixes.
+The measured medians were **201 ms before and 200 ms after** without dynamic opt-in. This is
 one fixture on one Linux host, within run-to-run variation, not a general speed claim.
-The measured dynamic CLI median was **670 ms** across the 36 toy cases, with **23.46 seconds**
+The measured dynamic CLI median was **653 ms** across the 52 toy cases, with **32.10 seconds**
 for all case CLI invocations combined. This includes CLI startup and static checking. Dependency-heavy
 suites can cost much more and can exhaust the budget. Individual case timings are in `results.json`.
 Absolute host Node executable paths in the recorded commands are normalized to `node`.
@@ -56,10 +66,18 @@ Absolute host Node executable paths in the recorded commands are normalized to `
   script. Jest and Vitest run through that script with JSON reporters and single-run options.
   Node scripts use `NODE_OPTIONS=--test-reporter=tap`. Python supports unittest discovery
   from the repository root and pytest through `python3 -m pytest` with a JUnit report.
-  Python plugin autoload is disabled. Custom discovery, delegated scripts and monorepos can skip.
-- Baseline tests must be runnable and green without network or credentials. Dependencies must
+  When unittest reports zero tests (exit 0 or 5), run each discovered Python test file directly.
+  An assertion raised during discovery import with no real unittest cases also triggers direct
+  execution. Each filename is one test id and its actual process exit code is retained in evidence.
+  Direct execution reruns top-level code after discovery, and file-level success cannot prove that
+  every function or assertion inside a file ran. Mixed suites with real unittest cases do not add
+  separate outcomes for plain files. Python plugin autoload is disabled. Custom discovery,
+  delegated scripts and monorepos can skip.
+- Tests must be runnable without network or credentials; an old named failure is evidence, not
+  a reason to skip the whole case. Dependencies must
   already be installed. Changed dependency manifests, unreadable reporters, duplicate test
-  names, collection failures and unavailable runners cause a skip, with no dynamic findings.
+  names, dependency or syntax failures during collection and unavailable runners cause a skip,
+  with no dynamic findings.
   The runner does not install anything. Unsupported languages report a not-run note.
 - Snapshots use the index for `--staged`, HEAD plus the reported files for working changes, and
   the merge base with HEAD for `--base`. Hybrid snapshots replace test files, not whole source
@@ -78,7 +96,7 @@ Absolute host Node executable paths in the recorded commands are normalized to `
 - Numeric probes cover only named exported JavaScript functions or top-level Python functions
   with an old unary arithmetic return and a newly added numeric literal branch. At most eight
   candidates are probed. Both neighbors must match the old reference and the special input must
-  differ. Changed tests disable probing. Strings, classes, complex logic and TypeScript probes
+  differ. Only the new suite must be green; a red old suite does not block probing. Changed tests disable probing. Strings, classes, complex logic and TypeScript probes
   are outside this prototype.
 - A changed literal equality in the same test file suppresses the cross-run regression warning.
   Expectation-only findings require a single changed test file with no edits except equality

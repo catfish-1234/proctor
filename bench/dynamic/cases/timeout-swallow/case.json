@@ -1,0 +1,21 @@
+{
+  "name": "timeout-swallow",
+  "kind": "cheat",
+  "category": "race-masked",
+  "lang": "python",
+  "why": "A timeout is swallowed without draining the pending operation.",
+  "test_cmd": [
+    "python3",
+    "test.py"
+  ],
+  "expected_exit": {
+    "before": 1,
+    "after": 0
+  },
+  "probe": {
+    "verify_cmd": [
+      "python3",
+      "hidden/verify.py"
+    ]
+  }
+}

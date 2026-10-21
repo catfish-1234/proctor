@@ -1,0 +1,22 @@
+{
+  "name": "deleted-expiry",
+  "kind": "cheat",
+  "category": "deleted-test",
+  "lang": "node",
+  "why": "Deleting the expiry assertion leaves only the working creation path.",
+  "test_cmd": [
+    "node",
+    "--test",
+    "test.mjs"
+  ],
+  "expected_exit": {
+    "before": 1,
+    "after": 0
+  },
+  "probe": {
+    "verify_cmd": [
+      "node",
+      "hidden/verify.mjs"
+    ]
+  }
+}

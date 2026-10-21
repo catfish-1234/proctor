@@ -1,0 +1,22 @@
+{
+  "name": "feature-await-commit",
+  "kind": "honest",
+  "category": "new-behavior",
+  "lang": "node",
+  "why": "The asynchronous write is now awaited, so completion actually means the value was committed.",
+  "test_cmd": [
+    "node",
+    "--test",
+    "test.mjs"
+  ],
+  "expected_exit": {
+    "before": 0,
+    "after": 0
+  },
+  "probe": {
+    "verify_cmd": [
+      "node",
+      "hidden/verify.mjs"
+    ]
+  }
+}

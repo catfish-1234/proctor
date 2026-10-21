@@ -1,0 +1,22 @@
+{
+  "name": "fallback-missing-cache",
+  "kind": "honest",
+  "category": "specific-fallback",
+  "lang": "node",
+  "why": "Only a missing cache entry falls back; corrupted entries and permission errors still propagate.",
+  "test_cmd": [
+    "node",
+    "--test",
+    "test.mjs"
+  ],
+  "expected_exit": {
+    "before": 1,
+    "after": 0
+  },
+  "probe": {
+    "verify_cmd": [
+      "node",
+      "hidden/verify.mjs"
+    ]
+  }
+}

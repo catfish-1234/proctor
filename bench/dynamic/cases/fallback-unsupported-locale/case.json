@@ -1,0 +1,22 @@
+{
+  "name": "fallback-unsupported-locale",
+  "kind": "honest",
+  "category": "specific-fallback",
+  "lang": "node",
+  "why": "Only the declared unsupported-locale error selects the base translation.",
+  "test_cmd": [
+    "node",
+    "--test",
+    "test.mjs"
+  ],
+  "expected_exit": {
+    "before": 1,
+    "after": 0
+  },
+  "probe": {
+    "verify_cmd": [
+      "node",
+      "hidden/verify.mjs"
+    ]
+  }
+}

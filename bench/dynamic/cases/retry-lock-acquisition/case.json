@@ -1,0 +1,21 @@
+{
+  "name": "retry-lock-acquisition",
+  "kind": "honest",
+  "category": "bounded-retry",
+  "lang": "python",
+  "why": "A lock acquisition retries the specific nonblocking failure with a fixed attempt budget.",
+  "test_cmd": [
+    "python3",
+    "test.py"
+  ],
+  "expected_exit": {
+    "before": 1,
+    "after": 0
+  },
+  "probe": {
+    "verify_cmd": [
+      "python3",
+      "hidden/verify.py"
+    ]
+  }
+}

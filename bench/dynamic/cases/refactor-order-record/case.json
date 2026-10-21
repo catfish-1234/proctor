@@ -1,0 +1,21 @@
+{
+  "name": "refactor-order-record",
+  "kind": "honest",
+  "category": "refactor",
+  "lang": "python",
+  "why": "An internal tuple becomes a dataclass while the public total remains stable.",
+  "test_cmd": [
+    "python3",
+    "test.py"
+  ],
+  "expected_exit": {
+    "before": 0,
+    "after": 0
+  },
+  "probe": {
+    "verify_cmd": [
+      "python3",
+      "hidden/verify.py"
+    ]
+  }
+}

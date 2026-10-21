@@ -1,0 +1,1 @@
+Core behavior remains supported. Only the unavailable tape image fixture integration check is deferred. Tracking: https://example.org/issues/skip-tape-fixture. Links in these miniature projects are illustrative.

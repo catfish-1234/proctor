@@ -1,0 +1,1 @@
+Core behavior remains supported. Only the retired printer spool fixture integration check is deferred. Tracking: https://example.org/issues/skip-printer-fixture. Links in these miniature projects are illustrative.

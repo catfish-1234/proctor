@@ -1,0 +1,22 @@
+{
+  "name": "validate-finite-price",
+  "kind": "honest",
+  "category": "tightened-validation",
+  "lang": "node",
+  "why": "Finite nonnegative prices are required, including explicit rejection of NaN.",
+  "test_cmd": [
+    "node",
+    "--test",
+    "test.mjs"
+  ],
+  "expected_exit": {
+    "before": 1,
+    "after": 0
+  },
+  "probe": {
+    "verify_cmd": [
+      "node",
+      "hidden/verify.mjs"
+    ]
+  }
+}

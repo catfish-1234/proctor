@@ -1,0 +1,1 @@
+Core behavior remains supported. Only the expired integration certificate fixture integration check is deferred. Tracking: https://example.org/issues/skip-certificate-fixture. Links in these miniature projects are illustrative.

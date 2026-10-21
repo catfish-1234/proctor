@@ -48,16 +48,17 @@
     "copilot"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node bench/dynamic/run.mjs --validate",
     "postinstall": "node -e \"const f='dist/scripts/postinstall.js';if(require('fs').existsSync(f))require('child_process').spawnSync(process.execPath,[f],{stdio:'inherit'})\"",
     "pretest": "npm run build",
-    "test": "vitest run",
+    "test": "vitest run && node --test bench/dynamic/runner.test.mjs",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "drift-check": "node dist/cli.js drift-check",
     "verify:pack": "node scripts/run-bash.mjs scripts/verify-pack.sh",
     "sync-plugin": "node dist/scripts/sync-plugin.js",
-    "lint": "oxlint --deny correctness --allow no-unused-vars --allow no-useless-escape --allow prefer-string-starts-ends-with src tests scripts tsup.config.ts vitest.config.ts"
+    "lint": "oxlint --deny correctness --allow no-unused-vars --allow no-useless-escape --allow prefer-string-starts-ends-with src tests scripts tsup.config.ts vitest.config.ts bench/dynamic/run.mjs bench/dynamic/runner.test.mjs",
+    "bench:dynamic": "node bench/dynamic/run.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.132.0",

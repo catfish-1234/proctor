@@ -1,0 +1,21 @@
+{
+  "name": "fallback-missing-key",
+  "kind": "honest",
+  "category": "specific-fallback",
+  "lang": "python",
+  "why": "Absent optional labels get a default while unexpected mapping failures are preserved.",
+  "test_cmd": [
+    "python3",
+    "test.py"
+  ],
+  "expected_exit": {
+    "before": 1,
+    "after": 0
+  },
+  "probe": {
+    "verify_cmd": [
+      "python3",
+      "hidden/verify.py"
+    ]
+  }
+}

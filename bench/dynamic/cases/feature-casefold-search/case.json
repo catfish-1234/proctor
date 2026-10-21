@@ -1,0 +1,21 @@
+{
+  "name": "feature-casefold-search",
+  "kind": "honest",
+  "category": "new-behavior",
+  "lang": "python",
+  "why": "Unicode case folding is implemented for all search terms rather than one example.",
+  "test_cmd": [
+    "python3",
+    "test.py"
+  ],
+  "expected_exit": {
+    "before": 0,
+    "after": 0
+  },
+  "probe": {
+    "verify_cmd": [
+      "python3",
+      "hidden/verify.py"
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "remove-legacy-format",
+  "kind": "honest",
+  "category": "feature-removal",
+  "lang": "node",
+  "why": "The deprecated XML output option is deliberately removed and rejected with a documented migration.",
+  "test_cmd": [
+    "node",
+    "--test",
+    "test.mjs"
+  ],
+  "expected_exit": {
+    "before": 0,
+    "after": 0
+  },
+  "probe": {
+    "verify_cmd": [
+      "node",
+      "hidden/verify.mjs"
+    ]
+  }
+}

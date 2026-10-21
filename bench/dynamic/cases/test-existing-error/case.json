@@ -1,0 +1,21 @@
+{
+  "name": "test-existing-error",
+  "kind": "honest",
+  "category": "compatible-test",
+  "lang": "python",
+  "why": "A test is added for a documented error that the original implementation already raises.",
+  "test_cmd": [
+    "python3",
+    "test.py"
+  ],
+  "expected_exit": {
+    "before": 0,
+    "after": 0
+  },
+  "probe": {
+    "verify_cmd": [
+      "python3",
+      "hidden/verify.py"
+    ]
+  }
+}

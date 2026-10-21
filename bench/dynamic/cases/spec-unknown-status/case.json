@@ -1,0 +1,22 @@
+{
+  "name": "spec-unknown-status",
+  "kind": "honest",
+  "category": "spec-change",
+  "lang": "node",
+  "why": "An explicit API revision returns an unknown label instead of null.",
+  "test_cmd": [
+    "node",
+    "--test",
+    "test.mjs"
+  ],
+  "expected_exit": {
+    "before": 0,
+    "after": 0
+  },
+  "probe": {
+    "verify_cmd": [
+      "node",
+      "hidden/verify.mjs"
+    ]
+  }
+}

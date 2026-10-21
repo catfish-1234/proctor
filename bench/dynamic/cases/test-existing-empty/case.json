@@ -1,0 +1,21 @@
+{
+  "name": "test-existing-empty",
+  "kind": "honest",
+  "category": "compatible-test",
+  "lang": "python",
+  "why": "The added empty-join regression test verifies already-correct behavior.",
+  "test_cmd": [
+    "python3",
+    "test.py"
+  ],
+  "expected_exit": {
+    "before": 0,
+    "after": 0
+  },
+  "probe": {
+    "verify_cmd": [
+      "python3",
+      "hidden/verify.py"
+    ]
+  }
+}

@@ -2,7 +2,8 @@
   "ignorePatterns": [
     "fixtures/**",
     "bench/tasks/**",
-    "bench/heldout/fixtures/**"
+    "bench/heldout/fixtures/**",
+    "bench/dynamic-dev/**"
   ],
   "approvedTestChanges": [
     {

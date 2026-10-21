@@ -5,7 +5,26 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2026-10-21
+
+- Extend plain Python fallback to discovery errors and run each top-level `test_*` function in
+  its own process, retaining per-test ids. Preserve unittest and pytest when they collect cases.
+- Extend dynamic literal probes to simple string and boolean references. Add DY004 mutation-lite
+  for red-to-green fixes with unchanged tests: at most four parser-confirmed mutations in called
+  functions, within the existing sandbox and overall budget. DY002 and DY004 remain warnings
+  and do not change the exit code on their own. Add ten cheat/honest dev-case pairs.
+- Keep meaningful dynamic checks running on red original suites. Compare named test outcomes
+  independently, probe numeric branches when the new suite passes, and detect expectation-only
+  edits that already turn an old failure green without changing code.
+- Fall back from zero unittest discovery to direct Python test-file execution, preserving file
+  ids and exit codes. Report unavailable integration tests as explicit skips with reasons.
+
+- Add opt-in `proctor check --dynamic`, committed `dynamic` configuration and a configurable
+  60-second overall budget. Isolated test runs can report original-test regressions, narrow
+  numeric branch contradictions, expectation-only contradictions and inconsistent sleep/retry
+  tests. Unsupported or unavailable runs skip without failing the check.
+- Add 36 authored development cases, including honest twins, under `bench/dynamic-dev`.
+  Measurements are tuned dev-set results, with limits and reproduction steps beside the cases.
 
 ## [1.1.0] - 2026-10-20
 

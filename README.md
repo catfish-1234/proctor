@@ -37,6 +37,7 @@ source needs Node 20.19+ or 22.12+.
 - [What do the codes mean?](#what-do-the-codes-mean)
 - [Badges](#badges)
 - [CI](#ci)
+- [Dynamic checks](#dynamic-checks), opt-in runtime evidence
 
 **Why it works**
 
@@ -344,6 +345,39 @@ jobs:
 
 The example pins the commit behind the `v1.0.0` release. You can use the `v1.0.0` tag instead, but
 a full commit SHA is immutable, so it keeps builds reproducible.
+
+## Dynamic checks
+
+`proctor check --dynamic` runs extra checks using a runnable project test suite. The default
+check keeps its existing output and runs no project tests. You can also commit
+`{"dynamic": true, "dynamicTimeoutMs": 60000}` in `proctor.config.json`. Use
+`--dynamic-timeout 30000` to override the overall budget in milliseconds.
+
+This prototype supports Node's `node:test`, Jest and Vitest through `npm run test`, plus Python
+`unittest`, `pytest` and plain Python scripts. When unittest collects no cases or only collection
+errors, plain scripts run directly and bare `test_*` functions run individually in fresh processes.
+It needs Linux and bubblewrap with working user, mount, network and PID
+namespaces. Windows, macOS, unsupported languages and unavailable isolation report
+`dynamic: skipped, reason`; a skip never adds a failing finding. Tests run in temporary copies,
+with host mounts read-only and network disabled. The default overall timeout is 60 seconds,
+including copies; descendants are terminated when the worker ends.
+
+Warnings name the commands, run labels and observed results. The checks need runnable
+tests and installed dependencies, can miss changes, and cannot prove intent. A red original suite
+is a normal fix input; named per-test comparisons and numeric, string or boolean probes still run.
+For red-to-green fixes with unchanged tests, mutation-lite tries at most four parser-confirmed
+changes in called functions. DY002 probes and DY004 mutation warnings are advisory and do not
+change the exit code on their own. Mutations can survive because code is redundant or behavior
+is deliberately untested; survival does not establish cheating. Repeated outcomes
+can reflect order dependence.
+
+Measured limits: dynamic checks are opt-in and advisory only. They do not change which findings
+block a commit. Mutation-lite reports missing test coverage, not cheating, and it can fire on
+honest changes whose tests do not cover every changed line. On a private 80-case corpus (40
+cheating changes, 40 honest ones) that informed this iteration, dynamic warnings surfaced 4
+cheating changes the static checks missed and flagged 1 honest change. Because the same corpus
+informed the checks, these are not clean held-out numbers.
+See the [scope, dropped ideas and tuned dev-set measurements](bench/dynamic-dev/README.md).
 
 ## How it works
 

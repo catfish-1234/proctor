@@ -24,12 +24,18 @@ change, add `proctor.config.json` at the repo root (the schema is
 | `ignorePatterns` | `string[]` | glob patterns for files to ignore entirely |
 | `approvedTestChanges` | `object[]` | genuine test changes you've approved, see [Approving a genuine test change](#approving-a-genuine-test-change) |
 | `aiModel` | `string` | which model the optional `--ai` judge uses. Defaults to `claude-haiku-4-5-20251001` |
+| `dynamic` | `boolean` | opt in to isolated project-test execution, default false; see [dynamic checks](../README.md#dynamic-checks) |
+| `dynamicTimeoutMs` | `integer` | overall dynamic budget in milliseconds, default 60000; includes snapshot preparation |
 | `snapshotGlobs` | `string[]` | glob patterns that identify snapshot and golden files for `RH006` |
 
 During a check, proctor reads the config from `HEAD` or the `--base` ref. Commit config changes
 before the code changes they should apply to. Uncommitted config edits are reported on stderr
 but do not affect enforcement. RH007 also flags them; the opt-in WI104 check inspects attempts
 to weaken enforcement.
+
+Dynamic findings are warnings with `DY` IDs. They are controlled by `dynamic` and
+`--dynamic`, independently of the static `enabled` and `--rules` lists. Static severity,
+ignore, approval and inline-suppression settings currently apply only to static findings.
 
 ### Approving a genuine test change
 

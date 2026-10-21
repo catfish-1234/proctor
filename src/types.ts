@@ -71,6 +71,8 @@ export interface Context {
                                      // last unrelated commit happened to say, not a reason for this change
   snapshotGlobs?: string[];         // custom snapshot glob patterns from config; undefined uses RH006's defaults
   aiEnabled?: boolean;              // true only when --ai flag is passed and API key is present
+  dynamic?: boolean;
+  dynamicTimeoutMs?: number;
   aiModel?: string;                 // model ID from config; defaults to 'claude-haiku-4-5-20251001' in CLI
   judge?: AIJudge;                  // injected by CLI when --ai is set; undefined in offline mode
 }
@@ -95,6 +97,8 @@ export interface ProctorConfig {
   severity?: Record<string, Severity>;
   ignorePatterns?: string[];
   approvedTestChanges?: ApprovedTestChange[];
+  dynamic?: boolean;
+  dynamicTimeoutMs?: number;
   aiModel?: string;          // overrides default model for AI judge
   snapshotGlobs?: string[];  // overrides default snapshot path patterns for RH006
 }

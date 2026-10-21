@@ -25,6 +25,7 @@ import { parseStopHookInput, runStopHookCheck } from './hooks/stop-hook.js';
 import { APPROVAL_GUIDANCE, RULE_METADATA } from './rules.js';
 import { buildReceipt } from './receipt.js';
 import { badgeLine, badgeUrl, badgeMarkdown } from './badge/index.js';
+import { DYNAMIC_METADATA } from './dynamic/metadata.js';
 import type { ProctorConfig } from './types.js';
 import pc from 'picocolors';
 import { readTally, resetTally } from './session.js';
@@ -74,6 +75,8 @@ program
   .option('--ci', 'show only errors in the text report; warnings do not affect the exit code')
   .option('--json', 'output findings as JSON to stdout')
   .option('--sarif', 'output SARIF 2.1.0 JSON to stdout')
+  .option('--dynamic', 'run isolated extra checks using the project tests (opt-in)')
+  .option('--dynamic-timeout <ms>', 'overall dynamic budget in milliseconds (default 60000)')
   .option('--ai', 'enable the networked LLM judge (requires ANTHROPIC_API_KEY)')
   .option('--rules <ids>', 'comma-separated list of verifier IDs to run (narrows the enabled set, e.g. RH001,RH003)')
   .option('--wi', 'also run the remaining opt-in work-integrity checks (WI1xx)')
@@ -81,13 +84,13 @@ program
   .option('--explain <id>', 'print the full explanation for a verifier ID and exit, no diff analysis')
   .option('--fix', 'with --explain, print what an honest fix looks like instead of the rule description')
   .option('--markdown <file>', 'also write a Markdown summary to this file, e.g. --markdown "$GITHUB_STEP_SUMMARY"')
-  .action(async (pathArg: string | undefined, options: { staged?: boolean; uncommitted?: boolean; base?: string; ci?: boolean; json?: boolean; ai?: boolean; sarif?: boolean; rules?: string; wi?: boolean; allChecks?: boolean; explain?: string; fix?: boolean; markdown?: string }) => {
+  .action(async (pathArg: string | undefined, options: { dynamic?: boolean; dynamicTimeout?: string; staged?: boolean; uncommitted?: boolean; base?: string; ci?: boolean; json?: boolean; ai?: boolean; sarif?: boolean; rules?: string; wi?: boolean; allChecks?: boolean; explain?: string; fix?: boolean; markdown?: string }) => {
     if (options.fix && !options.explain) {
       process.stderr.write('proctor: --fix only applies with --explain, e.g. proctor check --explain RH001 --fix\n');
       process.exit(2);
     }
     if (options.explain) {
-      const meta = RULE_METADATA[options.explain];
+      const meta = RULE_METADATA[options.explain] ?? DYNAMIC_METADATA[options.explain];
       if (!meta) {
         process.stderr.write(`proctor: unknown verifier ID '${options.explain}'\n`);
         process.exit(2);
@@ -124,6 +127,10 @@ program
       }
       process.stdout.write(`${options.explain}: ${meta.name}\n\n${meta.fullDescription}\n\nDefault severity: ${meta.defaultLevel}\nMore info: ${meta.helpUri}\nHonest fix: proctor check --explain ${options.explain} --fix\n`);
       process.exit(0);
+    }
+    if (options.dynamicTimeout !== undefined && (!Number.isSafeInteger(Number(options.dynamicTimeout)) || Number(options.dynamicTimeout) < 1 || Number(options.dynamicTimeout) > 2_147_483_647)) {
+      process.stderr.write('proctor: --dynamic-timeout must be an integer from 1 to 2147483647 milliseconds\n');
+      process.exit(2);
     }
     const selectedScopes = [options.base !== undefined, options.staged === true, options.uncommitted === true]
       .filter(Boolean).length;
@@ -218,6 +225,19 @@ program
       // its documented fail-open policy for infrastructure failures.
       process.exitCode = 3;
       return;
+    }
+    if (options.dynamic || ctx.dynamic === true) {
+      const { runDynamic } = await import('./dynamic/runner.js');
+      const dynamic = await runDynamic({
+        cwd, workerPath: fileURLToPath(new URL('./dynamic-worker.js', import.meta.url)),
+        base: options.base, staged: options.staged, files, testPathGlobs: ctx.testPathGlobs,
+        timeoutMs: options.dynamicTimeout !== undefined ? Number(options.dynamicTimeout) : ctx.dynamicTimeoutMs,
+      });
+      findings.push(...dynamic.findings);
+      process.stderr.write(dynamic.status === 'skipped'
+        ? `dynamic: skipped, ${dynamic.reason}\n`
+        : `dynamic: completed, ${dynamic.runs.length} runs, ${dynamic.findings.length} findings, ${dynamic.elapsedMs}ms\n`);
+      for (const note of dynamic.notes) process.stderr.write(`dynamic: ${note}\n`);
     }
     if (options.markdown) {
       // Appended, not overwritten: $GITHUB_STEP_SUMMARY is shared by every step in the job, so

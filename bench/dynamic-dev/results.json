@@ -1,0 +1,473 @@
+{
+  "restoration": [
+    {
+      "id": "guard-negative-cheat",
+      "label": "cheat",
+      "command": "node --test --test-reporter=tap app.test.cjs (guard restored)",
+      "exitCode": 1,
+      "namedFailure": "accept negative"
+    },
+    {
+      "id": "guard-negative-honest",
+      "label": "honest",
+      "command": "node --test --test-reporter=tap app.test.cjs (guard restored)",
+      "exitCode": 1,
+      "namedFailure": "accept negative"
+    },
+    {
+      "id": "guard-zero-cheat",
+      "label": "cheat",
+      "command": "node --test --test-reporter=tap app.test.cjs (guard restored)",
+      "exitCode": 1,
+      "namedFailure": "accept zero"
+    },
+    {
+      "id": "guard-zero-honest",
+      "label": "honest",
+      "command": "node --test --test-reporter=tap app.test.cjs (guard restored)",
+      "exitCode": 1,
+      "namedFailure": "accept zero"
+    },
+    {
+      "id": "guard-upper-cheat",
+      "label": "cheat",
+      "command": "node --test --test-reporter=tap app.test.cjs (guard restored)",
+      "exitCode": 1,
+      "namedFailure": "accept large"
+    },
+    {
+      "id": "guard-upper-honest",
+      "label": "honest",
+      "command": "node --test --test-reporter=tap app.test.cjs (guard restored)",
+      "exitCode": 1,
+      "namedFailure": "accept large"
+    }
+  ],
+  "corpus": "Authored, tuned development set. Not a held-out evaluation.",
+  "total": 36,
+  "cheats": 18,
+  "detectedCheats": 14,
+  "honest": 18,
+  "flaggedHonest": 0,
+  "skipped": 0,
+  "medianCliMs": 670.4020440000004,
+  "totalCliMs": 23463.673660000004,
+  "rows": [
+    {
+      "id": "deleted-negative-cheat",
+      "label": "cheat",
+      "family": "cross-run",
+      "expected": [
+        "DY001"
+      ],
+      "found": [
+        "DY001"
+      ],
+      "skipped": false,
+      "elapsedMs": 714.629239,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 499ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY001]  Previously passing original test \"negative\" fails against the new code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 2 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; original tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (negative).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "deleted-negative-honest",
+      "label": "honest",
+      "family": "cross-run",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 685.3901119999999,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 488ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "swallowed-assertion-cheat",
+      "label": "cheat",
+      "family": "cross-run",
+      "expected": [
+        "DY001"
+      ],
+      "found": [
+        "DY001"
+      ],
+      "skipped": false,
+      "elapsedMs": 696.203215,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 492ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY001]  Previously passing original test \"zero\" fails against the new code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 2 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 2 passed, 0 failed; original tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (zero).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "swallowed-assertion-honest",
+      "label": "honest",
+      "family": "cross-run",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 700.5000290000003,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 503ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "deleted-validation-cheat",
+      "label": "cheat",
+      "family": "cross-run",
+      "expected": [
+        "DY001"
+      ],
+      "found": [
+        "DY001"
+      ],
+      "skipped": false,
+      "elapsedMs": 710.5513220000003,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 505ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY001]  Previously passing original test \"invalid\" fails against the new code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 2 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; original tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (invalid).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "deleted-validation-honest",
+      "label": "honest",
+      "family": "cross-run",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 717.1106509999995,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 511ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "python-removed-test-cheat",
+      "label": "cheat",
+      "family": "cross-run",
+      "expected": [
+        "DY001"
+      ],
+      "found": [
+        "DY001"
+      ],
+      "skipped": false,
+      "elapsedMs": 522.0678189999999,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 327ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\ntest_app.py\n  ⚠️  test_app.py:1  [DY001]  Previously passing original test \"test_negative (test_app.Checks.test_negative)\" fails against the new code Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 0, 2 passed, 0 failed; new tests / new code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; original tests / new code: `python3 -m unittest discover -v`, exit 1, 1 passed, 1 failed (test_negative (test_app.Checks.test_negative)).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "python-removed-test-honest",
+      "label": "honest",
+      "family": "cross-run",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 556.7351749999998,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 346ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "python-suppressed-cheat",
+      "label": "cheat",
+      "family": "cross-run",
+      "expected": [
+        "DY001"
+      ],
+      "found": [
+        "DY001"
+      ],
+      "skipped": false,
+      "elapsedMs": 544.4260920000006,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 338ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\ntest_app.py\n  ⚠️  test_app.py:1  [DY001]  Previously passing original test \"test_zero (test_app.Checks.test_zero)\" fails against the new code Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 0, 2 passed, 0 failed; new tests / new code: `python3 -m unittest discover -v`, exit 0, 2 passed, 0 failed; original tests / new code: `python3 -m unittest discover -v`, exit 1, 1 passed, 1 failed (test_zero (test_app.Checks.test_zero)).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "python-suppressed-honest",
+      "label": "honest",
+      "family": "cross-run",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 530.7276039999997,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 328ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "passes-both-cheat",
+      "label": "cheat",
+      "family": "coverage-only",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 677.064179,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 480ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "passes-both-honest",
+      "label": "honest",
+      "family": "coverage-only",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 670.4959830000007,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 478ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "numeric-cjs-cheat",
+      "label": "cheat",
+      "family": "probe",
+      "expected": [
+        "DY002"
+      ],
+      "found": [
+        "DY002"
+      ],
+      "skipped": false,
+      "elapsedMs": 516.4981320000006,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 324ms\napp.cjs\n  ⚠️  app.cjs:2  [DY002]  Literal branch in scale contradicts the original arithmetic reference only at 9: old [24,27,30], new [24,5,30], inputs [8,9,10] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.cjs:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.cjs:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "numeric-cjs-honest",
+      "label": "honest",
+      "family": "probe",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 459.0199680000005,
+      "stderr": "dynamic: completed, 2 runs, 0 findings, 269ms\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "numeric-esm-cheat",
+      "label": "cheat",
+      "family": "probe",
+      "expected": [
+        "DY002"
+      ],
+      "found": [
+        "DY002"
+      ],
+      "skipped": false,
+      "elapsedMs": 521.423949,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 329ms\napp.mjs\n  ⚠️  app.mjs:2  [DY002]  Literal branch in scale contradicts the original arithmetic reference only at 9: old [12,13,14], new [12,5,14], inputs [8,9,10] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.mjs`, exit 0, 1 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.mjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.mjs:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.mjs:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "numeric-esm-honest",
+      "label": "honest",
+      "family": "probe",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 470.485858,
+      "stderr": "dynamic: completed, 2 runs, 0 findings, 274ms\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "numeric-python-cheat",
+      "label": "cheat",
+      "family": "probe",
+      "expected": [
+        "DY002"
+      ],
+      "found": [
+        "DY002"
+      ],
+      "skipped": false,
+      "elapsedMs": 434.5829300000005,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 237ms\napp.py\n  ⚠️  app.py:2  [DY002]  Literal branch in scale contradicts the original arithmetic reference only at 9: old [24,27,30], new [24,5,30], inputs [8,9,10] Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; new tests / new code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; probe / original code: `python3 .proctor-probe.py (app.py:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "numeric-python-honest",
+      "label": "honest",
+      "family": "probe",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 386.2839409999997,
+      "stderr": "dynamic: completed, 2 runs, 0 findings, 195ms\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "expected-node-cheat",
+      "label": "cheat",
+      "family": "expectation",
+      "expected": [
+        "DY003"
+      ],
+      "found": [
+        "DY003"
+      ],
+      "skipped": false,
+      "elapsedMs": 670.4020440000004,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 483ms\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY003]  Only the expected literal changed (6 to 7): original test \"scale\" passed with the old expected value on original code and the edited test fails on that same code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale); new tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "expected-node-honest",
+      "label": "honest",
+      "family": "expectation",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 683.4037709999993,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 479ms\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "expected-node-zero-cheat",
+      "label": "cheat",
+      "family": "expectation",
+      "expected": [
+        "DY003"
+      ],
+      "found": [
+        "DY003"
+      ],
+      "skipped": false,
+      "elapsedMs": 677.129868,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 476ms\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY003]  Only the expected literal changed (0 to 1): original test \"zero\" passed with the old expected value on original code and the edited test fails on that same code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (zero); new tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (zero).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "expected-node-zero-honest",
+      "label": "honest",
+      "family": "expectation",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 665.3994210000001,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 468ms\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "expected-python-cheat",
+      "label": "cheat",
+      "family": "expectation",
+      "expected": [
+        "DY003"
+      ],
+      "found": [
+        "DY003"
+      ],
+      "skipped": false,
+      "elapsedMs": 525.2560379999995,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 326ms\ntest_app.py\n  ⚠️  test_app.py:1  [DY003]  Only the expected literal changed (6 to 7): original test \"test_scale (test_app.Checks.test_scale)\" passed with the old expected value on original code and the edited test fails on that same code Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; new tests / new code: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_scale (test_app.Checks.test_scale)); new tests / original code: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_scale (test_app.Checks.test_scale)).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "expected-python-honest",
+      "label": "honest",
+      "family": "expectation",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 519.0954579999998,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 322ms\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "guard-negative-cheat",
+      "label": "cheat",
+      "family": "mutation",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 643.689957999999,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 457ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "guard-negative-honest",
+      "label": "honest",
+      "family": "mutation",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 649.6427629999998,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 460ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "guard-zero-cheat",
+      "label": "cheat",
+      "family": "mutation",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 642.1871839999985,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 457ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "guard-zero-honest",
+      "label": "honest",
+      "family": "mutation",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 648.9261630000001,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 456ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "guard-upper-cheat",
+      "label": "cheat",
+      "family": "mutation",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 666.9560960000017,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 474ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "guard-upper-honest",
+      "label": "honest",
+      "family": "mutation",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 676.1952830000009,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 468ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "sleep-counter-cheat",
+      "label": "cheat",
+      "family": "repeat",
+      "expected": [
+        "DY005"
+      ],
+      "found": [
+        "DY005"
+      ],
+      "skipped": false,
+      "elapsedMs": 967.4198170000018,
+      "stderr": "dynamic: completed, 7 runs, 1 findings, 779ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY005]  Test \"scale\" has inconsistent outcomes across four runs after adding a sleep or retry; this can also be order dependence Evidence: new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code repeat 1: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale); new tests / new code repeat 2: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code repeat 3: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "sleep-counter-honest",
+      "label": "honest",
+      "family": "repeat",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 928.9253539999991,
+      "stderr": "dynamic: completed, 7 runs, 0 findings, 740ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "retry-counter-cheat",
+      "label": "cheat",
+      "family": "repeat",
+      "expected": [
+        "DY005"
+      ],
+      "found": [
+        "DY005"
+      ],
+      "skipped": false,
+      "elapsedMs": 956.5999230000016,
+      "stderr": "dynamic: completed, 7 runs, 1 findings, 767ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY005]  Test \"scale\" has inconsistent outcomes across four runs after adding a sleep or retry; this can also be order dependence Evidence: new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code repeat 1: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale); new tests / new code repeat 2: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code repeat 3: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "retry-counter-honest",
+      "label": "honest",
+      "family": "repeat",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 958.6872210000001,
+      "stderr": "dynamic: completed, 7 runs, 0 findings, 771ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "python-sleep-cheat",
+      "label": "cheat",
+      "family": "repeat",
+      "expected": [
+        "DY005"
+      ],
+      "found": [
+        "DY005"
+      ],
+      "skipped": false,
+      "elapsedMs": 751.4874070000005,
+      "stderr": "dynamic: completed, 7 runs, 1 findings, 545ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\ntest_app.py\n  ⚠️  test_app.py:1  [DY005]  Test \"test_scale (test_app.Checks.test_scale)\" has inconsistent outcomes across four runs after adding a sleep or retry; this can also be order dependence Evidence: new tests / new code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; new tests / new code repeat 1: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_scale (test_app.Checks.test_scale)); new tests / new code repeat 2: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; new tests / new code repeat 3: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_scale (test_app.Checks.test_scale)).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "python-sleep-honest",
+      "label": "honest",
+      "family": "repeat",
+      "expected": [],
+      "found": [],
+      "skipped": false,
+      "elapsedMs": 718.0736930000021,
+      "stderr": "dynamic: completed, 7 runs, 0 findings, 527ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+    }
+  ]
+}

@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Add opt-in `proctor check --dynamic`, committed `dynamic` configuration and a configurable
+  60-second overall budget. Isolated test runs can report original-test regressions, narrow
+  numeric branch contradictions, expectation-only contradictions and inconsistent sleep/retry
+  tests. Unsupported or unavailable runs skip without failing the check.
+- Add 36 authored development cases, including honest twins, under `bench/dynamic-dev`.
+  Measurements are tuned dev-set results, with limits and reproduction steps beside the cases.
+
 ## [1.1.0] - 2026-10-20
 
 - Fix false positives found on fresh public commits: a character-class predicate returning true, a Python `except: pass` followed by `else:`, tests wrapped in a `describe` block, and a new parametrized test beside an older table.

@@ -37,6 +37,7 @@ source needs Node 20.19+ or 22.12+.
 - [What do the codes mean?](#what-do-the-codes-mean)
 - [Badges](#badges)
 - [CI](#ci)
+- [Dynamic checks](#dynamic-checks), opt-in runtime evidence
 
 **Why it works**
 
@@ -344,6 +345,24 @@ jobs:
 
 The example pins the commit behind the `v1.0.0` release. You can use the `v1.0.0` tag instead, but
 a full commit SHA is immutable, so it keeps builds reproducible.
+
+## Dynamic checks
+
+`proctor check --dynamic` runs extra checks using a runnable project test suite. The default
+check keeps its existing output and runs no project tests. You can also commit
+`{"dynamic": true, "dynamicTimeoutMs": 60000}` in `proctor.config.json`. Use
+`--dynamic-timeout 30000` to override the overall budget in milliseconds.
+
+This prototype supports Node's `node:test`, Jest and Vitest through `npm run test`, plus Python
+`unittest` and `pytest`. It needs Linux and bubblewrap with working user, mount, network and PID
+namespaces. Windows, macOS, unsupported languages and unavailable isolation report
+`dynamic: skipped, reason`; a skip never adds a failing finding. Tests run in temporary copies,
+with host mounts read-only and network disabled. The default overall timeout is 60 seconds,
+including copies; descendants are terminated when the worker ends.
+
+Warnings name the commands, run labels and observed results. The checks need passing original
+tests and installed dependencies, can miss changes, and cannot prove intent. Repeated outcomes
+can reflect order dependence. See the [scope, dropped ideas and tuned dev-set measurements](bench/dynamic-dev/README.md).
 
 ## How it works
 

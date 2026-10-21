@@ -5,6 +5,18 @@
   "description": "Configuration for proctor, AI agent test-tampering guard",
   "type": "object",
   "properties": {
+    "dynamic": {
+      "type": "boolean",
+      "default": false,
+      "description": "Opt in to isolated execution of the project tests for dynamic checks."
+    },
+    "dynamicTimeoutMs": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647,
+      "default": 60000,
+      "description": "Overall dynamic budget in milliseconds, including snapshot preparation."
+    },
     "enabled": {
       "type": "array",
       "items": { "type": "string", "pattern": "^(?:RH|WI)\\d{3}$" },

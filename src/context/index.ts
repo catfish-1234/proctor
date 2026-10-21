@@ -210,6 +210,14 @@ function normalizeConfig(config: ProctorConfig): ProctorConfig {
     delete out.aiModel;
   }
 
+  if (config.dynamic !== undefined && typeof config.dynamic !== 'boolean') {
+    warn("config 'dynamic' must be a boolean; ignoring it");
+    delete out.dynamic;
+  }
+  if (config.dynamicTimeoutMs !== undefined && (!Number.isSafeInteger(config.dynamicTimeoutMs) || config.dynamicTimeoutMs < 1 || config.dynamicTimeoutMs > 2_147_483_647)) {
+    warn("config 'dynamicTimeoutMs' must be an integer from 1 to 2147483647; ignoring it");
+    delete out.dynamicTimeoutMs;
+  }
   return out;
 }
 
@@ -347,5 +355,7 @@ export async function buildContext(cwd: string, files: ParsedFile[], opts?: { co
     commitMessage,
     snapshotGlobs,
     aiModel,
+    ...(config.dynamic !== undefined ? { dynamic: config.dynamic } : {}),
+    ...(config.dynamicTimeoutMs !== undefined ? { dynamicTimeoutMs: config.dynamicTimeoutMs } : {}),
   };
 }

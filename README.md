@@ -434,6 +434,56 @@ existing worker and deadline. Literal examples can seed a unit even without a vi
 test call. Unknown syntax, ambiguous API names, code fences and unsupported results can be missed.
 This is a small deterministic grammar, not general prose understanding. Documentation can be stale
 or wrong, and a documented contradiction cannot establish intent.
+
+DY009 adds a local prose judge, separately opted in with **both** flags:
+
+```sh
+proctor check --dynamic --judge
+```
+
+Select an already installed, signed-in command with `{"judge":{"cli":"gemini"}}` in committed
+`proctor.config.json`. Supported values are `gemini`, `codex` and `claude`; automatic selection
+prefers the first installed command in that order; login failure does not retry another backend.
+Use `judge.cli` to select your login. Configuration selects the command, never enables the judge. Even
+committed `dynamic: true` still needs the explicit `--dynamic --judge` flags for DY009.
+The command uses its default model. On a cache miss, a missing binary, unavailable login,
+malformed JSON or a timed-out command produces no judge finding. Valid cache hits need no new
+login call. No direct API client is used. If `ANTHROPIC_API_KEY` is set,
+`claude` routes through the paid API; automatic selection prefers another installed command.
+
+The judge receives bounded before/after function source and unchanged candidate sentences from
+spec, README or docs files that mention the changed unit. This sends that text through the selected
+CLI to its configured service. It runs only after static and DY001-DY008 checks, and skips entirely
+if another finding blocks. The new suite must be green, documentation unchanged and the existing
+intent-note escape absent. A verdict needs an exact supplied quote and a supported data-only claim,
+never executable code. The isolated worker checks literal examples or ordering, uniqueness, width,
+sign, rounding and padding claims on generated inputs. Blocking requires **both the quoted judge
+claim and stable runtime reproduction across fresh processes**, twice on each revision, backed by
+an old satisfying result or an added passing test claim. Known ambiguous interpretations and
+conflicting precise documentation stay advisory and do not change the exit code on their own.
+Unclear, unsupported, unquoted and unreproduced proposals stay silent.
+
+The hard budget is at most **two CLI calls per check**, one per selected unit, with no proctor
+retries. The entire supplied prompt, including instructions, is capped at **2,000 UTF-8 bytes**,
+a conservative 2,000-token ceiling for byte-based tokenizers. Oversized prompts are skipped rather
+than truncated. Each command has at most ten seconds, inside the shared configurable 60-second
+dynamic deadline. Content hashes of sentences and function source cache validated proposals in
+`.proctor-judge-cache`, bounded to 64 entries and 256 KiB. Matching repeat commits make zero judge
+calls; runtime verification always runs again. Add the cache to your project's ignore file and
+delete it to clear proposals. Dynamic snapshots exclude this tool-owned artifact so it cannot
+change other runtime checks. Two requests are 0.2% of a 1,000-request free Gemini CLI day, the
+intended budget target for a typical check. CLI-owned instructions, retries and service limits are
+outside this counter. No real service usage or model accuracy was measured.
+
+The judge interprets prose and can misread it. Runtime proves the encoded claim fails, not that
+its interpretation or the documentation is correct. The callable, literal and serialization limits
+above still apply. Candidate selection can miss wording, scope qualifiers and ambiguous names.
+The CLI runs in a separate empty temporary directory with host files read-only and its normal
+login environment; only its service access uses network. Commands needing profile writes or login
+refresh can skip. Project tests and probes remain network isolated. All command groups terminate
+on timeout and exit. The [tuned mock-verdict measurements](bench/dynamic-dev/README.md#judged-documentation-tuned)
+measure gates and runtime reproduction, not real judge precision or intent.
+
 Default checks without dynamic opt-in are unchanged.
 See the [scope, dropped ideas and tuned dev-set measurements](bench/dynamic-dev/README.md).
 

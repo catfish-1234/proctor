@@ -13,6 +13,8 @@ export interface DynamicOptions {
   files: ParsedFile[];
   testPathGlobs: string[];
   timeoutMs?: number;
+  judge?: boolean;
+  judgeCli?: import('./judge.js').JudgeCli;
 }
 export interface TestRun {
   label: string;
@@ -45,14 +47,25 @@ export async function runDynamic(options: DynamicOptions): Promise<DynamicResult
   let scratch: string;
   try { scratch = mkdtempSync(join(tmpdir(), 'proctor-dynamic-')); }
   catch { return skipped('cannot create scratch directory'); }
+  let judgeWork: string | undefined;
   const clean = () => {
-    try { rmSync(scratch, { recursive: true, force: true }); }
-    catch {
-      // Scratch removal is best effort after termination; cleanup failure must not turn an optional run into a check failure.
+    for (const dir of [scratch, judgeWork]) if (dir) {
+      try { rmSync(dir, { recursive: true, force: true }); }
+      catch {
+        // Scratch removal is best effort after termination; failure must not turn an optional run into a check failure.
+      }
     }
   };
   try {
     mkdirSync(join(scratch, 'tmp'));
+    const controller = new AbortController();
+    let ask: ((request: import('./judge-protocol.js').JudgeRequest) => Promise<import('./judge.js').JudgeAnswer | null>) | undefined;
+    if (options.judge) {
+      judgeWork = mkdtempSync(join(tmpdir(), 'proctor-judge-'));
+      mkdirSync(join(judgeWork, 'tmp'));
+      const { createJudge } = await import('./judge.js');
+      ask = createJudge(options.cwd, judgeWork, started + timeout, controller.signal, options.judgeCli);
+    }
     writeFileSync(join(scratch, 'input.json'), JSON.stringify({ ...options, files: options.files.map(({ from, to }) => ({ from, to })) }));
     // Deliberately small environment: do not hand project tests credentials or loader hooks.
     const env: NodeJS.ProcessEnv = {
@@ -70,9 +83,10 @@ export async function runDynamic(options: DynamicOptions): Promise<DynamicResult
         '--proc', '/proc', '--dev', '/dev', '--', process.execPath, options.workerPath, join(scratch, 'input.json')];
       // No fallback: if namespace setup fails, project code is never executed.
       const child = spawn('bwrap', namespaceArgs, {
-        cwd: scratch, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'],
+        cwd: scratch, env, detached: true, stdio: [options.judge ? 'pipe' : 'ignore', 'pipe', 'pipe'],
       });
       const kill = () => {
+        controller.abort();
         if (child.pid) {
           try { process.kill(-child.pid, 'SIGKILL'); }
           catch {
@@ -86,13 +100,29 @@ export async function runDynamic(options: DynamicOptions): Promise<DynamicResult
       process.once('exit', onExit);
       process.once('SIGINT', onInt);
       process.once('SIGTERM', onTerm);
-      let stdout = '', stderr = '', reason = '';
+      let stdout = '', stderr = '', reason = '', relay = '';
+      let requests = 0;
+      child.stdin?.on('error', () => { /* The worker may exit before a pending optional response. */ });
       const timer = setTimeout(() => { reason = `overall timeout (${timeout}ms)`; kill(); }, remaining);
-      child.stdout.on('data', (data: Buffer) => {
-        stdout += data.toString();
+      if (ask) child.stdout!.setEncoding('utf8');
+      child.stdout!.on('data', (data: Buffer) => {
+        if (ask) {
+          relay += data.toString();
+          let end: number;
+          while ((end = relay.indexOf('\n')) >= 0) {
+            const line = relay.slice(0, end); relay = relay.slice(end + 1);
+            try {
+              const message = JSON.parse(line);
+              if (message.judgeRequest && requests++ < 2) {
+                void ask(message.judgeRequest).then(answer => { if (!controller.signal.aborted) child.stdin?.write(JSON.stringify(answer) + '\n'); }).catch(() => { if (!controller.signal.aborted) child.stdin?.write('null\n'); });
+              } else child.stdin?.write('null\n');
+            } catch { reason = 'invalid worker relay'; kill(); }
+          }
+          if (relay.length > 4 * 1024 * 1024) { reason = 'worker output limit'; kill(); }
+        } else stdout += data.toString();
         if (stdout.length > 4 * 1024 * 1024) { reason = 'worker output limit'; kill(); }
       });
-      child.stderr.on('data', (data: Buffer) => { stderr = (stderr + data.toString()).slice(-2000); });
+      child.stderr!.on('data', (data: Buffer) => { stderr = (stderr + data.toString()).slice(-2000); });
       child.once('error', (err) => { reason = `cannot start isolated worker: ${err.message}`; });
       child.once('close', (code) => {
         clearTimeout(timer);
@@ -103,7 +133,7 @@ export async function runDynamic(options: DynamicOptions): Promise<DynamicResult
         if (reason) { resolve(skipped(reason)); return; }
         if (code !== 0) { resolve(skipped(stderr.trim() || `isolated worker exited ${code}`)); return; }
         try {
-          const result = JSON.parse(stdout) as DynamicResult;
+          const result = JSON.parse(ask ? relay : stdout) as DynamicResult;
           result.elapsedMs = Date.now() - started;
           resolve(result);
         } catch { resolve(skipped('isolated worker returned no usable result')); }

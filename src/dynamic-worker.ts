@@ -221,6 +221,16 @@ try {
       }
     }
   }
+  if (options.judge && current.run.exitCode === 0 && !intent && !result.findings.some(f => f.severity === 'error')) {
+    const docsChanged = [...new Set([...old.keys(), ...next.keys()])].some(file => isDocumentation(file) &&
+      (old.get(file)?.mode !== next.get(file)?.mode || old.get(file)?.data.toString() !== next.get(file)?.data.toString()));
+    if (!docsChanged) {
+      try {
+        const { judgeDocumentation } = await import('./dynamic/judge-worker.js');
+        await judgeDocumentation(old, next, isTest, baseline.dir, current.dir, nextTests, current.run, result, finding);
+      } catch { /* An unavailable optional interpretation cannot establish a finding. */ }
+    }
+  }
 } catch (error) {
   result.status = 'skipped'; result.reason = String(error).replace(/^Error: /, '');
   result.findings = []; // Incomplete execution never becomes a check failure.

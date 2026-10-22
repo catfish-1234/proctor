@@ -4,7 +4,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type { DynamicOptions } from './runner.js';
 
 export type Snapshot = Map<string, { data: Buffer; mode: number }>;
-const EXCLUDED = /^(?:bench\/(?:dynamic|heldout)(?:\/|$))|(?:^|\/)(?:\.git|node_modules|\.venv|venv|__pycache__)(?:\/|$)/;
+const EXCLUDED = /^\.proctor-judge-cache(?:$|-)|^(?:bench\/(?:dynamic|heldout)(?:\/|$))|(?:^|\/)(?:\.git|node_modules|\.venv|venv|__pycache__)(?:\/|$)/;
 const MAX_BYTES = 64 * 1024 * 1024;
 export function git(cwd: string, args: string[], input?: string): Buffer {
   const r = spawnSync('git', args, { cwd, input, maxBuffer: MAX_BYTES, timeout: 15_000, env: { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_CONFIG_NOSYSTEM: '1' } });

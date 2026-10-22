@@ -330,3 +330,88 @@ comparison, not a combined accuracy score for the full static and dynamic tool.
   policy recognizes that correction. Flaky tests, incomplete reporting and ambiguous discovery
   can mislead runtime comparisons. These tuned numbers do not establish zero false positives
   on other projects. No dynamic finding proves intent.
+
+## Judged documentation (tuned)
+
+`judge-cases.mjs` is a separate authored and tuned dev cohort for DY009. `judge-mock.mjs`
+provides all three supported executable names. No real judge command, login, service or model is
+invoked by these cases or CI. A hand-authored verdict is a proposal, not the final finding.
+`judge-run.mjs` runs the project tests and fresh-process probes before comparing expected gates.
+
+The cases pair shortcut implementations with honest implementations for literal examples,
+ascending and descending integer order, stable uniqueness, Unicode character count, sign,
+truncation, floor and padding. Both Node and Python are covered. Additional pairs cover plain
+prose mentions and foreign qualifiers, an old implementation that already violates the rule plus an added passing test
+claim, missing opt-ins, changed or absent docs, a red current suite, exact quotation, unclear or
+malformed output, unsupported claims, no runtime reproduction, missing login or executable,
+unstable behavior, an old violation without a new claim, prompt limits, earlier static and
+runtime blockers, an unignored cache preserving DY003, known ambiguity and conflicting precise documentation.
+
+The host unit tests separately check all three default-model command envelopes, backend selection
+with a paid-route environment key, the two-attempt cap, conservative prompt bytes, content-hash
+invalidation, positive and negative cache hits, deadline/cancellation, read-only confinement and
+cache symlinks. Integration tests verify every backend with fake commands, persistent cache
+reuse, both opt-ins, runtime witnesses and the shared deadline. These exercise implementation
+and gates; they do not evaluate a real judge's ability to interpret prose.
+
+Run with installed Node, Python, Git and Linux bubblewrap:
+
+```sh
+npm run build
+node bench/dynamic-dev/judge-run.mjs > bench/dynamic-dev/judge-results.json
+node bench/dynamic-dev/measure-judge.mjs > bench/dynamic-dev/judge-runtime.json
+```
+
+The existing 168 cases and their historical tuned results remain separate. DY009 does not run
+in that cohort because it has no judge opt-in. No evaluation corpus is used for tuning.
+
+The local prompt selector reuses DY008's documentation paths, line limits, fence/comment and
+historical-section exclusions, then binds call signatures or matching identifier mentions to
+changed units. A proposed claim must fit the existing fixed reference vocabulary; no generated
+code is accepted. Each input runs twice per revision in separate fresh processes. A previous
+satisfying result or a new independently reproduced passing test claim supplies corroboration.
+Local ambiguity cannot be promoted by a judge, and conflicting known precise statements cannot
+justify a blocker. Advisory DY009 warnings alone leave the exit status unchanged.
+
+The host launches a signed-in local command outside the network-off worker, in an empty sibling
+temporary directory. Project runtime never receives its credentials. The command sees a read-only
+host, may use its configured service, and is killed with its process group on timeout or exit.
+Profile writes and refresh requirements can make an otherwise installed command unavailable.
+The cache stores strict proposals under hashes, not runtime outcomes or complete function source.
+Cache hits always repeat the runtime checks. Two calls and 2,000 supplied prompt bytes are hard
+caps; command-owned prompts, retries and billing policy are not controlled here.
+
+Quoted prose can be misinterpreted, and documentation can be wrong. Fresh stable processes do
+not prove purity, normative scope or intent. A hand-authored correct verdict makes these tuned
+cases unsuitable for estimating real judge accuracy or a real-world false-positive rate.
+
+Final tuned results from `judge-results.json` cover 84 cases, 42 shortcuts and 42 honest twins:
+
+| Tuned cohort | Blocking shortcut cases | Any shortcut finding | Blocking honest | Any honest finding |
+| --- | --- | --- | --- | --- |
+| DY009 applicable proposals, 42 cases | 21/21 | 21/21 | 0/21 | 0/21 |
+| Gate controls, 42 cases | 2/21 (existing DY003 and DY008) | 4/21 | 0/21 | 0/21 |
+| New total, 84 cases | 23/42 | 25/42 | 0/42 | 0/42 |
+| Historical 168 plus new 84 | 66/126 | 105/126 | 0/126 | 8/126 warnings |
+
+All 84 final cases completed without a skip or an unexpected outcome. Two shortcut gate controls
+produce advisory findings for ambiguity or conflicting documentation. The other ineligible
+shortcut cases stay silent dynamically, as intended; one separately verifies an existing static
+RH003 blocker suppresses the judge. Counts above include dynamic findings only. Most runs use
+`--rules RH014`; that static blocker gate uses RH003. These are not combined static recall scores.
+The historical cohort was authored earlier and has no judge flag. Its eight honest warnings
+remain unchanged. The complete suite still exercises it. Every number in this table is tuned.
+
+On the new tuned cohort, CLI median was 2,500 ms and total case CLI time was 196.62 seconds.
+`judge-runtime.json` records twenty warm samples per mode after five warm-ups on the honest
+sort fixture. Tuned medians were 735 ms with dynamic checking alone, 2,624 ms with a cold fake
+judge and fresh verification, and 2,550 ms with a cached proposal and fresh verification.
+The additional cold cost was 1,890 ms; cache hits save calls, not the runtime evidence work.
+Real service latency, real CLI profile compatibility, service request counts and judge accuracy
+were not measured. These are toy fixtures on one host, not performance or accuracy guarantees.
+
+`judge-default-runtime.json` compares previous PR head 66e84eb with the final build without
+either opt-in: twenty warm interleaved samples per revision after five warm-ups. Tuned medians
+were 235 ms before and 236 ms after, with byte-identical stdout, stderr and exit status.
+This is host variation on a trivial source diff. It establishes unchanged output for this fixture,
+not a general speed claim. Build output was fixed during the final measurements and tests.

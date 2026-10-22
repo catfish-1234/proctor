@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Add DY009 behind both `--dynamic --judge` flags. An installed signed-in command can propose
+  a quoted interpretation of unchanged documentation; only stable isolated runtime evidence
+  backed by an old satisfying result or an added passing test claim can block. Keep ambiguity
+  and conflicting documentation advisory. Enforce two calls, bounded prompts, content-hash
+  caching and the existing deadline. Exclude tool-owned cache artifacts from project snapshots
+  to preserve other runtime checks. Add paired tuned dev cases using fake commands only.
+
 - Add DY008 under dynamic opt-in: compare fresh input runs against precise unchanged spec,
   README and docs statements. Block stable violations supported by an old passing result or
   an added passing test claim. Keep ambiguous documentation advisory, skip changed contracts,

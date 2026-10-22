@@ -23,3 +23,6 @@ verify-head/
 # npm pack output, never committed
 *.tgz
 claude-local.ps1
+
+.proctor-judge-cache
+.proctor-judge-cache-*

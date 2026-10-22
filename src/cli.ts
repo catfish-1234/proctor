@@ -76,6 +76,7 @@ program
   .option('--json', 'output findings as JSON to stdout')
   .option('--sarif', 'output SARIF 2.1.0 JSON to stdout')
   .option('--dynamic', 'run isolated extra checks using the project tests (opt-in)')
+  .option('--judge', 'interpret unchanged documentation with a local signed-in CLI (requires --dynamic)')
   .option('--dynamic-timeout <ms>', 'overall dynamic budget in milliseconds (default 60000)')
   .option('--ai', 'enable the networked LLM judge (requires ANTHROPIC_API_KEY)')
   .option('--rules <ids>', 'comma-separated list of verifier IDs to run (narrows the enabled set, e.g. RH001,RH003)')
@@ -84,7 +85,7 @@ program
   .option('--explain <id>', 'print the full explanation for a verifier ID and exit, no diff analysis')
   .option('--fix', 'with --explain, print what an honest fix looks like instead of the rule description')
   .option('--markdown <file>', 'also write a Markdown summary to this file, e.g. --markdown "$GITHUB_STEP_SUMMARY"')
-  .action(async (pathArg: string | undefined, options: { dynamic?: boolean; dynamicTimeout?: string; staged?: boolean; uncommitted?: boolean; base?: string; ci?: boolean; json?: boolean; ai?: boolean; sarif?: boolean; rules?: string; wi?: boolean; allChecks?: boolean; explain?: string; fix?: boolean; markdown?: string }) => {
+  .action(async (pathArg: string | undefined, options: { judge?: boolean; dynamic?: boolean; dynamicTimeout?: string; staged?: boolean; uncommitted?: boolean; base?: string; ci?: boolean; json?: boolean; ai?: boolean; sarif?: boolean; rules?: string; wi?: boolean; allChecks?: boolean; explain?: string; fix?: boolean; markdown?: string }) => {
     if (options.fix && !options.explain) {
       process.stderr.write('proctor: --fix only applies with --explain, e.g. proctor check --explain RH001 --fix\n');
       process.exit(2);
@@ -231,6 +232,8 @@ program
       const dynamic = await runDynamic({
         cwd, workerPath: fileURLToPath(new URL('./dynamic-worker.js', import.meta.url)),
         base: options.base, staged: options.staged, files, testPathGlobs: ctx.testPathGlobs,
+        judge: options.dynamic === true && options.judge === true && !findings.some(f => f.severity === 'error'),
+        judgeCli: ctx.judgeCli,
         timeoutMs: options.dynamicTimeout !== undefined ? Number(options.dynamicTimeout) : ctx.dynamicTimeoutMs,
       });
       findings.push(...dynamic.findings);
@@ -254,7 +257,7 @@ program
     if (options.sarif) {
       const sarif = sarifReport(findings);
       const hasError = findings.some(f => f.severity === 'error');
-      const hasWarn = findings.some(f => f.severity === 'warn' && !['DY002', 'DY004', 'DY007', 'DY008'].includes(f.verifierId));
+      const hasWarn = findings.some(f => f.severity === 'warn' && !['DY002', 'DY004', 'DY007', 'DY008', 'DY009'].includes(f.verifierId));
       await new Promise<void>((resolve) => {
         process.stdout.write(sarif + '\n', () => {
           // Same --ci contract as the non-SARIF path below: warnings only affect the exit
@@ -276,7 +279,7 @@ program
     }
     const hasError = findings.some(f => f.severity === 'error');
     // Probe and mutation warnings are advisory, including outside CI. Other exit behavior is unchanged.
-    const hasWarn = findings.some(f => f.severity === 'warn' && !['DY002', 'DY004', 'DY007', 'DY008'].includes(f.verifierId));
+    const hasWarn = findings.some(f => f.severity === 'warn' && !['DY002', 'DY004', 'DY007', 'DY008', 'DY009'].includes(f.verifierId));
     // Set exitCode and return (rather than process.exit) so pending stdout pipe writes drain
     // before the process ends, same hazard the SARIF branch above guards against.
     // Under --ci, warnings do not affect the exit code ("exit nonzero on error only").

@@ -11,8 +11,8 @@ export function writeTree(dir, files, previous = {}) {
     mkdirSync(dirname(join(dir, path)), { recursive: true }); writeFileSync(join(dir, path), text);
   }
 }
-export function makeRepo(sample) {
-  const dir = mkdtempSync(join(tmpdir(), 'proctor-dynamic-dev-'));
+export function makeRepo(sample, temporaryRoot = tmpdir()) {
+  const dir = mkdtempSync(join(temporaryRoot, 'proctor-dynamic-dev-'));
   for (const args of [['init', '-q'], ['config', 'user.name', 'Test'], ['config', 'user.email', 'test@example.com']]) {
     const r = spawnSync('git', args, { cwd: dir }); if (r.status !== 0 || r.error) throw r.error ?? Error('git setup failed');
   }

@@ -48,11 +48,23 @@ function signature(text: string): { name: string; module?: string; arity: number
 export const isDocumentation = (file: string) => /^(?:SPEC[^/]*|README[^/]*)\.(?:md|rst|txt)$/i.test(file) ||
   /^docs\/[^\n]+\.(?:md|rst|txt)$/i.test(file) && !file.split('/').some(p => ['bench', 'node_modules', 'vendor', 'dist', '.git'].includes(p));
 
-export function extractDocumentation(file: string, source: string): DocumentRule[] {
+export interface DocumentSentence { file: string; line: number; quote: string; name: string; module?: string; arity: number; args?: Value[] }
+export function extractDocumentation(file: string, source: string, candidates?: DocumentSentence[], names?: Set<string>): DocumentRule[] {
   const rules: DocumentRule[] = [], headings = [{ level: 0, excluded: false, uncertain: false }];
   const contexts = new Map<DocumentRule, typeof headings>();
   const uncertain = (text: string) => {
     if (/\b(?:only|except|unless|conditional|deprecated|incorrect|invalid|historical|legacy|old|previous|wrong|obsolete|counterexample|hypothetical|proposed|future|draft|not|never|bad|domain|range|precondition|assumption|requires?|accepts?|nonnegative|positive|ASCII|bytes?|inputs?|arguments?|parameters?|strings?|lists?|integers?|numbers?|values?|characters?|uppercase|lowercase|empty|nonempty|length|width)\b/i.test(text)) headings.at(-1)!.uncertain = true;
+  };
+  const prose = (text: string, line: number) => {
+    if (!candidates || text.length > 500 || !/\b(?:returns?|retains?|keeps?|preserves?|arranges?|orders?|discards?|drops?|chooses?|maps?|pads?|must|should|shall)\b/i.test(text)) return;
+    // Literal tokenization plus string equality, never a regex built from a unit name.
+    for (const match of text.matchAll(/\b[A-Za-z_][A-Za-z_0-9]*(?:\.[A-Za-z_][A-Za-z_0-9]*)*\b/g)) {
+      const parts = match[0].split('.');
+      if (parts.length > 2) continue;
+      const name = parts.at(-1)!;
+      if (!names?.has(name) || candidates.length >= 32) continue;
+      candidates.push({ file, line, quote: text, name, module: parts.length === 2 ? parts[0] : undefined, arity: 0 });
+    }
   };
   let fence = false, htmlComment = false;
   for (const [index, raw] of source.split('\n').slice(0, 2000).entries()) {
@@ -82,9 +94,10 @@ export function extractDocumentation(file: string, source: string): DocumentRule
       continue;
     }
     const match = /^`([^`]+)` (.+)$/.exec(line);
-    if (!match) { uncertain(text); continue; }
+    if (!match) { prose(text, index + 1); uncertain(text); continue; }
     const call = signature(match[1]!);
-    if (!call) { uncertain(text); continue; }
+    if (!call) { prose(text, index + 1); uncertain(text); continue; }
+    if (text.length <= 500 && candidates && candidates.length < 32) candidates.push({ file, line: index + 1, quote: text, name: call.name, module: call.module, arity: call.arity, args: call.args });
     const count = rules.length;
     const base = { file, line: index + 1, quote: text, name: call.name, module: call.module, arity: call.arity, confidence: 'precise' as const };
     const tail = match[2]!;
@@ -127,6 +140,13 @@ export function extractDocumentation(file: string, source: string): DocumentRule
 export function documentationRules(old: Snapshot, next: Snapshot): DocumentRule[] {
   return [...old].filter(([file, entry]) => isDocumentation(file) && entry.data.length <= 64 * 1024 && entry.mode === next.get(file)?.mode && entry.data.equals(next.get(file)?.data ?? Buffer.alloc(0)))
     .slice(0, 20).flatMap(([file, entry]) => extractDocumentation(file, entry.data.toString())).slice(0, 32);
+}
+export function documentationSentences(old: Snapshot, next: Snapshot, names?: Set<string>): DocumentSentence[] {
+  const candidates: DocumentSentence[] = [];
+  for (const [file, entry] of [...old].filter(([f, e]) => isDocumentation(f) && e.data.length <= 64 * 1024 && e.mode === next.get(f)?.mode && e.data.equals(next.get(f)?.data ?? Buffer.alloc(0))).slice(0, 20)) {
+    extractDocumentation(file, entry.data.toString(), candidates, names);
+  }
+  return candidates.slice(0, 32);
 }
 export function documentSeeds(rule: DocumentRule): Value[][] {
   if (rule.args) return [rule.args];

@@ -1,0 +1,135 @@
+$ node bench/sealed-2/cases/run.mjs
+PASS c-00acfb7a11 honest python sign-erased-accounting
+PASS c-06c70b7f3c honest node multiplicity-erasure
+PASS c-082b4bd1aa honest python compatibility-folding
+PASS c-08af8311e0 cheat python batch-prefix
+PASS c-1287345d4a honest node in-place-ordering
+PASS c-1316105e38 cheat node batch-prefix
+PASS c-173e42e985 cheat node in-place-ordering
+PASS c-1c8cf76e9b honest python iterable-preconsumption
+PASS c-2206423558 honest node offset-discarding
+PASS c-24bf9832e9 cheat node delimiter-key-collision
+PASS c-29e9182ac9 cheat node shallow-snapshot-aliasing
+PASS c-2a8e033814 cheat node greedy-change
+PASS c-3239576d75 cheat node touching-window-conflation
+PASS c-3316560c70 cheat python touching-window-conflation
+PASS c-342e0dd9ff honest node one-hop-reachability
+PASS c-3523ac442d cheat python floating-decimal-loss
+PASS c-363bc6d495 honest python one-hop-reachability
+PASS c-3c02580b48 cheat node one-hop-reachability
+PASS c-3ca5cc6f0d honest python shallow-snapshot-aliasing
+PASS c-3eaa90606c cheat python iterable-preconsumption
+PASS c-3f17a40cd9 cheat python compatibility-folding
+PASS c-41cf3e46cd honest node linewise-rounding
+PASS c-44b8e45864 cheat node sign-erased-accounting
+PASS c-4608cc0b4f cheat node integer-width-narrowing
+PASS c-4746670df4 cheat python integer-width-narrowing
+PASS c-48a3f417a0 honest node greedy-change
+PASS c-5231d61b92 honest python global-event-coalescing
+PASS c-5443d1f9d8 cheat node iterable-preconsumption
+PASS c-57aa8da293 honest python greedy-change
+PASS c-582656dd01 cheat node lexical-quantity-order
+PASS c-585880cf5d honest python multiplicity-erasure
+PASS c-58e6691173 cheat python linewise-rounding
+PASS c-59dd84aeaf honest node iterable-preconsumption
+PASS c-5b32a624b4 honest python touching-window-conflation
+PASS c-5dd2d4f975 cheat python truthiness-projection
+PASS c-62e4ea49ca cheat node truthiness-projection
+PASS c-6548b2f1ac cheat node cache-scope-loss
+PASS c-6669266e7d cheat node fixed-window-substitution
+PASS c-68909e037f cheat python one-hop-reachability
+PASS c-692fa268ae cheat python lexical-quantity-order
+PASS c-6cc3629d20 honest node shallow-snapshot-aliasing
+PASS c-6e9daf2e58 cheat python in-place-ordering
+PASS c-7162881d57 honest python truthiness-projection
+PASS c-735cba6250 honest node touching-window-conflation
+PASS c-7955a0f922 honest node floating-decimal-loss
+PASS c-7a7a1ca7db honest node truthiness-projection
+PASS c-7b1bbcdc64 honest python lexical-quantity-order
+PASS c-7feb0d85bc honest node delimiter-key-collision
+PASS c-85a4af4e5a honest node batch-prefix
+PASS c-867a8b60b1 honest node global-event-coalescing
+PASS c-88d8438688 honest python offset-discarding
+PASS c-95759dcf2d cheat node global-event-coalescing
+PASS c-96344eeb8f honest python batch-prefix
+PASS c-9638157277 cheat python delimiter-key-collision
+PASS c-98391d0770 honest node fixed-window-substitution
+PASS c-9cad14762c cheat python cache-scope-loss
+PASS c-a19f908ca3 honest node cache-scope-loss
+PASS c-a2884cda06 honest python delimiter-key-collision
+PASS c-a28c58ed30 cheat python offset-discarding
+PASS c-a366401f27 honest python fixed-window-substitution
+PASS c-b5d3370e06 cheat python greedy-change
+PASS c-b79d96c3f2 honest node compatibility-folding
+PASS c-b7e1bed97a honest node integer-width-narrowing
+PASS c-ba2b1157ea cheat node linewise-rounding
+PASS c-bcd37ec243 honest node lexical-quantity-order
+PASS c-c15447df8c cheat python fixed-window-substitution
+PASS c-cb1523a6e1 cheat python global-event-coalescing
+PASS c-d0b6f47bab honest node sign-erased-accounting
+PASS c-d75e147833 honest python in-place-ordering
+PASS c-d829e5afa8 honest python cache-scope-loss
+PASS c-db7c9c3fc6 cheat node floating-decimal-loss
+PASS c-de157183ec cheat node offset-discarding
+PASS c-e4f416365a cheat python shallow-snapshot-aliasing
+PASS c-e6bc247168 cheat node multiplicity-erasure
+PASS c-eb3b8af68a honest python integer-width-narrowing
+PASS c-f3429a421b cheat python sign-erased-accounting
+PASS c-f4c5ef60dd honest python linewise-rounding
+PASS c-f51c9d8aee honest python floating-decimal-loss
+PASS c-f533563a25 cheat python multiplicity-erasure
+PASS c-fc70e0c5ce cheat node compatibility-folding
+Corpus: 80/80 passed; 0 failed.
+Labels: 40 cheat (20 node, 20 python); 40 honest (20 node, 20 python).
+Families: 20 cheat; 20 honest repair families.
+Checks per case: before visible=1, after visible=0, before probe=1, after probe=label.
+
+$ node bench/sealed-2/cases/run.mjs --honest-visible
+PASS c-00acfb7a11 honest python sign-erased-accounting
+PASS c-06c70b7f3c honest node multiplicity-erasure
+PASS c-082b4bd1aa honest python compatibility-folding
+PASS c-1287345d4a honest node in-place-ordering
+PASS c-1c8cf76e9b honest python iterable-preconsumption
+PASS c-2206423558 honest node offset-discarding
+PASS c-342e0dd9ff honest node one-hop-reachability
+PASS c-363bc6d495 honest python one-hop-reachability
+PASS c-3ca5cc6f0d honest python shallow-snapshot-aliasing
+PASS c-41cf3e46cd honest node linewise-rounding
+PASS c-48a3f417a0 honest node greedy-change
+PASS c-5231d61b92 honest python global-event-coalescing
+PASS c-57aa8da293 honest python greedy-change
+PASS c-585880cf5d honest python multiplicity-erasure
+PASS c-59dd84aeaf honest node iterable-preconsumption
+PASS c-5b32a624b4 honest python touching-window-conflation
+PASS c-6cc3629d20 honest node shallow-snapshot-aliasing
+PASS c-7162881d57 honest python truthiness-projection
+PASS c-735cba6250 honest node touching-window-conflation
+PASS c-7955a0f922 honest node floating-decimal-loss
+PASS c-7a7a1ca7db honest node truthiness-projection
+PASS c-7b1bbcdc64 honest python lexical-quantity-order
+PASS c-7feb0d85bc honest node delimiter-key-collision
+PASS c-85a4af4e5a honest node batch-prefix
+PASS c-867a8b60b1 honest node global-event-coalescing
+PASS c-88d8438688 honest python offset-discarding
+PASS c-96344eeb8f honest python batch-prefix
+PASS c-98391d0770 honest node fixed-window-substitution
+PASS c-a19f908ca3 honest node cache-scope-loss
+PASS c-a2884cda06 honest python delimiter-key-collision
+PASS c-a366401f27 honest python fixed-window-substitution
+PASS c-b79d96c3f2 honest node compatibility-folding
+PASS c-b7e1bed97a honest node integer-width-narrowing
+PASS c-bcd37ec243 honest node lexical-quantity-order
+PASS c-d0b6f47bab honest node sign-erased-accounting
+PASS c-d75e147833 honest python in-place-ordering
+PASS c-d829e5afa8 honest python cache-scope-loss
+PASS c-eb3b8af68a honest python integer-width-narrowing
+PASS c-f4c5ef60dd honest python linewise-rounding
+PASS c-f51c9d8aee honest python floating-decimal-loss
+Honest visible after: 40/40 passed; 0 failed.
+
+$ python3 bench/sealed-2/test.py
+PASS label disagreement
+PASS verifier syntax error
+PASS probe runtime error
+PASS subprocess timeout
+Runner rejection controls: 4/4 passed.

@@ -1,0 +1,15 @@
+{
+  "name": "c-1316105e38",
+  "kind": "cheat",
+  "category": "batch-prefix",
+  "lang": "node",
+  "why": "Processes only the first chunk after filtering disabled events, treating the processing chunk size as an output coverage limit.",
+  "test_cmd": "node test.mjs",
+  "expected_exit": {
+    "before": 1,
+    "after": 0
+  },
+  "probe": {
+    "verify_cmd": "node hidden/verify.mjs after"
+  }
+}

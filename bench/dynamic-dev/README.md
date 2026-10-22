@@ -1,6 +1,6 @@
 # Dynamic development set
 
-These 116 authored cases are a tuned development set: 58 cheats and 58 honest twins.
+These 168 authored cases are a tuned development set: 84 cheats and 84 honest twins.
 They are small generated Git repositories using Node or Python standard-library tests.
 The cases and implementation were developed together. These numbers do not establish
 accuracy on other repositories. No separate evaluation corpus was used.
@@ -14,8 +14,9 @@ node bench/dynamic-dev/run.mjs > results.json
 Execution needs Node, Python 3, Git and Linux bubblewrap with working namespaces. The case
 projects need no installed test packages. The harness exits nonzero for a skipped case, a
 missing expected finding, a blocked honest case or an unexpected advisory finding.
-Two honest probe cases explicitly expect DY002 warnings, and four honest differential cases
-expect DY007 warnings. `results.json` records them as flags. The other honest cases still require
+Two honest probe cases explicitly expect DY002 warnings, four honest differential cases expect
+DY007 warnings, and two ambiguous-document cases expect DY008 warnings. `results.json` records
+them as flags. The other honest cases still require
 zero findings, and every honest case requires zero blocking findings.
 
 ## Blocking policy and tuned results
@@ -38,9 +39,13 @@ including with `--ci`; configuration opt-in uses the same policy as `--dynamic`.
 | Four red-baseline contract cases | 2/2 | 2/2 | 0/2 | 0/2 |
 | Four differential-precision cases | 0/2 | 2/2 | 0/2 | 2/2 warnings |
 | Four output-collapse cases | 0/2 | 2/2 | 0/2 | 2/2 warnings |
-| Total, 116 cases | **19/58** | **54/58** | **0/58** | **6/58 warnings** |
+| Forty precise-document cases | 20/20 | 20/20 | 0/20 | 0/20 |
+| Four documented test-claim cases | 2/2 | 2/2 | 0/2 | 0/2 |
+| Four documented arrow examples | 2/2 | 2/2 | 0/2 | 0/2 |
+| Four ambiguous-document cases | 0/2 | 2/2 | 0/2 | 2/2 warnings |
+| Total, 168 cases | **43/84** | **80/84** | **0/84** | **8/84 warnings** |
 
-Projecting the same observed DY002 findings to errors would block **33/58 cheats and 2/58
+Projecting the same observed DY002 findings to errors would block **57/84 cheats and 2/84
 honest cases**. This projection changes severity only; the commands, inputs and outcomes are
 the recorded ones. The honest cases fix a zero sentinel and an empty-label exception required
 by unchanged contracts. Their new branches differ from the old reference at exactly one probed
@@ -69,7 +74,7 @@ static/dynamic result is claimed for the full set. Reproduce the subset comparis
 
 DY007 keeps unannotated differential evidence advisory. Two normalization pairs and two
 constant-output pairs have identical runtime observations across labels but different pre-existing
-contracts. Promoting DY007 would block **23/58 cheats and 4/58 honest cases**, a tuned severity-only
+contracts. Promoting DY007 would block **47/84 cheats and 4/84 honest cases**, a tuned severity-only
 counterfactual. Old code cannot serve as a universal oracle. Inferring intended input classes from
 test names, nearby diff lines or a few literal calls does not resolve this ambiguity, so that
 automatic blocking design was dropped. A declared contract supplies the missing oracle from the
@@ -81,8 +86,9 @@ both labels, and passing on both code revisions cannot establish cheating. Exist
 findings and default output are unchanged.
 
 Rows use disjoint case families. Earlier additions covered typed probes, bare Python functions,
-discovery errors, mutation-lite, expectation promotion and probe precision. The latest 32 additions
-cover declared contracts and differential precision. All remain part of the same tuning process.
+discovery errors, mutation-lite, expectation promotion and probe precision. An earlier 32-case
+addition covered declared contracts and differential precision. The latest 52 additions cover
+documented contracts and ambiguity. All remain part of the same tuning process.
 
 | Idea | Kept behavior | Tuned development results |
 |------|---------------|---------------------------|
@@ -101,6 +107,8 @@ cover declared contracts and differential precision. All remain part of the same
 | Probe promotion trial | A general old reference can violate a pre-existing exception contract | 2/2 cheats warned, 2/2 honest fixes warned; no blocking findings |
 | Declared behavior contracts | Reproduce generated-input assertion failures against an unchanged explicit helper | 12/12 cheats blocked, 0/12 honest cases flagged |
 | Unannotated behavior sweeps | Broader differences or output collapse can also be legitimate fixes | 4/4 cheats warned, 4/4 honest fixes warned; no blocking findings |
+| Precise documented contracts | Fresh runs violate unchanged literal examples or explicit universal rules, without a marker | 24/24 cheats blocked, 0/24 honest twins flagged |
+| Ambiguous documented contracts | A vague ordering statement permits both ascending and descending behavior | 2/2 cheats warned, 2/2 honest twins warned; no blocking findings |
 | Guard restoration | Dropped as a verdict; the harness restores each removed guard experimentally | Restoring a guard makes the new tests red for 3/3 cheats and 3/3 honest API relaxations |
 | Sleep or retry repetition | DY005 compares four runs, requiring a passing result and at least two failures for the same named test | 3/3 cheats found, 0/3 honest twins flagged |
 
@@ -108,8 +116,8 @@ Earlier expansions added 16 red-baseline cases and 20 typed-probe, Python and mu
 The twelve expectation-promotion and probe-precision additions also started red. The latest
 contract additions include both green baselines and red-to-green fixes. All results are tuned.
 
-Overall: **19/58 cheats blocked, 0/58 honest cases blocked, 0 skipped** on this tuned dev set.
-Including advisory findings, **54/58 cheats and 6/58 honest cases** are flagged.
+Overall: **43/84 cheats blocked, 0/84 honest cases blocked, 0 skipped** on this tuned dev set.
+Including advisory findings, **80/84 cheats and 8/84 honest cases** are flagged.
 The four misses are the three guard-removal cases and the coverage-only case. A red restored
 variant is evidence that tests depend on a guard being absent; it does not establish whether
 removing that guard was legitimate. The repeat fixtures deliberately exercise persistent
@@ -126,15 +134,15 @@ node bench/dynamic-dev/measure-static.mjs /path/to/baseline/dist/cli.js dist/cli
 ```
 
 The baseline is main at `a5f4700`, version 1.2.0, before the blocking policy change.
-The tuned fixture medians were **211 ms before and 209 ms after** without dynamic opt-in. This is
+The tuned fixture medians were **210 ms before and 207 ms after** without dynamic opt-in. This is
 one fixture on one Linux host, within run-to-run variation, not a general speed claim.
-The tuned dynamic CLI median was **870 ms** across the 116 toy cases, with **146.11 seconds**
+The tuned dynamic CLI median was **1,010 ms** across the 168 toy cases, with **299.89 seconds**
 for all case CLI invocations combined. This includes CLI startup and static checking. Dependency-heavy
 suites can cost much more and can exhaust the budget. Individual case timings are in `results.json`.
 Absolute host Node executable paths in the recorded commands are normalized to `node`.
 
-The additional contract cost uses the honest numeric-sort dev fixture, comparing the previous PR
-revision `840ccae` against this change, with twenty warm interleaved CLI runs after five warm-ups
+The earlier DY006 contract-cost trial used the honest numeric-sort dev fixture, comparing PR
+revision `840ccae` against `af936e6`, with twenty warm interleaved CLI runs after five warm-ups
 each. The tuned medians were **479 ms before and 2,760 ms after**, an additional **2,281 ms** on
 this small fixture. The candidate runs four sweeps and fresh contract subprocesses; the baseline
 runs only its two suites. Samples are in `behavior-runtime.json`. Reproduce with:
@@ -145,6 +153,82 @@ node bench/dynamic-dev/measure-behavior.mjs /path/to/840ccae/dist/cli.js dist/cl
 
 These are toy-fixture costs, not a general performance claim. Dependency-heavy suites and slow
 contract imports can consume the entire overall budget and cause a skipped dynamic result.
+
+The DY008 cost fixture compares `af936e6` with this change using the honest documented numeric
+sort case. Twenty warm interleaved samples after five warm-ups each had tuned medians of
+**625 ms before and 2,212 ms after**, an additional **1,587 ms**. Both revisions already run the
+existing suites and unannotated sweeps; the candidate adds fresh documented input processes.
+Samples are in `documentation-runtime.json`. Reproduce with:
+
+```sh
+node bench/dynamic-dev/measure-documentation.mjs /path/to/af936e6/dist/cli.js dist/cli.js af936e6
+```
+
+## Documented contracts
+
+DY008 reads unchanged root `SPEC*.md`, `README*.md` and Markdown, text or reStructuredText files
+under `docs/`. It parses bounded one-line statements without executing prose or documentation code.
+Supported examples and rules include:
+
+| Statement | Domain or meaning |
+|-----------|-------------------|
+| `` `app.scale(-2)` must return `-6`. `` | Exact typed literal input/output pair |
+| `` `app.scale(-2) -> -6` `` | Same point contract; separate backtick spans and `=>` also work |
+| `` `sort(xs)` must return all input integers in ascending order, preserving duplicates. `` | Integer lists, including empty lists and repeated values; descending order also works |
+| `` `unique(xs)` must return the input integers without duplicates, preserving their original order. `` | Exact stable deduplication of integer lists |
+| `` `reverse(text)` must preserve the number of Unicode code points for every string input. `` | Code points, not UTF-16 units, bytes or grapheme clusters |
+| `` `scale(n)` must preserve the sign of every nonzero integer input. `` | Nonzero finite safe integers |
+| `` `round(n)` must round every finite number toward zero. `` | Truncation; `down toward negative infinity` means floor |
+| `` `sum(xs)` must return `0` for an empty list. `` | Empty-list point only; `for an empty string` is also supported |
+| `` `pad(text, width)` must return exactly width Unicode code points when width is at least the input length. `` | String plus integer width, with the declared guard respected |
+
+Examples also accept `returns` and JSON or Python scalar/list literals. They constrain only the
+stated input and are never inferred as a general formula. Prose outside this grammar is skipped.
+`returns sorted values` has an explicitly advisory interpretation because direction is ambiguous.
+Fences, quotations, HTML comments and historical or deprecated sections are excluded. Possible
+qualifiers in surrounding prose or headings downgrade a statement to advisory, including qualifiers
+following the statement. Conflicting point examples or general rules cannot block.
+
+Names must bind unambiguously to the changed callable. A module qualifier matches one source
+basename; unqualified names require a complete bounded source inventory with no other identifier
+of that name. Unknown syntax, unsupported source languages or a large inventory can prevent that
+proof. Qualified module basenames must also be unique across unsupported source files. The existing Acorn and
+Python AST selection limits still apply. Documentation is bounded at twenty unchanged files of at
+most 64 KiB, 2,000 lines per file and thirty-two statements. DY008 selects at most two units and
+twelve inputs per unit. It combines document seeds, literal test calls and the existing variants.
+Each input runs in a fresh process, repeated on both revisions, with reverse-order repeats.
+Variants without an applicable statement are filtered before execution. A point example therefore
+does not trigger calls on undocumented neighbors, and explicit guards constrain universal probes.
+
+The new suite must pass. A precise statement blocks only when the after result violates it and the
+before result satisfied it, or an added test assertion explicitly claims the general rule. The
+claim path accepts literal equalities from supported Node assert APIs, bare Python tests and
+unittest methods. Claims must be unconditional in one unambiguous named passing test, be new
+relative to the old test assertions, use unshadowed imports and reproduce their expected value
+in the fresh after runs. An unchanged assertion, skipped test, conditional assertion or expectation
+that contradicts the rule cannot establish a new claim. Framework globals, custom assertion APIs,
+fixtures and indirect test calls can be missed. This is evidence of a test-authored claim, not a
+proof that the rest of the suite covers the rule.
+
+Any content or mode edit, addition or deletion of a supported contract document suppresses DY008 for the diff;
+the existing SPEC/CHANGELOG intent allowance also applies. This broad escape can hide unrelated
+violations. Non-JSON results and incomplete execution provide no blocking evidence. Executed
+exceptions can contradict a promised return at an applicable input. Filesystem state is reused,
+so fresh processes do not prove purity or prevent evasion. Unsupported prose, stale documents,
+wrong contracts and untested domains remain limits. Every finding names the document, line,
+statement, generated input, before/after results and actual fresh-process commands.
+
+On this tuned set, the twenty-four precise-document cheats block and all twenty-four honest twins
+stay clean. The forty-eight cases include input/output examples, ordering, uniqueness, width, sign,
+rounding, emptiness, padding and the new-test-claim gate in Node and Python. Two vague-ordering
+pairs warn for both labels. Promoting these ambiguous DY008 warnings to errors would block
+**45/84 cheats and 2/84 honest cases**, a tuned severity-only counterfactual, so promotion is rejected.
+
+Default static checks block **0/24 cheats and 0/24 honest cases** in the precise-document subset,
+all tuned. DY008 adds all twenty-four detections missed by those static checks. Individual outcomes
+are in `documentation-static.json`; reproduce with
+`node bench/dynamic-dev/compare-documentation.mjs > documentation-static.json`. This is a subset
+comparison, not a combined accuracy score for the full static and dynamic tool.
 
 ## Exact prototype limits
 
@@ -238,9 +322,10 @@ contract imports can consume the entire overall budget and cause a skipped dynam
 - Findings carry command, run label and named outcomes in their message.
   They appear in text, JSON, SARIF and Markdown; skips are reported on stderr. Static severity,
   ignore, approval and suppression settings do not currently filter dynamic findings. Warnings
-  from DY002, DY004 and DY007 are advisory and never change the exit code on their own. Other warnings
+  from DY002, DY004, DY007 and DY008 are advisory and never change the exit code on their own. Other warnings
   follow existing CLI exit behavior, including `--ci`. DY003 acceptance on old code and DY006
-  declared-contract violations are errors.
+  declared-contract violations are errors. DY008 precise documented-contract contradictions are
+  also errors; ambiguous documented statements remain warnings.
   Correcting a stale test can be legitimate; the existing intent-note allowance is how this
   policy recognizes that correction. Flaky tests, incomplete reporting and ambiguous discovery
   can mislead runtime comparisons. These tuned numbers do not establish zero false positives

@@ -8,6 +8,7 @@ export interface Import { local: string; module: string; member?: string }
 export interface ParsedBehavior {
   file: string; language: 'js' | 'py'; functions: Callable[]; calls: Call[];
   imports: Import[]; preamble: string; contracts: string[];
+  identifiers?: string[];
 }
 // Acorn nodes have different fields for each syntax kind. Inspect them only after checking type.
 type Ast = any;
@@ -67,8 +68,11 @@ export function parseBehaviorJs(file: string, source: string): ParsedBehavior | 
         }
       }
     }
+    const identifiers = new Set<string>();
     function walk(node: Ast, owner?: string): void {
       if (!node || typeof node !== 'object') return;
+      if (node.type === 'Identifier') identifiers.add(node.name);
+      if (node.type === 'Literal' && typeof node.value === 'string') identifiers.add(node.value);
       if (node.type === 'FunctionDeclaration') owner = node.id.name;
       if (node.type === 'CallExpression' && node.arguments.length > 0 && node.arguments.length <= 3) {
         const c = node.callee;
@@ -87,7 +91,7 @@ export function parseBehaviorJs(file: string, source: string): ParsedBehavior | 
     }
     walk(ast);
     for (const f of functions) f.exported = exported.get(f.name) ?? '';
-    return { file, language: 'js', functions, calls, imports, preamble: preamble.join('\n'), contracts };
+    return { file, language: 'js', functions, calls, imports, preamble: preamble.join('\n'), contracts, identifiers: [...identifiers] };
   } catch { return undefined; /* Unsupported syntax is not runtime evidence. */ }
 }
 
@@ -134,7 +138,8 @@ for file,source in json.load(sys.stdin):
                     calls.append(call)
             for child in ast.iter_child_nodes(node): walk(child,owner)
         walk(tree)
-        out.append(dict(file=file,language='py',functions=functions,calls=calls,imports=imports,preamble='\\n'.join(preamble),contracts=contracts))
+        identifiers={n.id for n in ast.walk(tree) if isinstance(n,ast.Name)}|{n.name for n in ast.walk(tree) if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef))}|{n.attr for n in ast.walk(tree) if isinstance(n,ast.Attribute)}|{n.value for n in ast.walk(tree) if isinstance(n,ast.Constant) and type(n.value)==str}
+        out.append(dict(file=file,language='py',functions=functions,calls=calls,imports=imports,preamble='\\n'.join(preamble),contracts=contracts,identifiers=sorted(identifiers)))
     except (SyntaxError,ValueError,RecursionError,tokenize.TokenError): pass
 print(json.dumps(out))
 `;

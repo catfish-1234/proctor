@@ -7,6 +7,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Add DY008 under dynamic opt-in: compare fresh input runs against precise unchanged spec,
+  README and docs statements. Block stable violations supported by an old passing result or
+  an added passing test claim. Keep ambiguous documentation advisory, skip changed contracts,
+  and add paired tuned development cases without requiring a contract marker.
 - Add bounded before/after behavior sweeps under dynamic opt-in. DY006 blocks reproduced
   generated-input violations of an unchanged explicitly marked test contract. DY007 keeps
   unannotated broad divergence and output collapse advisory because honest fixes can produce

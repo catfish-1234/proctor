@@ -414,6 +414,26 @@ not intent. Without a marked contract, sweeps never add a blocking finding.
 This bounded prototype handles direct imports and JSON scalars or small arrays, not classes,
 TypeScript, arbitrary fixtures, generated calls or framework setup needed by a helper. It can miss
 bugs outside its generated inputs. All runs share the existing overall timeout and sandbox.
+
+DY008 adds an oracle from unchanged `SPEC*.md`, `README*.md` and `docs/` documentation, without
+a test marker. It recognizes a bounded prose grammar: exact examples such as
+`` `app.scale(-2)` must return `-6`. `` or `` `app.scale(-2) -> -6` ``, plus explicit rules for
+integer ordering with duplicates, stable uniqueness, Unicode code-point width, sign, rounding,
+empty inputs and guarded padding width. See the [supported statements](bench/dynamic-dev/README.md#documented-contracts).
+Examples constrain that exact input; they are never extrapolated into a formula.
+
+A precise statement can block when the new suite is green and separate fresh processes reproduce
+a violation that the old result satisfied. When old code also violates a general rule, DY008 needs
+an added unconditional equality assertion in an unambiguous passing test that claims that rule;
+its literal example must also reproduce correctly on the new code. Vague prose, possible domain
+qualifiers and conflicting statements remain advisory. These warnings leave the exit code
+unchanged. Any supported contract-document edit suppresses DY008 for the diff.
+
+DY008 probes at most two units and twelve inputs per unit, twice on each revision, inside the
+existing worker and deadline. Literal examples can seed a unit even without a visible literal
+test call. Unknown syntax, ambiguous API names, code fences and unsupported results can be missed.
+This is a small deterministic grammar, not general prose understanding. Documentation can be stale
+or wrong, and a documented contradiction cannot establish intent.
 Default checks without dynamic opt-in are unchanged.
 See the [scope, dropped ideas and tuned dev-set measurements](bench/dynamic-dev/README.md).
 

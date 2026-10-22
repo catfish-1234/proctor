@@ -6,7 +6,9 @@ import { loadSnapshots, materialize, type Snapshot } from './dynamic/snapshots.j
 import { detectAdapter, runTests } from './dynamic/adapters.js';
 import { documentedIntent, expectedEdits, expectationChanges, expectationOnlyEdit, findProbes, locateTest, probeInputs, type ProbeValue } from './dynamic/signals.js';
 import { coverageEnvironment, jsMutations, MUTATION_LIMIT, pythonMutations, readCalls } from './dynamic/mutations.js';
-import { behaviorUnits, classifyBehavior, runSweep, type Sweep } from './dynamic/behavior.js';
+import { behaviorUnits, classifyBehavior, runSweep, runFreshSweep, type Sweep } from './dynamic/behavior.js';
+import { documentationRules, documentedUnits, documentationInputs, classifyDocumentation, isDocumentation } from './dynamic/documentation.js';
+import { documentClaims } from './dynamic/documentation-claims.js';
 import type { DynamicOptions, DynamicResult, TestRun } from './dynamic/runner.js';
 import type { Finding } from './types.js';
 
@@ -46,6 +48,31 @@ try {
   const testChanges = [...new Set([...oldTests, ...nextTests])].filter(p => old.get(p)?.data.toString() !== next.get(p)?.data.toString());
   const changedSource = [...new Set([...old.keys(), ...next.keys()])].some(p => !isTest(p) && !/\.(?:md|rst|txt)$/i.test(p) && old.get(p)?.data.toString() !== next.get(p)?.data.toString());
   const intent = documentedIntent(old, next);
+  // Documentation is an oracle only when it is unchanged and precise. No prose is executed.
+  if (current.run.exitCode === 0 && !intent) {
+    const docsChanged = [...new Set([...old.keys(), ...next.keys()])].some(file => isDocumentation(file) &&
+      (old.get(file)?.mode !== next.get(file)?.mode || old.get(file)?.data.toString() !== next.get(file)?.data.toString()));
+    const rules = documentationRules(old, next);
+    if (rules.length && !docsChanged) {
+      try {
+        for (const candidate of documentedUnits(old, next, isTest, current.dir, rules)) {
+          const claims = documentClaims(candidate.unit, old, next, nextTests, current.run, current.dir);
+          const unit = { ...candidate.unit, inputs: documentationInputs(candidate.rules, candidate.unit.fixtures, claims.map(c => c.args)) };
+          const sweeps: Sweep[] = [];
+          for (const [dir, label] of [[baseline.dir, 'original code'], [current.dir, 'new code']] as const) for (const reverse of [false, true]) {
+            const sweep = runFreshSweep(unit, dir, `documented behavior / ${label}${reverse ? ' / reversed repeat' : ''}`, reverse);
+            if (sweep) { sweeps.push(sweep); result.runs.push(sweep.run); }
+          }
+          for (const signal of classifyDocumentation(unit, candidate.rules, sweeps, claims, docsChanged)) {
+            const args = unit.inputs[signal.index], before = sweeps[0]!.outcomes[signal.index], after = sweeps[2]!.outcomes[signal.index];
+            finding('DY008', unit.file,
+              `${signal.blocking ? 'Violation of unchanged documented contract' : 'Possible contradiction to ambiguous documentation'} ${signal.rule.file}:${signal.rule.line}: ${JSON.stringify(signal.rule.quote)}. ${unit.name} input ${JSON.stringify(args)}: before ${JSON.stringify(before)}, after ${JSON.stringify(after)}; reproduced in separate fresh input processes.${signal.claim ? ` Added passing test ${JSON.stringify(signal.claim.test)} at ${signal.claim.file}:${signal.claim.line} claims this rule with input ${JSON.stringify(signal.claim.args)} and expected ${JSON.stringify(signal.claim.expected)}.` : ' The original result satisfied this statement.'}`,
+              [current.run, ...sweeps.map(s => s.run)], unit.line, signal.blocking);
+          }
+        }
+      } catch (error) { result.notes.push(`not run: documented behavior could not establish reliable evidence: ${String(error)}`); }
+    } else if (rules.length && docsChanged) result.notes.push('not run: documented behavior contract files changed in this diff');
+  }
   // A previous implementation is a reference, not an oracle. Only an unchanged, explicit
   // test contract can turn a stable generated-input contradiction into a blocking result.
   if (current.run.exitCode === 0 && !intent) {

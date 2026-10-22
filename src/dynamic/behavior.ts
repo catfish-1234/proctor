@@ -11,9 +11,9 @@ export const CONTRACT_INPUT_LIMIT = 16;
 export interface Contract { file: string; name: string; preamble: string; source: string }
 export interface BehaviorUnit {
   file: string; name: string; language: 'js' | 'py'; line: number;
-  fixtures: Value[][]; inputs: Value[][]; contract?: Contract;
+  fixtures: Value[][]; inputs: Value[][]; contract?: Contract; params?: string[];
 }
-export interface Outcome { value?: unknown; error?: string; contract?: 'pass' | 'assertion' | 'error'; contractExit?: number | null }
+export interface Outcome { value?: unknown; error?: string; unsupported?: boolean; contract?: 'pass' | 'assertion' | 'error'; contractExit?: number | null }
 export interface Sweep { outcomes: Outcome[]; run: TestRun }
 const key = (value: unknown) => JSON.stringify(value);
 
@@ -40,7 +40,7 @@ export function sweepInputs(fixtures: Value[][]): Value[][] {
   return result;
 }
 
-function importedUnit(test: ParsedBehavior, call: ParsedBehavior['calls'][number], file: string, fn: Callable): boolean {
+export function importedUnit(test: ParsedBehavior, call: ParsedBehavior['calls'][number], file: string, fn: Callable): boolean {
   return test.imports.some(binding => {
     if (call.receiver ? call.receiver !== binding.local || (binding.member && binding.member !== 'default') : call.name !== binding.local || binding.member !== fn.exported) return false;
     if (call.receiver && call.name !== fn.exported) return false;
@@ -60,7 +60,8 @@ function importedUnit(test: ParsedBehavior, call: ParsedBehavior['calls'][number
   });
 }
 const eligible = (file: string) => !file.split('/').some(part => ['bench', 'node_modules', 'vendor', 'dist', '.git'].includes(part));
-export function behaviorUnits(old: Snapshot, next: Snapshot, isTest: (file: string) => boolean, dir: string): BehaviorUnit[] {
+export function behaviorUnits(old: Snapshot, next: Snapshot, isTest: (file: string) => boolean, dir: string,
+  additionalSeeds?: (file: string, fn: Callable) => Value[][], select?: (file: string, fn: Callable) => boolean): BehaviorUnit[] {
   const selected = [...next].filter(([file, data]) => eligible(file) && /\.(?:js|mjs|cjs|py)$/.test(file) && data.data.length < 128 * 1024 &&
     (isTest(file) || old.get(file)?.data.toString() !== data.data.toString())).slice(0, 120);
   const parse = (tree: Snapshot): ParsedBehavior[] => {
@@ -74,6 +75,7 @@ export function behaviorUnits(old: Snapshot, next: Snapshot, isTest: (file: stri
     const before = previous.find(p => p.file === parsed.file)?.functions.filter(f => f.exported === fn.exported);
     if (!fn.exported || !before || before.length !== 1 || before[0]!.source === fn.source || before[0]!.params.length !== fn.params.length ||
       parsed.functions.filter(f => f.exported === fn.exported).length !== 1) continue;
+    if (select && !select(parsed.file, fn)) continue;
     const fixtures: Value[][] = [];
     let contract: Contract | undefined;
     for (const test of current.filter(p => isTest(p.file) && p.language === parsed.language)) {
@@ -91,8 +93,9 @@ export function behaviorUnits(old: Snapshot, next: Snapshot, isTest: (file: stri
         contract ??= { file: test.file, name, preamble: test.preamble, source: helper.source };
       }
     }
-    if (fixtures.length) units.push({ file: parsed.file, name: fn.exported, language: parsed.language, line: fn.line,
-      fixtures: fixtures.slice(0, 8), inputs: sweepInputs(fixtures), contract });
+    const extra = additionalSeeds?.(parsed.file, fn) ?? [];
+    if (fixtures.length || extra.length) units.push({ file: parsed.file, name: fn.exported, language: parsed.language, line: fn.line,
+      fixtures: fixtures.slice(0, 8), inputs: sweepInputs([...extra, ...fixtures]), contract, params: fn.params });
   }
   return units;
 }
@@ -123,7 +126,8 @@ function clean(x,depth=0){
 const results=[];
 for(const [index,args] of spec.inputs.entries()){
   let result;
-  try{result={value:clean(await f(...clone(args)))};}catch(e){result={error:String(e?.name??'Error')};}
+  try{const value=await f(...clone(args));try{result={value:clean(value)};}catch(e){result={error:String(e?.name??'Error'),...(spec.strictResults?{unsupported:true}:{})};}}
+  catch(e){result={error:String(e?.name??'Error')};}
   if(spec.contract&&spec.checkContract[index]){
     rmSync(spec.contractOutput,{force:true});
     const child=spawnSync(process.execPath,[process.argv[1],process.argv[2],JSON.stringify(args)],{encoding:'utf8',maxBuffer:65536});
@@ -169,7 +173,12 @@ if len(sys.argv)>2:
 m=load('proctor_subject',spec['file'])
 results=[]
 for args,check_contract in zip(spec['inputs'],spec['checkContract']):
-    try: result=dict(value=clean(invoke(getattr(m,spec['name']),args)))
+    try:
+        value=invoke(getattr(m,spec['name']),args)
+        try: result=dict(value=clean(value))
+        except Exception as e:
+            result=dict(error=type(e).__name__)
+            if spec.get('strictResults'): result['unsupported']=True
     except Exception as e: result=dict(error=type(e).__name__)
     if spec.get('contract') and check_contract:
         try:
@@ -182,7 +191,7 @@ for args,check_contract in zip(spec['inputs'],spec['checkContract']):
     results.append(result)
 with open(spec['output'],'w') as out: json.dump(results,out,allow_nan=False)
 `;
-export function runSweep(unit: BehaviorUnit, dir: string, label: string, reverse = false): Sweep | undefined {
+export function runSweep(unit: BehaviorUnit, dir: string, label: string, reverse = false, strictResults = false): Sweep | undefined {
   const inputs = reverse ? [...unit.inputs].reverse() : unit.inputs;
   const output = join(dir, '.proctor-sweep-result.json'), specFile = join(dir, '.proctor-sweep.json');
   let contract: string | undefined;
@@ -196,7 +205,7 @@ export function runSweep(unit: BehaviorUnit, dir: string, label: string, reverse
   }
   const contractInputs = unit.inputs.slice(0, CONTRACT_INPUT_LIMIT);
   writeFileSync(specFile, JSON.stringify({ file: join(dir, unit.file), name: unit.name, inputs, output, contract, checker: unit.contract?.name,
-    contractOutput: join(dir, '.proctor-contract-result.json'), checkContract: inputs.map(args => contractInputs.some(a => key(a) === key(args))) }));
+    contractOutput: join(dir, '.proctor-contract-result.json'), checkContract: inputs.map(args => contractInputs.some(a => key(a) === key(args))), strictResults }));
   const script = unit.language === 'js' ? '.proctor-sweep.mjs' : '.proctor-sweep.py';
   writeFileSync(join(dir, script), unit.language === 'js' ? JS_SWEEP : PY_SWEEP);
   rmSync(output, { force: true });
@@ -213,6 +222,21 @@ export function runSweep(unit: BehaviorUnit, dir: string, label: string, reverse
     return { outcomes, run: { label, command: `${command} ${script} ${specFile} (${unit.file}:${unit.name}${unit.contract ? `, contract ${unit.contract.file}:${unit.contract.name}; fresh subprocess: ${command} ${script} ${specFile} INPUT_JSON, cap ${CONTRACT_INPUT_LIMIT}` : ''}, inputs ${key(inputs)})`,
       exitCode: r.status, passed: [], failed: [], detail: key(outcomes) } };
   } catch { return undefined; /* A failed or unreadable sweep cannot support a finding. */ }
+}
+
+/** Documentation runs use a fresh module process for every input, with the same bounded harness. */
+export function runFreshSweep(unit: BehaviorUnit, dir: string, label: string, reverse = false): Sweep | undefined {
+  const indices = unit.inputs.map((_, i) => i);
+  if (reverse) indices.reverse();
+  const outcomes: Outcome[] = [], commands: NonNullable<TestRun['fileRuns']> = [];
+  for (const i of indices) {
+    const sweep = runSweep({ ...unit, contract: undefined, inputs: [unit.inputs[i]!] }, dir, `${label} input ${i + 1}`, false, true);
+    if (!sweep) return undefined;
+    outcomes[i] = sweep.outcomes[0]!;
+    commands.push({ file: unit.file, command: sweep.run.command, exitCode: sweep.run.exitCode! });
+  }
+  return { outcomes, run: { label, command: `fresh ${unit.language} input processes for ${unit.file}:${unit.name}`,
+    exitCode: 0, passed: [], failed: [], detail: key(outcomes), fileRuns: commands } };
 }
 
 export interface BehaviorEvidence { kind: 'contract' | 'differential'; indices: number[]; description: string }

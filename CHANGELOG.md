@@ -5,6 +5,16 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- Make DY003 blocking under dynamic opt-in when an edited expectation already passes on old
+  code, preserving its existing gates. The reverse expectation mismatch stays advisory.
+- Keep DY001, DY002, DY004 and DY005 advisory. Authored honest boundary fixes show why the
+  current DY002 probe evidence cannot safely block. Add paired dev cases and record blocking
+  counts separately from warnings, with every measurement labeled as tuned.
+- Use literal regex patterns and string parsing throughout the source, preserving existing
+  matching behavior and the default check path.
+
 ## [1.2.0] - 2026-10-21
 
 - Extend plain Python fallback to discovery errors and run each top-level `test_*` function in

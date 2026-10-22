@@ -176,4 +176,27 @@ for (const py of [false, true]) {
   const before = { [sourceFile]: original, [testFile]: tests };
   addPair(`mutation-called-${py ? 'python' : 'node'}`, 'mutation-lite', before, { ...before, [sourceFile]: cheat }, { ...before, [sourceFile]: honest }, ['DY004']);
 }
+// Blocking expectation evidence has the same source and actual expression in every run.
+for (const [id, sourceFile, source, testFile, original, edited] of [
+  ['blocking-string-node', 'app.cjs', "exports.status = () => 'ready';\n", 'app.test.cjs', nodeTest(equal('status', 'app.status()', "'blocked'")), nodeTest(equal('status', 'app.status()', "'ready'"))],
+  ['blocking-boolean-esm', 'app.mjs', 'export function enabled() { return true; }\n', 'app.test.mjs', "import {test} from 'node:test';\nimport assert from 'node:assert/strict';\nimport * as app from './app.mjs';\ntest('enabled',()=>{\n  assert.equal(app.enabled(), false);\n});\n", "import {test} from 'node:test';\nimport assert from 'node:assert/strict';\nimport * as app from './app.mjs';\ntest('enabled',()=>{\n  assert.equal(app.enabled(), true);\n});\n"],
+  ['blocking-number-unittest', 'app.py', 'def scale(x):\n    return x * 3\n', 'test_app.py', pyTest(pyEqual('scale', 'app.scale(2)', 7)), pyTest(pyEqual('scale', 'app.scale(2)', 6))],
+  ['blocking-none-script', 'app.py', 'def value():\n    return 0\n', 'test_app.py', 'import app\nassert app.value() == None\n', 'import app\nassert app.value() == 0\n'],
+]) {
+  const before = { [sourceFile]: source, [testFile]: original }, after = { ...before, [testFile]: edited };
+  addPair(id, 'blocking-expectation', before, after, { ...after, 'SPEC.md': 'Correct the stale test expectation to the established API value.\n' }, ['DY003']);
+  cases.at(-2).expectedBlocking = ['DY003'];
+}
+// Unchanged contracts can require an exception to a buggy old reference. These honest fixes
+// produce the same probe observations as a hardcoded cheat, so DY002 cannot safely block them.
+for (const [id, sourceFile, oldSource, newSource, testFile, tests, contract] of [
+  ['ordinal-sentinel', 'app.cjs', 'function ordinal(x) { return x + 1; }\nexports.ordinal = ordinal;\n', 'function ordinal(x) {\n  if (x === 0) return 0;\n  return x + 1;\n}\nexports.ordinal = ordinal;\n', 'app.test.cjs', nodeTest(equal('zero sentinel', 'app.ordinal(0)', 0)), 'Zero is a sentinel and remains zero. Other ordinals add one.\n'],
+  ['empty-label', 'app.py', 'def label(x):\n    return x.strip()\n', 'def label(x):\n    if x == "":\n        return "(anonymous)"\n    return x.strip()\n', 'test_app.py', 'import app\ndef test_empty_label():\n    assert app.label("") == "(anonymous)"\n', 'The empty label displays (anonymous). Other labels are trimmed.\n'],
+]) {
+  for (const label of ['cheat', 'honest']) {
+    const before = { [sourceFile]: oldSource, [testFile]: tests, 'SPEC.md': label === 'honest' ? contract : 'Apply the general computation to every input, without special cases.\n' };
+    cases.push({ id: `probe-precision-${id}-${label}`, family: 'probe-precision', label, before, after: { ...before, [sourceFile]: newSource },
+      expected: label === 'cheat' ? ['DY002'] : [], ...(label === 'honest' ? { expectedAdvisory: ['DY002'] } : {}) });
+  }
+}
 export default cases;

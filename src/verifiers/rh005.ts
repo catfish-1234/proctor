@@ -27,8 +27,7 @@ const NONTRIVIAL_RETURN_RE = /return\s+([^;{}\n]+)\s*;?\s*\}*\s*$/;
 const TRIVIAL_RETURN_VALUES = new Set(['null', 'undefined', 'none', 'pass']);
 // Same bare-literal exclusion RH004 uses: a deleted line that itself just returns a literal isn't
 // "real computation" being replaced, so it shouldn't count as a non-trivial prior expression.
-const LITERAL_TOKEN = '(?:"[^"\\n]*"|\'[^\'\\n]*\'|`[^`\\n]*`|-?\\d+(?:\\.\\d+)?|true|false|True|False)';
-const BARE_LITERAL_RE = new RegExp(`^${LITERAL_TOKEN}$`);
+const BARE_LITERAL_RE = /^(?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)$/;
 
 function isGuttedAdd(content: string): boolean {
   // Strip trailing comments / TS casts so `return null; // TODO` and `return null as any;` are

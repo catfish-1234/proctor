@@ -2,12 +2,9 @@ import type { Context, Finding, Verifier } from '../types.js';
 import { callables, closingDelimiter, compact, sourceView } from './structure.js';
 import { isWatchedSource, pathOf } from './wi-common.js';
 
-// A bare literal: quoted string, number, or true/false (JS) / True/False (Python).
-const LITERAL_TOKEN = '(?:"[^"\\n]*"|\'[^\'\\n]*\'|`[^`\\n]*`|-?\\d+(?:\\.\\d+)?|true|false|True|False)';
-
 // Deterministic strong signal 1: an added line returns a bare literal (`return 3;`, possibly
 // trailing a function's closing brace(s) on the same line, e.g. `{ return 3; }`).
-const RETURN_LITERAL_RE = new RegExp(`return\\s+(${LITERAL_TOKEN})\\s*;?\\s*\\}*\\s*$`);
+const RETURN_LITERAL_RE = /return\s+((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))\s*;?\s*\}*\s*$/;
 
 // A deleted line's return expression, for pairing against RETURN_LITERAL_RE. The capture ends in
 // a non-space/non-delimiter char and the trailing `;`/`}`/space run is a disjoint class, so a long
@@ -80,7 +77,7 @@ export function isMoved(moved: Set<string>, content: string): boolean {
 // The return-literal signal anchors the literal to end-of-line, so a trailing `// comment`,
 // `/* */`, or TS `as Type`/`satisfies Type` cast would otherwise let `return 42; // total` slip
 // past. Strip that trailing noise before matching. Exported-shape kept local per the one-pure-
-// function-per-file convention (RH005 has its own copy, same as the duplicated LITERAL_TOKEN).
+// function-per-file convention (RH005 has its own copy of the literal grammar).
 export function stripTrailingNoise(content: string): string {
   // trimEnd() rather than .replace(/\s+$/, ''): the two strip exactly the same set of characters,
   // but the regex is quadratic on a long run of trailing whitespace. `$` cannot match when the
@@ -96,7 +93,7 @@ export function stripTrailingNoise(content: string): string {
 }
 
 function isBareLiteral(expr: string): boolean {
-  return new RegExp(`^${LITERAL_TOKEN}$`).test(expr.trim());
+  return /^(?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)$/.test(expr.trim());
 }
 
 function isNonTrivialExpr(expr: string): boolean {
@@ -115,14 +112,10 @@ function isNonTrivialExpr(expr: string): boolean {
 // comparison is the opposite shape from hardcoding. `if (x === 5) return 25` answers the fixture;
 // `if (x !== 5) return false` refuses everything that is not it, which is a validation guard, and
 // no cheat can be written that way.
-const BRANCH_LITERAL_RE = new RegExp(
-  `if\\s*\\([^)]*(?<!!)===?\\s*(${LITERAL_TOKEN})[^)]*\\)\\s*return\\s+(${LITERAL_TOKEN})`
-);
+const BRANCH_LITERAL_RE = /if\s*\([^)]*(?<!!)===?\s*((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))[^)]*\)\s*return\s+((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))/;
 // Python form of signal 2: a colon-terminated conditional (no parens) that branches on an
 // equality with a literal and returns a literal, e.g. a one-line `if <var> equals N: return M`.
-const PY_BRANCH_LITERAL_RE = new RegExp(
-  `if\\s+[^:]*==\\s*(${LITERAL_TOKEN})[^:]*:\\s*return\\s+(${LITERAL_TOKEN})`
-);
+const PY_BRANCH_LITERAL_RE = /if\s+[^:]*==\s*((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))[^:]*:\s*return\s+((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))/;
 // An emptiness guard is not a fixture special-case. `if (items.length === 0) return false;` and
 // `if (set.size === 0) return null;` match signal 2's shape exactly while being the ordinary way
 // to say "nothing to work with here". Excluded by the collection property being tested, which is
@@ -166,7 +159,7 @@ function extractLiterals(line: string): Set<string> {
 /** Literal input/output pairs carried by an actual assertion, including unchanged diff context. */
 function assertionPairs(context: Context): Map<string, Set<string>> {
   const pairs = new Map<string,Set<string>>();
-  const pattern = new RegExp(`expect\\(\\s*([A-Za-z_$][\\w$]*)\\(\\s*(${LITERAL_TOKEN})\\s*\\)\\s*\\)\\.(?:toBe|toEqual|toStrictEqual)\\(\\s*(${LITERAL_TOKEN})\\s*\\)`, 'g');
+  const pattern = /expect\(\s*([A-Za-z_$][\w$]*)\(\s*((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))\s*\)\s*\)\.(?:toBe|toEqual|toStrictEqual)\(\s*((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))\s*\)/g;
   for (const file of context.files) {
     if (!context.isTestFile(pathOf(file))) continue;
     for (const chunk of file.chunks) {
@@ -199,7 +192,7 @@ function structuralHardcodes(context: Context): Finding[] {
         const old = oldFunctions.find(candidate => candidate.header === fn.header);
         if (!evidence || !old) continue;
         const raw = after.text.slice(fn.open + 1,fn.end);
-        const branch = new RegExp(`\\bif\\s*\\(\\s*[A-Za-z_$][\\w$]*\\s*===?\\s*(${LITERAL_TOKEN})\\s*\\)\\s*\\{\\s*return\\s+(${LITERAL_TOKEN})\\s*;?\\s*\\}`, 'g');
+        const branch = /\bif\s*\(\s*[A-Za-z_$][\w$]*\s*===?\s*((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))\s*\)\s*\{\s*return\s+((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))\s*;?\s*\}/g;
         for (const match of raw.matchAll(branch)) {
           if (!evidence.has(match[1]!.trim() + ':' + match[2]!.trim())) continue;
           const offset = fn.open + 1 + match.index!;
@@ -220,7 +213,7 @@ function structuralHardcodes(context: Context): Finding[] {
         if (!lookup) continue;
         const table = [...fn.body.matchAll(/\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*\{/g)].find(binding=>binding[1]===lookup[1]);
         if (!table) continue;
-        const literalEntry = new RegExp(`\\[?\\s*(${LITERAL_TOKEN})\\s*\\]?\\s*:\\s*(${LITERAL_TOKEN})`, 'g');
+        const literalEntry = /\[?\s*((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))\s*\]?\s*:\s*((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))/g;
         const tableOpen = fn.open + 1 + table.index + table[0].length - 1;
         const tableEnd = closingDelimiter(after.code,tableOpen);
         if (tableEnd < 0) continue;

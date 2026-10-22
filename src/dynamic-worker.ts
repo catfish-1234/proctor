@@ -15,8 +15,8 @@ const result: DynamicResult = { status: 'completed', findings: [], runs: [], not
 function evidence(...runs: TestRun[]): string {
   return runs.map(r => `${r.label}: \`${r.command}\`, exit ${r.exitCode}, ${r.passed.length} passed, ${r.failed.length} failed${r.failed.length ? ` (${r.failed.join(', ')})` : ''}${r.fileRuns ? '; ' + r.fileRuns.map(f => `\`${f.command}\`, exit ${f.exitCode}, file ${f.file}`).join('; ') : ''}`).join('; ');
 }
-function finding(id: string, file: string, message: string, runs: TestRun[], line = 1): void {
-  result.findings.push({ verifierId: id, severity: 'warn', file, line, message: `${message} Evidence: ${evidence(...runs)}.`, suggestion: 'Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.' });
+function finding(id: string, file: string, message: string, runs: TestRun[], line = 1, blocking = false): void {
+  result.findings.push({ verifierId: id, severity: blocking ? 'error' : 'warn', file, line, message: `${message} Evidence: ${evidence(...runs)}.`, suggestion: 'Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.' });
 }
 try {
   const { old, next } = loadSnapshots(options);
@@ -71,7 +71,7 @@ try {
         const mismatch = accepted.includes(id)
           ? 'failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior'
           : 'passed with the original expectation, but the edited expectation fails on that same old code';
-        if (file && edits.includes(file)) finding('DY003', file, `Only the expected literal changed (${expectationChanges(old.get(file)?.data.toString() ?? '', next.get(file)?.data.toString() ?? '').map(e => `${e.before} to ${e.after}`).join(', ')}): test ${JSON.stringify(id)} ${mismatch}`, [original, current.run, reverse]);
+        if (file && edits.includes(file)) finding('DY003', file, `Only the expected literal changed (${expectationChanges(old.get(file)?.data.toString() ?? '', next.get(file)?.data.toString() ?? '').map(e => `${e.before} to ${e.after}`).join(', ')}): test ${JSON.stringify(id)} ${mismatch}`, [original, current.run, reverse], 1, accepted.includes(id));
       }
     }
   }

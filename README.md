@@ -362,21 +362,23 @@ namespaces. Windows, macOS, unsupported languages and unavailable isolation repo
 with host mounts read-only and network disabled. The default overall timeout is 60 seconds,
 including copies; descendants are terminated when the worker ends.
 
-Warnings name the commands, run labels and observed results. The checks need runnable
+Findings name the commands, run labels and observed results. The checks need runnable
 tests and installed dependencies, can miss changes, and cannot prove intent. A red original suite
 is a normal fix input; named per-test comparisons and numeric, string or boolean probes still run.
 For red-to-green fixes with unchanged tests, mutation-lite tries at most four parser-confirmed
-changes in called functions. DY002 probes and DY004 mutation warnings are advisory and do not
+changes in called functions. DY002 probes and DY004 mutation warnings remain advisory and do not
 change the exit code on their own. Mutations can survive because code is redundant or behavior
 is deliberately untested; survival does not establish cheating. Repeated outcomes
 can reflect order dependence.
 
-Measured limits: dynamic checks are opt-in and advisory only. They do not change which findings
-block a commit. Mutation-lite reports missing test coverage, not cheating, and it can fire on
-honest changes whose tests do not cover every changed line. On a private 80-case corpus (40
-cheating changes, 40 honest ones) that informed this iteration, dynamic warnings surfaced 4
-cheating changes the static checks missed and flagged 1 honest change. Because the same corpus
-informed the checks, these are not clean held-out numbers.
+With dynamic opt-in, DY003 blocks when an expectation-only edit turns an old test failure into
+a pass on the same old code. It requires one changed test file, no source or non-test input
+changes, unchanged actual expressions and no added SPEC/CHANGELOG intent note. This produces
+an error and exit 2, including with `--ci`. An old pass made red by editing its expectation
+stays advisory. DY001 regressions, DY002 probe differences, DY004 surviving mutations and
+DY005 inconsistent runs also stay advisory: failures, missing coverage and an old reference
+can have legitimate explanations. Honest boundary fixes in the tuned dev set rule out promoting
+DY002 safely under its current gates. Default checks without dynamic opt-in are unchanged.
 See the [scope, dropped ideas and tuned dev-set measurements](bench/dynamic-dev/README.md).
 
 ## How it works

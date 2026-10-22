@@ -1,6 +1,6 @@
 # Dynamic development set
 
-These 72 authored cases are a tuned development set: 36 cheats and 36 honest twins.
+These 84 authored cases are a tuned development set: 42 cheats and 42 honest twins.
 They are small generated Git repositories using Node or Python standard-library tests.
 The cases and implementation were developed together. These numbers do not establish
 accuracy on other repositories. No separate evaluation corpus was used.
@@ -13,10 +13,43 @@ node bench/dynamic-dev/run.mjs > results.json
 
 Execution needs Node, Python 3, Git and Linux bubblewrap with working namespaces. The case
 projects need no installed test packages. The harness exits nonzero for a skipped case, a
-missing expected finding or a flagged honest case. `results.json` records the measured run.
+missing expected finding, a blocked honest case or an unexpected advisory finding.
+Two new honest probe cases explicitly expect DY002 warnings. `results.json` records them rather
+than treating warnings as clean results. All older honest cases still require zero findings.
 
-Rows use disjoint case families. Twenty added cases cover typed probes, bare Python functions,
-discovery errors and mutation-lite. All cases remain part of the same tuning process.
+## Blocking policy and tuned results
+
+The harness isolates dynamic findings with `--rules RH014`; these counts are not combined
+recall measurements for the existing static rules. Main 1.2.0 emitted no dynamic errors.
+
+DY003 now blocks only when the edited expectation passes on old code and the original test
+failed there. Its gates are unchanged: one test file with only equality-literal edits, unchanged
+actual expressions, no changed non-test source or inputs, an unambiguous test identity and no
+new SPEC/CHANGELOG intent note. The opposite outcome remains advisory. Error findings exit 2,
+including with `--ci`; configuration opt-in uses the same policy as `--dynamic`.
+
+| Tuned dev cases | Blocked cheats | Any cheat finding | Blocked honest | Any honest finding |
+|----------------|----------------|-------------------|----------------|--------------------|
+| Previous 72 cases | 3/36 | 32/36 | 0/36 | 0/36 |
+| Eight expectation-promotion cases | 4/4 | 4/4 | 0/4 | 0/4 |
+| Four probe-precision cases | 0/2 | 2/2 | 0/2 | 2/2 warnings |
+| Total, 84 cases | **7/42** | **38/42** | **0/42** | **2/42 warnings** |
+
+Projecting the same observed DY002 findings to errors would block **21/42 cheats and 2/42
+honest cases**. This projection changes severity only; the commands, inputs and outcomes are
+the recorded ones. The honest cases fix a zero sentinel and an empty-label exception required
+by unchanged contracts. Their new branches differ from the old reference at exactly one probed
+input, with matching neighbors. The old reference was buggy. DY002 promotion is therefore
+rejected under the zero blocking false-positive requirement. Those two warnings remain visible.
+
+DY001 regressions, DY004 surviving mutations and DY005 inconsistent runs remain advisory.
+No static blocker was added: the guard-removal pairs below have identical observable edits for
+both labels, and passing on both code revisions cannot establish cheating. Existing static
+findings and default output are unchanged.
+
+Rows use disjoint case families. Earlier additions covered typed probes, bare Python functions,
+discovery errors and mutation-lite. The current 12 additions cover expectation promotion and
+probe precision. All cases remain part of the same tuning process.
 
 | Idea | Kept behavior | Tuned development results |
 |------|---------------|---------------------------|
@@ -31,14 +64,17 @@ discovery errors and mutation-lite. All cases remain part of the same tuning pro
 | String and boolean probes | DY002 compares an executed simple reference at a string literal and two variants, or both boolean values | 5/5 cheats found, 0/5 honest fixes flagged |
 | Bare Python functions and discovery errors | Isolate top-level functions with file/function ids; execute scripts after collection errors | 3/3 cheats found, 0/3 honest fixes flagged |
 | Mutation-lite | DY004 deletes or negates parser-confirmed changed statements in functions observed during a green control run | 2/2 cheats found, 0/2 honest fixes flagged |
+| Expectation promotion | DY003 acceptance on unchanged old code is blocking; documented stale-test corrections stay clean | 4/4 cheats blocked, 0/4 honest fixes flagged |
+| Probe promotion trial | A general old reference can violate a pre-existing exception contract | 2/2 cheats warned, 2/2 honest fixes warned; no blocking findings |
 | Guard restoration | Dropped as a verdict; the harness restores each removed guard experimentally | Restoring a guard makes the new tests red for 3/3 cheats and 3/3 honest API relaxations |
 | Sleep or retry repetition | DY005 compares four runs, requiring a passing result and at least two failures for the same named test | 3/3 cheats found, 0/3 honest twins flagged |
 
-An earlier expansion added 16 red-baseline cases, including eight cheat/fix pairs. The latest
-20 cases also start red and exercise typed branches, plain Python and mutation-lite. All were
-added during the same tuning process; their results are still dev-set numbers.
+Earlier expansions added 16 red-baseline cases and 20 typed-probe, Python and mutation cases.
+The current 12 additions also start red. All were added during the same tuning process;
+their results are still dev-set numbers.
 
-Overall: **32/36 cheats found, 0/36 honest cases flagged, 0 skipped** on this tuned dev set.
+Overall: **7/42 cheats blocked, 0/42 honest cases blocked, 0 skipped** on this tuned dev set.
+Including advisory findings, **38/42 cheats and 2/42 honest cases** are flagged.
 The four misses are the three guard-removal cases and the coverage-only case. A red restored
 variant is evidence that tests depend on a guard being absent; it does not establish whether
 removing that guard was legitimate. The repeat fixtures deliberately exercise persistent
@@ -54,11 +90,10 @@ runs per revision, interleaved after five warm-ups each. To compare two built re
 node bench/dynamic-dev/measure-static.mjs /path/to/baseline/dist/cli.js dist/cli.js
 ```
 
-The baseline is the previous PR head at `807474a6114827e1c61bb408e1fe20ea024f35e8`, version
-1.1.0, before the typed-probe, function-fallback and mutation-lite additions.
-The measured medians were **206 ms before and 209 ms after** without dynamic opt-in. This is
+The baseline is main at `a5f4700`, version 1.2.0, before the blocking policy change.
+The measured medians were **212 ms before and 213 ms after** without dynamic opt-in. This is
 one fixture on one Linux host, within run-to-run variation, not a general speed claim.
-The measured dynamic CLI median was **689 ms** across the 72 toy cases, with **53.10 seconds**
+The measured dynamic CLI median was **697 ms** across the 84 toy cases, with **61.17 seconds**
 for all case CLI invocations combined. This includes CLI startup and static checking. Dependency-heavy
 suites can cost much more and can exhaust the budget. Individual case timings are in `results.json`.
 Absolute host Node executable paths in the recorded commands are normalized to `node`.
@@ -128,8 +163,12 @@ Absolute host Node executable paths in the recorded commands are normalized to `
   It cannot establish whether a note actually justifies a behavior change.
 - Repeats keep the same scratch copy and can reveal order dependence. A consistent race mask
   can pass all four runs. An initial failing new suite does not trigger repetition.
-- Findings are warnings, carrying command, run label and named outcomes in their message.
+- Findings carry command, run label and named outcomes in their message.
   They appear in text, JSON, SARIF and Markdown; skips are reported on stderr. Static severity,
   ignore, approval and suppression settings do not currently filter dynamic findings. Warnings
   from DY002 and DY004 are advisory and never change the exit code on their own. Other warnings
-  follow existing CLI exit behavior, including `--ci`. No dynamic finding proves intent.
+  follow existing CLI exit behavior, including `--ci`. DY003 acceptance on old code is an error.
+  Correcting a stale test can be legitimate; the existing intent-note allowance is how this
+  policy recognizes that correction. Flaky tests, incomplete reporting and ambiguous discovery
+  can mislead runtime comparisons. These tuned numbers do not establish zero false positives
+  on other projects. No dynamic finding proves intent.

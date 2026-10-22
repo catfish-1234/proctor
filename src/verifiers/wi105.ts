@@ -24,25 +24,12 @@ const LITERAL_RETURN_RE =
   /\breturn\s*(?:\{|\[|['"`])|\breturn\s+(?:True|False|true|false|\d+(?:\.\d+)?)\s*;?\s*$|\bresolve\s*\(\s*\{/;
 
 /**
- * Names that announce the substitution.
+ * A return of a name announcing canned data, which is the shape that ships the fixed value.
  *
- * A variable called `mockResponse` in shipped code is not a naming problem, it is a confession, and
- * it fires on its own without needing the IO pairing.
+ * Group the name alternatives so the return prefix guards every branch. A declaration of
+ * canned data alone must never be interpreted as returning it from shipped code.
  */
-const CANNED_NAME_RE =
-  /\b(?:mock|fake|stub|dummy|placeholder|hardcoded|canned|fixture)[_A-Z]\w*\b|\b(?:MOCK|FAKE|STUB|DUMMY|SAMPLE|PLACEHOLDER|CANNED)_\w+\b/;
-
-/**
- * A return of one of those names, which is the shape that actually ships the canned value.
- *
- * The name pattern is wrapped in a group before being appended. Without it, the alternation inside
- * CANNED_NAME_RE binds at the top level and the `return` prefix only guards its first branch, so
- * the declaration `const MOCK_ITEM = {...}` matched as if it were a return. Declaring canned data
- * is not the offence: returning it from shipped code is.
- */
-const CANNED_RETURN_RE = new RegExp(
-  String.raw`\breturn\s+[^;{}\n]*(?:` + CANNED_NAME_RE.source + ')',
-);
+const CANNED_RETURN_RE = /\breturn\s+[^;{}\n]*(?:\b(?:mock|fake|stub|dummy|placeholder|hardcoded|canned|fixture)[_A-Z]\w*\b|\b(?:MOCK|FAKE|STUB|DUMMY|SAMPLE|PLACEHOLDER|CANNED)_\w+\b)/;
 
 /**
  * Comments that mark the substitution as a known, temporary state.

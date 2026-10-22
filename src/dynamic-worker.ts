@@ -6,6 +6,7 @@ import { loadSnapshots, materialize, type Snapshot } from './dynamic/snapshots.j
 import { detectAdapter, runTests } from './dynamic/adapters.js';
 import { documentedIntent, expectedEdits, expectationChanges, expectationOnlyEdit, findProbes, locateTest, probeInputs, type ProbeValue } from './dynamic/signals.js';
 import { coverageEnvironment, jsMutations, MUTATION_LIMIT, pythonMutations, readCalls } from './dynamic/mutations.js';
+import { behaviorUnits, classifyBehavior, runSweep, type Sweep } from './dynamic/behavior.js';
 import type { DynamicOptions, DynamicResult, TestRun } from './dynamic/runner.js';
 import type { Finding } from './types.js';
 
@@ -36,7 +37,8 @@ try {
     result.runs.push(testRun);
     return { run: testRun, dir };
   }
-  const original = run(old, 'original tests / original code').run;
+  const baseline = run(old, 'original tests / original code');
+  const original = baseline.run;
   const current = run(next, 'new tests / new code');
   if (original.failed.length && current.run.exitCode === 0) {
     result.notes.push('Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.');
@@ -44,6 +46,30 @@ try {
   const testChanges = [...new Set([...oldTests, ...nextTests])].filter(p => old.get(p)?.data.toString() !== next.get(p)?.data.toString());
   const changedSource = [...new Set([...old.keys(), ...next.keys()])].some(p => !isTest(p) && !/\.(?:md|rst|txt)$/i.test(p) && old.get(p)?.data.toString() !== next.get(p)?.data.toString());
   const intent = documentedIntent(old, next);
+  // A previous implementation is a reference, not an oracle. Only an unchanged, explicit
+  // test contract can turn a stable generated-input contradiction into a blocking result.
+  if (current.run.exitCode === 0 && !intent) {
+    try {
+      for (const unit of behaviorUnits(old, next, isTest, current.dir)) {
+        // Edited tests can introduce a new domain. Without an unchanged declared contract,
+        // the prototype cannot attribute the difference to behavior outside that domain.
+        if (testChanges.length && !unit.contract) continue;
+        const sweeps: Sweep[] = [];
+        for (const [dir, label] of [[baseline.dir, 'original code'], [current.dir, 'new code']] as const) {
+          for (const reverse of [false, true]) {
+            const sweep = runSweep(unit, dir, `behavior sweep / ${label}${reverse ? ' / reversed repeat' : ''}`, reverse);
+            if (sweep) { sweeps.push(sweep); result.runs.push(sweep.run); }
+          }
+        }
+        for (const signal of classifyBehavior(unit, sweeps)) {
+          const observations = signal.indices.map(i => ({ input: unit.inputs[i], before: sweeps[0]!.outcomes[i], after: sweeps[2]!.outcomes[i] }));
+          finding(signal.kind === 'contract' ? 'DY006' : 'DY007', unit.file,
+            `${signal.description} in ${unit.name}. Reproduced in forward and reverse order: ${JSON.stringify(observations)}`,
+            [current.run, ...sweeps.map(s => s.run)], unit.line, signal.kind === 'contract');
+        }
+      }
+    } catch (error) { result.notes.push(`not run: behavior sweeps could not establish reliable evidence: ${String(error)}`); }
+  }
   const edits = testChanges.filter(p => expectedEdits(old.get(p)?.data.toString() ?? '', next.get(p)?.data.toString() ?? ''));
   function withTests(source: Snapshot, tests: Snapshot): Snapshot {
     const hybrid = new Map(source);

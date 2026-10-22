@@ -62,6 +62,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     dy002Promotion: { scope: 'Project the same observed DY002 findings to errors; no test or input changes.',
       blockedCheats: cheats.filter(r => r.blocking.length || r.found.includes('DY002')).length,
       blockedHonest: honest.filter(r => r.blocking.length || r.found.includes('DY002')).length },
+    dy007Promotion: { scope: 'Project observed DY007 sweeps to errors without a declared contract; tuned counterfactual.',
+      blockedCheats: cheats.filter(r => r.blocking.length || r.found.includes('DY007')).length,
+      blockedHonest: honest.filter(r => r.blocking.length || r.found.includes('DY007')).length },
     skipped: rows.filter(r => r.skipped).length,
     medianCliMs: rows.map(r => r.elapsedMs).sort((a,b) => a-b)[Math.floor(rows.length/2)],
     totalCliMs: rows.reduce((n,r) => n+r.elapsedMs, 0), rows };

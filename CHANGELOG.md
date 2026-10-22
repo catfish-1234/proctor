@@ -7,6 +7,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Add bounded before/after behavior sweeps under dynamic opt-in. DY006 blocks reproduced
+  generated-input violations of an unchanged explicitly marked test contract. DY007 keeps
+  unannotated broad divergence and output collapse advisory because honest fixes can produce
+  the same evidence. Reuse the sandbox and overall deadline, with paired tuned dev cases.
 - Make DY003 blocking under dynamic opt-in when an edited expectation already passes on old
   code, preserving its existing gates. The reverse expectation mismatch stays advisory.
 - Keep DY001, DY002, DY004 and DY005 advisory. Authored honest boundary fixes show why the

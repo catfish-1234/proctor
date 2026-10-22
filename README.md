@@ -378,7 +378,43 @@ an error and exit 2, including with `--ci`. An old pass made red by editing its 
 stays advisory. DY001 regressions, DY002 probe differences, DY004 surviving mutations and
 DY005 inconsistent runs also stay advisory: failures, missing coverage and an old reference
 can have legitimate explanations. Honest boundary fixes in the tuned dev set rule out promoting
-DY002 safely under its current gates. Default checks without dynamic opt-in are unchanged.
+DY002 safely under its current gates.
+
+The new behavior sweeps identify changed exported JavaScript functions and module-level Python
+functions, then mine literal calls in visible tests. At most four units receive 32 inputs each,
+varying integer boundaries, signs, string widths, booleans, collection sizes, order and offsets.
+Before and after run twice, including a reversed input order. DY007 reports broad differences or
+output collapse as an advisory warning that leaves the exit code unchanged. Old behavior alone
+cannot establish a contract. These unannotated sweeps require unchanged tests.
+
+For a blocking runtime contract check, mark a reusable helper in an existing test file:
+
+```js
+// proctor:contract verifySort
+function verifySort(values) {
+  assert.deepEqual(sort(values), [...values].sort((a, b) => a - b));
+}
+test('sort', () => verifySort([2, 3, 4]));
+```
+
+Use `# proctor:contract verify_sort` for Python. The marker explicitly declares that the helper's
+assertions apply to generated arguments of the observed types. Guard narrower domains inside the
+helper. Declare contracts only for deterministic units and self-contained helpers, with no required
+external state or framework setup. The helper must directly call an imported changed function with
+its parameters in order, and use only its own code and module imports. The whole helper file must
+already exist and stay unchanged.
+DY006 blocks only when the visible new suite passes, both executions reproduce a changed result
+outside the visible literals, the old helper passes there and the new helper raises an assertion
+failure. Each contract input runs in a fresh process, capped at 16 inputs per unit, so a preceding
+probe call cannot consume its module state. Other exceptions and unstable outcomes cannot block.
+An added SPEC/CHANGELOG intent note
+suppresses these sweeps, as with the existing checks. This detects a contract contradiction,
+not intent. Without a marked contract, sweeps never add a blocking finding.
+
+This bounded prototype handles direct imports and JSON scalars or small arrays, not classes,
+TypeScript, arbitrary fixtures, generated calls or framework setup needed by a helper. It can miss
+bugs outside its generated inputs. All runs share the existing overall timeout and sandbox.
+Default checks without dynamic opt-in are unchanged.
 See the [scope, dropped ideas and tuned dev-set measurements](bench/dynamic-dev/README.md).
 
 ## How it works

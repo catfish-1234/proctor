@@ -1,6 +1,6 @@
 # Dynamic development set
 
-These 84 authored cases are a tuned development set: 42 cheats and 42 honest twins.
+These 116 authored cases are a tuned development set: 58 cheats and 58 honest twins.
 They are small generated Git repositories using Node or Python standard-library tests.
 The cases and implementation were developed together. These numbers do not establish
 accuracy on other repositories. No separate evaluation corpus was used.
@@ -14,8 +14,9 @@ node bench/dynamic-dev/run.mjs > results.json
 Execution needs Node, Python 3, Git and Linux bubblewrap with working namespaces. The case
 projects need no installed test packages. The harness exits nonzero for a skipped case, a
 missing expected finding, a blocked honest case or an unexpected advisory finding.
-Two new honest probe cases explicitly expect DY002 warnings. `results.json` records them rather
-than treating warnings as clean results. All older honest cases still require zero findings.
+Two honest probe cases explicitly expect DY002 warnings, and four honest differential cases
+expect DY007 warnings. `results.json` records them as flags. The other honest cases still require
+zero findings, and every honest case requires zero blocking findings.
 
 ## Blocking policy and tuned results
 
@@ -33,14 +34,46 @@ including with `--ci`; configuration opt-in uses the same policy as `--dynamic`.
 | Previous 72 cases | 3/36 | 32/36 | 0/36 | 0/36 |
 | Eight expectation-promotion cases | 4/4 | 4/4 | 0/4 | 0/4 |
 | Four probe-precision cases | 0/2 | 2/2 | 0/2 | 2/2 warnings |
-| Total, 84 cases | **7/42** | **38/42** | **0/42** | **2/42 warnings** |
+| Twenty declared-contract cases | 10/10 | 10/10 | 0/10 | 0/10 |
+| Four red-baseline contract cases | 2/2 | 2/2 | 0/2 | 0/2 |
+| Four differential-precision cases | 0/2 | 2/2 | 0/2 | 2/2 warnings |
+| Four output-collapse cases | 0/2 | 2/2 | 0/2 | 2/2 warnings |
+| Total, 116 cases | **19/58** | **54/58** | **0/58** | **6/58 warnings** |
 
-Projecting the same observed DY002 findings to errors would block **21/42 cheats and 2/42
+Projecting the same observed DY002 findings to errors would block **33/58 cheats and 2/58
 honest cases**. This projection changes severity only; the commands, inputs and outcomes are
 the recorded ones. The honest cases fix a zero sentinel and an empty-label exception required
 by unchanged contracts. Their new branches differ from the old reference at exactly one probed
 input, with matching neighbors. The old reference was buggy. DY002 promotion is therefore
 rejected under the zero blocking false-positive requirement. Those two warnings remain visible.
+
+DY006 adds blocking runtime contract evidence. An unchanged visible test file explicitly marks a
+helper with `// proctor:contract NAME` or `# proctor:contract NAME`. The declaration says its
+assertions apply independently to generated arguments of the observed types. Helpers and units
+must be deterministic and independent of external state or framework setup. Only stable changes
+outside fixture literals that pass the old helper and raise an assertion failure in the new helper
+can block. The new visible suite must pass. A newly added or edited contract cannot block.
+
+The twelve contract pairs cover numeric sorting, signed sums, string widths, boolean domains,
+collection maxima and offsets, including Node ESM and red-baseline mean fixes. The shortcut
+implementations use ordinary operations, not a required literal-branch pattern. Honest refactors
+and fixes preserve their declared properties: **12/12 cheats blocked and 0/12 honest cases flagged**,
+all tuned. These cases start with authored contract markers. They do not measure automatic
+blocking recall on repositories without those declarations.
+
+Running default static checks on the same authored contract pairs blocks **1/12 cheats and 0/12
+honest cases**, all tuned. Only the plain Python constant-boolean shortcut overlaps, through RH004.
+DY006 therefore adds **11 blocking detections missed by static checks** in this subset. No combined
+static/dynamic result is claimed for the full set. Reproduce the subset comparison with
+`node bench/dynamic-dev/compare-static.mjs > static-comparison.json`.
+
+DY007 keeps unannotated differential evidence advisory. Two normalization pairs and two
+constant-output pairs have identical runtime observations across labels but different pre-existing
+contracts. Promoting DY007 would block **23/58 cheats and 4/58 honest cases**, a tuned severity-only
+counterfactual. Old code cannot serve as a universal oracle. Inferring intended input classes from
+test names, nearby diff lines or a few literal calls does not resolve this ambiguity, so that
+automatic blocking design was dropped. A declared contract supplies the missing oracle from the
+visible tests themselves; this is not a claim that test authors cannot write a wrong contract.
 
 DY001 regressions, DY004 surviving mutations and DY005 inconsistent runs remain advisory.
 No static blocker was added: the guard-removal pairs below have identical observable edits for
@@ -48,8 +81,8 @@ both labels, and passing on both code revisions cannot establish cheating. Exist
 findings and default output are unchanged.
 
 Rows use disjoint case families. Earlier additions covered typed probes, bare Python functions,
-discovery errors and mutation-lite. The current 12 additions cover expectation promotion and
-probe precision. All cases remain part of the same tuning process.
+discovery errors, mutation-lite, expectation promotion and probe precision. The latest 32 additions
+cover declared contracts and differential precision. All remain part of the same tuning process.
 
 | Idea | Kept behavior | Tuned development results |
 |------|---------------|---------------------------|
@@ -66,15 +99,17 @@ probe precision. All cases remain part of the same tuning process.
 | Mutation-lite | DY004 deletes or negates parser-confirmed changed statements in functions observed during a green control run | 2/2 cheats found, 0/2 honest fixes flagged |
 | Expectation promotion | DY003 acceptance on unchanged old code is blocking; documented stale-test corrections stay clean | 4/4 cheats blocked, 0/4 honest fixes flagged |
 | Probe promotion trial | A general old reference can violate a pre-existing exception contract | 2/2 cheats warned, 2/2 honest fixes warned; no blocking findings |
+| Declared behavior contracts | Reproduce generated-input assertion failures against an unchanged explicit helper | 12/12 cheats blocked, 0/12 honest cases flagged |
+| Unannotated behavior sweeps | Broader differences or output collapse can also be legitimate fixes | 4/4 cheats warned, 4/4 honest fixes warned; no blocking findings |
 | Guard restoration | Dropped as a verdict; the harness restores each removed guard experimentally | Restoring a guard makes the new tests red for 3/3 cheats and 3/3 honest API relaxations |
 | Sleep or retry repetition | DY005 compares four runs, requiring a passing result and at least two failures for the same named test | 3/3 cheats found, 0/3 honest twins flagged |
 
 Earlier expansions added 16 red-baseline cases and 20 typed-probe, Python and mutation cases.
-The current 12 additions also start red. All were added during the same tuning process;
-their results are still dev-set numbers.
+The twelve expectation-promotion and probe-precision additions also started red. The latest
+contract additions include both green baselines and red-to-green fixes. All results are tuned.
 
-Overall: **7/42 cheats blocked, 0/42 honest cases blocked, 0 skipped** on this tuned dev set.
-Including advisory findings, **38/42 cheats and 2/42 honest cases** are flagged.
+Overall: **19/58 cheats blocked, 0/58 honest cases blocked, 0 skipped** on this tuned dev set.
+Including advisory findings, **54/58 cheats and 6/58 honest cases** are flagged.
 The four misses are the three guard-removal cases and the coverage-only case. A red restored
 variant is evidence that tests depend on a guard being absent; it does not establish whether
 removing that guard was legitimate. The repeat fixtures deliberately exercise persistent
@@ -91,12 +126,25 @@ node bench/dynamic-dev/measure-static.mjs /path/to/baseline/dist/cli.js dist/cli
 ```
 
 The baseline is main at `a5f4700`, version 1.2.0, before the blocking policy change.
-The measured medians were **212 ms before and 213 ms after** without dynamic opt-in. This is
+The tuned fixture medians were **211 ms before and 209 ms after** without dynamic opt-in. This is
 one fixture on one Linux host, within run-to-run variation, not a general speed claim.
-The measured dynamic CLI median was **697 ms** across the 84 toy cases, with **61.17 seconds**
+The tuned dynamic CLI median was **870 ms** across the 116 toy cases, with **146.11 seconds**
 for all case CLI invocations combined. This includes CLI startup and static checking. Dependency-heavy
 suites can cost much more and can exhaust the budget. Individual case timings are in `results.json`.
 Absolute host Node executable paths in the recorded commands are normalized to `node`.
+
+The additional contract cost uses the honest numeric-sort dev fixture, comparing the previous PR
+revision `840ccae` against this change, with twenty warm interleaved CLI runs after five warm-ups
+each. The tuned medians were **479 ms before and 2,760 ms after**, an additional **2,281 ms** on
+this small fixture. The candidate runs four sweeps and fresh contract subprocesses; the baseline
+runs only its two suites. Samples are in `behavior-runtime.json`. Reproduce with:
+
+```sh
+node bench/dynamic-dev/measure-behavior.mjs /path/to/840ccae/dist/cli.js dist/cli.js 840ccae
+```
+
+These are toy-fixture costs, not a general performance claim. Dependency-heavy suites and slow
+contract imports can consume the entire overall budget and cause a skipped dynamic result.
 
 ## Exact prototype limits
 
@@ -155,10 +203,34 @@ Absolute host Node executable paths in the recorded commands are normalized to `
   Surviving mutations show no demonstrated test protection, which can also mean redundant code
   or behavior deliberately outside the test contract. They cannot prove intent. All control and
   mutation runs share the existing overall timeout; timeout still discards incomplete findings.
+- Behavior sweeps parse JavaScript with Acorn and Python with `ast`. Only changed existing exported
+  functions or module functions with one to three required positional parameters qualify.
+  Direct namespace and named imports are resolved; re-exports, classes, TypeScript, arbitrary
+  fixtures, closures and framework setup are unsupported. Mining is capped at 120 files smaller
+  than 128 KiB, eight literal call seeds per unit, four units and 32 inputs each. Inputs are JSON
+  scalars or small arrays, varying one argument at a time. Empty arrays alone do not establish an
+  element type. Bench and dependency directories are not mined. Identical forward/reversed repeats
+  are required; this rejects observed state dependence, not all nondeterminism.
+- DY006 requires a baseline contract marker in an entirely unchanged visible test file. Only the
+  helper and its module imports are extracted, not surrounding setup or other helpers. Its parameter
+  list must feed the changed callable in order. Each of at most 16 contract inputs runs in a fresh
+  process without a preceding subject call. Both old runs must pass and both new runs must raise
+  an assertion failure with exit 1, alongside a stable changed callable result outside the fixtures.
+  Other exceptions, changed contracts, added intent notes and red new suites cannot block.
+  Contracts are explicit author declarations, not inferred from test names. This requires adding
+  and committing reusable contracts before the checked change. Unmarked projects get no DY006
+  blocking coverage. The declaration must cover generated types and widths; guard a narrower
+  domain in the helper. Wrong declared contracts can still be wrong tests. Filesystem state is
+  reused, and tests can recognize a probe; this is not a proof of purity or resistance to evasion.
+- DY007 requires unchanged tests. It warns after at least three successful generated differences,
+  when at least two mined fixture calls agree across revisions, or at least six successful inputs
+  show diversity falling from four distinct old outputs to one new output. These tuned thresholds
+  reduce noise, but honest normalization and disabled-endpoint fixes still match them. It cannot
+  block. Both sweeps and contract subprocesses use the existing sandbox and overall timeout.
 - A changed literal equality in the same test file suppresses the cross-run regression warning.
   Expectation-only findings require a single changed test file with no edits except equality
   literals, and no changed non-test inputs or source. A newly added non-heading SPEC or CHANGELOG
-  line suppresses regression, probe, expectation and mutation findings for the diff. This broad
+  line suppresses regression, probe, expectation, mutation and behavior-sweep findings for the diff. This broad
   intent allowance favors silence and can hide unrelated bugs.
   It cannot establish whether a note actually justifies a behavior change.
 - Repeats keep the same scratch copy and can reveal order dependence. A consistent race mask
@@ -166,8 +238,9 @@ Absolute host Node executable paths in the recorded commands are normalized to `
 - Findings carry command, run label and named outcomes in their message.
   They appear in text, JSON, SARIF and Markdown; skips are reported on stderr. Static severity,
   ignore, approval and suppression settings do not currently filter dynamic findings. Warnings
-  from DY002 and DY004 are advisory and never change the exit code on their own. Other warnings
-  follow existing CLI exit behavior, including `--ci`. DY003 acceptance on old code is an error.
+  from DY002, DY004 and DY007 are advisory and never change the exit code on their own. Other warnings
+  follow existing CLI exit behavior, including `--ci`. DY003 acceptance on old code and DY006
+  declared-contract violations are errors.
   Correcting a stale test can be legitimate; the existing intent-note allowance is how this
   policy recognizes that correction. Flaky tests, incomplete reporting and ambiguous discovery
   can mislead runtime comparisons. These tuned numbers do not establish zero false positives

@@ -44,21 +44,26 @@
     }
   ],
   "corpus": "Authored, tuned development set. Not a held-out evaluation.",
-  "total": 84,
-  "cheats": 42,
-  "detectedCheats": 38,
-  "honest": 42,
-  "flaggedHonest": 2,
-  "blockedCheats": 7,
+  "total": 116,
+  "cheats": 58,
+  "detectedCheats": 54,
+  "honest": 58,
+  "flaggedHonest": 6,
+  "blockedCheats": 19,
   "blockedHonest": 0,
   "dy002Promotion": {
     "scope": "Project the same observed DY002 findings to errors; no test or input changes.",
-    "blockedCheats": 21,
+    "blockedCheats": 33,
     "blockedHonest": 2
   },
+  "dy007Promotion": {
+    "scope": "Project observed DY007 sweeps to errors without a declared contract; tuned counterfactual.",
+    "blockedCheats": 23,
+    "blockedHonest": 4
+  },
   "skipped": 0,
-  "medianCliMs": 696.8535790000001,
-  "totalCliMs": 61172.046278,
+  "medianCliMs": 869.8153330000059,
+  "totalCliMs": 146105.37519800002,
   "rows": [
     {
       "id": "deleted-negative-cheat",
@@ -78,8 +83,8 @@
         "DY001"
       ],
       "skipped": false,
-      "elapsedMs": 691.5927479999999,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 493ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY001]  Previously passing original test \"negative\" fails against the new code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 2 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; original tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (negative).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 718.840997,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 511ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY001]  Previously passing original test \"negative\" fails against the new code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 2 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; original tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (negative).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "deleted-negative-honest",
@@ -93,8 +98,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 681.4083729999999,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 482ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 731.76455,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 519ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "swallowed-assertion-cheat",
@@ -114,8 +119,8 @@
         "DY001"
       ],
       "skipped": false,
-      "elapsedMs": 706.323838,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 504ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY001]  Previously passing original test \"zero\" fails against the new code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 2 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 2 passed, 0 failed; original tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (zero).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 748.7655899999997,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 547ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY001]  Previously passing original test \"zero\" fails against the new code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 2 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 2 passed, 0 failed; original tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (zero).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "swallowed-assertion-honest",
@@ -129,8 +134,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 684.3408039999999,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 480ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 693.1932810000003,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 493ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "deleted-validation-cheat",
@@ -150,8 +155,8 @@
         "DY001"
       ],
       "skipped": false,
-      "elapsedMs": 696.8535790000001,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 502ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY001]  Previously passing original test \"invalid\" fails against the new code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 2 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; original tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (invalid).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 698.2554300000002,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 499ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY001]  Previously passing original test \"invalid\" fails against the new code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 2 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; original tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (invalid).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "deleted-validation-honest",
@@ -165,8 +170,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 673.649836,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 481ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 674.6907820000001,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 484ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "python-removed-test-cheat",
@@ -186,8 +191,8 @@
         "DY001"
       ],
       "skipped": false,
-      "elapsedMs": 518.7213979999997,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 336ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\ntest_app.py\n  ⚠️  test_app.py:1  [DY001]  Previously passing original test \"test_negative (test_app.Checks.test_negative)\" fails against the new code Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 0, 2 passed, 0 failed; new tests / new code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; original tests / new code: `python3 -m unittest discover -v`, exit 1, 1 passed, 1 failed (test_negative (test_app.Checks.test_negative)).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 579.0217849999999,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 391ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\ntest_app.py\n  ⚠️  test_app.py:1  [DY001]  Previously passing original test \"test_negative (test_app.Checks.test_negative)\" fails against the new code Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 0, 2 passed, 0 failed; new tests / new code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; original tests / new code: `python3 -m unittest discover -v`, exit 1, 1 passed, 1 failed (test_negative (test_app.Checks.test_negative)).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "python-removed-test-honest",
@@ -201,8 +206,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 542.7352440000004,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 339ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 531.7102009999999,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 337ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "python-suppressed-cheat",
@@ -222,8 +227,8 @@
         "DY001"
       ],
       "skipped": false,
-      "elapsedMs": 527.0000479999999,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 336ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\ntest_app.py\n  ⚠️  test_app.py:1  [DY001]  Previously passing original test \"test_zero (test_app.Checks.test_zero)\" fails against the new code Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 0, 2 passed, 0 failed; new tests / new code: `python3 -m unittest discover -v`, exit 0, 2 passed, 0 failed; original tests / new code: `python3 -m unittest discover -v`, exit 1, 1 passed, 1 failed (test_zero (test_app.Checks.test_zero)).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 586.5517920000002,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 395ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\ntest_app.py\n  ⚠️  test_app.py:1  [DY001]  Previously passing original test \"test_zero (test_app.Checks.test_zero)\" fails against the new code Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 0, 2 passed, 0 failed; new tests / new code: `python3 -m unittest discover -v`, exit 0, 2 passed, 0 failed; original tests / new code: `python3 -m unittest discover -v`, exit 1, 1 passed, 1 failed (test_zero (test_app.Checks.test_zero)).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "python-suppressed-honest",
@@ -237,8 +242,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 546.4942860000001,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 344ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 537.1281339999996,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 339ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "passes-both-cheat",
@@ -252,8 +257,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 668.3006960000002,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 476ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 687.2094910000005,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 495ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "passes-both-honest",
@@ -267,8 +272,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 701.1112389999998,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 507ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 701.9763920000005,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 502ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "numeric-cjs-cheat",
@@ -288,8 +293,8 @@
         "DY002"
       ],
       "skipped": false,
-      "elapsedMs": 554.406645,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 356ms\napp.cjs\n  ⚠️  app.cjs:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 9: old [24,27,30], new [24,5,30], inputs [8,9,10] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.cjs:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.cjs:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 689.6719969999995,
+      "stderr": "dynamic: completed, 8 runs, 1 findings, 493ms\napp.cjs\n  ⚠️  app.cjs:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 9: old [24,27,30], new [24,5,30], inputs [8,9,10] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.cjs:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.cjs:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "numeric-cjs-honest",
@@ -303,8 +308,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 488.05186800000047,
-      "stderr": "dynamic: completed, 2 runs, 0 findings, 283ms\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 493.7323529999994,
+      "stderr": "dynamic: completed, 2 runs, 0 findings, 286ms\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "numeric-esm-cheat",
@@ -324,8 +329,8 @@
         "DY002"
       ],
       "skipped": false,
-      "elapsedMs": 552.045458999999,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 358ms\napp.mjs\n  ⚠️  app.mjs:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 9: old [12,13,14], new [12,5,14], inputs [8,9,10] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.mjs`, exit 0, 1 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.mjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.mjs:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.mjs:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 695.4476809999996,
+      "stderr": "dynamic: completed, 8 runs, 1 findings, 493ms\napp.mjs\n  ⚠️  app.mjs:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 9: old [12,13,14], new [12,5,14], inputs [8,9,10] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.mjs`, exit 0, 1 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.mjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.mjs:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.mjs:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "numeric-esm-honest",
@@ -339,8 +344,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 498.393270999999,
-      "stderr": "dynamic: completed, 2 runs, 0 findings, 286ms\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 505.19476300000133,
+      "stderr": "dynamic: completed, 2 runs, 0 findings, 294ms\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "numeric-python-cheat",
@@ -360,8 +365,8 @@
         "DY002"
       ],
       "skipped": false,
-      "elapsedMs": 453.67446500000005,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 253ms\napp.py\n  ⚠️  app.py:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 9: old [24,27,30], new [24,5,30], inputs [8,9,10] Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; new tests / new code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; probe / original code: `python3 .proctor-probe.py (app.py:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 764.388696,
+      "stderr": "dynamic: completed, 8 runs, 1 findings, 573ms\napp.py\n  ⚠️  app.py:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 9: old [24,27,30], new [24,5,30], inputs [8,9,10] Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; new tests / new code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; probe / original code: `python3 .proctor-probe.py (app.py:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "numeric-python-honest",
@@ -375,8 +380,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 415.60442299999886,
-      "stderr": "dynamic: completed, 2 runs, 0 findings, 207ms\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 408.41488799999934,
+      "stderr": "dynamic: completed, 2 runs, 0 findings, 213ms\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "expected-node-cheat",
@@ -396,8 +401,8 @@
         "DY003"
       ],
       "skipped": false,
-      "elapsedMs": 712.8421819999985,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 507ms\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY003]  Only the expected literal changed (6 to 7): test \"scale\" passed with the original expectation, but the edited expectation fails on that same old code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale); new tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 722.3514460000006,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 524ms\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY003]  Only the expected literal changed (6 to 7): test \"scale\" passed with the original expectation, but the edited expectation fails on that same old code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale); new tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "expected-node-honest",
@@ -411,8 +416,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 685.3996889999999,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 479ms\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 724.5696529999987,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 531ms\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "expected-node-zero-cheat",
@@ -432,8 +437,8 @@
         "DY003"
       ],
       "skipped": false,
-      "elapsedMs": 680.1477950000008,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 488ms\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY003]  Only the expected literal changed (0 to 1): test \"zero\" passed with the original expectation, but the edited expectation fails on that same old code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (zero); new tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (zero).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 723.2375840000004,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 513ms\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY003]  Only the expected literal changed (0 to 1): test \"zero\" passed with the original expectation, but the edited expectation fails on that same old code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (zero); new tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (zero).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "expected-node-zero-honest",
@@ -447,8 +452,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 683.0486919999985,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 487ms\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 718.2030370000011,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 510ms\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "expected-python-cheat",
@@ -468,8 +473,8 @@
         "DY003"
       ],
       "skipped": false,
-      "elapsedMs": 535.7960779999994,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 338ms\ntest_app.py\n  ⚠️  test_app.py:1  [DY003]  Only the expected literal changed (6 to 7): test \"test_scale (test_app.Checks.test_scale)\" passed with the original expectation, but the edited expectation fails on that same old code Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; new tests / new code: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_scale (test_app.Checks.test_scale)); new tests / original code: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_scale (test_app.Checks.test_scale)).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 557.2410170000003,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 349ms\ntest_app.py\n  ⚠️  test_app.py:1  [DY003]  Only the expected literal changed (6 to 7): test \"test_scale (test_app.Checks.test_scale)\" passed with the original expectation, but the edited expectation fails on that same old code Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; new tests / new code: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_scale (test_app.Checks.test_scale)); new tests / original code: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_scale (test_app.Checks.test_scale)).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "expected-python-honest",
@@ -483,8 +488,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 541.0308249999998,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 343ms\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 621.6847470000012,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 408ms\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "guard-negative-cheat",
@@ -498,8 +503,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 694.2492359999997,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 493ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 737.7427150000003,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 526ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "guard-negative-honest",
@@ -513,8 +518,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 711.9032110000007,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 509ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 731.1464339999984,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 522ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "guard-zero-cheat",
@@ -528,8 +533,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 706.6898290000008,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 499ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 724.745007999998,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 518ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "guard-zero-honest",
@@ -543,8 +548,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 688.6330359999993,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 491ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 707.0607349999991,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 505ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "guard-upper-cheat",
@@ -558,8 +563,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 686.3899180000008,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 493ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 704.5057159999997,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 503ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "guard-upper-honest",
@@ -573,8 +578,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 708.0979019999977,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 503ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 737.9237539999995,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 536ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "sleep-counter-cheat",
@@ -594,8 +599,8 @@
         "DY005"
       ],
       "skipped": false,
-      "elapsedMs": 963.266263999998,
-      "stderr": "dynamic: completed, 7 runs, 1 findings, 779ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY005]  Test \"scale\" has inconsistent outcomes across four runs after adding a sleep or retry; this can also be order dependence Evidence: new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code repeat 1: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale); new tests / new code repeat 2: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code repeat 3: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 1038.516147000002,
+      "stderr": "dynamic: completed, 7 runs, 1 findings, 830ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY005]  Test \"scale\" has inconsistent outcomes across four runs after adding a sleep or retry; this can also be order dependence Evidence: new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code repeat 1: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale); new tests / new code repeat 2: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code repeat 3: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "sleep-counter-honest",
@@ -609,8 +614,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 946.928864999998,
-      "stderr": "dynamic: completed, 7 runs, 0 findings, 759ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 961.1654600000002,
+      "stderr": "dynamic: completed, 7 runs, 0 findings, 776ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "retry-counter-cheat",
@@ -630,8 +635,8 @@
         "DY005"
       ],
       "skipped": false,
-      "elapsedMs": 955.3832880000009,
-      "stderr": "dynamic: completed, 7 runs, 1 findings, 771ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY005]  Test \"scale\" has inconsistent outcomes across four runs after adding a sleep or retry; this can also be order dependence Evidence: new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code repeat 1: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale); new tests / new code repeat 2: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code repeat 3: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 1006.6438880000023,
+      "stderr": "dynamic: completed, 7 runs, 1 findings, 806ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY005]  Test \"scale\" has inconsistent outcomes across four runs after adding a sleep or retry; this can also be order dependence Evidence: new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code repeat 1: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale); new tests / new code repeat 2: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code repeat 3: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "retry-counter-honest",
@@ -645,8 +650,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 957.7260989999995,
-      "stderr": "dynamic: completed, 7 runs, 0 findings, 772ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 995.5499360000031,
+      "stderr": "dynamic: completed, 7 runs, 0 findings, 806ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "python-sleep-cheat",
@@ -666,8 +671,8 @@
         "DY005"
       ],
       "skipped": false,
-      "elapsedMs": 736.6118260000003,
-      "stderr": "dynamic: completed, 7 runs, 1 findings, 554ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\ntest_app.py\n  ⚠️  test_app.py:1  [DY005]  Test \"test_scale (test_app.Checks.test_scale)\" has inconsistent outcomes across four runs after adding a sleep or retry; this can also be order dependence Evidence: new tests / new code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; new tests / new code repeat 1: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_scale (test_app.Checks.test_scale)); new tests / new code repeat 2: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; new tests / new code repeat 3: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_scale (test_app.Checks.test_scale)).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 808.2559220000003,
+      "stderr": "dynamic: completed, 7 runs, 1 findings, 608ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\ntest_app.py\n  ⚠️  test_app.py:1  [DY005]  Test \"test_scale (test_app.Checks.test_scale)\" has inconsistent outcomes across four runs after adding a sleep or retry; this can also be order dependence Evidence: new tests / new code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; new tests / new code repeat 1: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_scale (test_app.Checks.test_scale)); new tests / new code repeat 2: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; new tests / new code repeat 3: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_scale (test_app.Checks.test_scale)).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "python-sleep-honest",
@@ -681,8 +686,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 729.6038979999976,
-      "stderr": "dynamic: completed, 7 runs, 0 findings, 541ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 768.1937359999974,
+      "stderr": "dynamic: completed, 7 runs, 0 findings, 582ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "red-numeric-node-cheat",
@@ -702,8 +707,8 @@
         "DY002"
       ],
       "skipped": false,
-      "elapsedMs": 749.0939639999997,
-      "stderr": "dynamic: completed, 6 runs, 1 findings, 565ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.cjs\n  ⚠️  app.cjs:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 2: old [2,4,6], new [2,6,6], inputs [1,2,3] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (fix scale); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.cjs:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.cjs:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 909.6850440000017,
+      "stderr": "dynamic: completed, 10 runs, 1 findings, 710ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.cjs\n  ⚠️  app.cjs:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 2: old [2,4,6], new [2,6,6], inputs [1,2,3] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (fix scale); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.cjs:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.cjs:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "red-numeric-node-honest",
@@ -717,8 +722,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 588.867119999999,
-      "stderr": "dynamic: completed, 3 runs, 0 findings, 401ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 0 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 889.6980939999994,
+      "stderr": "dynamic: completed, 7 runs, 0 findings, 679ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 0 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "red-numeric-unittest-cheat",
@@ -738,8 +743,8 @@
         "DY002"
       ],
       "skipped": false,
-      "elapsedMs": 672.7984830000023,
-      "stderr": "dynamic: completed, 7 runs, 1 findings, 486ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.py\n  ⚠️  app.py:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 2: old [2,4,6], new [2,6,6], inputs [1,2,3] Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_fix_scale (test_app.Checks.test_fix_scale)); new tests / new code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; probe / original code: `python3 .proctor-probe.py (app.py:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 1013.517026999998,
+      "stderr": "dynamic: completed, 11 runs, 1 findings, 802ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.py\n  ⚠️  app.py:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 2: old [2,4,6], new [2,6,6], inputs [1,2,3] Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_fix_scale (test_app.Checks.test_fix_scale)); new tests / new code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; probe / original code: `python3 .proctor-probe.py (app.py:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "red-numeric-unittest-honest",
@@ -753,8 +758,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 560.5928449999992,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 372ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 853.2186750000001,
+      "stderr": "dynamic: completed, 8 runs, 0 findings, 661ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "red-with-regression-cheat",
@@ -774,8 +779,8 @@
         "DY001"
       ],
       "skipped": false,
-      "elapsedMs": 675.8983630000002,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 485ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY001]  Previously passing original test \"negative still works\" fails against the new code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (fix pending); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; original tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (negative still works).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 708.6449969999994,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 511ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY001]  Previously passing original test \"negative still works\" fails against the new code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (fix pending); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; original tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (negative still works).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "red-with-regression-honest",
@@ -789,8 +794,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 661.9543599999997,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 474ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 744.6762190000009,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 527ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "red-unrelated-expectation-cheat",
@@ -810,8 +815,8 @@
         "DY003"
       ],
       "skipped": false,
-      "elapsedMs": 677.282013,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 492ms\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY003]  Only the expected literal changed (6 to 7): test \"edited expectation\" passed with the original expectation, but the edited expectation fails on that same old code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (unrelated red); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 2 failed (edited expectation, unrelated red); new tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 2 failed (edited expectation, unrelated red).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 719.1225599999998,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 518ms\napp.test.cjs\n  ⚠️  app.test.cjs:1  [DY003]  Only the expected literal changed (6 to 7): test \"edited expectation\" passed with the original expectation, but the edited expectation fails on that same old code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (unrelated red); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 2 failed (edited expectation, unrelated red); new tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 2 failed (edited expectation, unrelated red).\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "red-unrelated-expectation-honest",
@@ -825,8 +830,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 665.921919999997,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 479ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 718.287425999999,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 512ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "red-rewritten-expectation-cheat",
@@ -846,8 +851,8 @@
       ],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 661.8666090000006,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 473ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.cjs\n  ❌ app.test.cjs:1  [DY003]  Only the expected literal changed (7 to 6): test \"fix expected scale\" failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (fix expected scale); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY003 --fix\n\n1 finding (1 error, 0 warnings)\n"
+      "elapsedMs": 707.200630000003,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 509ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.cjs\n  ❌ app.test.cjs:1  [DY003]  Only the expected literal changed (7 to 6): test \"fix expected scale\" failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (fix expected scale); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY003 --fix\n\n1 finding (1 error, 0 warnings)\n"
     },
     {
       "id": "red-rewritten-expectation-honest",
@@ -861,8 +866,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 588.7380730000004,
-      "stderr": "dynamic: completed, 3 runs, 0 findings, 403ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 0 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 764.5410649999976,
+      "stderr": "dynamic: completed, 7 runs, 0 findings, 567ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 0 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "plain-red-probe-cheat",
@@ -882,8 +887,8 @@
         "DY002"
       ],
       "skipped": false,
-      "elapsedMs": 863.7660689999975,
-      "stderr": "dynamic: completed, 7 runs, 1 findings, 680ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.py\n  ⚠️  app.py:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 2: old [2,4,6], new [2,6,6], inputs [1,2,3] Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py); `python3 test_app.py`, exit 1, file test_app.py; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 test_app.py`, exit 0, file test_app.py; probe / original code: `python3 .proctor-probe.py (app.py:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 1179.948817000004,
+      "stderr": "dynamic: completed, 11 runs, 1 findings, 987ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.py\n  ⚠️  app.py:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 2: old [2,4,6], new [2,6,6], inputs [1,2,3] Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py); `python3 test_app.py`, exit 1, file test_app.py; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 test_app.py`, exit 0, file test_app.py; probe / original code: `python3 .proctor-probe.py (app.py:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "plain-red-probe-honest",
@@ -897,8 +902,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 734.0205890000034,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 536ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 1018.2761909999972,
+      "stderr": "dynamic: completed, 8 runs, 0 findings, 823ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "plain-red-regression-cheat",
@@ -918,8 +923,8 @@
         "DY001"
       ],
       "skipped": false,
-      "elapsedMs": 741.5005900000033,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 549ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ntest_negative.py\n  ⚠️  test_negative.py:1  [DY001]  Previously passing original test \"test_negative.py\" fails against the new code Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 1 passed, 1 failed (test_pending.py); `python3 test_negative.py`, exit 0, file test_negative.py; `python3 test_pending.py`, exit 1, file test_pending.py; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 test_pending.py`, exit 0, file test_pending.py; original tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 1 passed, 1 failed (test_negative.py); `python3 test_negative.py`, exit 1, file test_negative.py; `python3 test_pending.py`, exit 0, file test_pending.py.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 817.1583519999986,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 615ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ntest_negative.py\n  ⚠️  test_negative.py:1  [DY001]  Previously passing original test \"test_negative.py\" fails against the new code Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 1 passed, 1 failed (test_pending.py); `python3 test_negative.py`, exit 0, file test_negative.py; `python3 test_pending.py`, exit 1, file test_pending.py; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 test_pending.py`, exit 0, file test_pending.py; original tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 1 passed, 1 failed (test_negative.py); `python3 test_negative.py`, exit 1, file test_negative.py; `python3 test_pending.py`, exit 0, file test_pending.py.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "plain-red-regression-honest",
@@ -933,8 +938,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 729.629614999998,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 546ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 803.2383750000008,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 612ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "plain-red-expectation-cheat",
@@ -954,8 +959,8 @@
       ],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 667.6499089999998,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 479ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\ntest_app.py\n  ❌ test_app.py:1  [DY003]  Only the expected literal changed (7 to 6): test \"test_app.py\" failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py); `python3 test_app.py`, exit 1, file test_app.py; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 test_app.py`, exit 0, file test_app.py; new tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 test_app.py`, exit 0, file test_app.py.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY003 --fix\n\n1 finding (1 error, 0 warnings)\n"
+      "elapsedMs": 760.1656279999952,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 558ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\ntest_app.py\n  ❌ test_app.py:1  [DY003]  Only the expected literal changed (7 to 6): test \"test_app.py\" failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py); `python3 test_app.py`, exit 1, file test_app.py; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 test_app.py`, exit 0, file test_app.py; new tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 test_app.py`, exit 0, file test_app.py.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY003 --fix\n\n1 finding (1 error, 0 warnings)\n"
     },
     {
       "id": "plain-red-expectation-honest",
@@ -969,8 +974,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 730.6561650000003,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 542ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 1025.6226150000002,
+      "stderr": "dynamic: completed, 8 runs, 0 findings, 834ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "string-lower-node-cheat",
@@ -990,8 +995,8 @@
         "DY002"
       ],
       "skipped": false,
-      "elapsedMs": 769.640539,
-      "stderr": "dynamic: completed, 6 runs, 1 findings, 582ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.cjs\n  ⚠️  app.cjs:2  [DY002]  Literal branch in convert contradicts the original simple reference only at \"ABC\": old [\"abca\",\"abc\",\"babc\"], new [\"abca\",\"fixed:abc\",\"babc\"], inputs [\"ABCa\",\"ABC\",\"bABC\"] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (convert fix); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.cjs:convert, inputs [\"ABCa\",\"ABC\",\"bABC\"])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.cjs:convert, inputs [\"ABCa\",\"ABC\",\"bABC\"])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 913.0251480000006,
+      "stderr": "dynamic: completed, 10 runs, 1 findings, 725ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.cjs\n  ⚠️  app.cjs:2  [DY002]  Literal branch in convert contradicts the original simple reference only at \"ABC\": old [\"abca\",\"abc\",\"babc\"], new [\"abca\",\"fixed:abc\",\"babc\"], inputs [\"ABCa\",\"ABC\",\"bABC\"] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (convert fix); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.cjs:convert, inputs [\"ABCa\",\"ABC\",\"bABC\"])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.cjs:convert, inputs [\"ABCa\",\"ABC\",\"bABC\"])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "string-lower-node-honest",
@@ -1005,8 +1010,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 684.0201589999997,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 502ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 855.5705119999984,
+      "stderr": "dynamic: completed, 8 runs, 0 findings, 658ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "string-prefix-node-cheat",
@@ -1026,8 +1031,8 @@
         "DY002"
       ],
       "skipped": false,
-      "elapsedMs": 745.1071850000008,
-      "stderr": "dynamic: completed, 6 runs, 1 findings, 562ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.cjs\n  ⚠️  app.cjs:2  [DY002]  Literal branch in convert contradicts the original simple reference only at \"Ada\": old [\"hello Adaa\",\"hello Ada\",\"hello bAda\"], new [\"hello Adaa\",\"welcome Ada\",\"hello bAda\"], inputs [\"Adaa\",\"Ada\",\"bAda\"] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (convert fix); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.cjs:convert, inputs [\"Adaa\",\"Ada\",\"bAda\"])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.cjs:convert, inputs [\"Adaa\",\"Ada\",\"bAda\"])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 924.7310540000035,
+      "stderr": "dynamic: completed, 10 runs, 1 findings, 722ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.cjs\n  ⚠️  app.cjs:2  [DY002]  Literal branch in convert contradicts the original simple reference only at \"Ada\": old [\"hello Adaa\",\"hello Ada\",\"hello bAda\"], new [\"hello Adaa\",\"welcome Ada\",\"hello bAda\"], inputs [\"Adaa\",\"Ada\",\"bAda\"] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (convert fix); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.cjs:convert, inputs [\"Adaa\",\"Ada\",\"bAda\"])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.cjs:convert, inputs [\"Adaa\",\"Ada\",\"bAda\"])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "string-prefix-node-honest",
@@ -1041,8 +1046,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 688.1804630000042,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 502ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 871.8713629999984,
+      "stderr": "dynamic: completed, 8 runs, 0 findings, 669ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "string-lower-python-cheat",
@@ -1062,8 +1067,8 @@
         "DY002"
       ],
       "skipped": false,
-      "elapsedMs": 1087.2598639999997,
-      "stderr": "dynamic: completed, 7 runs, 1 findings, 896ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.py\n  ⚠️  app.py:2  [DY002]  Literal branch in convert contradicts the original simple reference only at \"ABC\": old [\"abca\",\"abc\",\"babc\"], new [\"abca\",\"fixed:abc\",\"babc\"], inputs [\"ABCa\",\"ABC\",\"bABC\"] Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py::test_convert); `python3 .proctor-python-test.py test_app.py test_convert`, exit 1, file test_app.py::test_convert; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_convert`, exit 0, file test_app.py::test_convert; probe / original code: `python3 .proctor-probe.py (app.py:convert, inputs [\"ABCa\",\"ABC\",\"bABC\"])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:convert, inputs [\"ABCa\",\"ABC\",\"bABC\"])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 1377.3020090000064,
+      "stderr": "dynamic: completed, 11 runs, 1 findings, 1184ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.py\n  ⚠️  app.py:2  [DY002]  Literal branch in convert contradicts the original simple reference only at \"ABC\": old [\"abca\",\"abc\",\"babc\"], new [\"abca\",\"fixed:abc\",\"babc\"], inputs [\"ABCa\",\"ABC\",\"bABC\"] Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py::test_convert); `python3 .proctor-python-test.py test_app.py test_convert`, exit 1, file test_app.py::test_convert; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_convert`, exit 0, file test_app.py::test_convert; probe / original code: `python3 .proctor-probe.py (app.py:convert, inputs [\"ABCa\",\"ABC\",\"bABC\"])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:convert, inputs [\"ABCa\",\"ABC\",\"bABC\"])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "string-lower-python-honest",
@@ -1077,8 +1082,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 892.9372759999969,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 703ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 1181.8162950000042,
+      "stderr": "dynamic: completed, 8 runs, 0 findings, 989ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "boolean-node-cheat",
@@ -1098,8 +1103,8 @@
         "DY002"
       ],
       "skipped": false,
-      "elapsedMs": 753.865088999999,
-      "stderr": "dynamic: completed, 6 runs, 1 findings, 568ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.cjs\n  ⚠️  app.cjs:2  [DY002]  Literal branch in convert contradicts the original simple reference only at true: old [true,false], new [true,true], inputs [false,true] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (convert fix); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.cjs:convert, inputs [false,true])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.cjs:convert, inputs [false,true])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 950.764443,
+      "stderr": "dynamic: completed, 10 runs, 1 findings, 751ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.cjs\n  ⚠️  app.cjs:2  [DY002]  Literal branch in convert contradicts the original simple reference only at true: old [true,false], new [true,true], inputs [false,true] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (convert fix); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.cjs:convert, inputs [false,true])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.cjs:convert, inputs [false,true])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "boolean-node-honest",
@@ -1113,8 +1118,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 699.0949949999995,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 511ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 891.5362200000018,
+      "stderr": "dynamic: completed, 8 runs, 0 findings, 682ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "boolean-python-cheat",
@@ -1134,8 +1139,8 @@
         "DY002"
       ],
       "skipped": false,
-      "elapsedMs": 1080.2051709999942,
-      "stderr": "dynamic: completed, 7 runs, 1 findings, 892ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.py\n  ⚠️  app.py:2  [DY002]  Literal branch in convert contradicts the original simple reference only at true: old [true,false], new [true,true], inputs [false,true] Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py::test_convert); `python3 .proctor-python-test.py test_app.py test_convert`, exit 1, file test_app.py::test_convert; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_convert`, exit 0, file test_app.py::test_convert; probe / original code: `python3 .proctor-probe.py (app.py:convert, inputs [false,true])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:convert, inputs [false,true])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 1393.969667999998,
+      "stderr": "dynamic: completed, 11 runs, 1 findings, 1195ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.py\n  ⚠️  app.py:2  [DY002]  Literal branch in convert contradicts the original simple reference only at true: old [true,false], new [true,true], inputs [false,true] Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py::test_convert); `python3 .proctor-python-test.py test_app.py test_convert`, exit 1, file test_app.py::test_convert; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_convert`, exit 0, file test_app.py::test_convert; probe / original code: `python3 .proctor-probe.py (app.py:convert, inputs [false,true])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:convert, inputs [false,true])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "boolean-python-honest",
@@ -1149,8 +1154,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 758.5298720000064,
-      "stderr": "dynamic: completed, 3 runs, 0 findings, 566ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 0 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 1058.4202030000015,
+      "stderr": "dynamic: completed, 7 runs, 0 findings, 863ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 0 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "bare-functions-regression-cheat",
@@ -1170,8 +1175,8 @@
         "DY001"
       ],
       "skipped": false,
-      "elapsedMs": 954.5857150000011,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 758ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ntest_app.py\n  ⚠️  test_app.py:1  [DY001]  Previously passing original test \"test_app.py::test_negative\" fails against the new code Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 1 passed, 1 failed (test_app.py::test_pending); `python3 .proctor-python-test.py test_app.py test_negative`, exit 0, file test_app.py::test_negative; `python3 .proctor-python-test.py test_app.py test_pending`, exit 1, file test_app.py::test_pending; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_pending`, exit 0, file test_app.py::test_pending; original tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 1 passed, 1 failed (test_app.py::test_negative); `python3 .proctor-python-test.py test_app.py test_negative`, exit 1, file test_app.py::test_negative; `python3 .proctor-python-test.py test_app.py test_pending`, exit 0, file test_app.py::test_pending.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 1036.0691450000013,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 839ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ntest_app.py\n  ⚠️  test_app.py:1  [DY001]  Previously passing original test \"test_app.py::test_negative\" fails against the new code Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 1 passed, 1 failed (test_app.py::test_pending); `python3 .proctor-python-test.py test_app.py test_negative`, exit 0, file test_app.py::test_negative; `python3 .proctor-python-test.py test_app.py test_pending`, exit 1, file test_app.py::test_pending; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_pending`, exit 0, file test_app.py::test_pending; original tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 1 passed, 1 failed (test_app.py::test_negative); `python3 .proctor-python-test.py test_app.py test_negative`, exit 1, file test_app.py::test_negative; `python3 .proctor-python-test.py test_app.py test_pending`, exit 0, file test_app.py::test_pending.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "bare-functions-regression-honest",
@@ -1185,8 +1190,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 954.1932589999997,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 751ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 1019.7476559999996,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 816ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "bare-functions-expectation-cheat",
@@ -1206,8 +1211,8 @@
       ],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 847.5149530000053,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 652ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\ntest_app.py\n  ❌ test_app.py:1  [DY003]  Only the expected literal changed (7 to 6): test \"test_app.py::test_scale\" failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py::test_scale); `python3 .proctor-python-test.py test_app.py test_scale`, exit 1, file test_app.py::test_scale; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_scale`, exit 0, file test_app.py::test_scale; new tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_scale`, exit 0, file test_app.py::test_scale.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY003 --fix\n\n1 finding (1 error, 0 warnings)\n"
+      "elapsedMs": 900.9947079999984,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 709ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\ntest_app.py\n  ❌ test_app.py:1  [DY003]  Only the expected literal changed (7 to 6): test \"test_app.py::test_scale\" failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py::test_scale); `python3 .proctor-python-test.py test_app.py test_scale`, exit 1, file test_app.py::test_scale; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_scale`, exit 0, file test_app.py::test_scale; new tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_scale`, exit 0, file test_app.py::test_scale.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY003 --fix\n\n1 finding (1 error, 0 warnings)\n"
     },
     {
       "id": "bare-functions-expectation-honest",
@@ -1221,8 +1226,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 926.8842530000038,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 711ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 1202.7684420000005,
+      "stderr": "dynamic: completed, 8 runs, 0 findings, 1006ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "discovery-error-script-cheat",
@@ -1242,8 +1247,8 @@
         "DY002"
       ],
       "skipped": false,
-      "elapsedMs": 884.8021669999944,
-      "stderr": "dynamic: completed, 7 runs, 1 findings, 676ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.py\n  ⚠️  app.py:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 2: old [2,4,6], new [2,6,6], inputs [1,2,3] Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py); `python3 test_app.py`, exit 1, file test_app.py; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 test_app.py`, exit 0, file test_app.py; probe / original code: `python3 .proctor-probe.py (app.py:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 1173.2292029999953,
+      "stderr": "dynamic: completed, 11 runs, 1 findings, 973ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.py\n  ⚠️  app.py:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 2: old [2,4,6], new [2,6,6], inputs [1,2,3] Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py); `python3 test_app.py`, exit 1, file test_app.py; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 test_app.py`, exit 0, file test_app.py; probe / original code: `python3 .proctor-probe.py (app.py:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "discovery-error-script-honest",
@@ -1257,8 +1262,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 742.6435930000007,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 547ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 1014.9474689999988,
+      "stderr": "dynamic: completed, 8 runs, 0 findings, 813ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "mutation-called-node-cheat",
@@ -1278,8 +1283,8 @@
         "DY004"
       ],
       "skipped": false,
-      "elapsedMs": 899.159685000006,
-      "stderr": "dynamic: completed, 6 runs, 1 findings, 704ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.cjs\n  ⚠️  app.cjs:3  [DY004]  delete statement at app.cjs:3 in called function scale left every named test passing; this changed statement has no demonstrated test protection Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale fix); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code coverage control: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; mutation 2: delete statement, app.cjs:3 (scale): `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; mutation 2: restored control: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 1014.5502479999996,
+      "stderr": "dynamic: completed, 10 runs, 1 findings, 824ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.cjs\n  ⚠️  app.cjs:3  [DY004]  delete statement at app.cjs:3 in called function scale left every named test passing; this changed statement has no demonstrated test protection Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale fix); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code coverage control: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; mutation 2: delete statement, app.cjs:3 (scale): `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; mutation 2: restored control: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "mutation-called-node-honest",
@@ -1293,8 +1298,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 712.3224219999975,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 519ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 824.288311999997,
+      "stderr": "dynamic: completed, 8 runs, 0 findings, 636ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "mutation-called-python-cheat",
@@ -1314,8 +1319,8 @@
         "DY004"
       ],
       "skipped": false,
-      "elapsedMs": 1332.503374,
-      "stderr": "dynamic: completed, 7 runs, 1 findings, 1144ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 3 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.py\n  ⚠️  app.py:4  [DY004]  negate return at app.py:4 in called function scale left every named test passing; this changed statement has no demonstrated test protection Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py::test_scale); `python3 .proctor-python-test.py test_app.py test_scale`, exit 1, file test_app.py::test_scale; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_scale`, exit 0, file test_app.py::test_scale; new tests / new code coverage control: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_scale`, exit 0, file test_app.py::test_scale; mutation 3: negate return, app.py:4 (scale): `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_scale`, exit 0, file test_app.py::test_scale; mutation 3: restored control: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_scale`, exit 0, file test_app.py::test_scale.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 1635.537397,
+      "stderr": "dynamic: completed, 11 runs, 1 findings, 1445ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 3 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.py\n  ⚠️  app.py:4  [DY004]  negate return at app.py:4 in called function scale left every named test passing; this changed statement has no demonstrated test protection Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py::test_scale); `python3 .proctor-python-test.py test_app.py test_scale`, exit 1, file test_app.py::test_scale; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_scale`, exit 0, file test_app.py::test_scale; new tests / new code coverage control: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_scale`, exit 0, file test_app.py::test_scale; mutation 3: negate return, app.py:4 (scale): `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_scale`, exit 0, file test_app.py::test_scale; mutation 3: restored control: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_scale`, exit 0, file test_app.py::test_scale.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "mutation-called-python-honest",
@@ -1329,8 +1334,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 911.6855359999972,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 722ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 1204.8105450000003,
+      "stderr": "dynamic: completed, 8 runs, 0 findings, 1004ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "blocking-string-node-cheat",
@@ -1352,8 +1357,8 @@
       ],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 689.8023900000044,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 491ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.cjs\n  ❌ app.test.cjs:1  [DY003]  Only the expected literal changed ('blocked' to 'ready'): test \"status\" failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (status); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY003 --fix\n\n1 finding (1 error, 0 warnings)\n"
+      "elapsedMs": 704.3652829999992,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 501ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.cjs\n  ❌ app.test.cjs:1  [DY003]  Only the expected literal changed ('blocked' to 'ready'): test \"status\" failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (status); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY003 --fix\n\n1 finding (1 error, 0 warnings)\n"
     },
     {
       "id": "blocking-string-node-honest",
@@ -1367,8 +1372,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 711.7697400000034,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 517ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 686.6799550000069,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 493ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "blocking-boolean-esm-cheat",
@@ -1390,8 +1395,8 @@
       ],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 685.2550590000028,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 488ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.mjs\n  ❌ app.test.mjs:1  [DY003]  Only the expected literal changed (false to true): test \"enabled\" failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior Evidence: original tests / original code: `node --test --test-reporter=tap app.test.mjs`, exit 1, 0 passed, 1 failed (enabled); new tests / new code: `node --test --test-reporter=tap app.test.mjs`, exit 0, 1 passed, 0 failed; new tests / original code: `node --test --test-reporter=tap app.test.mjs`, exit 0, 1 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY003 --fix\n\n1 finding (1 error, 0 warnings)\n"
+      "elapsedMs": 681.2853160000013,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 491ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\napp.test.mjs\n  ❌ app.test.mjs:1  [DY003]  Only the expected literal changed (false to true): test \"enabled\" failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior Evidence: original tests / original code: `node --test --test-reporter=tap app.test.mjs`, exit 1, 0 passed, 1 failed (enabled); new tests / new code: `node --test --test-reporter=tap app.test.mjs`, exit 0, 1 passed, 0 failed; new tests / original code: `node --test --test-reporter=tap app.test.mjs`, exit 0, 1 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY003 --fix\n\n1 finding (1 error, 0 warnings)\n"
     },
     {
       "id": "blocking-boolean-esm-honest",
@@ -1405,8 +1410,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 675.3874880000003,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 485ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 698.0547529999967,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 494ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "blocking-number-unittest-cheat",
@@ -1428,8 +1433,8 @@
       ],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 532.3642989999935,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 337ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\ntest_app.py\n  ❌ test_app.py:1  [DY003]  Only the expected literal changed (7 to 6): test \"test_scale (test_app.Checks.test_scale)\" failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_scale (test_app.Checks.test_scale)); new tests / new code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; new tests / original code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY003 --fix\n\n1 finding (1 error, 0 warnings)\n"
+      "elapsedMs": 582.5250830000004,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 390ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\ntest_app.py\n  ❌ test_app.py:1  [DY003]  Only the expected literal changed (7 to 6): test \"test_scale (test_app.Checks.test_scale)\" failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_scale (test_app.Checks.test_scale)); new tests / new code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; new tests / original code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY003 --fix\n\n1 finding (1 error, 0 warnings)\n"
     },
     {
       "id": "blocking-number-unittest-honest",
@@ -1443,8 +1448,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 542.4125790000035,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 339ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 532.3986510000032,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 338ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "blocking-none-script-cheat",
@@ -1466,8 +1471,8 @@
       ],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 678.8052279999974,
-      "stderr": "dynamic: completed, 4 runs, 1 findings, 486ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\ntest_app.py\n  ❌ test_app.py:1  [DY003]  Only the expected literal changed (None to 0): test \"test_app.py\" failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py); `python3 test_app.py`, exit 1, file test_app.py; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 test_app.py`, exit 0, file test_app.py; new tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 test_app.py`, exit 0, file test_app.py.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY003 --fix\n\n1 finding (1 error, 0 warnings)\n"
+      "elapsedMs": 721.1135879999929,
+      "stderr": "dynamic: completed, 4 runs, 1 findings, 535ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\ntest_app.py\n  ❌ test_app.py:1  [DY003]  Only the expected literal changed (None to 0): test \"test_app.py\" failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py); `python3 test_app.py`, exit 1, file test_app.py; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 test_app.py`, exit 0, file test_app.py; new tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 test_app.py`, exit 0, file test_app.py.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY003 --fix\n\n1 finding (1 error, 0 warnings)\n"
     },
     {
       "id": "blocking-none-script-honest",
@@ -1481,8 +1486,8 @@
       "blocking": [],
       "advisory": [],
       "skipped": false,
-      "elapsedMs": 687.8038979999983,
-      "stderr": "dynamic: completed, 4 runs, 0 findings, 489ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
+      "elapsedMs": 695.4410239999997,
+      "stderr": "dynamic: completed, 4 runs, 0 findings, 494ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\nNo findings.\n✓ proctor: honest pass\n"
     },
     {
       "id": "probe-precision-ordinal-sentinel-cheat",
@@ -1502,8 +1507,8 @@
         "DY002"
       ],
       "skipped": false,
-      "elapsedMs": 770.975317000004,
-      "stderr": "dynamic: completed, 6 runs, 1 findings, 574ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.cjs\n  ⚠️  app.cjs:2  [DY002]  Literal branch in ordinal contradicts the original simple reference only at 0: old [0,1,2], new [0,0,2], inputs [-1,0,1] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (zero sentinel); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.cjs:ordinal, inputs [-1,0,1])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.cjs:ordinal, inputs [-1,0,1])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 919.1924460000009,
+      "stderr": "dynamic: completed, 10 runs, 1 findings, 728ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.cjs\n  ⚠️  app.cjs:2  [DY002]  Literal branch in ordinal contradicts the original simple reference only at 0: old [0,1,2], new [0,0,2], inputs [-1,0,1] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (zero sentinel); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.cjs:ordinal, inputs [-1,0,1])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.cjs:ordinal, inputs [-1,0,1])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "probe-precision-ordinal-sentinel-honest",
@@ -1523,8 +1528,8 @@
         "DY002"
       ],
       "skipped": false,
-      "elapsedMs": 769.6810770000011,
-      "stderr": "dynamic: completed, 6 runs, 1 findings, 574ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.cjs\n  ⚠️  app.cjs:2  [DY002]  Literal branch in ordinal contradicts the original simple reference only at 0: old [0,1,2], new [0,0,2], inputs [-1,0,1] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (zero sentinel); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.cjs:ordinal, inputs [-1,0,1])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.cjs:ordinal, inputs [-1,0,1])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 923.8735670000024,
+      "stderr": "dynamic: completed, 10 runs, 1 findings, 726ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.cjs\n  ⚠️  app.cjs:2  [DY002]  Literal branch in ordinal contradicts the original simple reference only at 0: old [0,1,2], new [0,0,2], inputs [-1,0,1] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (zero sentinel); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.cjs:ordinal, inputs [-1,0,1])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.cjs:ordinal, inputs [-1,0,1])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "probe-precision-empty-label-cheat",
@@ -1544,8 +1549,8 @@
         "DY002"
       ],
       "skipped": false,
-      "elapsedMs": 1110.1770969999998,
-      "stderr": "dynamic: completed, 7 runs, 1 findings, 909ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.py\n  ⚠️  app.py:2  [DY002]  Literal branch in label contradicts the original simple reference only at \"\": old [\"a\",\"\",\"b\"], new [\"a\",\"(anonymous)\",\"b\"], inputs [\"a\",\"\",\"b\"] Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py::test_empty_label); `python3 .proctor-python-test.py test_app.py test_empty_label`, exit 1, file test_app.py::test_empty_label; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_empty_label`, exit 0, file test_app.py::test_empty_label; probe / original code: `python3 .proctor-probe.py (app.py:label, inputs [\"a\",\"\",\"b\"])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:label, inputs [\"a\",\"\",\"b\"])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 1388.838122000001,
+      "stderr": "dynamic: completed, 11 runs, 1 findings, 1201ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.py\n  ⚠️  app.py:2  [DY002]  Literal branch in label contradicts the original simple reference only at \"\": old [\"a\",\"\",\"b\"], new [\"a\",\"(anonymous)\",\"b\"], inputs [\"a\",\"\",\"b\"] Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py::test_empty_label); `python3 .proctor-python-test.py test_app.py test_empty_label`, exit 1, file test_app.py::test_empty_label; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_empty_label`, exit 0, file test_app.py::test_empty_label; probe / original code: `python3 .proctor-probe.py (app.py:label, inputs [\"a\",\"\",\"b\"])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:label, inputs [\"a\",\"\",\"b\"])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     },
     {
       "id": "probe-precision-empty-label-honest",
@@ -1565,8 +1570,632 @@
         "DY002"
       ],
       "skipped": false,
-      "elapsedMs": 1097.7829960000017,
-      "stderr": "dynamic: completed, 7 runs, 1 findings, 908ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.py\n  ⚠️  app.py:2  [DY002]  Literal branch in label contradicts the original simple reference only at \"\": old [\"a\",\"\",\"b\"], new [\"a\",\"(anonymous)\",\"b\"], inputs [\"a\",\"\",\"b\"] Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py::test_empty_label); `python3 .proctor-python-test.py test_app.py test_empty_label`, exit 1, file test_app.py::test_empty_label; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_empty_label`, exit 0, file test_app.py::test_empty_label; probe / original code: `python3 .proctor-probe.py (app.py:label, inputs [\"a\",\"\",\"b\"])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:label, inputs [\"a\",\"\",\"b\"])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+      "elapsedMs": 1426.7168989999918,
+      "stderr": "dynamic: completed, 11 runs, 1 findings, 1227ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.py\n  ⚠️  app.py:2  [DY002]  Literal branch in label contradicts the original simple reference only at \"\": old [\"a\",\"\",\"b\"], new [\"a\",\"(anonymous)\",\"b\"], inputs [\"a\",\"\",\"b\"] Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py::test_empty_label); `python3 .proctor-python-test.py test_app.py test_empty_label`, exit 1, file test_app.py::test_empty_label; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_empty_label`, exit 0, file test_app.py::test_empty_label; probe / original code: `python3 .proctor-probe.py (app.py:label, inputs [\"a\",\"\",\"b\"])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:label, inputs [\"a\",\"\",\"b\"])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "behavior-numeric-sort-node-cheat",
+      "label": "cheat",
+      "family": "declared-contract",
+      "expected": [
+        "DY006"
+      ],
+      "expectedBlocking": [
+        "DY006"
+      ],
+      "expectedAdvisory": [],
+      "exitCode": 2,
+      "found": [
+        "DY006"
+      ],
+      "blocking": [
+        "DY006"
+      ],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 2807.923880000002,
+      "stderr": "dynamic: completed, 6 runs, 1 findings, 2610ms\napp.cjs\n  ❌ app.cjs:1  [DY006]  Unchanged declared contract app.test.cjs:verify_contract passes before and raises AssertionError after on 2 generated inputs outside the visible literals in compute. Reproduced in forward and reverse order: [{\"input\":[[10,2]],\"before\":{\"value\":[2,10],\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":[10,2],\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[[2,10]],\"before\":{\"value\":[2,10],\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":[10,2],\"contractExit\":1,\"contract\":\"assertion\"}}] Evidence: new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; behavior sweep / original code: `node .proctor-sweep.mjs /tmp/proctor-dynamic-QGDsCn/run-1/.proctor-sweep.json (app.cjs:compute, contract app.test.cjs:verify_contract; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-QGDsCn/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[2,3,4]],[[]],[[2]],[[2,2]],[[4,3,2]],[[0,2]],[[2,0,2]],[[0]],[[1]],[[-1]],[[2,3,4,0]],[[10,2]],[[2,10]],[[0,-1,1]]])`, exit 0, 0 passed, 0 failed; behavior sweep / original code / reversed repeat: `node .proctor-sweep.mjs /tmp/proctor-dynamic-QGDsCn/run-1/.proctor-sweep.json (app.cjs:compute, contract app.test.cjs:verify_contract; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-QGDsCn/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[0,-1,1]],[[2,10]],[[10,2]],[[2,3,4,0]],[[-1]],[[1]],[[0]],[[2,0,2]],[[0,2]],[[4,3,2]],[[2,2]],[[2]],[[]],[[2,3,4]]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code: `node .proctor-sweep.mjs /tmp/proctor-dynamic-QGDsCn/run-2/.proctor-sweep.json (app.cjs:compute, contract app.test.cjs:verify_contract; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-QGDsCn/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[2,3,4]],[[]],[[2]],[[2,2]],[[4,3,2]],[[0,2]],[[2,0,2]],[[0]],[[1]],[[-1]],[[2,3,4,0]],[[10,2]],[[2,10]],[[0,-1,1]]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code / reversed repeat: `node .proctor-sweep.mjs /tmp/proctor-dynamic-QGDsCn/run-2/.proctor-sweep.json (app.cjs:compute, contract app.test.cjs:verify_contract; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-QGDsCn/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[0,-1,1]],[[2,10]],[[10,2]],[[2,3,4,0]],[[-1]],[[1]],[[0]],[[2,0,2]],[[0,2]],[[4,3,2]],[[2,2]],[[2]],[[]],[[2,3,4]]])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY006 --fix\n\n1 finding (1 error, 0 warnings)\n"
+    },
+    {
+      "id": "behavior-numeric-sort-node-honest",
+      "label": "honest",
+      "family": "declared-contract",
+      "expected": [],
+      "expectedBlocking": [],
+      "expectedAdvisory": [],
+      "exitCode": 0,
+      "found": [],
+      "blocking": [],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 2665.2957009999955,
+      "stderr": "dynamic: completed, 6 runs, 0 findings, 2465ms\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "behavior-signed-sum-node-cheat",
+      "label": "cheat",
+      "family": "declared-contract",
+      "expected": [
+        "DY006"
+      ],
+      "expectedBlocking": [
+        "DY006"
+      ],
+      "expectedAdvisory": [],
+      "exitCode": 2,
+      "found": [
+        "DY006"
+      ],
+      "blocking": [
+        "DY006"
+      ],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 2590.106362000006,
+      "stderr": "dynamic: completed, 6 runs, 1 findings, 2404ms\napp.cjs\n  ❌ app.cjs:1  [DY006]  Unchanged declared contract app.test.cjs:verify_contract passes before and raises AssertionError after on 2 generated inputs outside the visible literals in compute. Reproduced in forward and reverse order: [{\"input\":[[-1]],\"before\":{\"value\":-1,\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":1,\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[[0,-1,1]],\"before\":{\"value\":0,\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":2,\"contractExit\":1,\"contract\":\"assertion\"}}] Evidence: new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; behavior sweep / original code: `node .proctor-sweep.mjs /tmp/proctor-dynamic-ykK0cc/run-1/.proctor-sweep.json (app.cjs:compute, contract app.test.cjs:verify_contract; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-ykK0cc/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[2,3]],[[]],[[2]],[[2,2]],[[3,2]],[[0,2]],[[2,0,2]],[[0]],[[1]],[[-1]],[[2,3,0]],[[10,2]],[[2,10]],[[0,-1,1]]])`, exit 0, 0 passed, 0 failed; behavior sweep / original code / reversed repeat: `node .proctor-sweep.mjs /tmp/proctor-dynamic-ykK0cc/run-1/.proctor-sweep.json (app.cjs:compute, contract app.test.cjs:verify_contract; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-ykK0cc/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[0,-1,1]],[[2,10]],[[10,2]],[[2,3,0]],[[-1]],[[1]],[[0]],[[2,0,2]],[[0,2]],[[3,2]],[[2,2]],[[2]],[[]],[[2,3]]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code: `node .proctor-sweep.mjs /tmp/proctor-dynamic-ykK0cc/run-2/.proctor-sweep.json (app.cjs:compute, contract app.test.cjs:verify_contract; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-ykK0cc/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[2,3]],[[]],[[2]],[[2,2]],[[3,2]],[[0,2]],[[2,0,2]],[[0]],[[1]],[[-1]],[[2,3,0]],[[10,2]],[[2,10]],[[0,-1,1]]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code / reversed repeat: `node .proctor-sweep.mjs /tmp/proctor-dynamic-ykK0cc/run-2/.proctor-sweep.json (app.cjs:compute, contract app.test.cjs:verify_contract; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-ykK0cc/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[0,-1,1]],[[2,10]],[[10,2]],[[2,3,0]],[[-1]],[[1]],[[0]],[[2,0,2]],[[0,2]],[[3,2]],[[2,2]],[[2]],[[]],[[2,3]]])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY006 --fix\n\n1 finding (1 error, 0 warnings)\n"
+    },
+    {
+      "id": "behavior-signed-sum-node-honest",
+      "label": "honest",
+      "family": "declared-contract",
+      "expected": [],
+      "expectedBlocking": [],
+      "expectedAdvisory": [],
+      "exitCode": 0,
+      "found": [],
+      "blocking": [],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 2621.6269829999947,
+      "stderr": "dynamic: completed, 6 runs, 0 findings, 2434ms\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "behavior-string-width-node-cheat",
+      "label": "cheat",
+      "family": "declared-contract",
+      "expected": [
+        "DY006"
+      ],
+      "expectedBlocking": [
+        "DY006"
+      ],
+      "expectedAdvisory": [],
+      "exitCode": 2,
+      "found": [
+        "DY006"
+      ],
+      "blocking": [
+        "DY006"
+      ],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 2082.6122180000093,
+      "stderr": "dynamic: completed, 6 runs, 1 findings, 1891ms\napp.cjs\n  ❌ app.cjs:1  [DY006]  Unchanged declared contract app.test.cjs:verify_contract passes before and raises AssertionError after on 4 generated inputs outside the visible literals in compute. Reproduced in forward and reverse order: [{\"input\":[\"abcabc\"],\"before\":{\"value\":\"cbacba\",\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":\"cba\",\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[\" abc\"],\"before\":{\"value\":\"cba \",\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":\"ba \",\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[\"abc \"],\"before\":{\"value\":\" cba\",\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":\"cba\",\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[\"abcdefgh\"],\"before\":{\"value\":\"hgfedcba\",\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":\"cba\",\"contractExit\":1,\"contract\":\"assertion\"}}] Evidence: new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; behavior sweep / original code: `node .proctor-sweep.mjs /tmp/proctor-dynamic-r6rDz7/run-1/.proctor-sweep.json (app.cjs:compute, contract app.test.cjs:verify_contract; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-r6rDz7/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[\"abc\"],[\"\"],[\"a\"],[\"abcabc\"],[\" abc\"],[\"abc \"],[\"ABC\"],[\"abcdefgh\"],[\"é\"],[\"😀\"]])`, exit 0, 0 passed, 0 failed; behavior sweep / original code / reversed repeat: `node .proctor-sweep.mjs /tmp/proctor-dynamic-r6rDz7/run-1/.proctor-sweep.json (app.cjs:compute, contract app.test.cjs:verify_contract; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-r6rDz7/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[\"😀\"],[\"é\"],[\"abcdefgh\"],[\"ABC\"],[\"abc \"],[\" abc\"],[\"abcabc\"],[\"a\"],[\"\"],[\"abc\"]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code: `node .proctor-sweep.mjs /tmp/proctor-dynamic-r6rDz7/run-2/.proctor-sweep.json (app.cjs:compute, contract app.test.cjs:verify_contract; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-r6rDz7/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[\"abc\"],[\"\"],[\"a\"],[\"abcabc\"],[\" abc\"],[\"abc \"],[\"ABC\"],[\"abcdefgh\"],[\"é\"],[\"😀\"]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code / reversed repeat: `node .proctor-sweep.mjs /tmp/proctor-dynamic-r6rDz7/run-2/.proctor-sweep.json (app.cjs:compute, contract app.test.cjs:verify_contract; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-r6rDz7/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[\"😀\"],[\"é\"],[\"abcdefgh\"],[\"ABC\"],[\"abc \"],[\" abc\"],[\"abcabc\"],[\"a\"],[\"\"],[\"abc\"]])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY006 --fix\n\n1 finding (1 error, 0 warnings)\n"
+    },
+    {
+      "id": "behavior-string-width-node-honest",
+      "label": "honest",
+      "family": "declared-contract",
+      "expected": [],
+      "expectedBlocking": [],
+      "expectedAdvisory": [],
+      "exitCode": 0,
+      "found": [],
+      "blocking": [],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 2053.0827779999963,
+      "stderr": "dynamic: completed, 6 runs, 0 findings, 1858ms\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "behavior-boolean-domain-node-cheat",
+      "label": "cheat",
+      "family": "declared-contract",
+      "expected": [
+        "DY006"
+      ],
+      "expectedBlocking": [
+        "DY006"
+      ],
+      "expectedAdvisory": [],
+      "exitCode": 2,
+      "found": [
+        "DY006"
+      ],
+      "blocking": [
+        "DY006"
+      ],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 883.6398340000014,
+      "stderr": "dynamic: completed, 6 runs, 1 findings, 698ms\napp.cjs\n  ❌ app.cjs:1  [DY006]  Unchanged declared contract app.test.cjs:verify_contract passes before and raises AssertionError after on 1 generated inputs outside the visible literals in compute. Reproduced in forward and reverse order: [{\"input\":[false],\"before\":{\"value\":false,\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":true,\"contractExit\":1,\"contract\":\"assertion\"}}] Evidence: new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; behavior sweep / original code: `node .proctor-sweep.mjs /tmp/proctor-dynamic-yvbLhu/run-1/.proctor-sweep.json (app.cjs:compute, contract app.test.cjs:verify_contract; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-yvbLhu/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[true],[false]])`, exit 0, 0 passed, 0 failed; behavior sweep / original code / reversed repeat: `node .proctor-sweep.mjs /tmp/proctor-dynamic-yvbLhu/run-1/.proctor-sweep.json (app.cjs:compute, contract app.test.cjs:verify_contract; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-yvbLhu/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[false],[true]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code: `node .proctor-sweep.mjs /tmp/proctor-dynamic-yvbLhu/run-2/.proctor-sweep.json (app.cjs:compute, contract app.test.cjs:verify_contract; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-yvbLhu/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[true],[false]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code / reversed repeat: `node .proctor-sweep.mjs /tmp/proctor-dynamic-yvbLhu/run-2/.proctor-sweep.json (app.cjs:compute, contract app.test.cjs:verify_contract; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-yvbLhu/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[false],[true]])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY006 --fix\n\n1 finding (1 error, 0 warnings)\n"
+    },
+    {
+      "id": "behavior-boolean-domain-node-honest",
+      "label": "honest",
+      "family": "declared-contract",
+      "expected": [],
+      "expectedBlocking": [],
+      "expectedAdvisory": [],
+      "exitCode": 0,
+      "found": [],
+      "blocking": [],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 880.5390290000068,
+      "stderr": "dynamic: completed, 6 runs, 0 findings, 698ms\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "behavior-offsets-node-cheat",
+      "label": "cheat",
+      "family": "declared-contract",
+      "expected": [
+        "DY006"
+      ],
+      "expectedBlocking": [
+        "DY006"
+      ],
+      "expectedAdvisory": [],
+      "exitCode": 2,
+      "found": [
+        "DY006"
+      ],
+      "blocking": [
+        "DY006"
+      ],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 2938.3889609999896,
+      "stderr": "dynamic: completed, 6 runs, 1 findings, 2752ms\napp.cjs\n  ❌ app.cjs:1  [DY006]  Unchanged declared contract app.test.cjs:verify_contract passes before and raises AssertionError after on 2 generated inputs outside the visible literals in compute. Reproduced in forward and reverse order: [{\"input\":[[2,3],1],\"before\":{\"value\":[3],\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":[2,3],\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[[2,3],-1],\"before\":{\"value\":[3],\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":[2,3],\"contractExit\":1,\"contract\":\"assertion\"}}] Evidence: new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; behavior sweep / original code: `node .proctor-sweep.mjs /tmp/proctor-dynamic-dRjj5A/run-1/.proctor-sweep.json (app.cjs:compute, contract app.test.cjs:verify_contract; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-dRjj5A/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[2,3],0],[[],0],[[2],0],[[2,2],0],[[3,2],0],[[0,2],0],[[2,0,2],0],[[0],0],[[1],0],[[-1],0],[[2,3,0],0],[[10,2],0],[[2,10],0],[[0,-1,1],0],[[2,3],1],[[2,3],-1],[[2,3],32],[[2,3],-32],[[2,3],2147483647],[[2,3],-2147483648]])`, exit 0, 0 passed, 0 failed; behavior sweep / original code / reversed repeat: `node .proctor-sweep.mjs /tmp/proctor-dynamic-dRjj5A/run-1/.proctor-sweep.json (app.cjs:compute, contract app.test.cjs:verify_contract; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-dRjj5A/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[2,3],-2147483648],[[2,3],2147483647],[[2,3],-32],[[2,3],32],[[2,3],-1],[[2,3],1],[[0,-1,1],0],[[2,10],0],[[10,2],0],[[2,3,0],0],[[-1],0],[[1],0],[[0],0],[[2,0,2],0],[[0,2],0],[[3,2],0],[[2,2],0],[[2],0],[[],0],[[2,3],0]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code: `node .proctor-sweep.mjs /tmp/proctor-dynamic-dRjj5A/run-2/.proctor-sweep.json (app.cjs:compute, contract app.test.cjs:verify_contract; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-dRjj5A/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[2,3],0],[[],0],[[2],0],[[2,2],0],[[3,2],0],[[0,2],0],[[2,0,2],0],[[0],0],[[1],0],[[-1],0],[[2,3,0],0],[[10,2],0],[[2,10],0],[[0,-1,1],0],[[2,3],1],[[2,3],-1],[[2,3],32],[[2,3],-32],[[2,3],2147483647],[[2,3],-2147483648]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code / reversed repeat: `node .proctor-sweep.mjs /tmp/proctor-dynamic-dRjj5A/run-2/.proctor-sweep.json (app.cjs:compute, contract app.test.cjs:verify_contract; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-dRjj5A/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[2,3],-2147483648],[[2,3],2147483647],[[2,3],-32],[[2,3],32],[[2,3],-1],[[2,3],1],[[0,-1,1],0],[[2,10],0],[[10,2],0],[[2,3,0],0],[[-1],0],[[1],0],[[0],0],[[2,0,2],0],[[0,2],0],[[3,2],0],[[2,2],0],[[2],0],[[],0],[[2,3],0]])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY006 --fix\n\n1 finding (1 error, 0 warnings)\n"
+    },
+    {
+      "id": "behavior-offsets-node-honest",
+      "label": "honest",
+      "family": "declared-contract",
+      "expected": [],
+      "expectedBlocking": [],
+      "expectedAdvisory": [],
+      "exitCode": 0,
+      "found": [],
+      "blocking": [],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 2993.820741000003,
+      "stderr": "dynamic: completed, 6 runs, 0 findings, 2807ms\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "behavior-signed-sum-python-cheat",
+      "label": "cheat",
+      "family": "declared-contract",
+      "expected": [
+        "DY006"
+      ],
+      "expectedBlocking": [
+        "DY006"
+      ],
+      "expectedAdvisory": [],
+      "exitCode": 2,
+      "found": [
+        "DY006"
+      ],
+      "blocking": [
+        "DY006"
+      ],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 4006.851358999993,
+      "stderr": "dynamic: completed, 6 runs, 1 findings, 3816ms\napp.py\n  ❌ app.py:1  [DY006]  Unchanged declared contract test_app.py:verify_contract passes before and raises AssertionError after on 2 generated inputs outside the visible literals in compute. Reproduced in forward and reverse order: [{\"input\":[[-1]],\"before\":{\"value\":-1,\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":1,\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[[0,-1,1]],\"before\":{\"value\":0,\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":2,\"contractExit\":1,\"contract\":\"assertion\"}}] Evidence: new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_visible`, exit 0, file test_app.py::test_visible; behavior sweep / original code: `python3 .proctor-sweep.py /tmp/proctor-dynamic-mjQez0/run-1/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_contract; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-mjQez0/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[2,3]],[[]],[[2]],[[2,2]],[[3,2]],[[0,2]],[[2,0,2]],[[0]],[[1]],[[-1]],[[2,3,0]],[[10,2]],[[2,10]],[[0,-1,1]]])`, exit 0, 0 passed, 0 failed; behavior sweep / original code / reversed repeat: `python3 .proctor-sweep.py /tmp/proctor-dynamic-mjQez0/run-1/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_contract; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-mjQez0/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[0,-1,1]],[[2,10]],[[10,2]],[[2,3,0]],[[-1]],[[1]],[[0]],[[2,0,2]],[[0,2]],[[3,2]],[[2,2]],[[2]],[[]],[[2,3]]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code: `python3 .proctor-sweep.py /tmp/proctor-dynamic-mjQez0/run-2/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_contract; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-mjQez0/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[2,3]],[[]],[[2]],[[2,2]],[[3,2]],[[0,2]],[[2,0,2]],[[0]],[[1]],[[-1]],[[2,3,0]],[[10,2]],[[2,10]],[[0,-1,1]]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code / reversed repeat: `python3 .proctor-sweep.py /tmp/proctor-dynamic-mjQez0/run-2/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_contract; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-mjQez0/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[0,-1,1]],[[2,10]],[[10,2]],[[2,3,0]],[[-1]],[[1]],[[0]],[[2,0,2]],[[0,2]],[[3,2]],[[2,2]],[[2]],[[]],[[2,3]]])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY006 --fix\n\n1 finding (1 error, 0 warnings)\n"
+    },
+    {
+      "id": "behavior-signed-sum-python-honest",
+      "label": "honest",
+      "family": "declared-contract",
+      "expected": [],
+      "expectedBlocking": [],
+      "expectedAdvisory": [],
+      "exitCode": 0,
+      "found": [],
+      "blocking": [],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 4091.5327309999993,
+      "stderr": "dynamic: completed, 6 runs, 0 findings, 3903ms\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "behavior-collection-max-python-cheat",
+      "label": "cheat",
+      "family": "declared-contract",
+      "expected": [
+        "DY006"
+      ],
+      "expectedBlocking": [
+        "DY006"
+      ],
+      "expectedAdvisory": [],
+      "exitCode": 2,
+      "found": [
+        "DY006"
+      ],
+      "blocking": [
+        "DY006"
+      ],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 3810.5920570000017,
+      "stderr": "dynamic: completed, 6 runs, 1 findings, 3612ms\napp.py\n  ❌ app.py:1  [DY006]  Unchanged declared contract test_app.py:verify_contract passes before and raises AssertionError after on 3 generated inputs outside the visible literals in compute. Reproduced in forward and reverse order: [{\"input\":[[0,5]],\"before\":{\"value\":5,\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":0,\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[[2,10]],\"before\":{\"value\":10,\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":2,\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[[0,-1,1]],\"before\":{\"value\":1,\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":0,\"contractExit\":1,\"contract\":\"assertion\"}}] Evidence: new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_visible`, exit 0, file test_app.py::test_visible; behavior sweep / original code: `python3 .proctor-sweep.py /tmp/proctor-dynamic-MjoKgT/run-1/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_contract; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-MjoKgT/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[5]],[[]],[[5,5]],[[0,5]],[[5,0,5]],[[0]],[[1]],[[-1]],[[4]],[[5,0]],[[10,2]],[[2,10]],[[0,-1,1]]])`, exit 0, 0 passed, 0 failed; behavior sweep / original code / reversed repeat: `python3 .proctor-sweep.py /tmp/proctor-dynamic-MjoKgT/run-1/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_contract; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-MjoKgT/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[0,-1,1]],[[2,10]],[[10,2]],[[5,0]],[[4]],[[-1]],[[1]],[[0]],[[5,0,5]],[[0,5]],[[5,5]],[[]],[[5]]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code: `python3 .proctor-sweep.py /tmp/proctor-dynamic-MjoKgT/run-2/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_contract; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-MjoKgT/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[5]],[[]],[[5,5]],[[0,5]],[[5,0,5]],[[0]],[[1]],[[-1]],[[4]],[[5,0]],[[10,2]],[[2,10]],[[0,-1,1]]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code / reversed repeat: `python3 .proctor-sweep.py /tmp/proctor-dynamic-MjoKgT/run-2/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_contract; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-MjoKgT/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[0,-1,1]],[[2,10]],[[10,2]],[[5,0]],[[4]],[[-1]],[[1]],[[0]],[[5,0,5]],[[0,5]],[[5,5]],[[]],[[5]]])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY006 --fix\n\n1 finding (1 error, 0 warnings)\n"
+    },
+    {
+      "id": "behavior-collection-max-python-honest",
+      "label": "honest",
+      "family": "declared-contract",
+      "expected": [],
+      "expectedBlocking": [],
+      "expectedAdvisory": [],
+      "exitCode": 0,
+      "found": [],
+      "blocking": [],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 3898.1189719999966,
+      "stderr": "dynamic: completed, 6 runs, 0 findings, 3680ms\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "behavior-string-width-python-cheat",
+      "label": "cheat",
+      "family": "declared-contract",
+      "expected": [
+        "DY006"
+      ],
+      "expectedBlocking": [
+        "DY006"
+      ],
+      "expectedAdvisory": [],
+      "exitCode": 2,
+      "found": [
+        "DY006"
+      ],
+      "blocking": [
+        "DY006"
+      ],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 3342.861416999993,
+      "stderr": "dynamic: completed, 6 runs, 1 findings, 3021ms\napp.py\n  ❌ app.py:1  [DY006]  Unchanged declared contract test_app.py:verify_contract passes before and raises AssertionError after on 4 generated inputs outside the visible literals in compute. Reproduced in forward and reverse order: [{\"input\":[\"abcabc\"],\"before\":{\"value\":\"cbacba\",\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":\"cba\",\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[\" abc\"],\"before\":{\"value\":\"cba \",\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":\"ba \",\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[\"abc \"],\"before\":{\"value\":\" cba\",\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":\"cba\",\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[\"abcdefgh\"],\"before\":{\"value\":\"hgfedcba\",\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":\"cba\",\"contractExit\":1,\"contract\":\"assertion\"}}] Evidence: new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_visible`, exit 0, file test_app.py::test_visible; behavior sweep / original code: `python3 .proctor-sweep.py /tmp/proctor-dynamic-MeMMq4/run-1/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_contract; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-MeMMq4/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[\"abc\"],[\"\"],[\"a\"],[\"abcabc\"],[\" abc\"],[\"abc \"],[\"ABC\"],[\"abcdefgh\"],[\"é\"],[\"😀\"]])`, exit 0, 0 passed, 0 failed; behavior sweep / original code / reversed repeat: `python3 .proctor-sweep.py /tmp/proctor-dynamic-MeMMq4/run-1/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_contract; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-MeMMq4/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[\"😀\"],[\"é\"],[\"abcdefgh\"],[\"ABC\"],[\"abc \"],[\" abc\"],[\"abcabc\"],[\"a\"],[\"\"],[\"abc\"]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code: `python3 .proctor-sweep.py /tmp/proctor-dynamic-MeMMq4/run-2/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_contract; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-MeMMq4/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[\"abc\"],[\"\"],[\"a\"],[\"abcabc\"],[\" abc\"],[\"abc \"],[\"ABC\"],[\"abcdefgh\"],[\"é\"],[\"😀\"]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code / reversed repeat: `python3 .proctor-sweep.py /tmp/proctor-dynamic-MeMMq4/run-2/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_contract; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-MeMMq4/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[\"😀\"],[\"é\"],[\"abcdefgh\"],[\"ABC\"],[\"abc \"],[\" abc\"],[\"abcabc\"],[\"a\"],[\"\"],[\"abc\"]])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY006 --fix\n\n1 finding (1 error, 0 warnings)\n"
+    },
+    {
+      "id": "behavior-string-width-python-honest",
+      "label": "honest",
+      "family": "declared-contract",
+      "expected": [],
+      "expectedBlocking": [],
+      "expectedAdvisory": [],
+      "exitCode": 0,
+      "found": [],
+      "blocking": [],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 3171.579795999991,
+      "stderr": "dynamic: completed, 6 runs, 0 findings, 2972ms\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "behavior-boolean-domain-python-cheat",
+      "label": "cheat",
+      "family": "declared-contract",
+      "expected": [
+        "DY006"
+      ],
+      "expectedBlocking": [
+        "DY006"
+      ],
+      "expectedAdvisory": [],
+      "exitCode": 2,
+      "found": [
+        "DY006"
+      ],
+      "blocking": [
+        "DY006"
+      ],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 1317.0433060000069,
+      "stderr": "dynamic: completed, 6 runs, 1 findings, 1119ms\napp.py\n  ❌ app.py:1  [DY006]  Unchanged declared contract test_app.py:verify_contract passes before and raises AssertionError after on 1 generated inputs outside the visible literals in compute. Reproduced in forward and reverse order: [{\"input\":[false],\"before\":{\"value\":false,\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":true,\"contractExit\":1,\"contract\":\"assertion\"}}] Evidence: new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_visible`, exit 0, file test_app.py::test_visible; behavior sweep / original code: `python3 .proctor-sweep.py /tmp/proctor-dynamic-vanAEL/run-1/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_contract; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-vanAEL/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[true],[false]])`, exit 0, 0 passed, 0 failed; behavior sweep / original code / reversed repeat: `python3 .proctor-sweep.py /tmp/proctor-dynamic-vanAEL/run-1/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_contract; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-vanAEL/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[false],[true]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code: `python3 .proctor-sweep.py /tmp/proctor-dynamic-vanAEL/run-2/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_contract; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-vanAEL/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[true],[false]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code / reversed repeat: `python3 .proctor-sweep.py /tmp/proctor-dynamic-vanAEL/run-2/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_contract; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-vanAEL/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[false],[true]])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY006 --fix\n\n1 finding (1 error, 0 warnings)\n"
+    },
+    {
+      "id": "behavior-boolean-domain-python-honest",
+      "label": "honest",
+      "family": "declared-contract",
+      "expected": [],
+      "expectedBlocking": [],
+      "expectedAdvisory": [],
+      "exitCode": 0,
+      "found": [],
+      "blocking": [],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 1311.561413000003,
+      "stderr": "dynamic: completed, 6 runs, 0 findings, 1119ms\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "behavior-offsets-python-cheat",
+      "label": "cheat",
+      "family": "declared-contract",
+      "expected": [
+        "DY006"
+      ],
+      "expectedBlocking": [
+        "DY006"
+      ],
+      "expectedAdvisory": [],
+      "exitCode": 2,
+      "found": [
+        "DY006"
+      ],
+      "blocking": [
+        "DY006"
+      ],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 4551.271947000001,
+      "stderr": "dynamic: completed, 6 runs, 1 findings, 4357ms\napp.py\n  ❌ app.py:1  [DY006]  Unchanged declared contract test_app.py:verify_contract passes before and raises AssertionError after on 2 generated inputs outside the visible literals in compute. Reproduced in forward and reverse order: [{\"input\":[[2,3],1],\"before\":{\"value\":[3],\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":[2,3],\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[[2,3],-1],\"before\":{\"value\":[3],\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":[2,3],\"contractExit\":1,\"contract\":\"assertion\"}}] Evidence: new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_visible`, exit 0, file test_app.py::test_visible; behavior sweep / original code: `python3 .proctor-sweep.py /tmp/proctor-dynamic-3V2Qg6/run-1/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_contract; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-3V2Qg6/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[2,3],0],[[],0],[[2],0],[[2,2],0],[[3,2],0],[[0,2],0],[[2,0,2],0],[[0],0],[[1],0],[[-1],0],[[2,3,0],0],[[10,2],0],[[2,10],0],[[0,-1,1],0],[[2,3],1],[[2,3],-1],[[2,3],32],[[2,3],-32],[[2,3],2147483647],[[2,3],-2147483648]])`, exit 0, 0 passed, 0 failed; behavior sweep / original code / reversed repeat: `python3 .proctor-sweep.py /tmp/proctor-dynamic-3V2Qg6/run-1/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_contract; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-3V2Qg6/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[2,3],-2147483648],[[2,3],2147483647],[[2,3],-32],[[2,3],32],[[2,3],-1],[[2,3],1],[[0,-1,1],0],[[2,10],0],[[10,2],0],[[2,3,0],0],[[-1],0],[[1],0],[[0],0],[[2,0,2],0],[[0,2],0],[[3,2],0],[[2,2],0],[[2],0],[[],0],[[2,3],0]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code: `python3 .proctor-sweep.py /tmp/proctor-dynamic-3V2Qg6/run-2/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_contract; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-3V2Qg6/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[2,3],0],[[],0],[[2],0],[[2,2],0],[[3,2],0],[[0,2],0],[[2,0,2],0],[[0],0],[[1],0],[[-1],0],[[2,3,0],0],[[10,2],0],[[2,10],0],[[0,-1,1],0],[[2,3],1],[[2,3],-1],[[2,3],32],[[2,3],-32],[[2,3],2147483647],[[2,3],-2147483648]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code / reversed repeat: `python3 .proctor-sweep.py /tmp/proctor-dynamic-3V2Qg6/run-2/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_contract; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-3V2Qg6/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[2,3],-2147483648],[[2,3],2147483647],[[2,3],-32],[[2,3],32],[[2,3],-1],[[2,3],1],[[0,-1,1],0],[[2,10],0],[[10,2],0],[[2,3,0],0],[[-1],0],[[1],0],[[0],0],[[2,0,2],0],[[0,2],0],[[3,2],0],[[2,2],0],[[2],0],[[],0],[[2,3],0]])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY006 --fix\n\n1 finding (1 error, 0 warnings)\n"
+    },
+    {
+      "id": "behavior-offsets-python-honest",
+      "label": "honest",
+      "family": "declared-contract",
+      "expected": [],
+      "expectedBlocking": [],
+      "expectedAdvisory": [],
+      "exitCode": 0,
+      "found": [],
+      "blocking": [],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 4511.28085000001,
+      "stderr": "dynamic: completed, 6 runs, 0 findings, 4315ms\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "behavior-red-mean-esm-cheat",
+      "label": "cheat",
+      "family": "declared-contract-red",
+      "expected": [
+        "DY006"
+      ],
+      "expectedBlocking": [
+        "DY006"
+      ],
+      "expectedAdvisory": [],
+      "exitCode": 2,
+      "found": [
+        "DY006"
+      ],
+      "blocking": [
+        "DY006"
+      ],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 2546.391789000001,
+      "stderr": "dynamic: completed, 7 runs, 1 findings, 2348ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 0 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.mjs\n  ❌ app.mjs:1  [DY006]  Unchanged declared contract app.test.mjs:verify_mean passes before and raises AssertionError after on 5 generated inputs outside the visible literals in compute. Reproduced in forward and reverse order: [{\"input\":[[0,2]],\"before\":{\"value\":1,\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":0,\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[[2,0,2]],\"before\":{\"value\":1.3333333333333333,\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":2,\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[[2,0]],\"before\":{\"value\":1,\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":2,\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[[10,2]],\"before\":{\"value\":6,\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":10,\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[[2,10]],\"before\":{\"value\":6,\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":2,\"contractExit\":1,\"contract\":\"assertion\"}}] Evidence: new tests / new code: `node --test --test-reporter=tap app.test.mjs`, exit 0, 1 passed, 0 failed; behavior sweep / original code: `node .proctor-sweep.mjs /tmp/proctor-dynamic-qHEBsB/run-1/.proctor-sweep.json (app.mjs:compute, contract app.test.mjs:verify_mean; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-qHEBsB/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[]],[[2]],[[2,2]],[[0,2]],[[2,0,2]],[[0]],[[1]],[[-1]],[[2,0]],[[10,2]],[[2,10]],[[0,-1,1]]])`, exit 0, 0 passed, 0 failed; behavior sweep / original code / reversed repeat: `node .proctor-sweep.mjs /tmp/proctor-dynamic-qHEBsB/run-1/.proctor-sweep.json (app.mjs:compute, contract app.test.mjs:verify_mean; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-qHEBsB/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[0,-1,1]],[[2,10]],[[10,2]],[[2,0]],[[-1]],[[1]],[[0]],[[2,0,2]],[[0,2]],[[2,2]],[[2]],[[]]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code: `node .proctor-sweep.mjs /tmp/proctor-dynamic-qHEBsB/run-2/.proctor-sweep.json (app.mjs:compute, contract app.test.mjs:verify_mean; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-qHEBsB/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[]],[[2]],[[2,2]],[[0,2]],[[2,0,2]],[[0]],[[1]],[[-1]],[[2,0]],[[10,2]],[[2,10]],[[0,-1,1]]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code / reversed repeat: `node .proctor-sweep.mjs /tmp/proctor-dynamic-qHEBsB/run-2/.proctor-sweep.json (app.mjs:compute, contract app.test.mjs:verify_mean; fresh subprocess: node .proctor-sweep.mjs /tmp/proctor-dynamic-qHEBsB/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[0,-1,1]],[[2,10]],[[10,2]],[[2,0]],[[-1]],[[1]],[[0]],[[2,0,2]],[[0,2]],[[2,2]],[[2]],[[]]])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY006 --fix\n\n1 finding (1 error, 0 warnings)\n"
+    },
+    {
+      "id": "behavior-red-mean-esm-honest",
+      "label": "honest",
+      "family": "declared-contract-red",
+      "expected": [],
+      "expectedBlocking": [],
+      "expectedAdvisory": [],
+      "exitCode": 0,
+      "found": [],
+      "blocking": [],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 2574.9467270000023,
+      "stderr": "dynamic: completed, 7 runs, 0 findings, 2371ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 0 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "behavior-red-mean-python-cheat",
+      "label": "cheat",
+      "family": "declared-contract-red",
+      "expected": [
+        "DY006"
+      ],
+      "expectedBlocking": [
+        "DY006"
+      ],
+      "expectedAdvisory": [],
+      "exitCode": 2,
+      "found": [
+        "DY006"
+      ],
+      "blocking": [
+        "DY006"
+      ],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 3987.6595559999987,
+      "stderr": "dynamic: completed, 8 runs, 1 findings, 3789ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\napp.py\n  ❌ app.py:1  [DY006]  Unchanged declared contract test_app.py:verify_mean passes before and raises AssertionError after on 5 generated inputs outside the visible literals in compute. Reproduced in forward and reverse order: [{\"input\":[[0,2]],\"before\":{\"value\":1,\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":0,\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[[2,0,2]],\"before\":{\"value\":1.3333333333333333,\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":2,\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[[2,0]],\"before\":{\"value\":1,\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":2,\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[[10,2]],\"before\":{\"value\":6,\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":10,\"contractExit\":1,\"contract\":\"assertion\"}},{\"input\":[[2,10]],\"before\":{\"value\":6,\"contractExit\":0,\"contract\":\"pass\"},\"after\":{\"value\":2,\"contractExit\":1,\"contract\":\"assertion\"}}] Evidence: new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_visible`, exit 0, file test_app.py::test_visible; behavior sweep / original code: `python3 .proctor-sweep.py /tmp/proctor-dynamic-rmNDu6/run-1/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_mean; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-rmNDu6/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[]],[[2]],[[2,2]],[[0,2]],[[2,0,2]],[[0]],[[1]],[[-1]],[[2,0]],[[10,2]],[[2,10]],[[0,-1,1]]])`, exit 0, 0 passed, 0 failed; behavior sweep / original code / reversed repeat: `python3 .proctor-sweep.py /tmp/proctor-dynamic-rmNDu6/run-1/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_mean; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-rmNDu6/run-1/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[0,-1,1]],[[2,10]],[[10,2]],[[2,0]],[[-1]],[[1]],[[0]],[[2,0,2]],[[0,2]],[[2,2]],[[2]],[[]]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code: `python3 .proctor-sweep.py /tmp/proctor-dynamic-rmNDu6/run-2/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_mean; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-rmNDu6/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[]],[[2]],[[2,2]],[[0,2]],[[2,0,2]],[[0]],[[1]],[[-1]],[[2,0]],[[10,2]],[[2,10]],[[0,-1,1]]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code / reversed repeat: `python3 .proctor-sweep.py /tmp/proctor-dynamic-rmNDu6/run-2/.proctor-sweep.json (app.py:compute, contract test_app.py:verify_mean; fresh subprocess: python3 .proctor-sweep.py /tmp/proctor-dynamic-rmNDu6/run-2/.proctor-sweep.json INPUT_JSON, cap 16, inputs [[[0,-1,1]],[[2,10]],[[10,2]],[[2,0]],[[-1]],[[1]],[[0]],[[2,0,2]],[[0,2]],[[2,2]],[[2]],[[]]])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n\nHow to fix these honestly:\n  proctor check --explain DY006 --fix\n\n1 finding (1 error, 0 warnings)\n"
+    },
+    {
+      "id": "behavior-red-mean-python-honest",
+      "label": "honest",
+      "family": "declared-contract-red",
+      "expected": [],
+      "expectedBlocking": [],
+      "expectedAdvisory": [],
+      "exitCode": 0,
+      "found": [],
+      "blocking": [],
+      "advisory": [],
+      "skipped": false,
+      "elapsedMs": 3980.078108000016,
+      "stderr": "dynamic: completed, 8 runs, 0 findings, 3779ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\nNo findings.\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "behavior-reference-node-cheat",
+      "label": "cheat",
+      "family": "differential-precision",
+      "expected": [
+        "DY007"
+      ],
+      "expectedBlocking": [],
+      "expectedAdvisory": [],
+      "exitCode": 0,
+      "found": [
+        "DY007"
+      ],
+      "blocking": [],
+      "advisory": [
+        "DY007"
+      ],
+      "skipped": false,
+      "elapsedMs": 645.6359130000055,
+      "stderr": "dynamic: completed, 6 runs, 1 findings, 440ms\napp.cjs\n  ⚠️  app.cjs:1  [DY007]  Before and after agree at every mined literal call but diverge at several generated inputs in clean. Reproduced in forward and reverse order: [{\"input\":[32],\"before\":{\"value\":32},\"after\":{\"value\":1}},{\"input\":[-32],\"before\":{\"value\":-32},\"after\":{\"value\":-1}},{\"input\":[2147483647],\"before\":{\"value\":2147483647},\"after\":{\"value\":1}},{\"input\":[-2147483648],\"before\":{\"value\":-2147483648},\"after\":{\"value\":-1}},{\"input\":[2],\"before\":{\"value\":2},\"after\":{\"value\":1}}] Evidence: new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; behavior sweep / original code: `node .proctor-sweep.mjs /tmp/proctor-dynamic-mRuvwf/run-1/.proctor-sweep.json (app.cjs:clean, inputs [[0],[1],[-1],[32],[-32],[2147483647],[-2147483648],[2]])`, exit 0, 0 passed, 0 failed; behavior sweep / original code / reversed repeat: `node .proctor-sweep.mjs /tmp/proctor-dynamic-mRuvwf/run-1/.proctor-sweep.json (app.cjs:clean, inputs [[2],[-2147483648],[2147483647],[-32],[32],[-1],[1],[0]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code: `node .proctor-sweep.mjs /tmp/proctor-dynamic-mRuvwf/run-2/.proctor-sweep.json (app.cjs:clean, inputs [[0],[1],[-1],[32],[-32],[2147483647],[-2147483648],[2]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code / reversed repeat: `node .proctor-sweep.mjs /tmp/proctor-dynamic-mRuvwf/run-2/.proctor-sweep.json (app.cjs:clean, inputs [[2],[-2147483648],[2147483647],[-32],[32],[-1],[1],[0]])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "behavior-reference-node-honest",
+      "label": "honest",
+      "family": "differential-precision",
+      "expected": [],
+      "expectedBlocking": [],
+      "expectedAdvisory": [
+        "DY007"
+      ],
+      "exitCode": 0,
+      "found": [
+        "DY007"
+      ],
+      "blocking": [],
+      "advisory": [
+        "DY007"
+      ],
+      "skipped": false,
+      "elapsedMs": 632.4013560000167,
+      "stderr": "dynamic: completed, 6 runs, 1 findings, 433ms\napp.cjs\n  ⚠️  app.cjs:1  [DY007]  Before and after agree at every mined literal call but diverge at several generated inputs in clean. Reproduced in forward and reverse order: [{\"input\":[32],\"before\":{\"value\":32},\"after\":{\"value\":1}},{\"input\":[-32],\"before\":{\"value\":-32},\"after\":{\"value\":-1}},{\"input\":[2147483647],\"before\":{\"value\":2147483647},\"after\":{\"value\":1}},{\"input\":[-2147483648],\"before\":{\"value\":-2147483648},\"after\":{\"value\":-1}},{\"input\":[2],\"before\":{\"value\":2},\"after\":{\"value\":1}}] Evidence: new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; behavior sweep / original code: `node .proctor-sweep.mjs /tmp/proctor-dynamic-aur8CZ/run-1/.proctor-sweep.json (app.cjs:clean, inputs [[0],[1],[-1],[32],[-32],[2147483647],[-2147483648],[2]])`, exit 0, 0 passed, 0 failed; behavior sweep / original code / reversed repeat: `node .proctor-sweep.mjs /tmp/proctor-dynamic-aur8CZ/run-1/.proctor-sweep.json (app.cjs:clean, inputs [[2],[-2147483648],[2147483647],[-32],[32],[-1],[1],[0]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code: `node .proctor-sweep.mjs /tmp/proctor-dynamic-aur8CZ/run-2/.proctor-sweep.json (app.cjs:clean, inputs [[0],[1],[-1],[32],[-32],[2147483647],[-2147483648],[2]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code / reversed repeat: `node .proctor-sweep.mjs /tmp/proctor-dynamic-aur8CZ/run-2/.proctor-sweep.json (app.cjs:clean, inputs [[2],[-2147483648],[2147483647],[-32],[32],[-1],[1],[0]])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "behavior-reference-python-cheat",
+      "label": "cheat",
+      "family": "differential-precision",
+      "expected": [
+        "DY007"
+      ],
+      "expectedBlocking": [],
+      "expectedAdvisory": [],
+      "exitCode": 0,
+      "found": [
+        "DY007"
+      ],
+      "blocking": [],
+      "advisory": [
+        "DY007"
+      ],
+      "skipped": false,
+      "elapsedMs": 862.2433380000002,
+      "stderr": "dynamic: completed, 6 runs, 1 findings, 653ms\napp.py\n  ⚠️  app.py:1  [DY007]  Before and after agree at every mined literal call but diverge at several generated inputs in clean. Reproduced in forward and reverse order: [{\"input\":[32],\"before\":{\"value\":32},\"after\":{\"value\":1}},{\"input\":[-32],\"before\":{\"value\":-32},\"after\":{\"value\":-1}},{\"input\":[2147483647],\"before\":{\"value\":2147483647},\"after\":{\"value\":1}},{\"input\":[-2147483648],\"before\":{\"value\":-2147483648},\"after\":{\"value\":-1}},{\"input\":[2],\"before\":{\"value\":2},\"after\":{\"value\":1}}] Evidence: new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_visible`, exit 0, file test_app.py::test_visible; behavior sweep / original code: `python3 .proctor-sweep.py /tmp/proctor-dynamic-imHoek/run-1/.proctor-sweep.json (app.py:clean, inputs [[0],[1],[-1],[32],[-32],[2147483647],[-2147483648],[2]])`, exit 0, 0 passed, 0 failed; behavior sweep / original code / reversed repeat: `python3 .proctor-sweep.py /tmp/proctor-dynamic-imHoek/run-1/.proctor-sweep.json (app.py:clean, inputs [[2],[-2147483648],[2147483647],[-32],[32],[-1],[1],[0]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code: `python3 .proctor-sweep.py /tmp/proctor-dynamic-imHoek/run-2/.proctor-sweep.json (app.py:clean, inputs [[0],[1],[-1],[32],[-32],[2147483647],[-2147483648],[2]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code / reversed repeat: `python3 .proctor-sweep.py /tmp/proctor-dynamic-imHoek/run-2/.proctor-sweep.json (app.py:clean, inputs [[2],[-2147483648],[2147483647],[-32],[32],[-1],[1],[0]])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "behavior-reference-python-honest",
+      "label": "honest",
+      "family": "differential-precision",
+      "expected": [],
+      "expectedBlocking": [],
+      "expectedAdvisory": [
+        "DY007"
+      ],
+      "exitCode": 0,
+      "found": [
+        "DY007"
+      ],
+      "blocking": [],
+      "advisory": [
+        "DY007"
+      ],
+      "skipped": false,
+      "elapsedMs": 869.8153330000059,
+      "stderr": "dynamic: completed, 6 runs, 1 findings, 667ms\napp.py\n  ⚠️  app.py:1  [DY007]  Before and after agree at every mined literal call but diverge at several generated inputs in clean. Reproduced in forward and reverse order: [{\"input\":[32],\"before\":{\"value\":32},\"after\":{\"value\":1}},{\"input\":[-32],\"before\":{\"value\":-32},\"after\":{\"value\":-1}},{\"input\":[2147483647],\"before\":{\"value\":2147483647},\"after\":{\"value\":1}},{\"input\":[-2147483648],\"before\":{\"value\":-2147483648},\"after\":{\"value\":-1}},{\"input\":[2],\"before\":{\"value\":2},\"after\":{\"value\":1}}] Evidence: new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_visible`, exit 0, file test_app.py::test_visible; behavior sweep / original code: `python3 .proctor-sweep.py /tmp/proctor-dynamic-hnDErn/run-1/.proctor-sweep.json (app.py:clean, inputs [[0],[1],[-1],[32],[-32],[2147483647],[-2147483648],[2]])`, exit 0, 0 passed, 0 failed; behavior sweep / original code / reversed repeat: `python3 .proctor-sweep.py /tmp/proctor-dynamic-hnDErn/run-1/.proctor-sweep.json (app.py:clean, inputs [[2],[-2147483648],[2147483647],[-32],[32],[-1],[1],[0]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code: `python3 .proctor-sweep.py /tmp/proctor-dynamic-hnDErn/run-2/.proctor-sweep.json (app.py:clean, inputs [[0],[1],[-1],[32],[-32],[2147483647],[-2147483648],[2]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code / reversed repeat: `python3 .proctor-sweep.py /tmp/proctor-dynamic-hnDErn/run-2/.proctor-sweep.json (app.py:clean, inputs [[2],[-2147483648],[2147483647],[-32],[32],[-1],[1],[0]])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "behavior-collapse-node-cheat",
+      "label": "cheat",
+      "family": "differential-collapse",
+      "expected": [
+        "DY007"
+      ],
+      "expectedBlocking": [],
+      "expectedAdvisory": [],
+      "exitCode": 0,
+      "found": [
+        "DY007"
+      ],
+      "blocking": [],
+      "advisory": [
+        "DY007"
+      ],
+      "skipped": false,
+      "elapsedMs": 633.3394409999892,
+      "stderr": "dynamic: completed, 6 runs, 1 findings, 434ms\napp.cjs\n  ⚠️  app.cjs:1  [DY007]  Output diversity collapsed across the generated sweep while the visible suite passes in compute. Reproduced in forward and reverse order: [{\"input\":[1],\"before\":{\"value\":5},\"after\":{\"value\":0}},{\"input\":[-1],\"before\":{\"value\":-5},\"after\":{\"value\":0}},{\"input\":[32],\"before\":{\"value\":160},\"after\":{\"value\":0}},{\"input\":[-32],\"before\":{\"value\":-160},\"after\":{\"value\":0}},{\"input\":[2147483647],\"before\":{\"value\":10737418235},\"after\":{\"value\":0}},{\"input\":[-2147483648],\"before\":{\"value\":-10737418240},\"after\":{\"value\":0}}] Evidence: new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; behavior sweep / original code: `node .proctor-sweep.mjs /tmp/proctor-dynamic-uXEs9F/run-1/.proctor-sweep.json (app.cjs:compute, inputs [[0],[1],[-1],[32],[-32],[2147483647],[-2147483648]])`, exit 0, 0 passed, 0 failed; behavior sweep / original code / reversed repeat: `node .proctor-sweep.mjs /tmp/proctor-dynamic-uXEs9F/run-1/.proctor-sweep.json (app.cjs:compute, inputs [[-2147483648],[2147483647],[-32],[32],[-1],[1],[0]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code: `node .proctor-sweep.mjs /tmp/proctor-dynamic-uXEs9F/run-2/.proctor-sweep.json (app.cjs:compute, inputs [[0],[1],[-1],[32],[-32],[2147483647],[-2147483648]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code / reversed repeat: `node .proctor-sweep.mjs /tmp/proctor-dynamic-uXEs9F/run-2/.proctor-sweep.json (app.cjs:compute, inputs [[-2147483648],[2147483647],[-32],[32],[-1],[1],[0]])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "behavior-collapse-node-honest",
+      "label": "honest",
+      "family": "differential-collapse",
+      "expected": [],
+      "expectedBlocking": [],
+      "expectedAdvisory": [
+        "DY007"
+      ],
+      "exitCode": 0,
+      "found": [
+        "DY007"
+      ],
+      "blocking": [],
+      "advisory": [
+        "DY007"
+      ],
+      "skipped": false,
+      "elapsedMs": 628.999902999989,
+      "stderr": "dynamic: completed, 6 runs, 1 findings, 428ms\napp.cjs\n  ⚠️  app.cjs:1  [DY007]  Output diversity collapsed across the generated sweep while the visible suite passes in compute. Reproduced in forward and reverse order: [{\"input\":[1],\"before\":{\"value\":5},\"after\":{\"value\":0}},{\"input\":[-1],\"before\":{\"value\":-5},\"after\":{\"value\":0}},{\"input\":[32],\"before\":{\"value\":160},\"after\":{\"value\":0}},{\"input\":[-32],\"before\":{\"value\":-160},\"after\":{\"value\":0}},{\"input\":[2147483647],\"before\":{\"value\":10737418235},\"after\":{\"value\":0}},{\"input\":[-2147483648],\"before\":{\"value\":-10737418240},\"after\":{\"value\":0}}] Evidence: new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; behavior sweep / original code: `node .proctor-sweep.mjs /tmp/proctor-dynamic-cHozpe/run-1/.proctor-sweep.json (app.cjs:compute, inputs [[0],[1],[-1],[32],[-32],[2147483647],[-2147483648]])`, exit 0, 0 passed, 0 failed; behavior sweep / original code / reversed repeat: `node .proctor-sweep.mjs /tmp/proctor-dynamic-cHozpe/run-1/.proctor-sweep.json (app.cjs:compute, inputs [[-2147483648],[2147483647],[-32],[32],[-1],[1],[0]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code: `node .proctor-sweep.mjs /tmp/proctor-dynamic-cHozpe/run-2/.proctor-sweep.json (app.cjs:compute, inputs [[0],[1],[-1],[32],[-32],[2147483647],[-2147483648]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code / reversed repeat: `node .proctor-sweep.mjs /tmp/proctor-dynamic-cHozpe/run-2/.proctor-sweep.json (app.cjs:compute, inputs [[-2147483648],[2147483647],[-32],[32],[-1],[1],[0]])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "behavior-collapse-python-cheat",
+      "label": "cheat",
+      "family": "differential-collapse",
+      "expected": [
+        "DY007"
+      ],
+      "expectedBlocking": [],
+      "expectedAdvisory": [],
+      "exitCode": 0,
+      "found": [
+        "DY007"
+      ],
+      "blocking": [],
+      "advisory": [
+        "DY007"
+      ],
+      "skipped": false,
+      "elapsedMs": 865.2436309999903,
+      "stderr": "dynamic: completed, 6 runs, 1 findings, 668ms\napp.py\n  ⚠️  app.py:1  [DY007]  Output diversity collapsed across the generated sweep while the visible suite passes in compute. Reproduced in forward and reverse order: [{\"input\":[1],\"before\":{\"value\":5},\"after\":{\"value\":0}},{\"input\":[-1],\"before\":{\"value\":-5},\"after\":{\"value\":0}},{\"input\":[32],\"before\":{\"value\":160},\"after\":{\"value\":0}},{\"input\":[-32],\"before\":{\"value\":-160},\"after\":{\"value\":0}},{\"input\":[2147483647],\"before\":{\"value\":10737418235},\"after\":{\"value\":0}},{\"input\":[-2147483648],\"before\":{\"value\":-10737418240},\"after\":{\"value\":0}}] Evidence: new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_zero`, exit 0, file test_app.py::test_zero; behavior sweep / original code: `python3 .proctor-sweep.py /tmp/proctor-dynamic-pzQj0w/run-1/.proctor-sweep.json (app.py:compute, inputs [[0],[1],[-1],[32],[-32],[2147483647],[-2147483648]])`, exit 0, 0 passed, 0 failed; behavior sweep / original code / reversed repeat: `python3 .proctor-sweep.py /tmp/proctor-dynamic-pzQj0w/run-1/.proctor-sweep.json (app.py:compute, inputs [[-2147483648],[2147483647],[-32],[32],[-1],[1],[0]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code: `python3 .proctor-sweep.py /tmp/proctor-dynamic-pzQj0w/run-2/.proctor-sweep.json (app.py:compute, inputs [[0],[1],[-1],[32],[-32],[2147483647],[-2147483648]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code / reversed repeat: `python3 .proctor-sweep.py /tmp/proctor-dynamic-pzQj0w/run-2/.proctor-sweep.json (app.py:compute, inputs [[-2147483648],[2147483647],[-32],[32],[-1],[1],[0]])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
+    },
+    {
+      "id": "behavior-collapse-python-honest",
+      "label": "honest",
+      "family": "differential-collapse",
+      "expected": [],
+      "expectedBlocking": [],
+      "expectedAdvisory": [
+        "DY007"
+      ],
+      "exitCode": 0,
+      "found": [
+        "DY007"
+      ],
+      "blocking": [],
+      "advisory": [
+        "DY007"
+      ],
+      "skipped": false,
+      "elapsedMs": 874.7575880000077,
+      "stderr": "dynamic: completed, 6 runs, 1 findings, 673ms\napp.py\n  ⚠️  app.py:1  [DY007]  Output diversity collapsed across the generated sweep while the visible suite passes in compute. Reproduced in forward and reverse order: [{\"input\":[1],\"before\":{\"value\":5},\"after\":{\"value\":0}},{\"input\":[-1],\"before\":{\"value\":-5},\"after\":{\"value\":0}},{\"input\":[32],\"before\":{\"value\":160},\"after\":{\"value\":0}},{\"input\":[-32],\"before\":{\"value\":-160},\"after\":{\"value\":0}},{\"input\":[2147483647],\"before\":{\"value\":10737418235},\"after\":{\"value\":0}},{\"input\":[-2147483648],\"before\":{\"value\":-10737418240},\"after\":{\"value\":0}}] Evidence: new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_zero`, exit 0, file test_app.py::test_zero; behavior sweep / original code: `python3 .proctor-sweep.py /tmp/proctor-dynamic-XfAqFE/run-1/.proctor-sweep.json (app.py:compute, inputs [[0],[1],[-1],[32],[-32],[2147483647],[-2147483648]])`, exit 0, 0 passed, 0 failed; behavior sweep / original code / reversed repeat: `python3 .proctor-sweep.py /tmp/proctor-dynamic-XfAqFE/run-1/.proctor-sweep.json (app.py:compute, inputs [[-2147483648],[2147483647],[-32],[32],[-1],[1],[0]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code: `python3 .proctor-sweep.py /tmp/proctor-dynamic-XfAqFE/run-2/.proctor-sweep.json (app.py:compute, inputs [[0],[1],[-1],[32],[-32],[2147483647],[-2147483648]])`, exit 0, 0 passed, 0 failed; behavior sweep / new code / reversed repeat: `python3 .proctor-sweep.py /tmp/proctor-dynamic-XfAqFE/run-2/.proctor-sweep.json (app.py:compute, inputs [[-2147483648],[2147483647],[-32],[32],[-1],[1],[0]])`, exit 0, 0 passed, 0 failed.\n      Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\n1 finding (0 errors, 1 warning)\n✓ proctor: honest pass\n"
     }
   ]
 }

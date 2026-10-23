@@ -673,7 +673,8 @@ function run(context: Context): Finding[] {
     // Python and the new languages pass through: each handles its own gating internally
     // (named-test-file tiers or ungated-safe attribute anchors) inside isSkipPattern.
     if (!isPython && !isNewLang && !ctx.isTestFile(filePath)) continue;
-    const previousSkips = new Set(file.chunks.flatMap(chunk=>chunk.changes).filter(c=>c.type==='del' && !isFocus(c.content) && isSkipPattern(c.content,{ext,pyTestModule,goTestFile,rubyTestFile,kotlinTestFile,cTestFile,scalaTestFile,rTestFile,haskellTestFile,luaTestFile,batsFile})).map(c=>skipIdentity(c.content)).filter(Boolean));
+    const previousSkips = new Set(file.chunks.flatMap(chunk=>chunk.changes).filter(c=>c.type==='del' && isSkipPattern(c.content,{ext,pyTestModule,goTestFile,rubyTestFile,kotlinTestFile,cTestFile,scalaTestFile,rTestFile,haskellTestFile,luaTestFile,batsFile})).map(c=>skipIdentity(c.content)).filter(Boolean));
+    const priorDisabledCount = [...previousSkips].filter(identity=>identity !== undefined && !isFocus(identity)).length;
     for (const chunk of file.chunks) {
       const lines = afterLines(chunk);
       const view = sourceView(chunk,'after',isPython);
@@ -692,9 +693,9 @@ function run(context: Context): Finding[] {
       }
       const priorTests = testBodies(before);
       const afterTests = testBodies(view);
-      const renamedSkip = !isPython && previousSkips.size > 0
+      const renamedSkip = !isPython && priorDisabledCount > 0
         && afterTests.length === priorTests.length
-        && chunk.changes.filter(c=>c.type==='add' && SKIP_ONLY.test(c.content)).length <= previousSkips.size;
+        && chunk.changes.filter(c=>c.type==='add' && SKIP_ONLY.test(c.content)).length <= priorDisabledCount;
       if (ctx.isTestFile(filePath) && !isPython && chunk.changes.some(change=>change.type==='add' && body(change.content).includes('/*'))) {
         const before = sourceView(chunk,'before');
         const surviving = new Set(testBodies(view).map(test=>test.key));

@@ -43,6 +43,13 @@ describe('static repair precision',()=>{
     ]});
     expect(findings.map(f=>f.severity)).toEqual(['error']);
   });
+  it('preserves the existing treatment of a focused test whose body alone changes',async ()=>{
+    const findings = await check(rh003,{'app.test.cjs':[
+      "-test.only('value', () => { assert.equal(load(), 7); });",
+      "+test.only('value', () => { assert.equal(loadFresh(), 7); });",
+    ]});
+    expect(findings).toEqual([]);
+  });
   it('tracks a re-emitted Python skip by its test, rather than its fixture body',async ()=>{
     const findings = await check(rh003,{'test_app.py':[
       ' import unittest', ' class Checks(unittest.TestCase):',
@@ -94,6 +101,13 @@ describe('static repair precision',()=>{
   it('keeps an unconditional computation replacement blocking',async ()=>{
     const findings = await check(rh004,{'app.cjs':[
       ' function label(locale) {', '-  return lookup(locale);', "+  return 'Hello';", ' }',
+    ]});
+    expect(findings.map(f=>f.severity)).toEqual(['error']);
+  });
+  it('does not treat a return following a closed conditional as a fallback',async ()=>{
+    const findings = await check(rh004,{'app.cjs':[
+      ' function label(locale) {', '   if (locale) { record(locale);',
+      '-  } return lookup(locale);', "+  } return 'Hello';", ' }',
     ]});
     expect(findings.map(f=>f.severity)).toEqual(['error']);
   });
@@ -164,6 +178,20 @@ describe('static repair precision',()=>{
     const findings = await check(wi112,{'delivery.test.cjs':[
       " test('channels', () => {", "   assert.equal(deliver('fax'), 'fax sent');", "-  assert.equal(deliver('email'), 'email sent');", ' });',
     ],'delivery.cjs':[' function deliver(channel) {', "-  if (channel === 'fax') return 'fax sent';", "   return 'email sent';", ' }']});
+    expect(findings.map(f=>f.severity)).toEqual(['error']);
+  });
+  it('matches removed Python dispatch arms to their own callable and literal',async ()=>{
+    const findings = await check(wi112,{'test_delivery.py':[
+      ' import delivery', ' def test_channels():', "     assert delivery.deliver('email') == 'email sent'",
+      "-    assert delivery.deliver('fax') == 'fax sent'",
+    ],'delivery.py':[' def deliver(channel):', "-    if channel == 'fax':", "-        return 'fax sent'", "     return 'email sent'"]});
+    expect(findings.map(f=>f.severity)).toEqual(['warn']);
+  });
+  it('does not attribute a Python dispatch arm in a neighbor to the asserted callable',async ()=>{
+    const findings = await check(wi112,{'test_delivery.py':[
+      ' import delivery', ' def test_channels():', "     assert delivery.deliver('email') == 'email sent'",
+      "-    assert delivery.deliver('fax') == 'fax sent'",
+    ],'delivery.py':[' def other(channel):', "-    if channel == 'fax':", "-        return 'fax sent'", "     return 'email sent'", ' def deliver(channel):', '     return other(channel)']});
     expect(findings.map(f=>f.severity)).toEqual(['error']);
   });
 });

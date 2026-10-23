@@ -1,7 +1,7 @@
 import path from 'node:path';
 import type { Context, Finding, Verifier } from '../types.js';
 import { addedLines, deletedLines, insideTemplateLiteral, isCommentLine, pathOf, withoutLiterals } from './wi-common.js';
-import { callables, sourceView } from './structure.js';
+import { callables, sourceView, type SourceView } from './structure.js';
 
 /**
  * Checking removed without removing the test that appeared to do it.
@@ -81,6 +81,21 @@ function countsAsAssertion(text: string): boolean {
 const unitName = (file: string): string => path.basename(file.replace(/\\/g,'/'))
   .replace(/\.(?:test|spec)\.[^.]+$|\.[^.]+$/,'').replace(/^test_/,'').replace(/_test$/,'');
 
+function pythonScopes(view: SourceView): Array<{name:string;open:number;end:number}> {
+  const result = [];
+  for (const declaration of view.code.matchAll(/^([ \t]*)(?:async[ \t]+)?def[ \t]+([A-Za-z_]\w*)\s*\([^:\n]*\)[^:\n]*:[ \t]*$/gm)) {
+    const open = declaration.index! + declaration[0].lastIndexOf(':');
+    let end = view.code.length;
+    for (const row of view.code.slice(open + 1).matchAll(/^([ \t]*)\S/gm)) {
+      if (row[1]!.length > declaration[1]!.length) continue;
+      end = open + 1 + row.index!;
+      break;
+    }
+    result.push({name:declaration[2]!,open,end});
+  }
+  return result;
+}
+
 /** Coordinated source removal makes assertion loss ambiguous, rather than proven weakening. */
 function coversRemovedFeature(context: Context, testPath: string, assertions: string[]): boolean {
   const symbols = new Set<string>();
@@ -98,13 +113,13 @@ function coversRemovedFeature(context: Context, testPath: string, assertions: st
           && !declarations.includes(declaration[1])) symbols.add(declaration[1]!);
       }
       // Only a removed dispatch arm inside a complete callable qualifies, never a stray literal.
-      for (const fn of callables(view)) {
+      for (const fn of python ? pythonScopes(view) : callables(view)) {
         const text = view.text.slice(fn.open + 1,fn.end);
-        for (const branch of text.matchAll(/\bif\s*\(\s*[A-Za-z_$][\w$]*\s*===?\s*(['"])([^'"\n]+)\1\s*\)|\bcase\s+(['"])([^'"\n]+)\3\s*:/g)) {
+        for (const branch of text.matchAll(/\bif\s*\(\s*[A-Za-z_$][\w$]*\s*===?\s*(['"])([^'"\n]+)\1\s*\)|\bcase\s+(['"])([^'"\n]+)\3\s*:|^[ \t]*(?:if|elif)\s+[A-Za-z_]\w*\s*==\s*(['"])([^'"\n]+)\5\s*:/gm)) {
           const offset = fn.open + 1 + branch.index!;
-          if (!view.code.slice(offset).startsWith('if') && !view.code.slice(offset).startsWith('case')) continue;
+          if (!/^(?:if|elif|case)\b/.test(view.code.slice(offset,offset + branch[0].length).trimStart())) continue;
           if (!view.touched(offset,offset + branch[0].length)) continue;
-          const value = branch[2] ?? branch[4]!;
+          const value = branch[2] ?? branch[4] ?? branch[6]!;
           const remains = after.some(next=>[...next.text.matchAll(/(['"])([^'"\n]+)\1/g)].some(match=>match[2]===value));
           if (!remains) channels.push({unit:fn.name,value});
         }

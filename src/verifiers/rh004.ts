@@ -251,9 +251,11 @@ function conditionalPath(view: SourceView, line: number, python: boolean): boole
     }
     return false;
   }
+  const row = view.code.slice(offset).split('\n')[0]!;
+  const returnOffset = offset + Math.max(0,row.search(/\breturn\b/));
   for (const match of view.code.matchAll(/\b(?:if|else|catch|switch)\b[^{};]*\{/g)) {
     const open = match.index! + match[0].length - 1;
-    if (open < offset && closingDelimiter(view.code,open) > offset) return true;
+    if (open < returnOffset && closingDelimiter(view.code,open) > returnOffset) return true;
   }
   return false;
 }
@@ -374,8 +376,8 @@ async function run(context: Context): Promise<Finding[]> {
           severity: semanticLiteral(branchMatch[1]!) ? 'warn' : 'error',
           file: filePath,
           line: (add as { ln: number }).ln,
-          message: `Implementation special-cases input ${branchMatch[1]!} to return ${branchMatch[2]!}; a diff alone cannot distinguish a domain case from fixture hardcoding.`,
-          suggestion: 'Check the supported input contract and test both the special case and other inputs.',
+          message: semanticLiteral(branchMatch[1]!) ? `Implementation special-cases input ${branchMatch[1]!} to return ${branchMatch[2]!}; a diff alone cannot distinguish a domain case from fixture hardcoding.` : `Implementation special-cases input ${branchMatch[1]!} to return hardcoded ${branchMatch[2]!} instead of computing it generally.`,
+          suggestion: semanticLiteral(branchMatch[1]!) ? 'Check the supported input contract and test both the special case and other inputs.' : 'Remove the special-case branch and implement the general logic.',
         });
       }
     }

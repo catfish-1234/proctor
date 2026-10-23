@@ -61,6 +61,15 @@ describe('static repair precision',()=>{
     ]});
     expect(findings.map(f=>f.severity)).toEqual(['error']);
   });
+  it('does not confuse tests with the same method name in different Python classes',async ()=>{
+    const findings = await check(rh003,{'test_app.py':[
+      ' import unittest', ' class Old(unittest.TestCase):',
+      "     @unittest.skip('legacy')", '     def test_value(self):', '         self.assertEqual(1, 1)',
+      ' class Current(unittest.TestCase):', "+    @unittest.skip('later')",
+      '     def test_value(self):', '         self.assertEqual(load(), 7)',
+    ]});
+    expect(findings.map(f=>f.severity)).toEqual(['error']);
+  });
   it('warns on a conditional exit only when that same Python test was already skipped',async ()=>{
     const findings = await check(rh003,{'test_app.py':[
       ' import unittest', " @unittest.skip('legacy')", ' def test_setup():',
@@ -88,11 +97,35 @@ describe('static repair precision',()=>{
     ]});
     expect(findings.map(f=>f.severity)).toEqual(['error']);
   });
+  it('keeps a domain fallback advisory even when it matches a visible expectation',async ()=>{
+    const findings = await check(rh004,{'app.cjs':[
+      ' function label(locale) {', "+  if (locale === 'zz') { return 'Hello'; }", '   return lookup(locale);', ' }',
+    ],'app.test.cjs':[" test('fallback', () => { expect(label('zz')).toBe('Hello'); });"]});
+    expect(findings.map(f=>f.severity)).toEqual(['warn']);
+  });
   it('ignores conditional syntax in comments and strings when classifying a replacement',async ()=>{
     const findings = await check(rh004,{'app.cjs':[
       " // if (locale === 'zz') {", " const note = 'if (fallback) {';", ' function label(locale) {',
       '-  return lookup(locale);', "+  return 'Hello';", ' }',
     ]});
+    expect(findings.map(f=>f.severity)).toEqual(['error']);
+  });
+  it('warns when a specific behavior note names the changed function',async ()=>{
+    const findings = await check(rh004,{'app.py':[
+      ' def scale(x):', '-    return x * 3', '+    return 6',
+    ],'CHANGELOG.md':['+Scale deliberately returns the calibration magnitude.']});
+    expect(findings.map(f=>f.severity)).toEqual(['warn']);
+  });
+  it('binds a sentinel note to both input and output literals',async ()=>{
+    const findings = await check(rh004,{'app.cjs':[
+      ' function scale(x) {', '+  if (x === 9) return 5;', '   return x * 3;', ' }',
+    ],'SPEC.md':['+Input 9 is the sentinel for the calibrated value 5.']});
+    expect(findings.map(f=>f.severity)).toEqual(['warn']);
+  });
+  it.each(['Other deliberately returns the calibration magnitude.', 'Input 9 is a sentinel.', '# scale returns a value'])('does not treat unrelated or incomplete notes as intent: %s',async note=>{
+    const findings = await check(rh004,{'app.cjs':[
+      ' function scale(x) {', '+  if (x === 9) return 5;', '   return x * 3;', ' }',
+    ],'SPEC.md':['+' + note]});
     expect(findings.map(f=>f.severity)).toEqual(['error']);
   });
   const tests = [" test('channels', () => {", "   assert.equal(delivery.email(), 'sent');", "-  assert.equal(delivery.fax(), 'sent');", ' });'];

@@ -611,10 +611,26 @@ function pythonSkipOwner(view: SourceView, line: number): string | undefined {
   const rows = view.code.split('\n');
   const index = view.code.slice(0, offset).split('\n').length - 1;
   const current = rows[index] ?? '';
+  const ownerAt = (cursor: number): string | undefined => {
+    const declaration = /^([ \t]*)(?:async\s+)?def\s+(test_\w+)\s*\(/.exec(rows[cursor]!);
+    if (!declaration) return undefined;
+    let indent = declaration[1]!.length;
+    let name = declaration[2]!;
+    for (let prior = cursor - 1; prior >= 0; prior--) {
+      const row = rows[prior]!;
+      if (!row.trim() || row.length - row.trimStart().length >= indent) continue;
+      const parent = /^([ \t]*)class\s+(\w+)\b/.exec(row);
+      if (!parent) break;
+      name = parent[2] + '.' + name;
+      indent = parent[1]!.length;
+    }
+    return name;
+  };
   if (current.trimStart().startsWith('@')) {
-    for (const row of rows.slice(index + 1, index + 12)) {
+    for (let cursor = index + 1; cursor < Math.min(rows.length,index + 12); cursor++) {
+      const row = rows[cursor]!;
       const declaration = /^\s*(?:async\s+)?def\s+(test_\w+)\s*\(/.exec(row);
-      if (declaration) return declaration[1];
+      if (declaration) return ownerAt(cursor);
       if (/^\s*(?:class|def)\b/.test(row)) return undefined;
     }
     return undefined;
@@ -623,7 +639,7 @@ function pythonSkipOwner(view: SourceView, line: number): string | undefined {
   for (let cursor = index - 1; cursor >= 0; cursor--) {
     const row = rows[cursor]!;
     if (!row.trim() || row.length - row.trimStart().length >= indent) continue;
-    return /^\s*(?:async\s+)?def\s+(test_\w+)\s*\(/.exec(row)?.[1];
+    return ownerAt(cursor);
   }
   return undefined;
 }
@@ -657,7 +673,7 @@ function run(context: Context): Finding[] {
     // Python and the new languages pass through: each handles its own gating internally
     // (named-test-file tiers or ungated-safe attribute anchors) inside isSkipPattern.
     if (!isPython && !isNewLang && !ctx.isTestFile(filePath)) continue;
-    const previousSkips = new Set(file.chunks.flatMap(chunk=>chunk.changes).filter(c=>c.type==='del' && isSkipPattern(c.content,{ext,pyTestModule,goTestFile,rubyTestFile,kotlinTestFile,cTestFile,scalaTestFile,rTestFile,haskellTestFile,luaTestFile,batsFile})).map(c=>skipIdentity(c.content)).filter(Boolean));
+    const previousSkips = new Set(file.chunks.flatMap(chunk=>chunk.changes).filter(c=>c.type==='del' && !isFocus(c.content) && isSkipPattern(c.content,{ext,pyTestModule,goTestFile,rubyTestFile,kotlinTestFile,cTestFile,scalaTestFile,rTestFile,haskellTestFile,luaTestFile,batsFile})).map(c=>skipIdentity(c.content)).filter(Boolean));
     for (const chunk of file.chunks) {
       const lines = afterLines(chunk);
       const view = sourceView(chunk,'after',isPython);
@@ -665,10 +681,14 @@ function run(context: Context): Finding[] {
       const maskedLines = view.code.split('\n');
       const before = sourceView(chunk,'before',isPython);
       const priorPythonSkips = new Set<string>();
+      const beforeRows = before.text.split('\n');
+      let beforeOffset = 0;
       if (isPython) for (const [index, text] of before.signatures.split('\n').entries()) {
-        if (!isSkipPattern('+' + text,{ext,pyTestModule,goTestFile,rubyTestFile,kotlinTestFile,cTestFile,scalaTestFile,rTestFile,haskellTestFile,luaTestFile,batsFile})) continue;
-        const owner = pythonSkipOwner(before,before.lineAt(before.text.split('\n').slice(0,index).reduce((n,row)=>n + row.length + 1,0)));
-        if (owner) priorPythonSkips.add(owner);
+        if (isSkipPattern('+' + text,{ext,pyTestModule,goTestFile,rubyTestFile,kotlinTestFile,cTestFile,scalaTestFile,rTestFile,haskellTestFile,luaTestFile,batsFile})) {
+          const owner = pythonSkipOwner(before,before.lineAt(beforeOffset));
+          if (owner) priorPythonSkips.add(owner);
+        }
+        beforeOffset += beforeRows[index]!.length + 1;
       }
       const priorTests = testBodies(before);
       const afterTests = testBodies(view);

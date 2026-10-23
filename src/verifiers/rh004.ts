@@ -258,6 +258,40 @@ function conditionalPath(view: SourceView, line: number, python: boolean): boole
   return false;
 }
 
+/** A specific behavior note supplies intent evidence, but does not prove the implementation. */
+function documentedChange(context: Context, finding: Finding): boolean {
+  const file = context.files.find(file=>pathOf(file)===finding.file);
+  if (!file) return false;
+  const names = new Set<string>();
+  let literals = new Set<string>();
+  for (const chunk of file.chunks) {
+    const view = sourceView(chunk,'after',finding.file.endsWith('.py'));
+    const offset = view.offsetAtLine(finding.line);
+    if (offset === undefined) continue;
+    const end = view.text.indexOf('\n',offset);
+    literals = extractLiterals(view.text.slice(offset,end < 0 ? undefined : end));
+    if (finding.file.endsWith('.py')) {
+      const definitions = [...view.code.slice(0,offset).matchAll(/\bdef\s+([A-Za-z_]\w*)\s*\(/g)];
+      const last = definitions.at(-1);
+      if (last) names.add(last[1]!.toLowerCase());
+    } else for (const fn of callables(view)) {
+      if (offset >= fn.start && offset <= fn.end) names.add(fn.name.toLowerCase());
+    }
+  }
+  for (const doc of context.files) {
+    if (!/(?:^|\/)(?:SPEC|CHANGELOG)\.md$/i.test(pathOf(doc))) continue;
+    for (const change of doc.chunks.flatMap(chunk=>chunk.changes)) {
+      if (change.type !== 'add') continue;
+      const note = change.content.slice(1).trim();
+      if (note.startsWith('#') || !/\b(?:returns?|fallback|sentinel|calibrat\w*|supports?)\b/i.test(note)) continue;
+      const words = new Set(note.toLowerCase().match(/[A-Za-z_$][\w$]*|-?\d+(?:\.\d+)?/g) ?? []);
+      if ([...names].some(name=>words.has(name))) return true;
+      if (literals.size >= 2 && [...literals].every(literal=>words.has(literal.toLowerCase()))) return true;
+    }
+  }
+  return false;
+}
+
 async function run(context: Context): Promise<Finding[]> {
   const files = context.files;
   const ctx = context;
@@ -345,6 +379,13 @@ async function run(context: Context): Promise<Finding[]> {
         });
       }
     }
+  }
+
+  for (const finding of findings) {
+    if (finding.severity !== 'error' || !documentedChange(context,finding)) continue;
+    finding.severity = 'warn';
+    finding.message = 'A literal implementation change has a specific behavior note in SPEC or CHANGELOG; the diff does not establish whether it is incorrect.';
+    finding.suggestion = 'Check the documented behavior against the supported input classes and retain tests for other behavior.';
   }
 
   // The AI-gated fuzzy extension below only adds findings; the deterministic ones above are

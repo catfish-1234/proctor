@@ -309,8 +309,9 @@ marker. Check the rule's `--explain` output before relying on an exception.
 
 Three static shapes need review rather than an error. RH003 warns when a rewrite re-emits an
 already skipped Python test, or renames a skipped JavaScript test without disabling a known
-active test. RH004 warns for string or boolean domain branches and literal returns inside
-conditional fallback paths. WI112 warns when every removed assertion targets a source function
+active test. RH004 warns for string or boolean domain branches, literal returns inside
+conditional fallback paths, and explicit SPEC or CHANGELOG behavior notes naming the changed
+function or both special-case literals. WI112 warns when every removed assertion targets a source function
 or dispatch arm removed from the corresponding module in the same diff. Newly disabled tests,
 focus modifiers, unconditional computation replacements and unrelated assertion deletions keep
 their existing errors. WI112 remains opt-in.

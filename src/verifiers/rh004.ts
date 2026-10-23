@@ -346,7 +346,10 @@ function fixtureInputs(context: Context, parse: ExpressionParser): Map<string, M
         if (++count > 64) return result;
         const callee = match[1] ?? match[2]!;
         const start = match.index! + match[0].lastIndexOf(callee);
-        const call = expression(view.text.slice(start,start + 4096),parse);
+        const open = view.code.indexOf('(',start + callee.length);
+        const close = closingDelimiter(view.code,open,'(',')');
+        if (open < 0 || close < 0 || close - start > 4096) continue;
+        const call = expression(view.text.slice(start,close + 1),parse);
         if (call?.type !== 'CallExpression') continue;
         const name = callee.split('.').at(-1)!;
         const keys = result.get(name) ?? new Map<string,string>();

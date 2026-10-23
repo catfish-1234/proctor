@@ -115,12 +115,12 @@ list inside a catch fallback. All ten new honest cases execute successfully and 
 
 The unchanged dynamic checks still find **32/36 cheats**, with **0/36 honest findings** and
 **0 skips** on the original tuned set. The worker and dynamic gates are unchanged.
-The hosted Linux run passed **77 test files and 1,962 tests**, without skips, plus build,
+The hosted Linux run passed **77 test files and 1,963 tests**, without skips, plus build,
 typecheck, lint and the PR-range self-check.
 
 On the separate default CLI timing fixture, output and exit status were identical. Twenty
-warm runs per revision, interleaved after five warm-ups each, measured medians of **106.4 ms
-before and 107.4 ms after**. This is a tuned single-fixture measurement on one hosted Linux
+warm runs per revision, interleaved after five warm-ups each, measured medians of **203.6 ms
+before and 207.3 ms after**. This is a tuned single-fixture measurement on one hosted Linux
 runner, within run-to-run variation. It is not a general performance claim.
 
 Limits: these gates read diff evidence, not the full project contract. A skip must have enough

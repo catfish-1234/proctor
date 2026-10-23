@@ -5,6 +5,13 @@
   "description": "Configuration for proctor, AI agent test-tampering guard",
   "type": "object",
   "properties": {
+    "judge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cli"],
+      "properties": { "cli": { "enum": ["claude", "codex", "gemini"] } },
+      "description": "Local judge command selection. Requires both --dynamic and --judge; never enables execution itself."
+    },
     "dynamic": {
       "type": "boolean",
       "default": false,

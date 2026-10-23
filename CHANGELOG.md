@@ -5,6 +5,41 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- Broaden DY009 candidates to unchanged prose naming a changed unit or its source file,
+  including wrapped sentences, without widening verdict claims or runtime oracles. Keep the
+  existing caps, exact quotes and fresh-process reproduction. Confirm DY003 outcomes in fresh
+  copies and DY006 witnesses in separate fresh processes on both revisions. Require added
+  documentation claims to distinguish revisions, with a changed violating result, so expanded
+  tests and refactors cannot promote unchanged legacy violations. Renamed exceptions cannot
+  establish a new return-value violation. Keep unmarked advisory sweeps inside applicable
+  precise documented domains, avoiding unsupported allocation widths while retaining integer
+  boundaries elsewhere. Add paired tuned repair cases.
+
+- Add DY009 behind both `--dynamic --judge` flags. An installed signed-in command can propose
+  a quoted interpretation of unchanged documentation; only stable isolated runtime evidence
+  backed by an old satisfying result or an added passing test claim can block. Keep ambiguity
+  and conflicting documentation advisory. Enforce two calls, bounded prompts, content-hash
+  caching and the existing deadline. Exclude tool-owned cache artifacts from project snapshots
+  to preserve other runtime checks. Add paired tuned dev cases using fake commands only.
+
+- Add DY008 under dynamic opt-in: compare fresh input runs against precise unchanged spec,
+  README and docs statements. Block stable violations supported by an old passing result or
+  an added passing test claim. Keep ambiguous documentation advisory, skip changed contracts,
+  and add paired tuned development cases without requiring a contract marker.
+- Add bounded before/after behavior sweeps under dynamic opt-in. DY006 blocks reproduced
+  generated-input violations of an unchanged explicitly marked test contract. DY007 keeps
+  unannotated broad divergence and output collapse advisory because honest fixes can produce
+  the same evidence. Reuse the sandbox and overall deadline, with paired tuned dev cases.
+- Make DY003 blocking under dynamic opt-in when an edited expectation already passes on old
+  code, preserving its existing gates. The reverse expectation mismatch stays advisory.
+- Keep DY001, DY002, DY004 and DY005 advisory. Authored honest boundary fixes show why the
+  current DY002 probe evidence cannot safely block. Add paired dev cases and record blocking
+  counts separately from warnings, with every measurement labeled as tuned.
+- Use literal regex patterns and string parsing throughout the source, preserving existing
+  matching behavior and the default check path.
+
 ## [1.2.0] - 2026-10-21
 
 - Extend plain Python fallback to discovery errors and run each top-level `test_*` function in

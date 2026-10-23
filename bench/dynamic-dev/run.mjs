@@ -11,8 +11,8 @@ export function writeTree(dir, files, previous = {}) {
     mkdirSync(dirname(join(dir, path)), { recursive: true }); writeFileSync(join(dir, path), text);
   }
 }
-export function makeRepo(sample) {
-  const dir = mkdtempSync(join(tmpdir(), 'proctor-dynamic-dev-'));
+export function makeRepo(sample, temporaryRoot = tmpdir()) {
+  const dir = mkdtempSync(join(temporaryRoot, 'proctor-dynamic-dev-'));
   for (const args of [['init', '-q'], ['config', 'user.name', 'Test'], ['config', 'user.email', 'test@example.com']]) {
     const r = spawnSync('git', args, { cwd: dir }); if (r.status !== 0 || r.error) throw r.error ?? Error('git setup failed');
   }
@@ -27,8 +27,11 @@ export function checkCase(sample, args = []) {
   try {
     const r = spawnSync(process.execPath, [join(root, 'dist/cli.js'), 'check', '--dynamic', '--json', '--rules', 'RH014', ...args], { cwd: dir, encoding: 'utf8', timeout: 65_000 });
     if (r.error) throw r.error;
+    const findings = JSON.parse(r.stdout).filter(f => f.verifierId.startsWith('DY'));
     return { id: sample.id, label: sample.label, family: sample.family, expected: sample.expected,
-      found: JSON.parse(r.stdout).filter(f => f.verifierId.startsWith('DY')).map(f => f.verifierId),
+      expectedBlocking: sample.expectedBlocking ?? [], expectedAdvisory: sample.expectedAdvisory ?? [], exitCode: r.status,
+      found: findings.map(f => f.verifierId), blocking: findings.filter(f => f.severity === 'error').map(f => f.verifierId),
+      advisory: findings.filter(f => f.severity === 'warn').map(f => f.verifierId),
       skipped: r.stderr.includes('dynamic: skipped'), elapsedMs: performance.now() - started, stderr: r.stderr.split(process.execPath).join('node') };
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }
@@ -54,9 +57,22 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
   const summary = { restoration, corpus: 'Authored, tuned development set. Not a held-out evaluation.', total: rows.length,
     cheats: cheats.length, detectedCheats: cheats.filter(r => r.found.length).length,
-    honest: honest.length, flaggedHonest: honest.filter(r => r.found.length).length, skipped: rows.filter(r => r.skipped).length,
+    honest: honest.length, flaggedHonest: honest.filter(r => r.found.length).length,
+    blockedCheats: cheats.filter(r => r.blocking.length).length, blockedHonest: honest.filter(r => r.blocking.length).length,
+    dy002Promotion: { scope: 'Project the same observed DY002 findings to errors; no test or input changes.',
+      blockedCheats: cheats.filter(r => r.blocking.length || r.found.includes('DY002')).length,
+      blockedHonest: honest.filter(r => r.blocking.length || r.found.includes('DY002')).length },
+    dy007Promotion: { scope: 'Project observed DY007 sweeps to errors without a declared contract; tuned counterfactual.',
+      blockedCheats: cheats.filter(r => r.blocking.length || r.found.includes('DY007')).length,
+      blockedHonest: honest.filter(r => r.blocking.length || r.found.includes('DY007')).length },
+    dy008Promotion: { scope: 'Project ambiguous DY008 warnings to errors; tuned severity-only counterfactual.',
+      blockedCheats: cheats.filter(r => r.blocking.length || r.found.includes('DY008')).length,
+      blockedHonest: honest.filter(r => r.blocking.length || r.found.includes('DY008')).length },
+    skipped: rows.filter(r => r.skipped).length,
     medianCliMs: rows.map(r => r.elapsedMs).sort((a,b) => a-b)[Math.floor(rows.length/2)],
     totalCliMs: rows.reduce((n,r) => n+r.elapsedMs, 0), rows };
   process.stdout.write(JSON.stringify(summary, null, 2) + '\n');
-  if (rows.some(r => r.skipped || r.expected.some(id => !r.found.includes(id)) || (r.label === 'honest' && r.found.length))) process.exitCode = 1;
+  if (rows.some(r => r.skipped || r.expected.some(id => !r.found.includes(id)) || r.expectedBlocking.some(id => !r.blocking.includes(id)) ||
+    r.expectedAdvisory.some(id => !r.advisory.includes(id)) ||
+    (r.label === 'honest' && (r.blocking.length || r.found.some(id => !r.expectedAdvisory.includes(id)))))) process.exitCode = 1;
 }

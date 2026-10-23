@@ -14,9 +14,19 @@ function expandPattern(pattern: string): string[] {
     escapes.push(escape);
     return `${token}${escapes.length - 1}${token}`;
   });
-  return expand(protectedPattern).map(expanded =>
-    expanded.replace(new RegExp(`${token}(\\d+)${token}`, 'g'), (_, index: string) => escapes[Number(index)]!),
-  );
+  return expand(protectedPattern).map(expanded => {
+    let restored = '', cursor = 0;
+    for (let start = expanded.indexOf(token); start >= 0; start = expanded.indexOf(token, start + 1)) {
+      const numberStart = start + token.length;
+      let end = numberStart;
+      while (end < expanded.length && /[0-9]/.test(expanded[end]!)) end++;
+      if (end === numberStart || !expanded.startsWith(token, end)) continue;
+      restored += expanded.slice(cursor, start) + escapes[Number(expanded.slice(numberStart, end))];
+      cursor = end + token.length;
+      start = cursor - 1;
+    }
+    return restored + expanded.slice(cursor);
+  });
 }
 
 /** Discover files with the existing file-only, case-sensitive and dotfile defaults. */

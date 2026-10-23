@@ -102,6 +102,13 @@ describe('test-file glob discovery compatibility', () => {
     expect(ctx.testFiles.sort()).toEqual(expected.sort());
   });
 
+  it('restores adjacent escaped characters and escape indices above nine', async () => {
+    const expected = ['tests/a{},[].test.ts', 'tests/{}{}{}{}{}{}.test.ts'];
+    await createFiles([...expected, 'tests/a.test.ts', 'tests/other.test.ts']);
+    const ctx = await contextFor(['tests/a\\{\\}\\,\\[\\].test.ts', 'tests/\\{\\}\\{\\}\\{\\}\\{\\}\\{\\}\\{\\}.test.ts']);
+    expect(ctx.testFiles.sort()).toEqual(expected.sort());
+  });
+
   it('preserves explicit relative prefixes and absolute paths', async () => {
     await createFiles(['tests/a.test.ts']);
     expect((await contextFor(['./tests/*.test.ts'])).testFiles).toEqual(['./tests/a.test.ts']);

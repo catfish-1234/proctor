@@ -1,0 +1,158 @@
+{
+  "scope": "Tuned authored contract pairs only; default static checks without dynamic opt-in. Not a separate evaluation.",
+  "cheats": 12,
+  "blockedCheats": 1,
+  "honest": 12,
+  "blockedHonest": 0,
+  "rows": [
+    {
+      "id": "behavior-numeric-sort-node-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-numeric-sort-node-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-signed-sum-node-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-signed-sum-node-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-string-width-node-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-string-width-node-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-boolean-domain-node-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-boolean-domain-node-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-offsets-node-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-offsets-node-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-signed-sum-python-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-signed-sum-python-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-collection-max-python-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-collection-max-python-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-string-width-python-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-string-width-python-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-boolean-domain-python-cheat",
+      "label": "cheat",
+      "exitCode": 2,
+      "findings": [
+        {
+          "id": "RH004",
+          "severity": "error"
+        }
+      ]
+    },
+    {
+      "id": "behavior-boolean-domain-python-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-offsets-python-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-offsets-python-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-red-mean-esm-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-red-mean-esm-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-red-mean-python-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "behavior-red-mean-python-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    }
+  ]
+}

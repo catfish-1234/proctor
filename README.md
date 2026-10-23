@@ -362,21 +362,149 @@ namespaces. Windows, macOS, unsupported languages and unavailable isolation repo
 with host mounts read-only and network disabled. The default overall timeout is 60 seconds,
 including copies; descendants are terminated when the worker ends.
 
-Warnings name the commands, run labels and observed results. The checks need runnable
+Findings name the commands, run labels and observed results. The checks need runnable
 tests and installed dependencies, can miss changes, and cannot prove intent. A red original suite
 is a normal fix input; named per-test comparisons and numeric, string or boolean probes still run.
 For red-to-green fixes with unchanged tests, mutation-lite tries at most four parser-confirmed
-changes in called functions. DY002 probes and DY004 mutation warnings are advisory and do not
+changes in called functions. DY002 probes and DY004 mutation warnings remain advisory and do not
 change the exit code on their own. Mutations can survive because code is redundant or behavior
 is deliberately untested; survival does not establish cheating. Repeated outcomes
 can reflect order dependence.
 
-Measured limits: dynamic checks are opt-in and advisory only. They do not change which findings
-block a commit. Mutation-lite reports missing test coverage, not cheating, and it can fire on
-honest changes whose tests do not cover every changed line. On a private 80-case corpus (40
-cheating changes, 40 honest ones) that informed this iteration, dynamic warnings surfaced 4
-cheating changes the static checks missed and flagged 1 honest change. Because the same corpus
-informed the checks, these are not clean held-out numbers.
+With dynamic opt-in, DY003 blocks when an expectation-only edit turns an old test failure into
+a pass on the same old code. It requires one changed test file, no source or non-test input
+changes, unchanged actual expressions and no added SPEC/CHANGELOG intent note. This produces
+an error and exit 2, including with `--ci`. Before blocking, fresh copies repeat the original
+failure and the edited test's pass on both revisions. Unstable or ambiguous identities cannot
+block; unrelated red tests do not gate these per-test comparisons. An old pass made red by editing its expectation
+stays advisory. DY001 regressions, DY002 probe differences, DY004 surviving mutations and
+DY005 inconsistent runs also stay advisory: failures, missing coverage and an old reference
+can have legitimate explanations. Honest boundary fixes in the tuned dev set rule out promoting
+DY002 safely under its current gates.
+
+The new behavior sweeps identify changed exported JavaScript functions and module-level Python
+functions, then mine literal calls in visible tests. At most four units receive 32 inputs each,
+varying integer boundaries, signs, string widths, booleans, collection sizes, order and offsets.
+Before and after run twice, including a reversed input order. DY007 reports broad differences or
+output collapse as an advisory warning that leaves the exit code unchanged. Old behavior alone
+cannot establish a contract. These unannotated sweeps require unchanged tests.
+When a precise unchanged general statement binds the unit, unmarked sweeps also stay within
+that statement's supported input domain. This avoids unsupported allocation widths. A point
+example does not restrict a general sweep, and marked helpers retain their own declared domain.
+
+For a blocking runtime contract check, mark a reusable helper in an existing test file:
+
+```js
+// proctor:contract verifySort
+function verifySort(values) {
+  assert.deepEqual(sort(values), [...values].sort((a, b) => a - b));
+}
+test('sort', () => verifySort([2, 3, 4]));
+```
+
+Use `# proctor:contract verify_sort` for Python. The marker explicitly declares that the helper's
+assertions apply to generated arguments of the observed types. Guard narrower domains inside the
+helper. Declare contracts only for deterministic units and self-contained helpers, with no required
+external state or framework setup. The helper must directly call an imported changed function with
+its parameters in order, and use only its own code and module imports. The whole helper file must
+already exist and stay unchanged.
+DY006 blocks only when the visible new suite passes, both executions reproduce a changed result
+outside the visible literals, the old helper passes there and the new helper raises an assertion
+failure. Each contract input runs in a fresh process, capped at 16 inputs per unit, so a preceding
+probe call cannot consume its module state. Other exceptions and unstable outcomes cannot block.
+Before blocking, a separate witness confirmation repeats the subject and helper in fresh input
+processes on both revisions. Batch-only effects do not qualify.
+An added SPEC/CHANGELOG intent note
+suppresses these sweeps, as with the existing checks. This detects a contract contradiction,
+not intent. Without a marked contract, sweeps never add a blocking finding.
+
+This bounded prototype handles direct imports and JSON scalars or small arrays, not classes,
+TypeScript, arbitrary fixtures, generated calls or framework setup needed by a helper. It can miss
+bugs outside its generated inputs. All runs share the existing overall timeout and sandbox.
+
+DY008 adds an oracle from unchanged `SPEC*.md`, `README*.md` and `docs/` documentation, without
+a test marker. It recognizes a bounded prose grammar: exact examples such as
+`` `app.scale(-2)` must return `-6`. `` or `` `app.scale(-2) -> -6` ``, plus explicit rules for
+integer ordering with duplicates, stable uniqueness, Unicode code-point width, sign, rounding,
+empty inputs and guarded padding width. See the [supported statements](bench/dynamic-dev/README.md#documented-contracts).
+Examples constrain that exact input; they are never extrapolated into a formula.
+
+A precise statement can block when the new suite is green and separate fresh processes reproduce
+a violation that the old result satisfied. When old code also violates a general rule, DY008 needs
+an added unconditional equality assertion in an unambiguous passing test that claims that rule;
+its literal example must also reproduce correctly on the new code. A new test claim must distinguish the
+revisions, and the violating result itself must change. Expanded tests and refactors cannot turn
+an unchanged pre-existing violation into blocking evidence. That claim path requires changed
+return values; a renamed legacy exception cannot block. Vague prose, possible domain
+qualifiers and conflicting statements remain advisory. These warnings leave the exit code
+unchanged. Any supported contract-document edit suppresses DY008 for the diff.
+
+DY008 probes at most two units and twelve inputs per unit, twice on each revision, inside the
+existing worker and deadline. Literal examples can seed a unit even without a visible literal
+test call. Unknown syntax, ambiguous API names, code fences and unsupported results can be missed.
+This is a small deterministic grammar, not general prose understanding. Documentation can be stale
+or wrong, and a documented contradiction cannot establish intent.
+
+DY009 adds a local prose judge, separately opted in with **both** flags:
+
+```sh
+proctor check --dynamic --judge
+```
+
+Select an already installed, signed-in command with `{"judge":{"cli":"gemini"}}` in committed
+`proctor.config.json`. Supported values are `gemini`, `codex` and `claude`; automatic selection
+prefers the first installed command in that order; login failure does not retry another backend.
+Use `judge.cli` to select your login. Configuration selects the command, never enables the judge. Even
+committed `dynamic: true` still needs the explicit `--dynamic --judge` flags for DY009.
+The command uses its default model. On a cache miss, a missing binary, unavailable login,
+malformed JSON or a timed-out command produces no judge finding. Valid cache hits need no new
+login call. No direct API client is used. If `ANTHROPIC_API_KEY` is set,
+`claude` routes through the paid API; automatic selection prefers another installed command.
+
+The judge receives bounded before/after function source and unchanged candidate sentences from
+spec, README or docs files that name the changed unit or its source file. Candidate sentences need
+no recognized contract verb or call signature; wrapped sentences and file paths also qualify.
+Candidate collection is separate from the DY008 contract grammar. It examines at most 20 unchanged
+files of 64 KiB each, 32 candidate sentences and four sentences per unit. Ambiguous file basenames
+cannot bind, and a file-only mention with several exported units remains advisory.
+This sends that text through the selected
+CLI to its configured service. It runs only after static and DY001-DY008 checks, and skips entirely
+if another finding blocks. The new suite must be green, documentation unchanged and the existing
+intent-note escape absent. A verdict needs an exact supplied quote and a supported data-only claim,
+never executable code. The isolated worker checks literal examples or ordering, uniqueness, width,
+sign, rounding and padding claims on generated inputs. Blocking requires **both the quoted judge
+claim and stable runtime reproduction across fresh processes**, twice on each revision, backed by
+an old satisfying result or an added passing test claim.
+As with DY008, an added claim must distinguish both revisions and cannot turn an unchanged
+legacy violation into blocking evidence. A mention without a supported runtime claim cannot block.
+Known ambiguous interpretations and conflicting precise documentation stay advisory and do not
+change the exit code on their own.
+Unclear, unsupported, unquoted and unreproduced proposals stay silent.
+
+The hard budget is at most **two CLI calls per check**, one per selected unit, with no proctor
+retries. The entire supplied prompt, including instructions, is capped at **2,000 UTF-8 bytes**,
+a conservative 2,000-token ceiling for byte-based tokenizers. Oversized prompts are skipped rather
+than truncated. Each command has at most ten seconds, inside the shared configurable 60-second
+dynamic deadline. Content hashes of sentences and function source cache validated proposals in
+`.proctor-judge-cache`, bounded to 64 entries and 256 KiB. Matching repeat commits make zero judge
+calls; runtime verification always runs again. Add the cache to your project's ignore file and
+delete it to clear proposals. Dynamic snapshots exclude this tool-owned artifact so it cannot
+change other runtime checks. Two requests are 0.2% of a 1,000-request free Gemini CLI day, the
+intended budget target for a typical check. CLI-owned instructions, retries and service limits are
+outside this counter. No real service usage or model accuracy was measured.
+
+The judge interprets prose and can misread it. Runtime proves the encoded claim fails, not that
+its interpretation or the documentation is correct. The callable, literal and serialization limits
+above still apply. Candidate selection can miss wording, scope qualifiers and ambiguous names.
+The CLI runs in a separate empty temporary directory with host files read-only and its normal
+login environment; only its service access uses network. Commands needing profile writes or login
+refresh can skip. Project tests and probes remain network isolated. All command groups terminate
+on timeout and exit. The [tuned mock-verdict measurements](bench/dynamic-dev/README.md#judged-documentation-tuned)
+measure gates and runtime reproduction, not real judge precision or intent.
+The [repair twins and their tuned results](bench/dynamic-dev/README.md#repair-hardening-tuned)
+cover renames, refactors, expanded tests, red baselines and formatting changes.
+
+Default checks without dynamic opt-in are unchanged.
 See the [scope, dropped ideas and tuned dev-set measurements](bench/dynamic-dev/README.md).
 
 ## How it works

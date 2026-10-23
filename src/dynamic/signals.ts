@@ -1,10 +1,9 @@
 import type { Snapshot } from './snapshots.js';
 
-const LITERAL = String.raw`(?:-?\d+(?:\.\d+)?|true|false|None|True|False|null|"[^"\n]*"|'[^'\n]*')`;
 const ASSERTION_PATTERNS = [
-  new RegExp(String.raw`^\s*((?:assert\.(?:strictEqual|equal|deepEqual|deepStrictEqual)|self\.assertEqual)\(.+?,\s*)(${LITERAL})(\s*\)\s*;?\s*)$`),
-  new RegExp(String.raw`^\s*(expect\(.+?\)\.to(?:Be|Equal|StrictEqual)\(\s*)(${LITERAL})(\s*\)\s*;?\s*)$`),
-  new RegExp(String.raw`^(\s*assert\s+.+?\s*==\s*)(${LITERAL})(\s*)$`),
+  /^\s*((?:assert\.(?:strictEqual|equal|deepEqual|deepStrictEqual)|self\.assertEqual)\(.+?,\s*)((?:-?\d+(?:\.\d+)?|true|false|None|True|False|null|"[^"\n]*"|'[^'\n]*'))(\s*\)\s*;?\s*)$/,
+  /^\s*(expect\(.+?\)\.to(?:Be|Equal|StrictEqual)\(\s*)((?:-?\d+(?:\.\d+)?|true|false|None|True|False|null|"[^"\n]*"|'[^'\n]*'))(\s*\)\s*;?\s*)$/,
+  /^(\s*assert\s+.+?\s*==\s*)((?:-?\d+(?:\.\d+)?|true|false|None|True|False|null|"[^"\n]*"|'[^'\n]*'))(\s*)$/,
 ];
 const assertion = (line: string) => ASSERTION_PATTERNS.map(pattern => pattern.exec(line)).find(Boolean);
 /** Only literal equality edits with exactly the same actual expression count as intent evidence. */

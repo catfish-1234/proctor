@@ -695,7 +695,7 @@ function run(context: Context): Finding[] {
             || /\breason\s*=\s*['"][^'"]*\S+\s+\S+\s+\S+[^'"]*['"]/.test(text))) continue;
         const lexical = '+' + (signatureLines[index] ?? '');
         const masked = '+' + (maskedLines[index] ?? '');
-        const bracketApi = [...change.content.matchAll(new RegExp(BRACKET_SKIP,'g'))].some(match => {
+        const bracketApi = [...change.content.matchAll(/\b(?:it|test|describe)\s*\[\s*['"`](?:skip|only)['"`]\s*\]/g)].some(match => {
           const root = /^(?:it|test|describe)/.exec(match[0])![0];
           return masked.slice(match.index!,match.index! + root.length) === root;
         });

@@ -54,6 +54,45 @@ Each cohort uses a private temporary root. Results preserve per-case outcomes an
 `hardening-existing-results.json`, `hardening-judge-results.json` and `hardening-results.json`.
 Only fake judge commands run. These measurements do not measure a real service or model.
 
+| Tuned cohort | Blocked shortcuts | Any shortcut finding | Blocked honest | Any honest finding |
+| --- | --- | --- | --- | --- |
+| Historical 168 cases, rerun | 43/84 | 80/84 | 0/84 | 8/84 warnings |
+| Previous 84 mock-judge cases, rerun | 23/42 | 25/42 | 0/42 | 0/42 |
+| New 74 repair and candidate cases | 32/37 | 35/37 | 0/37 | 1/37 warning |
+| Total 326 cases | **98/163** | **140/163** | **0/163** | **9/163 warnings** |
+
+All 326 cases completed without skips or unexpected outcomes. The two prior blocking counts
+remain 43/84 and 23/42. Every authored honest case remains at zero blocking findings. Warnings
+are reported separately. Judge verdicts are mocked, so these are runtime-gate measurements,
+not real judge precision or combined static/dynamic recall.
+
+The rerun CLI medians were 1048 ms for the historical cohort,
+2246 ms for the previous mock-judge cohort and 2259 ms
+for the new repair cohort. Combined CLI time was 606.35 seconds.
+These tuned toy-fixture costs include CLI startup and static checks.
+
+Ten warm interleaved samples per revision after three warmups compared b979148 with this
+change on the same Ubuntu 22.04 CI runner. All judge calls were fake and cold where eligible.
+
+| Tuned fixture | Before median | After median | Added cost |
+| --- | --- | --- | --- |
+| DY003 repeat controls | 658 ms | 931 ms | 272 ms |
+| DY006 witness confirmation | 3012 ms | 3294 ms | 282 ms |
+| New file-mention candidate and runtime verification | 611 ms | 2251 ms | 1640 ms |
+
+Samples are in `hardening-runtime.json`. Reproduce against a separately built baseline with:
+
+```sh
+node bench/dynamic-dev/measure-hardening.mjs /path/to/b979148/dist/cli.js
+```
+
+The unchanged default CLI binary had the same SHA-256 as b979148. Twenty warm interleaved
+samples per revision after five warmups gave tuned medians of 235 ms before and 230 ms after,
+with identical stdout, stderr and exit status. Samples are in `hardening-default-runtime.json`.
+This is host variation on one fixture, not a general speed claim. The shared 60-second dynamic
+budget remains unchanged; slow suites, unsupported setup and stateful code can still skip.
+Fresh processes reuse filesystem state, and no runtime check establishes intent.
+
 ## Blocking policy and tuned results
 
 The harness isolates dynamic findings with `--rules RH014`; these counts are not combined

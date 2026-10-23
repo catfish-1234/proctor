@@ -13,6 +13,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   to warnings. Keep errors for newly disabled tests, focus modifiers, unconditional computation
   replacements and assertion loss unrelated to a source removal. Add paired, tuned development
   cases and checks that existing development cheat catches are retained.
+- On the authored, tuned development set, retain all 7 existing catches from these three static
+  checks and catch 14/14 added cheats, with 0/50 honest errors. Ambiguous catches can warn.
+  The unchanged dynamic layer retains 32/36 catches and 0/36 honest findings. These tuned
+  numbers are not an independent accuracy estimate.
 
 ## [1.2.0] - 2026-10-21
 

@@ -63,6 +63,66 @@ for all case CLI invocations combined. This includes CLI startup and static chec
 suites can cost much more and can exhaust the budget. Individual case timings are in `results.json`.
 Absolute host Node executable paths in the recorded commands are normalized to `node`.
 
+## Tuned static repair twins
+
+`repair-cases.mjs` adds 14 cheat/honest pairs for RH003, RH004 and WI112. These are authored,
+tuned development cases, not an independent evaluation. `measure-repairs.mjs` runs just those
+three static checks over both these 28 cases and the existing 72 cases. It compares case/rule
+catches against a separately built main baseline, requires every expected new cheat finding,
+and rejects any honest error. Under verification it also executes every new honest suite with
+Node or Python standard libraries. Warnings are allowed. No original cases or tests were changed.
+
+Reproduce after building main in a separate checkout and building this revision:
+
+```sh
+node bench/dynamic-dev/measure-repairs.mjs /path/to/main/dist/cli.js > before.json
+PROCTOR_VERIFY_REPAIRS=1 node bench/dynamic-dev/measure-repairs.mjs dist/cli.js before.json > after.json
+```
+
+The environment-variable assignment above uses POSIX shell syntax. The harness uses
+`os.tmpdir()` and `path.join()` for scratch paths. It needs Git, Node and Python 3.
+The repair-precision workflow runs this comparison, the existing dynamic set and the full suite.
+Raw measurements and the measured revisions are in [repair-results.json](repair-results.json).
+
+Tuned results for the **three selected static checks**, comparing main with this change:
+
+| Cohort | Cheat catches before / after | Cheat errors before / after | Honest errors before / after |
+|--------|-----------------------------|-----------------------------|------------------------------|
+| Existing 36 cheat / 36 honest cases | 7 / 7 | 7 / 4 | 3 / 0 |
+| Added 14 cheat / 14 honest twins | 14 / 14 | 14 / 13 | 13 / 0 |
+
+All prior case/rule catches remain. Three existing string/boolean branches and one added domain
+branch become warnings because their diff shapes also describe honest repairs. Across the two
+cohorts there are **0/50 honest errors** from these three checks. This does not measure other
+static verifiers or establish zero false positives on other projects.
+
+| Added twin family | Tuned cheat catches | Tuned honest errors |
+|-------------------|---------------------|---------------------|
+| RH003 skipped fixture setup | 3/3, all errors | 0/3 |
+| RH004 locale fallback and documented behavior | 7/7, 6 errors and 1 warning | 0/7 |
+| WI112 channel removal | 4/4, all errors | 0/4 |
+
+The unchanged dynamic checks still find **32/36 cheats**, with **0/36 honest findings** and
+**0 skips** on the original tuned set. The worker and dynamic gates are unchanged.
+The hosted Linux run passed **76 test files and 1,922 tests**, without skips, plus build,
+typecheck, lint and the PR-range self-check.
+
+On the separate default CLI timing fixture, output and exit status were identical. Twenty
+warm runs per revision, interleaved after five warm-ups each, measured medians of **226.9 ms
+before and 226.4 ms after**. This is a tuned single-fixture measurement on one hosted Linux
+runner, within run-to-run variation. It is not a general performance claim.
+
+Limits: these gates read diff evidence, not the full project contract. A skip must have enough
+context to bind to the old test; Python class names distinguish same-named methods. Scoped
+fallback matching needs visible control flow. A behavior note must name the changed function
+or both special-case literals and state concrete behavior; unrelated notes do not qualify.
+Source removals must match the test module, the removed function or dispatch arm, and every
+lost assertion. Rebound functions and unrelated removals do not qualify. Dispatch matching
+covers simple quoted equality arms in JavaScript and Python, plus JavaScript switch cases.
+Missing context and unsupported syntax can prevent a repair from matching. Notes can be
+misleading, and source removal cannot establish authorization. These ambiguous cases stay
+visible as warnings. Existing warning exit policy and explicit severity overrides still apply.
+
 ## Exact prototype limits
 
 - The default path runs no project tests. `dynamic: true` comes from the committed baseline

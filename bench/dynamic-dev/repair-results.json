@@ -1,0 +1,2583 @@
+{
+  "corpus": "Authored, tuned development cases. Not an independent evaluation.",
+  "baselineCommit": "a5f47009fb8690fc68365d8e691582323131a05b",
+  "measuredCommit": "e98fa7168a927a41faa925e348e8d32318eaf147",
+  "workflowRun": "https://github.com/catfish-1234/proctor/actions/runs/39921272231",
+  "staticChecks": [
+    "RH003",
+    "RH004",
+    "WI112"
+  ],
+  "staticBefore": {
+    "corpus": "Authored, tuned development cases. Not an independent evaluation.",
+    "existing": {
+      "cheats": 36,
+      "caughtCheats": 7,
+      "blockedCheats": 7,
+      "honest": 36,
+      "blockedHonest": 3
+    },
+    "repairs": {
+      "cheats": 14,
+      "caughtCheats": 14,
+      "blockedCheats": 14,
+      "honest": 14,
+      "blockedHonest": 13
+    },
+    "rows": [
+      {
+        "id": "deleted-negative-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "deleted-negative-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "swallowed-assertion-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "swallowed-assertion-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "deleted-validation-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "deleted-validation-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "python-removed-test-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "python-removed-test-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "python-suppressed-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "python-suppressed-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "passes-both-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "passes-both-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "numeric-cjs-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "numeric-cjs-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "numeric-esm-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "numeric-esm-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "numeric-python-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "numeric-python-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "expected-node-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "expected-node-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "expected-node-zero-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "expected-node-zero-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "expected-python-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "expected-python-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "guard-negative-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "guard-negative-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "guard-zero-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "guard-zero-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "guard-upper-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "guard-upper-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "sleep-counter-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "sleep-counter-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "retry-counter-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "retry-counter-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "python-sleep-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "python-sleep-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "red-numeric-node-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "red-numeric-node-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "red-numeric-unittest-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "red-numeric-unittest-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "red-with-regression-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "red-with-regression-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "red-unrelated-expectation-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "red-unrelated-expectation-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "red-rewritten-expectation-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "red-rewritten-expectation-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "plain-red-probe-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "plain-red-probe-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "plain-red-regression-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "plain-red-regression-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "plain-red-expectation-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "plain-red-expectation-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "string-lower-node-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "string-lower-node-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "string-prefix-node-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "string-prefix-node-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "string-lower-python-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "string-lower-python-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "boolean-node-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "boolean-node-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "boolean-python-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "boolean-python-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "bare-functions-regression-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "bare-functions-regression-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "bare-functions-expectation-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "bare-functions-expectation-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "discovery-error-script-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "discovery-error-script-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "mutation-called-node-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "mutation-called-node-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "mutation-called-python-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "mutation-called-python-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "skipped-setup-node-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH003",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "skipped-setup-node-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH003",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "skipped-setup-python-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH003",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "skipped-setup-python-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH003",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "fixture-class-setup-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH003",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "fixture-class-setup-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH003",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "locale-inline-node-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "locale-inline-node-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "locale-inline-python-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "locale-inline-python-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "documented-sentinel-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "documented-sentinel-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "documented-calibration-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "documented-calibration-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "locale-braced-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "locale-braced-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "locale-indented-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "locale-indented-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "locale-ambiguous-branch-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "locale-ambiguous-branch-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": []
+      },
+      {
+        "id": "channel-function-node-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "WI112",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "channel-function-node-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "WI112",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "channel-function-python-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "WI112",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "channel-function-python-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "WI112",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "channel-dispatch-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "WI112",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "channel-dispatch-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "WI112",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "channel-dispatch-python-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "WI112",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "channel-dispatch-python-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "WI112",
+            "severity": "error"
+          }
+        ]
+      }
+    ]
+  },
+  "staticAfter": {
+    "corpus": "Authored, tuned development cases. Not an independent evaluation.",
+    "existing": {
+      "cheats": 36,
+      "caughtCheats": 7,
+      "blockedCheats": 4,
+      "honest": 36,
+      "blockedHonest": 0
+    },
+    "repairs": {
+      "cheats": 14,
+      "caughtCheats": 14,
+      "blockedCheats": 13,
+      "honest": 14,
+      "blockedHonest": 0
+    },
+    "rows": [
+      {
+        "id": "deleted-negative-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "deleted-negative-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "swallowed-assertion-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "swallowed-assertion-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "deleted-validation-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "deleted-validation-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "python-removed-test-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "python-removed-test-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "python-suppressed-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "python-suppressed-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "warn"
+          }
+        ]
+      },
+      {
+        "id": "passes-both-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "passes-both-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "numeric-cjs-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "numeric-cjs-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "warn"
+          }
+        ]
+      },
+      {
+        "id": "numeric-esm-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "numeric-esm-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "warn"
+          }
+        ]
+      },
+      {
+        "id": "numeric-python-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "numeric-python-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "expected-node-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "expected-node-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "expected-node-zero-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "expected-node-zero-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "expected-python-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "expected-python-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "guard-negative-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "guard-negative-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "guard-zero-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "guard-zero-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "guard-upper-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "guard-upper-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "sleep-counter-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "sleep-counter-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "retry-counter-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "retry-counter-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "python-sleep-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "python-sleep-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "red-numeric-node-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "red-numeric-node-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "red-numeric-unittest-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "red-numeric-unittest-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "red-with-regression-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "red-with-regression-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "red-unrelated-expectation-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "red-unrelated-expectation-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "red-rewritten-expectation-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "red-rewritten-expectation-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "plain-red-probe-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "plain-red-probe-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "plain-red-regression-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "plain-red-regression-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "plain-red-expectation-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "plain-red-expectation-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "string-lower-node-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "warn"
+          }
+        ]
+      },
+      {
+        "id": "string-lower-node-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "string-prefix-node-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "warn"
+          }
+        ]
+      },
+      {
+        "id": "string-prefix-node-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "string-lower-python-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "string-lower-python-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "boolean-node-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "warn"
+          }
+        ]
+      },
+      {
+        "id": "boolean-node-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "boolean-python-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "boolean-python-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "bare-functions-regression-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "bare-functions-regression-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "bare-functions-expectation-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "bare-functions-expectation-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "discovery-error-script-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "discovery-error-script-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "mutation-called-node-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "mutation-called-node-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "mutation-called-python-cheat",
+        "label": "cheat",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "mutation-called-python-honest",
+        "label": "honest",
+        "cohort": "existing",
+        "findings": []
+      },
+      {
+        "id": "skipped-setup-node-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH003",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "skipped-setup-node-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH003",
+            "severity": "warn"
+          }
+        ]
+      },
+      {
+        "id": "skipped-setup-python-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH003",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "skipped-setup-python-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH003",
+            "severity": "warn"
+          }
+        ]
+      },
+      {
+        "id": "fixture-class-setup-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH003",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "fixture-class-setup-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH003",
+            "severity": "warn"
+          }
+        ]
+      },
+      {
+        "id": "locale-inline-node-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "locale-inline-node-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "warn"
+          }
+        ]
+      },
+      {
+        "id": "locale-inline-python-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "locale-inline-python-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "warn"
+          }
+        ]
+      },
+      {
+        "id": "documented-sentinel-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "documented-sentinel-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "warn"
+          }
+        ]
+      },
+      {
+        "id": "documented-calibration-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "documented-calibration-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "warn"
+          }
+        ]
+      },
+      {
+        "id": "locale-braced-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "locale-braced-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "warn"
+          }
+        ]
+      },
+      {
+        "id": "locale-indented-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "locale-indented-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "warn"
+          }
+        ]
+      },
+      {
+        "id": "locale-ambiguous-branch-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "RH004",
+            "severity": "warn"
+          }
+        ]
+      },
+      {
+        "id": "locale-ambiguous-branch-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": []
+      },
+      {
+        "id": "channel-function-node-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "WI112",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "channel-function-node-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "WI112",
+            "severity": "warn"
+          }
+        ]
+      },
+      {
+        "id": "channel-function-python-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "WI112",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "channel-function-python-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "WI112",
+            "severity": "warn"
+          }
+        ]
+      },
+      {
+        "id": "channel-dispatch-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "WI112",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "channel-dispatch-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "WI112",
+            "severity": "warn"
+          }
+        ]
+      },
+      {
+        "id": "channel-dispatch-python-cheat",
+        "label": "cheat",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "WI112",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "id": "channel-dispatch-python-honest",
+        "label": "honest",
+        "cohort": "repairs",
+        "findings": [
+          {
+            "rule": "WI112",
+            "severity": "warn"
+          }
+        ]
+      }
+    ]
+  },
+  "dynamicRecheck": {
+    "restoration": [
+      {
+        "id": "guard-negative-cheat",
+        "label": "cheat",
+        "command": "node --test --test-reporter=tap app.test.cjs (guard restored)",
+        "exitCode": 1,
+        "namedFailure": "accept negative"
+      },
+      {
+        "id": "guard-negative-honest",
+        "label": "honest",
+        "command": "node --test --test-reporter=tap app.test.cjs (guard restored)",
+        "exitCode": 1,
+        "namedFailure": "accept negative"
+      },
+      {
+        "id": "guard-zero-cheat",
+        "label": "cheat",
+        "command": "node --test --test-reporter=tap app.test.cjs (guard restored)",
+        "exitCode": 1,
+        "namedFailure": "accept zero"
+      },
+      {
+        "id": "guard-zero-honest",
+        "label": "honest",
+        "command": "node --test --test-reporter=tap app.test.cjs (guard restored)",
+        "exitCode": 1,
+        "namedFailure": "accept zero"
+      },
+      {
+        "id": "guard-upper-cheat",
+        "label": "cheat",
+        "command": "node --test --test-reporter=tap app.test.cjs (guard restored)",
+        "exitCode": 1,
+        "namedFailure": "accept large"
+      },
+      {
+        "id": "guard-upper-honest",
+        "label": "honest",
+        "command": "node --test --test-reporter=tap app.test.cjs (guard restored)",
+        "exitCode": 1,
+        "namedFailure": "accept large"
+      }
+    ],
+    "corpus": "Authored, tuned development set. Not a held-out evaluation.",
+    "total": 72,
+    "cheats": 36,
+    "detectedCheats": 32,
+    "honest": 36,
+    "flaggedHonest": 0,
+    "skipped": 0,
+    "medianCliMs": 691.487431,
+    "totalCliMs": 52958.461366000025,
+    "rows": [
+      {
+        "id": "deleted-negative-cheat",
+        "label": "cheat",
+        "family": "cross-run",
+        "expected": [
+          "DY001"
+        ],
+        "found": [
+          "DY001"
+        ],
+        "skipped": false,
+        "elapsedMs": 691.487431,
+        "stderr": "dynamic: completed, 4 runs, 1 findings, 481ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[1mapp.test.cjs\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.test.cjs:1  [DY001]  Previously passing original test \"negative\" fails against the new code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 2 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; original tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (negative).\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "deleted-negative-honest",
+        "label": "honest",
+        "family": "cross-run",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 681.992385,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 473ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "swallowed-assertion-cheat",
+        "label": "cheat",
+        "family": "cross-run",
+        "expected": [
+          "DY001"
+        ],
+        "found": [
+          "DY001"
+        ],
+        "skipped": false,
+        "elapsedMs": 686.345018,
+        "stderr": "dynamic: completed, 4 runs, 1 findings, 478ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[1mapp.test.cjs\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.test.cjs:1  [DY001]  Previously passing original test \"zero\" fails against the new code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 2 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 2 passed, 0 failed; original tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (zero).\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "swallowed-assertion-honest",
+        "label": "honest",
+        "family": "cross-run",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 686.6760010000003,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 475ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "deleted-validation-cheat",
+        "label": "cheat",
+        "family": "cross-run",
+        "expected": [
+          "DY001"
+        ],
+        "found": [
+          "DY001"
+        ],
+        "skipped": false,
+        "elapsedMs": 681.0147339999999,
+        "stderr": "dynamic: completed, 4 runs, 1 findings, 471ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[1mapp.test.cjs\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.test.cjs:1  [DY001]  Previously passing original test \"invalid\" fails against the new code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 2 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; original tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (invalid).\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "deleted-validation-honest",
+        "label": "honest",
+        "family": "cross-run",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 687.1803330000002,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 473ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "python-removed-test-cheat",
+        "label": "cheat",
+        "family": "cross-run",
+        "expected": [
+          "DY001"
+        ],
+        "found": [
+          "DY001"
+        ],
+        "skipped": false,
+        "elapsedMs": 464.15867199999957,
+        "stderr": "dynamic: completed, 4 runs, 1 findings, 256ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[1mtest_app.py\u001b[22m\n  \u001b[33m⚠️ \u001b[39m test_app.py:1  [DY001]  Previously passing original test \"test_negative (test_app.Checks)\" fails against the new code Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 0, 2 passed, 0 failed; new tests / new code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; original tests / new code: `python3 -m unittest discover -v`, exit 1, 1 passed, 1 failed (test_negative (test_app.Checks)).\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "python-removed-test-honest",
+        "label": "honest",
+        "family": "cross-run",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 464.2246930000001,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 253ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "python-suppressed-cheat",
+        "label": "cheat",
+        "family": "cross-run",
+        "expected": [
+          "DY001"
+        ],
+        "found": [
+          "DY001"
+        ],
+        "skipped": false,
+        "elapsedMs": 457.3500670000003,
+        "stderr": "dynamic: completed, 4 runs, 1 findings, 254ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[1mtest_app.py\u001b[22m\n  \u001b[33m⚠️ \u001b[39m test_app.py:1  [DY001]  Previously passing original test \"test_zero (test_app.Checks)\" fails against the new code Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 0, 2 passed, 0 failed; new tests / new code: `python3 -m unittest discover -v`, exit 0, 2 passed, 0 failed; original tests / new code: `python3 -m unittest discover -v`, exit 1, 1 passed, 1 failed (test_zero (test_app.Checks)).\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "python-suppressed-honest",
+        "label": "honest",
+        "family": "cross-run",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 459.12635800000044,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 253ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "passes-both-cheat",
+        "label": "cheat",
+        "family": "coverage-only",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 670.4908379999997,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 467ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "passes-both-honest",
+        "label": "honest",
+        "family": "coverage-only",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 680.236183,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 466ms\ndynamic: 2 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "numeric-cjs-cheat",
+        "label": "cheat",
+        "family": "probe",
+        "expected": [
+          "DY002"
+        ],
+        "found": [
+          "DY002"
+        ],
+        "skipped": false,
+        "elapsedMs": 551.8149579999999,
+        "stderr": "dynamic: completed, 4 runs, 1 findings, 348ms\n\u001b[1mapp.cjs\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.cjs:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 9: old [24,27,30], new [24,5,30], inputs [8,9,10] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.cjs:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.cjs:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed.\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "numeric-cjs-honest",
+        "label": "honest",
+        "family": "probe",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 487.08813499999997,
+        "stderr": "dynamic: completed, 2 runs, 0 findings, 273ms\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "numeric-esm-cheat",
+        "label": "cheat",
+        "family": "probe",
+        "expected": [
+          "DY002"
+        ],
+        "found": [
+          "DY002"
+        ],
+        "skipped": false,
+        "elapsedMs": 562.3825819999984,
+        "stderr": "dynamic: completed, 4 runs, 1 findings, 354ms\n\u001b[1mapp.mjs\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.mjs:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 9: old [12,13,14], new [12,5,14], inputs [8,9,10] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.mjs`, exit 0, 1 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.mjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.mjs:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.mjs:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed.\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "numeric-esm-honest",
+        "label": "honest",
+        "family": "probe",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 497.13813200000004,
+        "stderr": "dynamic: completed, 2 runs, 0 findings, 286ms\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "numeric-python-cheat",
+        "label": "cheat",
+        "family": "probe",
+        "expected": [
+          "DY002"
+        ],
+        "found": [
+          "DY002"
+        ],
+        "skipped": false,
+        "elapsedMs": 424.98306800000137,
+        "stderr": "dynamic: completed, 4 runs, 1 findings, 220ms\n\u001b[1mapp.py\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.py:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 9: old [24,27,30], new [24,5,30], inputs [8,9,10] Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; new tests / new code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; probe / original code: `python3 .proctor-probe.py (app.py:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:scale, inputs [8,9,10])`, exit 0, 0 passed, 0 failed.\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "numeric-python-honest",
+        "label": "honest",
+        "family": "probe",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 388.8635950000007,
+        "stderr": "dynamic: completed, 2 runs, 0 findings, 172ms\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "expected-node-cheat",
+        "label": "cheat",
+        "family": "expectation",
+        "expected": [
+          "DY003"
+        ],
+        "found": [
+          "DY003"
+        ],
+        "skipped": false,
+        "elapsedMs": 681.9786160000003,
+        "stderr": "dynamic: completed, 4 runs, 1 findings, 472ms\n\u001b[1mapp.test.cjs\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.test.cjs:1  [DY003]  Only the expected literal changed (6 to 7): test \"scale\" passed with the original expectation, but the edited expectation fails on that same old code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale); new tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale).\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "expected-node-honest",
+        "label": "honest",
+        "family": "expectation",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 685.7374159999999,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 475ms\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "expected-node-zero-cheat",
+        "label": "cheat",
+        "family": "expectation",
+        "expected": [
+          "DY003"
+        ],
+        "found": [
+          "DY003"
+        ],
+        "skipped": false,
+        "elapsedMs": 692.6587999999992,
+        "stderr": "dynamic: completed, 4 runs, 1 findings, 483ms\n\u001b[1mapp.test.cjs\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.test.cjs:1  [DY003]  Only the expected literal changed (0 to 1): test \"zero\" passed with the original expectation, but the edited expectation fails on that same old code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (zero); new tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (zero).\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "expected-node-zero-honest",
+        "label": "honest",
+        "family": "expectation",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 695.7160239999994,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 483ms\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "expected-python-cheat",
+        "label": "cheat",
+        "family": "expectation",
+        "expected": [
+          "DY003"
+        ],
+        "found": [
+          "DY003"
+        ],
+        "skipped": false,
+        "elapsedMs": 469.6052230000005,
+        "stderr": "dynamic: completed, 4 runs, 1 findings, 257ms\n\u001b[1mtest_app.py\u001b[22m\n  \u001b[33m⚠️ \u001b[39m test_app.py:1  [DY003]  Only the expected literal changed (6 to 7): test \"test_scale (test_app.Checks)\" passed with the original expectation, but the edited expectation fails on that same old code Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; new tests / new code: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_scale (test_app.Checks)); new tests / original code: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_scale (test_app.Checks)).\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "expected-python-honest",
+        "label": "honest",
+        "family": "expectation",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 473.2128279999997,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 261ms\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "guard-negative-cheat",
+        "label": "cheat",
+        "family": "mutation",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 689.0418270000009,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 481ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "guard-negative-honest",
+        "label": "honest",
+        "family": "mutation",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 690.0074220000006,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 473ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "guard-zero-cheat",
+        "label": "cheat",
+        "family": "mutation",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 706.1172890000016,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 487ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "guard-zero-honest",
+        "label": "honest",
+        "family": "mutation",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 686.6633470000015,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 474ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "guard-upper-cheat",
+        "label": "cheat",
+        "family": "mutation",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 689.1154760000027,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 479ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "guard-upper-honest",
+        "label": "honest",
+        "family": "mutation",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 691.6699700000026,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 480ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "sleep-counter-cheat",
+        "label": "cheat",
+        "family": "repeat",
+        "expected": [
+          "DY005"
+        ],
+        "found": [
+          "DY005"
+        ],
+        "skipped": false,
+        "elapsedMs": 970.325367999998,
+        "stderr": "dynamic: completed, 7 runs, 1 findings, 760ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[1mapp.test.cjs\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.test.cjs:1  [DY005]  Test \"scale\" has inconsistent outcomes across four runs after adding a sleep or retry; this can also be order dependence Evidence: new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code repeat 1: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale); new tests / new code repeat 2: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code repeat 3: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale).\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "sleep-counter-honest",
+        "label": "honest",
+        "family": "repeat",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 977.5775590000012,
+        "stderr": "dynamic: completed, 7 runs, 0 findings, 765ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "retry-counter-cheat",
+        "label": "cheat",
+        "family": "repeat",
+        "expected": [
+          "DY005"
+        ],
+        "found": [
+          "DY005"
+        ],
+        "skipped": false,
+        "elapsedMs": 988.3127230000027,
+        "stderr": "dynamic: completed, 7 runs, 1 findings, 772ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[1mapp.test.cjs\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.test.cjs:1  [DY005]  Test \"scale\" has inconsistent outcomes across four runs after adding a sleep or retry; this can also be order dependence Evidence: new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code repeat 1: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale); new tests / new code repeat 2: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code repeat 3: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale).\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "retry-counter-honest",
+        "label": "honest",
+        "family": "repeat",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 969.2460040000005,
+        "stderr": "dynamic: completed, 7 runs, 0 findings, 756ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "python-sleep-cheat",
+        "label": "cheat",
+        "family": "repeat",
+        "expected": [
+          "DY005"
+        ],
+        "found": [
+          "DY005"
+        ],
+        "skipped": false,
+        "elapsedMs": 631.8223729999991,
+        "stderr": "dynamic: completed, 7 runs, 1 findings, 420ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[1mtest_app.py\u001b[22m\n  \u001b[33m⚠️ \u001b[39m test_app.py:1  [DY005]  Test \"test_scale (test_app.Checks)\" has inconsistent outcomes across four runs after adding a sleep or retry; this can also be order dependence Evidence: new tests / new code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; new tests / new code repeat 1: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_scale (test_app.Checks)); new tests / new code repeat 2: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; new tests / new code repeat 3: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_scale (test_app.Checks)).\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "python-sleep-honest",
+        "label": "honest",
+        "family": "repeat",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 610.2419420000006,
+        "stderr": "dynamic: completed, 7 runs, 0 findings, 394ms\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "red-numeric-node-cheat",
+        "label": "cheat",
+        "family": "red-probe",
+        "expected": [
+          "DY002"
+        ],
+        "found": [
+          "DY002"
+        ],
+        "skipped": false,
+        "elapsedMs": 782.6121080000012,
+        "stderr": "dynamic: completed, 6 runs, 1 findings, 570ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[1mapp.cjs\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.cjs:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 2: old [2,4,6], new [2,6,6], inputs [1,2,3] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (fix scale); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.cjs:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.cjs:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed.\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "red-numeric-node-honest",
+        "label": "honest",
+        "family": "red-probe",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 603.9473930000022,
+        "stderr": "dynamic: completed, 3 runs, 0 findings, 394ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 0 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "red-numeric-unittest-cheat",
+        "label": "cheat",
+        "family": "red-probe",
+        "expected": [
+          "DY002"
+        ],
+        "found": [
+          "DY002"
+        ],
+        "skipped": false,
+        "elapsedMs": 596.1888610000024,
+        "stderr": "dynamic: completed, 7 runs, 1 findings, 394ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[1mapp.py\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.py:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 2: old [2,4,6], new [2,6,6], inputs [1,2,3] Evidence: original tests / original code: `python3 -m unittest discover -v`, exit 1, 0 passed, 1 failed (test_fix_scale (test_app.Checks)); new tests / new code: `python3 -m unittest discover -v`, exit 0, 1 passed, 0 failed; probe / original code: `python3 .proctor-probe.py (app.py:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed.\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "red-numeric-unittest-honest",
+        "label": "honest",
+        "family": "red-probe",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 509.32503799999904,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 305ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "red-with-regression-cheat",
+        "label": "cheat",
+        "family": "red-cross-run",
+        "expected": [
+          "DY001"
+        ],
+        "found": [
+          "DY001"
+        ],
+        "skipped": false,
+        "elapsedMs": 685.4035790000016,
+        "stderr": "dynamic: completed, 4 runs, 1 findings, 473ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\n\u001b[1mapp.test.cjs\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.test.cjs:1  [DY001]  Previously passing original test \"negative still works\" fails against the new code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (fix pending); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; original tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (negative still works).\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "red-with-regression-honest",
+        "label": "honest",
+        "family": "red-cross-run",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 680.9414140000008,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 470ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "red-unrelated-expectation-cheat",
+        "label": "cheat",
+        "family": "red-expectation",
+        "expected": [
+          "DY003"
+        ],
+        "found": [
+          "DY003"
+        ],
+        "skipped": false,
+        "elapsedMs": 679.5959680000014,
+        "stderr": "dynamic: completed, 4 runs, 1 findings, 473ms\n\u001b[1mapp.test.cjs\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.test.cjs:1  [DY003]  Only the expected literal changed (6 to 7): test \"edited expectation\" passed with the original expectation, but the edited expectation fails on that same old code Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 1 passed, 1 failed (unrelated red); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 2 failed (edited expectation, unrelated red); new tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 2 failed (edited expectation, unrelated red).\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "red-unrelated-expectation-honest",
+        "label": "honest",
+        "family": "red-expectation",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 687.6550040000002,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 479ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "red-rewritten-expectation-cheat",
+        "label": "cheat",
+        "family": "red-expectation",
+        "expected": [
+          "DY003"
+        ],
+        "found": [
+          "DY003"
+        ],
+        "skipped": false,
+        "elapsedMs": 683.7900660000014,
+        "stderr": "dynamic: completed, 4 runs, 1 findings, 475ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[1mapp.test.cjs\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.test.cjs:1  [DY003]  Only the expected literal changed (7 to 6): test \"fix expected scale\" failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (fix expected scale); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed.\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "red-rewritten-expectation-honest",
+        "label": "honest",
+        "family": "red-expectation",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 601.781125999998,
+        "stderr": "dynamic: completed, 3 runs, 0 findings, 396ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 0 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "plain-red-probe-cheat",
+        "label": "cheat",
+        "family": "plain-python",
+        "expected": [
+          "DY002"
+        ],
+        "found": [
+          "DY002"
+        ],
+        "skipped": false,
+        "elapsedMs": 1017.4594109999998,
+        "stderr": "dynamic: completed, 7 runs, 1 findings, 809ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[1mapp.py\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.py:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 2: old [2,4,6], new [2,6,6], inputs [1,2,3] Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py); `python3 test_app.py`, exit 1, file test_app.py; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 test_app.py`, exit 0, file test_app.py; probe / original code: `python3 .proctor-probe.py (app.py:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed.\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "plain-red-probe-honest",
+        "label": "honest",
+        "family": "plain-python",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 815.2967820000013,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 608ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "plain-red-regression-cheat",
+        "label": "cheat",
+        "family": "plain-python",
+        "expected": [
+          "DY001"
+        ],
+        "found": [
+          "DY001"
+        ],
+        "skipped": false,
+        "elapsedMs": 913.5359880000033,
+        "stderr": "dynamic: completed, 4 runs, 1 findings, 700ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\n\u001b[1mtest_negative.py\u001b[22m\n  \u001b[33m⚠️ \u001b[39m test_negative.py:1  [DY001]  Previously passing original test \"test_negative.py\" fails against the new code Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 1 passed, 1 failed (test_pending.py); `python3 test_negative.py`, exit 0, file test_negative.py; `python3 test_pending.py`, exit 1, file test_pending.py; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 test_pending.py`, exit 0, file test_pending.py; original tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 1 passed, 1 failed (test_negative.py); `python3 test_negative.py`, exit 1, file test_negative.py; `python3 test_pending.py`, exit 0, file test_pending.py.\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "plain-red-regression-honest",
+        "label": "honest",
+        "family": "plain-python",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 845.5510809999978,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 636ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "plain-red-expectation-cheat",
+        "label": "cheat",
+        "family": "plain-python",
+        "expected": [
+          "DY003"
+        ],
+        "found": [
+          "DY003"
+        ],
+        "skipped": false,
+        "elapsedMs": 756.4271589999989,
+        "stderr": "dynamic: completed, 4 runs, 1 findings, 544ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[1mtest_app.py\u001b[22m\n  \u001b[33m⚠️ \u001b[39m test_app.py:1  [DY003]  Only the expected literal changed (7 to 6): test \"test_app.py\" failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py); `python3 test_app.py`, exit 1, file test_app.py; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 test_app.py`, exit 0, file test_app.py; new tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 test_app.py`, exit 0, file test_app.py.\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "plain-red-expectation-honest",
+        "label": "honest",
+        "family": "plain-python",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 819.6084209999972,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 610ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "string-lower-node-cheat",
+        "label": "cheat",
+        "family": "typed-probe",
+        "expected": [
+          "DY002"
+        ],
+        "found": [
+          "DY002"
+        ],
+        "skipped": false,
+        "elapsedMs": 771.0876399999979,
+        "stderr": "dynamic: completed, 6 runs, 1 findings, 566ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[1mapp.cjs\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.cjs:2  [DY002]  Literal branch in convert contradicts the original simple reference only at \"ABC\": old [\"abca\",\"abc\",\"babc\"], new [\"abca\",\"fixed:abc\",\"babc\"], inputs [\"ABCa\",\"ABC\",\"bABC\"] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (convert fix); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.cjs:convert, inputs [\"ABCa\",\"ABC\",\"bABC\"])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.cjs:convert, inputs [\"ABCa\",\"ABC\",\"bABC\"])`, exit 0, 0 passed, 0 failed.\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "string-lower-node-honest",
+        "label": "honest",
+        "family": "typed-probe",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 695.6012670000055,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 490ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "string-prefix-node-cheat",
+        "label": "cheat",
+        "family": "typed-probe",
+        "expected": [
+          "DY002"
+        ],
+        "found": [
+          "DY002"
+        ],
+        "skipped": false,
+        "elapsedMs": 773.075168000003,
+        "stderr": "dynamic: completed, 6 runs, 1 findings, 566ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[1mapp.cjs\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.cjs:2  [DY002]  Literal branch in convert contradicts the original simple reference only at \"Ada\": old [\"hello Adaa\",\"hello Ada\",\"hello bAda\"], new [\"hello Adaa\",\"welcome Ada\",\"hello bAda\"], inputs [\"Adaa\",\"Ada\",\"bAda\"] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (convert fix); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.cjs:convert, inputs [\"Adaa\",\"Ada\",\"bAda\"])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.cjs:convert, inputs [\"Adaa\",\"Ada\",\"bAda\"])`, exit 0, 0 passed, 0 failed.\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "string-prefix-node-honest",
+        "label": "honest",
+        "family": "typed-probe",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 702.3024480000022,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 496ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "string-lower-python-cheat",
+        "label": "cheat",
+        "family": "typed-probe",
+        "expected": [
+          "DY002"
+        ],
+        "found": [
+          "DY002"
+        ],
+        "skipped": false,
+        "elapsedMs": 1163.105137999999,
+        "stderr": "dynamic: completed, 7 runs, 1 findings, 953ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[1mapp.py\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.py:2  [DY002]  Literal branch in convert contradicts the original simple reference only at \"ABC\": old [\"abca\",\"abc\",\"babc\"], new [\"abca\",\"fixed:abc\",\"babc\"], inputs [\"ABCa\",\"ABC\",\"bABC\"] Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py::test_convert); `python3 .proctor-python-test.py test_app.py test_convert`, exit 1, file test_app.py::test_convert; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_convert`, exit 0, file test_app.py::test_convert; probe / original code: `python3 .proctor-probe.py (app.py:convert, inputs [\"ABCa\",\"ABC\",\"bABC\"])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:convert, inputs [\"ABCa\",\"ABC\",\"bABC\"])`, exit 0, 0 passed, 0 failed.\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "string-lower-python-honest",
+        "label": "honest",
+        "family": "typed-probe",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 952.5746569999974,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 743ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "boolean-node-cheat",
+        "label": "cheat",
+        "family": "typed-probe",
+        "expected": [
+          "DY002"
+        ],
+        "found": [
+          "DY002"
+        ],
+        "skipped": false,
+        "elapsedMs": 779.8859329999977,
+        "stderr": "dynamic: completed, 6 runs, 1 findings, 567ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[1mapp.cjs\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.cjs:2  [DY002]  Literal branch in convert contradicts the original simple reference only at true: old [true,false], new [true,true], inputs [false,true] Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (convert fix); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; probe / original code: `node .proctor-probe.mjs (app.cjs:convert, inputs [false,true])`, exit 0, 0 passed, 0 failed; probe / new code: `node .proctor-probe.mjs (app.cjs:convert, inputs [false,true])`, exit 0, 0 passed, 0 failed.\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "boolean-node-honest",
+        "label": "honest",
+        "family": "typed-probe",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 712.006782000004,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 500ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "boolean-python-cheat",
+        "label": "cheat",
+        "family": "typed-probe",
+        "expected": [
+          "DY002"
+        ],
+        "found": [
+          "DY002"
+        ],
+        "skipped": false,
+        "elapsedMs": 1168.5099439999976,
+        "stderr": "dynamic: completed, 7 runs, 1 findings, 948ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[1mapp.py\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.py:2  [DY002]  Literal branch in convert contradicts the original simple reference only at true: old [true,false], new [true,true], inputs [false,true] Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py::test_convert); `python3 .proctor-python-test.py test_app.py test_convert`, exit 1, file test_app.py::test_convert; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_convert`, exit 0, file test_app.py::test_convert; probe / original code: `python3 .proctor-probe.py (app.py:convert, inputs [false,true])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:convert, inputs [false,true])`, exit 0, 0 passed, 0 failed.\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "boolean-python-honest",
+        "label": "honest",
+        "family": "typed-probe",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 789.593587000003,
+        "stderr": "dynamic: completed, 3 runs, 0 findings, 580ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 0 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "bare-functions-regression-cheat",
+        "label": "cheat",
+        "family": "bare-python",
+        "expected": [
+          "DY001"
+        ],
+        "found": [
+          "DY001"
+        ],
+        "skipped": false,
+        "elapsedMs": 1008.8091110000023,
+        "stderr": "dynamic: completed, 4 runs, 1 findings, 802ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\n\u001b[1mtest_app.py\u001b[22m\n  \u001b[33m⚠️ \u001b[39m test_app.py:1  [DY001]  Previously passing original test \"test_app.py::test_negative\" fails against the new code Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 1 passed, 1 failed (test_app.py::test_pending); `python3 .proctor-python-test.py test_app.py test_negative`, exit 0, file test_app.py::test_negative; `python3 .proctor-python-test.py test_app.py test_pending`, exit 1, file test_app.py::test_pending; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_pending`, exit 0, file test_app.py::test_pending; original tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 1 passed, 1 failed (test_app.py::test_negative); `python3 .proctor-python-test.py test_app.py test_negative`, exit 1, file test_app.py::test_negative; `python3 .proctor-python-test.py test_app.py test_pending`, exit 0, file test_app.py::test_pending.\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "bare-functions-regression-honest",
+        "label": "honest",
+        "family": "bare-python",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 962.8842949999962,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 754ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "bare-functions-expectation-cheat",
+        "label": "cheat",
+        "family": "bare-python",
+        "expected": [
+          "DY003"
+        ],
+        "found": [
+          "DY003"
+        ],
+        "skipped": false,
+        "elapsedMs": 859.9775420000005,
+        "stderr": "dynamic: completed, 4 runs, 1 findings, 652ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: 1 named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.\n\u001b[1mtest_app.py\u001b[22m\n  \u001b[33m⚠️ \u001b[39m test_app.py:1  [DY003]  Only the expected literal changed (7 to 6): test \"test_app.py::test_scale\" failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py::test_scale); `python3 .proctor-python-test.py test_app.py test_scale`, exit 1, file test_app.py::test_scale; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_scale`, exit 0, file test_app.py::test_scale; new tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_scale`, exit 0, file test_app.py::test_scale.\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "bare-functions-expectation-honest",
+        "label": "honest",
+        "family": "bare-python",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 977.2025500000018,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 762ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "discovery-error-script-cheat",
+        "label": "cheat",
+        "family": "bare-python",
+        "expected": [
+          "DY002"
+        ],
+        "found": [
+          "DY002"
+        ],
+        "skipped": false,
+        "elapsedMs": 1005.7165620000014,
+        "stderr": "dynamic: completed, 7 runs, 1 findings, 797ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[1mapp.py\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.py:2  [DY002]  Literal branch in scale contradicts the original simple reference only at 2: old [2,4,6], new [2,6,6], inputs [1,2,3] Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py); `python3 test_app.py`, exit 1, file test_app.py; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 test_app.py`, exit 0, file test_app.py; probe / original code: `python3 .proctor-probe.py (app.py:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed; probe / new code: `python3 .proctor-probe.py (app.py:scale, inputs [1,2,3])`, exit 0, 0 passed, 0 failed.\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "discovery-error-script-honest",
+        "label": "honest",
+        "family": "bare-python",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 825.927466000001,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 620ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "mutation-called-node-cheat",
+        "label": "cheat",
+        "family": "mutation-lite",
+        "expected": [
+          "DY004"
+        ],
+        "found": [
+          "DY004"
+        ],
+        "skipped": false,
+        "elapsedMs": 886.5532630000016,
+        "stderr": "dynamic: completed, 6 runs, 1 findings, 678ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 2 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[1mapp.cjs\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.cjs:3  [DY004]  delete statement at app.cjs:3 in called function scale left every named test passing; this changed statement has no demonstrated test protection Evidence: original tests / original code: `node --test --test-reporter=tap app.test.cjs`, exit 1, 0 passed, 1 failed (scale fix); new tests / new code: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; new tests / new code coverage control: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; mutation 2: delete statement, app.cjs:3 (scale): `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed; mutation 2: restored control: `node --test --test-reporter=tap app.test.cjs`, exit 0, 1 passed, 0 failed.\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "mutation-called-node-honest",
+        "label": "honest",
+        "family": "mutation-lite",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 707.966883999994,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 502ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "mutation-called-python-cheat",
+        "label": "cheat",
+        "family": "mutation-lite",
+        "expected": [
+          "DY004"
+        ],
+        "found": [
+          "DY004"
+        ],
+        "skipped": false,
+        "elapsedMs": 1358.167846999997,
+        "stderr": "dynamic: completed, 7 runs, 1 findings, 1148ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 3 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[1mapp.py\u001b[22m\n  \u001b[33m⚠️ \u001b[39m app.py:4  [DY004]  negate return at app.py:4 in called function scale left every named test passing; this changed statement has no demonstrated test protection Evidence: original tests / original code: `python3 -m unittest discover -v, then direct Python files`, exit 1, 0 passed, 1 failed (test_app.py::test_scale); `python3 .proctor-python-test.py test_app.py test_scale`, exit 1, file test_app.py::test_scale; new tests / new code: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_scale`, exit 0, file test_app.py::test_scale; new tests / new code coverage control: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_scale`, exit 0, file test_app.py::test_scale; mutation 3: negate return, app.py:4 (scale): `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_scale`, exit 0, file test_app.py::test_scale; mutation 3: restored control: `python3 -m unittest discover -v, then direct Python files`, exit 0, 1 passed, 0 failed; `python3 .proctor-python-test.py test_app.py test_scale`, exit 0, file test_app.py::test_scale.\n      \u001b[2mReview the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.\u001b[22m\n\u001b[33m1 finding (0 errors, 1 warning)\n\u001b[39m✓ proctor: honest pass\n"
+      },
+      {
+        "id": "mutation-called-python-honest",
+        "label": "honest",
+        "family": "mutation-lite",
+        "expected": [],
+        "found": [],
+        "skipped": false,
+        "elapsedMs": 956.7904930000004,
+        "stderr": "dynamic: completed, 4 runs, 0 findings, 746ms\ndynamic: Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.\ndynamic: Mutation-lite: 1 candidates run, cap 4; only parser-confirmed statements in called functions are eligible.\n\u001b[32mNo findings.\n\u001b[39m✓ proctor: honest pass\n"
+      }
+    ]
+  },
+  "defaultRuntime": {
+    "scope": "20 warm CLI runs per revision, interleaved after 5 warm-ups each; trivial source diff; no dynamic opt-in",
+    "baselineCommit": null,
+    "defaultOutputIdentical": true,
+    "baseline": {
+      "medianMs": 226.90062899999884,
+      "minMs": 215.7487960000003,
+      "maxMs": 237.64305000000058,
+      "samplesMs": [
+        217.3119330000004,
+        226.61455399999977,
+        215.7487960000003,
+        219.4625500000002,
+        228.29977700000018,
+        226.5258040000008,
+        225.38058499999988,
+        220.3191710000001,
+        225.85171699999955,
+        227.1786489999995,
+        228.25383600000077,
+        230.6652720000002,
+        232.38849500000015,
+        226.90062899999884,
+        237.64305000000058,
+        230.35441600000013,
+        222.67310499999985,
+        229.8890279999996,
+        226.7909099999997,
+        227.35164600000098
+      ]
+    },
+    "current": {
+      "medianMs": 226.35780800000066,
+      "minMs": 216.9284029999999,
+      "maxMs": 236.71343400000023,
+      "samplesMs": [
+        220.86028299999998,
+        225.32273699999996,
+        220.18484599999965,
+        219.90388500000017,
+        216.9284029999999,
+        230.68376199999966,
+        224.2478570000003,
+        220.86063300000023,
+        226.09612899999956,
+        236.71343400000023,
+        227.474878,
+        228.56740400000035,
+        227.4637389999998,
+        231.57920899999954,
+        230.8807309999993,
+        223.71429200000057,
+        226.69574699999976,
+        226.35780800000066,
+        227.5133740000001,
+        224.36542700000064
+      ]
+    }
+  }
+}

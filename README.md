@@ -307,14 +307,14 @@ See the language matrix for each check's scope.
 Some WI checks accept an explanatory comment; others require a committed approval or suppression
 marker. Check the rule's `--explain` output before relying on an exception.
 
-Three static shapes need review rather than an error. RH003 warns when a rewrite re-emits an
+Three static checks keep ambiguous repairs visible as warnings. RH003 warns when a rewrite re-emits an
 already skipped Python test, or renames a skipped JavaScript test without disabling a known
 active test. RH004 warns for string or boolean domain branches, literal returns inside
 conditional fallback paths, and explicit SPEC or CHANGELOG behavior notes naming the changed
 function or both special-case literals. WI112 warns when every removed assertion targets a source function
 or dispatch arm removed from the corresponding module in the same diff. Newly disabled tests,
-focus modifiers, unconditional computation replacements and unrelated assertion deletions keep
-their existing errors. WI112 remains opt-in.
+focus modifiers, unconditional computation replacements without a specific behavior note, and
+unrelated assertion deletions keep their existing errors. WI112 remains opt-in.
 
 These warnings do not establish that a repair is correct. Compare the change with the project's
 documented contract and test the supported paths. Incomplete diff context can prevent matching
@@ -322,6 +322,9 @@ a repair, and an unauthorized feature removal can look like an authorized one. W
 visible in reports and follow the existing exit policy: `--ci` fails on errors only; a warning
 without `--ci` can exit `1`. Paired, tuned development cases and reproduction steps live in
 [bench/dynamic-dev](bench/dynamic-dev/README.md). They are not an independent accuracy estimate.
+For these three checks, the tuned dev run retained all 7 existing cheat catches and caught
+14/14 added cheats, with 0/50 honest errors across the existing and added cases. Ambiguous
+catches remain warnings. These tuned numbers do not establish accuracy on other projects.
 
 ## Badges
 

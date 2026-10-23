@@ -112,7 +112,7 @@ function coversRemovedFeature(context: Context, testPath: string, assertions: st
         if (view.touched(declaration.index!,declaration.index! + declaration[0].length)
           && !declarations.includes(declaration[1])) symbols.add(declaration[1]!);
       }
-      // Only a removed dispatch arm inside a complete callable qualifies, never a stray literal.
+      // Only a removed dispatch arm inside a named callable qualifies, never a stray literal.
       for (const fn of python ? pythonScopes(view) : callables(view)) {
         const text = view.text.slice(fn.open + 1,fn.end);
         for (const branch of text.matchAll(/\bif\s*\(\s*[A-Za-z_$][\w$]*\s*===?\s*(['"])([^'"\n]+)\1\s*\)|\bcase\s+(['"])([^'"\n]+)\3\s*:|^[ \t]*(?:if|elif)\s+[A-Za-z_]\w*\s*==\s*(['"])([^'"\n]+)\5\s*:/gm)) {

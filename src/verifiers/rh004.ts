@@ -404,8 +404,10 @@ function stringBranches(view: SourceView, python: boolean, parse: ExpressionPars
     if (close < 0 || close - start > 4096) continue;
     const conditionText = view.text.slice(start,close);
     const condition = expression(conditionText,parse);
-    if (condition?.type !== 'BinaryExpression' || !['==','==='].includes(condition.operator) || conditionText.slice(condition.end).trim()) continue;
+    if (condition?.type !== 'BinaryExpression' || condition.left.type === 'PrivateIdentifier'
+      || !['==','==='].includes(condition.operator) || conditionText.slice(condition.end).trim()) continue;
     const left = literalValue(condition.left,python), right = literalValue(condition.right,python);
+    if (left !== undefined && right !== undefined) continue;
     const key = typeof right === 'string' ? right : typeof left === 'string' ? left : undefined;
     if (key === undefined || !key) continue;
     let body = close + 1;

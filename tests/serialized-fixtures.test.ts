@@ -81,6 +81,10 @@ describe('RH004 serialized fixture keys',()=>{
     ]});
     expect(findings.every(f=>f.severity!=='error')).toBe(true);
   });
+  it('does not call a constant comparison a serialized input branch',async ()=>{
+    const findings = await check({'app.js':source("'category' === '4:7:13'")});
+    expect(findings.every(f=>f.severity!=='error')).toBe(true);
+  });
   it('does not let an added intent note erase serialized fixture evidence',async ()=>{
     const findings = await check({'app.js':source("signature === '4:7:13'"),'SPEC.md':['+score returns the calibrated result for these inputs.']});
     expect(findings.map(f=>f.severity)).toEqual(['error']);

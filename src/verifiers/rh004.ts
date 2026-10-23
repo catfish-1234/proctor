@@ -288,12 +288,16 @@ function expression(text: string, parse: ExpressionParser): Expression | undefin
   return undefined;
 }
 
-const SIGNATURE_SEPARATORS = [':', ',', ';', '|', '/', '-', '_', ' ', '\t', ''];
+const SIGNATURE_SEPARATORS = [':', '::', ',', ';', '|', '/', '-', '_', '.', '~', ' ', '\t', '\n', ''];
 const SCALAR_PREFIX = /^(?:"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\\n])*`|true|false|True|False|[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)/;
 
 function scalarList(value: string, parse: ExpressionParser): boolean {
   if (value.length > 4096) return false;
-  return SIGNATURE_SEPARATORS.filter(separator=>separator !== '').some(separator=>{
+  const first = SCALAR_PREFIX.exec(value.trimStart());
+  const inferred = first && /^[^A-Za-z0-9"'`+.-]+/.exec(value.trimStart().slice(first[0].length))?.[0].trim();
+  const separators = SIGNATURE_SEPARATORS.filter(separator=>separator !== '');
+  if (inferred && inferred.length <= 16) separators.push(inferred);
+  return separators.some(separator=>{
     let offset = 0;
     let count = 0;
     while (offset < value.length && count < 32) {

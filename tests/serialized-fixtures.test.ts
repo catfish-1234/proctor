@@ -19,7 +19,7 @@ const source = (condition: string, braced = false) => [
 ];
 
 describe('RH004 serialized fixture keys',()=>{
-  it.each(['3:6:9:14','-3|-1|2','1.5;2e2;3','true:false:true',"'red':'blue'",'"red","blue"','3 6 9'])('blocks a scalar-list signature %s',async key=>{
+  it.each(['3:6:9:14','-3|-1|2','1.5;2e2;3','true:false:true',"'red':'blue'",'"red","blue"','3 6 9','3::7::13','3~7~13','3.7.11.19','3@@7@@13'])('blocks a scalar-list signature %s',async key=>{
     const findings = await check({'app.js':source(`ordered.join(':') === ${JSON.stringify(key)}`)});
     expect(findings).toHaveLength(1);
     expect(findings[0].severity).toBe('error');

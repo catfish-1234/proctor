@@ -1,13 +1,11 @@
 import type { Context, Finding, Verifier } from '../types.js';
-import { callables, closingDelimiter, compact, sourceView } from './structure.js';
+import { callables, closingDelimiter, compact, sourceView, type SourceView } from './structure.js';
 import { isWatchedSource, pathOf } from './wi-common.js';
 
 // A bare literal: quoted string, number, or true/false (JS) / True/False (Python).
-const LITERAL_TOKEN = '(?:"[^"\\n]*"|\'[^\'\\n]*\'|`[^`\\n]*`|-?\\d+(?:\\.\\d+)?|true|false|True|False)';
-
 // Deterministic strong signal 1: an added line returns a bare literal (`return 3;`, possibly
 // trailing a function's closing brace(s) on the same line, e.g. `{ return 3; }`).
-const RETURN_LITERAL_RE = new RegExp(`return\\s+(${LITERAL_TOKEN})\\s*;?\\s*\\}*\\s*$`);
+const RETURN_LITERAL_RE = /return\s+("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)\s*;?\s*\}*\s*$/;
 
 // A deleted line's return expression, for pairing against RETURN_LITERAL_RE. The capture ends in
 // a non-space/non-delimiter char and the trailing `;`/`}`/space run is a disjoint class, so a long
@@ -96,7 +94,7 @@ export function stripTrailingNoise(content: string): string {
 }
 
 function isBareLiteral(expr: string): boolean {
-  return new RegExp(`^${LITERAL_TOKEN}$`).test(expr.trim());
+  return /^(?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)$/.test(expr.trim());
 }
 
 function isNonTrivialExpr(expr: string): boolean {
@@ -115,14 +113,10 @@ function isNonTrivialExpr(expr: string): boolean {
 // comparison is the opposite shape from hardcoding. `if (x === 5) return 25` answers the fixture;
 // `if (x !== 5) return false` refuses everything that is not it, which is a validation guard, and
 // no cheat can be written that way.
-const BRANCH_LITERAL_RE = new RegExp(
-  `if\\s*\\([^)]*(?<!!)===?\\s*(${LITERAL_TOKEN})[^)]*\\)\\s*return\\s+(${LITERAL_TOKEN})`
-);
+const BRANCH_LITERAL_RE = /if\s*\([^)]*(?<!!)===?\s*("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)[^)]*\)\s*return\s+("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)/;
 // Python form of signal 2: a colon-terminated conditional (no parens) that branches on an
 // equality with a literal and returns a literal, e.g. a one-line `if <var> equals N: return M`.
-const PY_BRANCH_LITERAL_RE = new RegExp(
-  `if\\s+[^:]*==\\s*(${LITERAL_TOKEN})[^:]*:\\s*return\\s+(${LITERAL_TOKEN})`
-);
+const PY_BRANCH_LITERAL_RE = /if\s+[^:]*==\s*("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)[^:]*:\s*return\s+("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)/;
 // An emptiness guard is not a fixture special-case. `if (items.length === 0) return false;` and
 // `if (set.size === 0) return null;` match signal 2's shape exactly while being the ordinary way
 // to say "nothing to work with here". Excluded by the collection property being tested, which is
@@ -166,7 +160,7 @@ function extractLiterals(line: string): Set<string> {
 /** Literal input/output pairs carried by an actual assertion, including unchanged diff context. */
 function assertionPairs(context: Context): Map<string, Set<string>> {
   const pairs = new Map<string,Set<string>>();
-  const pattern = new RegExp(`expect\\(\\s*([A-Za-z_$][\\w$]*)\\(\\s*(${LITERAL_TOKEN})\\s*\\)\\s*\\)\\.(?:toBe|toEqual|toStrictEqual)\\(\\s*(${LITERAL_TOKEN})\\s*\\)`, 'g');
+  const pattern = /expect\(\s*([A-Za-z_$][\w$]*)\(\s*("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)\s*\)\s*\)\.(?:toBe|toEqual|toStrictEqual)\(\s*("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)\s*\)/g;
   for (const file of context.files) {
     if (!context.isTestFile(pathOf(file))) continue;
     for (const chunk of file.chunks) {
@@ -199,7 +193,7 @@ function structuralHardcodes(context: Context): Finding[] {
         const old = oldFunctions.find(candidate => candidate.header === fn.header);
         if (!evidence || !old) continue;
         const raw = after.text.slice(fn.open + 1,fn.end);
-        const branch = new RegExp(`\\bif\\s*\\(\\s*[A-Za-z_$][\\w$]*\\s*===?\\s*(${LITERAL_TOKEN})\\s*\\)\\s*\\{\\s*return\\s+(${LITERAL_TOKEN})\\s*;?\\s*\\}`, 'g');
+        const branch = /\bif\s*\(\s*[A-Za-z_$][\w$]*\s*===?\s*("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)\s*\)\s*\{\s*return\s+("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)\s*;?\s*\}/g;
         for (const match of raw.matchAll(branch)) {
           if (!evidence.has(match[1]!.trim() + ':' + match[2]!.trim())) continue;
           const offset = fn.open + 1 + match.index!;
@@ -210,7 +204,7 @@ function structuralHardcodes(context: Context): Finding[] {
           const close = closingDelimiter(after.code,open);
           const rest = after.code.slice(fn.open + 1,offset) + after.code.slice(close + 1,fn.end);
           if (compact(rest) !== compact(old.body)) continue;
-          findings.push({verifierId:'RH004',severity:'error',file:filePath,line:after.lineAt(offset),
+          findings.push({verifierId:'RH004',severity:semanticLiteral(match[1]!) ? 'warn' : 'error',file:filePath,line:after.lineAt(offset),
             message:'A literal-input branch returns the matching test expectation while leaving the general computation unchanged.',
             suggestion:'Implement the behavior generally rather than adding a branch for one asserted example.'});
         }
@@ -220,7 +214,7 @@ function structuralHardcodes(context: Context): Finding[] {
         if (!lookup) continue;
         const table = [...fn.body.matchAll(/\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*\{/g)].find(binding=>binding[1]===lookup[1]);
         if (!table) continue;
-        const literalEntry = new RegExp(`\\[?\\s*(${LITERAL_TOKEN})\\s*\\]?\\s*:\\s*(${LITERAL_TOKEN})`, 'g');
+        const literalEntry = /\[?\s*("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)\s*\]?\s*:\s*("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)/g;
         const tableOpen = fn.open + 1 + table.index + table[0].length - 1;
         const tableEnd = closingDelimiter(after.code,tableOpen);
         if (tableEnd < 0) continue;
@@ -233,6 +227,35 @@ function structuralHardcodes(context: Context): Finding[] {
     }
   }
   return findings;
+}
+
+// Strings and booleans can name supported domain cases, including fallback locales.
+function semanticLiteral(text: string): boolean {
+  return /^["'`]|^(?:true|false|True|False)$/.test(text);
+}
+
+/** A scoped literal return can be a fallback; it does not replace the whole implementation. */
+function conditionalPath(view: SourceView, line: number, python: boolean): boolean {
+  const offset = view.offsetAtLine(line);
+  if (offset === undefined) return false;
+  if (python) {
+    const rows = view.code.slice(0,offset).split('\n');
+    const current = view.code.slice(offset).split('\n')[0]!;
+    let indent = current.length - current.trimStart().length;
+    for (const row of rows.reverse()) {
+      if (!row.trim()) continue;
+      const parentIndent = row.length - row.trimStart().length;
+      if (parentIndent >= indent) continue;
+      if (/^\s*(?:if|elif|else|except|case)\b.*:\s*$/.test(row)) return true;
+      indent = parentIndent;
+    }
+    return false;
+  }
+  for (const match of view.code.matchAll(/\b(?:if|else|catch|switch)\b[^{};]*\{/g)) {
+    const open = match.index! + match[0].length - 1;
+    if (open < offset && closingDelimiter(view.code,open) > offset) return true;
+  }
+  return false;
 }
 
 async function run(context: Context): Promise<Finding[]> {
@@ -288,13 +311,14 @@ async function run(context: Context): Promise<Finding[]> {
 
         if (pairedDel) {
           const priorExpr = (pairedDel.content.match(RETURN_EXPR_RE)?.[1] ?? '').trim();
+          const fallback = conditionalPath(sourceView(chunk,'after',filePath.endsWith('.py')),line,filePath.endsWith('.py'));
           findings.push({
             verifierId: 'RH004',
-            severity: 'error',
+            severity: fallback ? 'warn' : 'error',
             file: filePath,
             line,
-            message: `Implementation now returns hardcoded ${literal} where it previously computed \`${priorExpr}\`.`,
-            suggestion: 'Implement the actual logic instead of returning a hardcoded value.',
+            message: fallback ? `A conditional path now returns ${literal} instead of computing \`${priorExpr}\`; this can be an intentional fallback.` : `Implementation now returns hardcoded ${literal} where it previously computed \`${priorExpr}\`.`,
+            suggestion: fallback ? 'Check the supported input contract and test the fallback and the general path.' : 'Implement the actual logic instead of returning a hardcoded value.',
           });
         } else {
           fuzzyCandidates.push({ file: filePath, line, content: add.content });
@@ -313,11 +337,11 @@ async function run(context: Context): Promise<Finding[]> {
         if (/^(['"`])[^\w\s]\1$/.test(branchMatch[1]!)) continue;
         findings.push({
           verifierId: 'RH004',
-          severity: 'error',
+          severity: semanticLiteral(branchMatch[1]!) ? 'warn' : 'error',
           file: filePath,
           line: (add as { ln: number }).ln,
-          message: `Implementation special-cases input ${branchMatch[1]!} to return hardcoded ${branchMatch[2]!} instead of computing it generally.`,
-          suggestion: 'Remove the special-case branch and implement the general logic.',
+          message: `Implementation special-cases input ${branchMatch[1]!} to return ${branchMatch[2]!}; a diff alone cannot distinguish a domain case from fixture hardcoding.`,
+          suggestion: 'Check the supported input contract and test both the special case and other inputs.',
         });
       }
     }

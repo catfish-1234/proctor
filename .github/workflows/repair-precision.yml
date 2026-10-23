@@ -1,0 +1,59 @@
+name: Repair precision dev checks
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  tuned-dev:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install test dependencies
+        run: |
+          npm ci
+          sudo apt-get update -qq
+          sudo apt-get install -y bubblewrap python3-pytest
+      - name: Typecheck and lint
+        run: |
+          npm run typecheck
+          npm run lint
+      - name: Full tests with runtime isolation available
+        run: npm test
+      - name: Build main baseline
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/proctor-baseline" "$BASE_SHA"
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$RUNNER_TEMP/proctor-baseline/node_modules"
+          npm run build --prefix "$RUNNER_TEMP/proctor-baseline"
+      - name: Measure tuned static repair twins and retained catches
+        run: |
+          mkdir -p work
+          node bench/dynamic-dev/measure-repairs.mjs "$RUNNER_TEMP/proctor-baseline/dist/cli.js" > work/repairs-before.json
+          PROCTOR_VERIFY_REPAIRS=1 node bench/dynamic-dev/measure-repairs.mjs dist/cli.js work/repairs-before.json > work/repairs-after.json
+      - name: Retain existing tuned dynamic catches
+        run: node bench/dynamic-dev/run.mjs > work/dynamic-results.json
+      - name: PR-range self-check
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node dist/cli.js check --base "$BASE_SHA" --ci --json
+      - name: Print tuned measurements
+        if: always()
+        run: |
+          node --input-type=module <<'JS'
+          import {existsSync, readFileSync} from 'node:fs';
+          for (const file of ['work/repairs-before.json','work/repairs-after.json','work/dynamic-results.json']) {
+            if (!existsSync(file)) continue;
+            try {
+              const result = JSON.parse(readFileSync(file,'utf8'));
+              if (result.rows) console.log(JSON.stringify({file,...result}));
+            } catch { console.log(`${file}: measurement did not complete`); }
+          }
+          JS

@@ -65,10 +65,12 @@ Absolute host Node executable paths in the recorded commands are normalized to `
 
 ## Tuned static repair twins
 
-`repair-cases.mjs` adds 14 cheat/honest pairs for RH003, RH004 and WI112. These are authored,
-tuned development cases, not an independent evaluation. `measure-repairs.mjs` runs just those
-three static checks over both these 28 cases and the existing 72 cases. It compares case/rule
-catches against a separately built main baseline, requires every expected new cheat finding,
+`repair-cases.mjs` contains the original 14 cheat/honest pairs for RH003, RH004 and WI112.
+It also includes `serialized-cases.mjs`: seven serialized-key cheat/honest pairs and three
+extra honest domain/catch controls. These are authored, tuned development cases, not an
+independent evaluation. `measure-repairs.mjs` runs just those three static checks over the
+45 repair cases and the existing 72 cases. It compares case/rule findings against a separately
+built main baseline, requires each expected finding with its stated severity,
 and rejects any honest error. Under verification it also executes every new honest suite with
 Node or Python standard libraries. Warnings are allowed. No original cases or tests were changed.
 
@@ -89,27 +91,36 @@ Tuned results for the **three selected static checks**, comparing main with this
 | Cohort | Cheat catches before / after | Cheat errors before / after | Honest errors before / after |
 |--------|-----------------------------|-----------------------------|------------------------------|
 | Existing 36 cheat / 36 honest cases | 7 / 7 | 7 / 4 | 3 / 0 |
-| Added 14 cheat / 14 honest twins | 14 / 14 | 14 / 13 | 13 / 0 |
+| Repair set: 21 cheat / 24 honest cases | 19 / 21 | 19 / 20 | 16 / 0 |
 
-All prior case/rule catches remain. Three existing string/boolean branches and one added domain
-branch become warnings because their diff shapes also describe honest repairs. Across the two
-cohorts there are **0/50 honest errors** from these three checks. This does not measure other
-static verifiers or establish zero false positives on other projects.
+The seven original case/rule findings remain visible on these authored cases only. Three are
+warnings, and one repair-set domain branch also warns. Finding presence and blocking severity
+are different measurements. Across both cohorts there are **0/60 honest errors** from these
+three checks. This does not measure other verifiers or establish zero false positives elsewhere.
+The earlier 14-pair tuned run did not establish retention of blocking catches on other inputs.
+An independent report identified a lost RH004 error for a serialized fixture key, prompting
+these new regressions. No private evaluation corpus was read or remeasured.
 
 | Added twin family | Tuned cheat catches | Tuned honest errors |
 |-------------------|---------------------|---------------------|
 | RH003 skipped fixture setup | 3/3, all errors | 0/3 |
-| RH004 locale fallback and documented behavior | 7/7, 6 errors and 1 warning | 0/7 |
+| RH004 locale, documented behavior and serialization | 14/14, 13 errors and 1 warning | 0/17 |
 | WI112 channel removal | 4/4, all errors | 0/4 |
+
+The seven new serialized-key cheats all produce errors. They cover numeric, boolean and quoted
+scalar lists, string-array joins, template interpolation, and JSON with a binding or a direct
+call. Their seven honest twins compute the general result. Three additional honest controls
+exercise a domain locale, the `UnsupportedLocale` catch fallback with a SPEC note, and a scalar
+list inside a catch fallback. All ten new honest cases execute successfully and have no errors.
 
 The unchanged dynamic checks still find **32/36 cheats**, with **0/36 honest findings** and
 **0 skips** on the original tuned set. The worker and dynamic gates are unchanged.
-The hosted Linux run passed **76 test files and 1,922 tests**, without skips, plus build,
+The hosted Linux run passed **77 test files and 1,962 tests**, without skips, plus build,
 typecheck, lint and the PR-range self-check.
 
 On the separate default CLI timing fixture, output and exit status were identical. Twenty
-warm runs per revision, interleaved after five warm-ups each, measured medians of **226.9 ms
-before and 226.4 ms after**. This is a tuned single-fixture measurement on one hosted Linux
+warm runs per revision, interleaved after five warm-ups each, measured medians of **106.4 ms
+before and 107.4 ms after**. This is a tuned single-fixture measurement on one hosted Linux
 runner, within run-to-run variation. It is not a general performance claim.
 
 Limits: these gates read diff evidence, not the full project contract. A skip must have enough
@@ -123,6 +134,23 @@ covers simple quoted equality arms in JavaScript and Python, plus JavaScript swi
 Missing context and unsupported syntax can prevent a repair from matching. Notes can be
 misleading, and source removal cannot establish authorization. These ambiguous cases stay
 visible as warnings. Existing warning exit policy and explicit severity overrides still apply.
+
+Serialized-key matching parses expressions without executing project code. It accepts only
+literal scalars, arrays and objects; computed properties, spreads, getters, calls and dynamic
+template values are rejected as input fixtures. A standalone scalar list needs at least two
+values and a consistent delimiter. Other keys need an asserted composite input for the named
+function in a changed test hunk. Supported assertion forms include expect matchers, standard
+Node equality assertions, unittest equality calls and plain Python asserts. Common joins and
+JSON serializations include original, reversed and simple sorted array orders. Function names
+are matched from visible scope, without full import or type resolution. Missing context,
+aliases and unsupported syntax can cause misses. Existing branches changed only by formatting
+are not promoted. Catch/except scopes stay advisory; a behavior note does not demote a newly
+recognized serialized fixture key. Numeric-looking domain codes can also resemble scalar
+lists, so the classification still needs review and cannot prove intent.
+
+The parser loads only for relevant changed string branches. Expressions and keys are capped at
+4096 characters, literal nesting at six levels, collections at 32 items, assertions at 64 calls,
+and branch scanning at 128 conditions per hunk. These caps favor silence on larger inputs.
 
 ## Exact prototype limits
 

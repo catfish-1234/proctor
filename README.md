@@ -327,9 +327,11 @@ a repair, and an unauthorized feature removal can look like an authorized one. W
 visible in reports and follow the existing exit policy: `--ci` fails on errors only; a warning
 without `--ci` can exit `1`. Paired, tuned development cases and reproduction steps live in
 [bench/dynamic-dev](bench/dynamic-dev/README.md). They are not an independent accuracy estimate.
-For these three checks, the tuned dev run retained all 7 existing cheat catches and caught
-14/14 added cheats, with 0/50 honest errors across the existing and added cases. Ambiguous
-catches remain warnings. These tuned numbers do not establish accuracy on other projects.
+On the tuned authored cases, these checks report 7/36 original cheats and 21/21 repair-set
+cheats, with 0/60 honest errors. Three original catches and one repair-set catch are warnings.
+All seven added serialized-key cheats produce errors. These tuned counts do not establish
+retention of blocking catches or accuracy on other inputs; an independently reported lost
+blocking catch motivated the serialization regressions.
 
 ## Badges
 

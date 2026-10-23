@@ -353,6 +353,7 @@ function fixtureInputs(context: Context, parse: ExpressionParser): Map<string, M
         const open = view.code.indexOf('(',start + callee.length);
         const close = closingDelimiter(view.code,open,'(',')');
         if (open < 0 || close < 0 || close - start > 4096) continue;
+        if (match[0].startsWith('expect') && !/^\s*\)\s*\.(?:not\.)?(?:toBe|toEqual|toStrictEqual|toMatchObject|toHaveLength|toBeTruthy|toBeDefined)\s*\(/.test(view.code.slice(close + 1))) continue;
         const call = expression(view.text.slice(start,close + 1),parse);
         if (call?.type !== 'CallExpression') continue;
         const name = callee.split('.').at(-1)!;

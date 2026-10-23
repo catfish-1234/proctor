@@ -70,6 +70,7 @@ describe('RH004 serialized fixture keys',()=>{
     "const sample = \"assert.equal(score(['oak', 'elm']), 11);\";",
     "// assert.equal(score(['oak', 'elm']), 11);",
     "console.log(score(['oak', 'elm']));",
+    "expect(score(['oak', 'elm']));",
   ])('does not infer a composite fixture from %s',async assertion=>{
     const findings = await check({'app.js':source("signature === '[\"oak\",\"elm\"]'"),'app.test.js':['+' + assertion]});
     expect(findings.every(f=>f.severity!=='error')).toBe(true);

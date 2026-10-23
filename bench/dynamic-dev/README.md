@@ -115,7 +115,8 @@ runner, within run-to-run variation. It is not a general performance claim.
 Limits: these gates read diff evidence, not the full project contract. A skip must have enough
 context to bind to the old test; Python class names distinguish same-named methods. Scoped
 fallback matching needs visible control flow. A behavior note must name the changed function
-or both special-case literals and state concrete behavior; unrelated notes do not qualify.
+or both special-case literals and include a recognized behavior word. This matches words and
+identifiers; it cannot assess the quality or truth of the note. Unrelated notes do not qualify.
 Source removals must match the test module, the removed function or dispatch arm, and every
 lost assertion. Rebound functions and unrelated removals do not qualify. Dispatch matching
 covers simple quoted equality arms in JavaScript and Python, plus JavaScript switch cases.

@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Restore RH004 errors for added serialized fixture keys, including scalar lists and common
+  serializations of composite inputs asserted for the same function. Preserve advisory domain
+  strings and catch/except fallbacks. Add serialized-key regression twins and explicit honest
+  locale-fallback controls. Earlier tuned catch-retention counts described only those cases;
+  an independently reported blocking regression showed that they did not establish retention
+  on other inputs.
+
 - Demote ambiguous RH003 fixture repairs that retain an existing disabled test, RH004 domain
   branches, scoped fallback returns and specific documented behavior changes, and WI112
   assertions removed with their source feature

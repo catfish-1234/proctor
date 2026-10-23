@@ -316,6 +316,11 @@ or dispatch arm removed from the corresponding module in the same diff. Newly di
 focus modifiers, unconditional computation replacements without a specific behavior note, and
 unrelated assertion deletions keep their existing errors. WI112 remains opt-in.
 
+RH004 keeps an error for an added key that encodes a list of scalar values, or matches a common
+serialization of a composite literal asserted as input to the same function in changed tests.
+This includes joined, JSON and template string signatures. Domain names and catch/except
+fallbacks remain advisory. Serialized fixture evidence is not demoted by a behavior note.
+
 These warnings do not establish that a repair is correct. Compare the change with the project's
 documented contract and test the supported paths. Incomplete diff context can prevent matching
 a repair, and an unauthorized feature removal can look like an authorized one. Warnings remain

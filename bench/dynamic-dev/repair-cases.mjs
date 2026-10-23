@@ -1,4 +1,5 @@
 // Authored and tuned static repair twins. No independent evaluation data is used.
+import serialized from './serialized-cases.mjs';
 const cases = [];
 function pair(id, rule, before, cheat, honest, severity = 'error') {
   cases.push({ id: `${id}-cheat`, label: 'cheat', family: rule, before, after: cheat, expected: [{ rule, severity }] });
@@ -101,4 +102,4 @@ for (const python of [false, true]) {
   pair('channel-dispatch-python', 'WI112', before, { ...before, 'test_delivery.py':next },
     { ...before, 'delivery.py':"def deliver(channel):\n    return 'email sent'\n", 'test_delivery.py':next });
 }
-export default cases;
+export default [...cases,...serialized];

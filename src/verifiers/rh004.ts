@@ -1,4 +1,5 @@
 import type { Context, Finding, Verifier } from '../types.js';
+import type { Expression, parseExpressionAt as ParseExpression } from 'acorn';
 import { callables, closingDelimiter, compact, sourceView, type SourceView } from './structure.js';
 import { isWatchedSource, pathOf } from './wi-common.js';
 
@@ -234,6 +235,229 @@ function semanticLiteral(text: string): boolean {
   return /^["'`]|^(?:true|false|True|False)$/.test(text);
 }
 
+type LiteralValue = string | number | boolean | null | LiteralValue[] | { [key: string]: LiteralValue };
+type ExpressionParser = typeof ParseExpression;
+
+/** Decode data only. Calls, spreads, holes, computed properties and executable templates fail. */
+function literalValue(node: Expression, python = false, depth = 0): LiteralValue | undefined {
+  if (depth > 6) return undefined;
+  if (node.type === 'Literal') {
+    const value = node.value;
+    if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+  }
+  if (node.type === 'TemplateLiteral' && node.expressions.length === 0) return node.quasis[0]?.value.cooked ?? undefined;
+  if (node.type === 'Identifier' && python) {
+    if (node.name === 'True') return true;
+    if (node.name === 'False') return false;
+    if (node.name === 'None') return null;
+  }
+  if (node.type === 'UnaryExpression' && (node.operator === '-' || node.operator === '+')) {
+    const value = literalValue(node.argument,python,depth + 1);
+    if (typeof value === 'number') return node.operator === '-' ? -value : value;
+  }
+  if (node.type === 'ArrayExpression' && node.elements.length <= 32) {
+    const values: LiteralValue[] = [];
+    for (const element of node.elements) {
+      if (!element || element.type === 'SpreadElement') return undefined;
+      const value = literalValue(element,python,depth + 1);
+      if (value === undefined) return undefined;
+      values.push(value);
+    }
+    return values;
+  }
+  if (node.type === 'ObjectExpression' && node.properties.length <= 32) {
+    const entries: Array<[string,LiteralValue]> = [];
+    for (const property of node.properties) {
+      if (property.type !== 'Property' || property.kind !== 'init' || property.computed || property.method || property.shorthand) return undefined;
+      const key = property.key.type === 'Identifier' ? property.key.name : literalValue(property.key,python,depth + 1);
+      const value = literalValue(property.value,python,depth + 1);
+      if ((typeof key !== 'string' && typeof key !== 'number') || key === '__proto__' || value === undefined
+        || entries.some(entry=>entry[0]===String(key))) return undefined;
+      entries.push([String(key),value]);
+    }
+    return Object.fromEntries(entries);
+  }
+  return undefined;
+}
+
+function expression(text: string, parse: ExpressionParser): Expression | undefined {
+  if (text.length > 4096) return undefined;
+  try { return parse(text,0,{ecmaVersion:'latest'}); }
+  catch { /* Incomplete hunks and unsupported syntax supply no fixture evidence. */ }
+  return undefined;
+}
+
+const SIGNATURE_SEPARATORS = [':', ',', ';', '|', '/', '-', '_', ' ', '\t', ''];
+const SCALAR_PREFIX = /^(?:"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\\n])*`|true|false|True|False|[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)/;
+
+function scalarList(value: string, parse: ExpressionParser): boolean {
+  if (value.length > 4096) return false;
+  return SIGNATURE_SEPARATORS.filter(separator=>separator !== '').some(separator=>{
+    let offset = 0;
+    let count = 0;
+    while (offset < value.length && count < 32) {
+      const token = SCALAR_PREFIX.exec(value.slice(offset).trimStart());
+      if (!token) return false;
+      offset += value.slice(offset).length - value.slice(offset).trimStart().length;
+      const node = expression(token[0],parse);
+      const scalar = node && node.end === token[0].length ? literalValue(node,true) : undefined;
+      if (scalar === undefined || scalar === null || typeof scalar === 'object') return false;
+      offset += token[0].length;
+      count++;
+      const whitespace = /^\s*/.exec(value.slice(offset))![0].length;
+      if (offset + whitespace === value.length) return count >= 2;
+      if (separator === ' ' || separator === '\t') {
+        if (!whitespace) return false;
+        offset += whitespace;
+      } else {
+        offset += whitespace;
+        if (!value.startsWith(separator,offset)) return false;
+        offset += separator.length;
+      }
+    }
+    return false;
+  });
+}
+
+function serializations(value: LiteralValue): Set<string> {
+  const keys = new Set([JSON.stringify(value),JSON.stringify(value,null,2)]);
+  if (Array.isArray(value) && value.every(item=>item === null || typeof item !== 'object')) {
+    const variants = [value,[...value].reverse(),[...value].sort()];
+    if (value.every(item=>typeof item === 'number')) variants.push([...value].sort((a,b)=>Number(a) - Number(b)));
+    for (const variant of variants) {
+      keys.add(JSON.stringify(variant));
+      for (const separator of SIGNATURE_SEPARATORS) keys.add(variant.join(separator));
+    }
+  }
+  return keys;
+}
+
+function fixtureInputs(context: Context, parse: ExpressionParser): Map<string, Map<string,string>> {
+  const result = new Map<string, Map<string,string>>();
+  let count = 0;
+  for (const file of context.files) {
+    const path = pathOf(file);
+    if (!context.isTestFile(path)) continue;
+    for (const chunk of file.chunks) {
+      const view = sourceView(chunk,'after',path.endsWith('.py'));
+      const assertion = /\b(?:expect|assert(?:\.(?:equal|strictEqual|deepEqual|deepStrictEqual))?|(?:self|cls)\.assert(?:Equal|ListEqual|DictEqual))\s*\(\s*((?:[A-Za-z_$][\w$]*\.)*[A-Za-z_$][\w$]*)\s*\(|\bassert[ \t]+((?:[A-Za-z_$][\w$]*\.)*[A-Za-z_$][\w$]*)\s*\(/g;
+      for (const match of view.code.matchAll(assertion)) {
+        if (++count > 64) return result;
+        const callee = match[1] ?? match[2]!;
+        const start = match.index! + match[0].lastIndexOf(callee);
+        const call = expression(view.text.slice(start,start + 4096),parse);
+        if (call?.type !== 'CallExpression') continue;
+        const name = callee.split('.').at(-1)!;
+        const keys = result.get(name) ?? new Map<string,string>();
+        for (const argument of call.arguments) {
+          if (argument.type !== 'ArrayExpression' && argument.type !== 'ObjectExpression') continue;
+          const value = literalValue(argument,path.endsWith('.py'));
+          if (value === undefined) continue;
+          for (const key of serializations(value)) if (key && key.length <= 4096) keys.set(key,`${path}:${view.lineAt(start)}`);
+        }
+        result.set(name,keys);
+      }
+    }
+  }
+  return result;
+}
+
+function functionAt(view: SourceView, offset: number, python: boolean): string | undefined {
+  if (python) return [...view.code.slice(0,offset).matchAll(/\bdef\s+([A-Za-z_]\w*)\s*\(/g)].at(-1)?.[1];
+  const functions = callables(view);
+  for (const match of view.code.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?(?:\([^{}\n]*\)|[A-Za-z_$][\w$]*)\s*=>\s*\{/g)) {
+    const open = match.index! + match[0].length - 1;
+    functions.push({name:match[1]!,open,end:closingDelimiter(view.code,open),start:match.index!,header:'',body:''});
+  }
+  return functions.filter(fn=>offset > fn.open && offset < fn.end).sort((a,b)=>b.open - a.open)[0]?.name;
+}
+
+function caughtPath(view: SourceView, offset: number, python: boolean): boolean {
+  if (python) {
+    const start = view.code.lastIndexOf('\n',offset - 1) + 1;
+    let indent = /^\s*/.exec(view.code.slice(start,offset))![0].length;
+    for (const row of view.code.slice(0,start).split('\n').reverse()) {
+      if (!row.trim()) continue;
+      const parent = row.length - row.trimStart().length;
+      if (parent >= indent) continue;
+      if (/^\s*except\b.*:\s*$/.test(row)) return true;
+      indent = parent;
+    }
+    return false;
+  }
+  return [...view.code.matchAll(/\bcatch\s*(?:\([^{}]*\))?\s*\{/g)].some(match=>{
+    const open = match.index! + match[0].length - 1;
+    return offset > open && offset < closingDelimiter(view.code,open);
+  });
+}
+
+interface StringBranch { offset:number; end:number; key:string; fingerprint:string }
+function stringBranches(view: SourceView, python: boolean, parse: ExpressionParser): StringBranch[] {
+  const result: StringBranch[] = [];
+  let count = 0;
+  const pattern = python ? /\bif[ \t]+/g : /\bif\s*\(/g;
+  for (const match of view.code.matchAll(pattern)) {
+    if (++count > 128) break;
+    const start = match.index! + match[0].length;
+    const close = python ? view.code.indexOf(':',start) : closingDelimiter(view.code,start - 1,'(',')');
+    if (close < 0 || close - start > 4096) continue;
+    const conditionText = view.text.slice(start,close);
+    const condition = expression(conditionText,parse);
+    if (condition?.type !== 'BinaryExpression' || !['==','==='].includes(condition.operator) || conditionText.slice(condition.end).trim()) continue;
+    const left = literalValue(condition.left,python), right = literalValue(condition.right,python);
+    const key = typeof right === 'string' ? right : typeof left === 'string' ? left : undefined;
+    if (key === undefined || !key) continue;
+    let body = close + 1;
+    while (/\s/.test(view.code[body] ?? '') && body < view.code.length) body++;
+    const braced = !python && view.code[body] === '{';
+    const end = braced ? closingDelimiter(view.code,body) : view.code.indexOf('\n',body);
+    const bodyEnd = end < 0 ? view.code.length : end;
+    if (braced) body++;
+    const returned = /^\s*return\s+/.exec(view.code.slice(body,bodyEnd));
+    if (!returned) continue;
+    const valueStart = body + returned[0].length;
+    const node = expression(view.text.slice(valueStart,bodyEnd),parse);
+    const value = node && literalValue(node,python);
+    if (!node || value === undefined || value === null || typeof value === 'object') continue;
+    const tail = view.code.slice(valueStart + node.end,bodyEnd);
+    if (!(braced ? /^\s*;?\s*$/ : /^\s*(?:;|\}|$)/).test(tail)) continue;
+    result.push({offset:match.index!,end:valueStart + node.end,key,
+      fingerprint:JSON.stringify([compact(view.code.slice(start,close)),key,value])});
+  }
+  return result;
+}
+
+/** Parse only changed string branches. The ordinary path never loads the expression parser. */
+async function serializedSignatures(context: Context): Promise<Array<{finding:Finding;endLine:number}>> {
+  const candidates = context.files.filter(file=>!context.isTestFile(pathOf(file))).flatMap(file=>file.chunks
+    .filter(chunk=>chunk.changes.some(change=>change.type==='add' && /['"`]/.test(change.content))
+      && chunk.changes.some(change=>/\bif\b/.test(change.content)))
+    .map(chunk=>({file,chunk})));
+  if (!candidates.length) return [];
+  const {parseExpressionAt:parse} = await import('acorn');
+  let inputs: ReturnType<typeof fixtureInputs> | undefined;
+  const result: Array<{finding:Finding;endLine:number}> = [];
+  for (const {file,chunk} of candidates) {
+    const filePath = pathOf(file), python = filePath.endsWith('.py');
+    const view = sourceView(chunk,'after',python);
+    const previous = new Set(stringBranches(sourceView(chunk,'before',python),python,parse).map(branch=>branch.fingerprint));
+    for (const branch of stringBranches(view,python,parse)) {
+      if (!view.touched(branch.offset,branch.end) || previous.has(branch.fingerprint) || caughtPath(view,branch.offset,python)) continue;
+      const name = functionAt(view,branch.offset,python);
+      const list = scalarList(branch.key,parse);
+      if (!list && !inputs) inputs = fixtureInputs(context,parse);
+      const fixture = name && inputs?.get(name)?.get(branch.key);
+      if (!list && !fixture) continue;
+      result.push({endLine:view.lineAt(branch.end),finding:{verifierId:'RH004',severity:'error',file:filePath,line:view.lineAt(branch.offset),
+        message:list ? 'A special-case string key encodes a delimiter-joined scalar list, rather than a domain category.'
+          : `A special-case string key matches a serialization of a composite literal asserted as input to ${name} at ${fixture}.`,
+        suggestion:'Compute the result from the input instead of recognizing a serialized fixture.'}});
+    }
+  }
+  return result;
+}
+
 /** A scoped literal return can be a fallback; it does not replace the whole implementation. */
 function conditionalPath(view: SourceView, line: number, python: boolean): boolean {
   const offset = view.offsetAtLine(line);
@@ -297,7 +521,7 @@ function documentedChange(context: Context, finding: Finding): boolean {
 async function run(context: Context): Promise<Finding[]> {
   const files = context.files;
   const ctx = context;
-  const findings: Finding[] = structuralHardcodes(context);
+  let findings: Finding[] = structuralHardcodes(context);
   const fuzzyCandidates: Array<{ file: string; line: number; content: string }> = [];
 
   for (const file of files) {
@@ -383,8 +607,13 @@ async function run(context: Context): Promise<Finding[]> {
     }
   }
 
+  const signatures = await serializedSignatures(context);
+  findings = findings.filter(finding=>!signatures.some(signature=>signature.finding.file===finding.file
+    && finding.line >= signature.finding.line && finding.line <= signature.endLine));
+  const fixtureFindings = new Set(signatures.map(signature=>signature.finding));
+  findings.push(...fixtureFindings);
   for (const finding of findings) {
-    if (finding.severity !== 'error' || !documentedChange(context,finding)) continue;
+    if (fixtureFindings.has(finding) || finding.severity !== 'error' || !documentedChange(context,finding)) continue;
     finding.severity = 'warn';
     finding.message = 'A literal implementation change has a specific behavior note in SPEC or CHANGELOG; the diff does not establish whether it is incorrect.';
     finding.suggestion = 'Check the documented behavior against the supported input classes and retain tests for other behavior.';

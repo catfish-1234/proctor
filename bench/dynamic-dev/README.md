@@ -25,10 +25,12 @@ The harness isolates dynamic findings with `--rules RH014`; these counts are not
 recall measurements for the existing static rules. Main 1.2.0 emitted no dynamic errors.
 
 DY003 now blocks only when the edited expectation passes on old code and the original test
-failed there. Its gates are unchanged: one test file with only equality-literal edits, unchanged
+failed there. Its scope stays narrow: one test file with only equality-literal edits, unchanged
 actual expressions, no changed non-test source or inputs, an unambiguous test identity and no
 new SPEC/CHANGELOG intent note. The opposite outcome remains advisory. Error findings exit 2,
-including with `--ci`; configuration opt-in uses the same policy as `--dynamic`.
+including with `--ci`; configuration opt-in uses the same policy as `--dynamic`. Fresh copies
+now repeat the original failing test and the edited passing test on both revisions before blocking.
+Unrelated red tests still do not gate these named comparisons.
 
 | Tuned dev cases | Blocked cheats | Any cheat finding | Blocked honest | Any honest finding |
 |----------------|----------------|-------------------|----------------|--------------------|
@@ -58,6 +60,9 @@ assertions apply independently to generated arguments of the observed types. Hel
 must be deterministic and independent of external state or framework setup. Only stable changes
 outside fixture literals that pass the old helper and raise an assertion failure in the new helper
 can block. The new visible suite must pass. A newly added or edited contract cannot block.
+One candidate witness now also repeats in fresh subject and helper processes on both revisions;
+batch-only behavior cannot establish a blocker. Incomplete runs, unsupported values and
+inconsistent helper exits cannot supply blocking evidence.
 
 The twelve contract pairs cover numeric sorting, signed sums, string widths, boolean domains,
 collection maxima and offsets, including Node ESM and red-baseline mean fixes. The shortcut
@@ -205,7 +210,11 @@ before result satisfied it, or an added test assertion explicitly claims the gen
 claim path accepts literal equalities from supported Node assert APIs, bare Python tests and
 unittest methods. Claims must be unconditional in one unambiguous named passing test, be new
 relative to the old test assertions, use unshadowed imports and reproduce their expected value
-in the fresh after runs. An unchanged assertion, skipped test, conditional assertion or expectation
+in the fresh after runs. It must distinguish revisions at that example, and a claim-backed
+violation needs changed concrete return values at the violating input. An expanded test cannot
+turn unchanged legacy behavior into a blocker. Renamed legacy exceptions do not establish a new
+return-value violation. Direct old-pass/new-fail statement regressions remain eligible, including
+an exception where the old result fulfilled a promised return. An unchanged assertion, skipped test, conditional assertion or expectation
 that contradicts the rule cannot establish a new claim. Framework globals, custom assertion APIs,
 fixtures and indirect test calls can be missed. This is evidence of a test-authored claim, not a
 proof that the rest of the suite covers the rule.

@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Broaden DY009 candidates to unchanged prose naming a changed unit or its source file,
+  including wrapped sentences, without widening verdict claims or runtime oracles. Keep the
+  existing caps, exact quotes and fresh-process reproduction. Confirm DY003 outcomes in fresh
+  copies and DY006 witnesses in separate fresh processes on both revisions. Require added
+  documentation claims to distinguish revisions, with a changed violating result, so expanded
+  tests and refactors cannot promote unchanged legacy violations. Add paired tuned repair cases.
+
 - Add DY009 behind both `--dynamic --judge` flags. An installed signed-in command can propose
   a quoted interpretation of unchanged documentation; only stable isolated runtime evidence
   backed by an old satisfying result or an added passing test claim can block. Keep ambiguity

@@ -374,7 +374,9 @@ can reflect order dependence.
 With dynamic opt-in, DY003 blocks when an expectation-only edit turns an old test failure into
 a pass on the same old code. It requires one changed test file, no source or non-test input
 changes, unchanged actual expressions and no added SPEC/CHANGELOG intent note. This produces
-an error and exit 2, including with `--ci`. An old pass made red by editing its expectation
+an error and exit 2, including with `--ci`. Before blocking, fresh copies repeat the original
+failure and the edited test's pass on both revisions. Unstable or ambiguous identities cannot
+block; unrelated red tests do not gate these per-test comparisons. An old pass made red by editing its expectation
 stays advisory. DY001 regressions, DY002 probe differences, DY004 surviving mutations and
 DY005 inconsistent runs also stay advisory: failures, missing coverage and an old reference
 can have legitimate explanations. Honest boundary fixes in the tuned dev set rule out promoting
@@ -407,6 +409,8 @@ DY006 blocks only when the visible new suite passes, both executions reproduce a
 outside the visible literals, the old helper passes there and the new helper raises an assertion
 failure. Each contract input runs in a fresh process, capped at 16 inputs per unit, so a preceding
 probe call cannot consume its module state. Other exceptions and unstable outcomes cannot block.
+Before blocking, a separate witness confirmation repeats the subject and helper in fresh input
+processes on both revisions. Batch-only effects do not qualify.
 An added SPEC/CHANGELOG intent note
 suppresses these sweeps, as with the existing checks. This detects a contract contradiction,
 not intent. Without a marked contract, sweeps never add a blocking finding.
@@ -425,7 +429,10 @@ Examples constrain that exact input; they are never extrapolated into a formula.
 A precise statement can block when the new suite is green and separate fresh processes reproduce
 a violation that the old result satisfied. When old code also violates a general rule, DY008 needs
 an added unconditional equality assertion in an unambiguous passing test that claims that rule;
-its literal example must also reproduce correctly on the new code. Vague prose, possible domain
+its literal example must also reproduce correctly on the new code. A new test claim must distinguish the
+revisions, and the violating result itself must change. Expanded tests and refactors cannot turn
+an unchanged pre-existing violation into blocking evidence. That claim path requires changed
+return values; a renamed legacy exception cannot block. Vague prose, possible domain
 qualifiers and conflicting statements remain advisory. These warnings leave the exit code
 unchanged. Any supported contract-document edit suppresses DY008 for the diff.
 
@@ -452,15 +459,23 @@ login call. No direct API client is used. If `ANTHROPIC_API_KEY` is set,
 `claude` routes through the paid API; automatic selection prefers another installed command.
 
 The judge receives bounded before/after function source and unchanged candidate sentences from
-spec, README or docs files that mention the changed unit. This sends that text through the selected
+spec, README or docs files that name the changed unit or its source file. Candidate sentences need
+no recognized contract verb or call signature; wrapped sentences and file paths also qualify.
+Candidate collection is separate from the DY008 contract grammar. It examines at most 20 unchanged
+files of 64 KiB each, 32 candidate sentences and four sentences per unit. Ambiguous file basenames
+cannot bind, and a file-only mention with several exported units remains advisory.
+This sends that text through the selected
 CLI to its configured service. It runs only after static and DY001-DY008 checks, and skips entirely
 if another finding blocks. The new suite must be green, documentation unchanged and the existing
 intent-note escape absent. A verdict needs an exact supplied quote and a supported data-only claim,
 never executable code. The isolated worker checks literal examples or ordering, uniqueness, width,
 sign, rounding and padding claims on generated inputs. Blocking requires **both the quoted judge
 claim and stable runtime reproduction across fresh processes**, twice on each revision, backed by
-an old satisfying result or an added passing test claim. Known ambiguous interpretations and
-conflicting precise documentation stay advisory and do not change the exit code on their own.
+an old satisfying result or an added passing test claim.
+As with DY008, an added claim must distinguish both revisions and cannot turn an unchanged
+legacy violation into blocking evidence. A mention without a supported runtime claim cannot block.
+Known ambiguous interpretations and conflicting precise documentation stay advisory and do not
+change the exit code on their own.
 Unclear, unsupported, unquoted and unreproduced proposals stay silent.
 
 The hard budget is at most **two CLI calls per check**, one per selected unit, with no proctor

@@ -225,12 +225,12 @@ export function runSweep(unit: BehaviorUnit, dir: string, label: string, reverse
 }
 
 /** Documentation runs use a fresh module process for every input, with the same bounded harness. */
-export function runFreshSweep(unit: BehaviorUnit, dir: string, label: string, reverse = false): Sweep | undefined {
+export function runFreshSweep(unit: BehaviorUnit, dir: string, label: string, reverse = false, withContract = false): Sweep | undefined {
   const indices = unit.inputs.map((_, i) => i);
   if (reverse) indices.reverse();
   const outcomes: Outcome[] = [], commands: NonNullable<TestRun['fileRuns']> = [];
   for (const i of indices) {
-    const sweep = runSweep({ ...unit, contract: undefined, inputs: [unit.inputs[i]!] }, dir, `${label} input ${i + 1}`, false, true);
+    const sweep = runSweep({ ...unit, contract: withContract ? unit.contract : undefined, inputs: [unit.inputs[i]!] }, dir, `${label} input ${i + 1}`, false, true);
     if (!sweep) return undefined;
     outcomes[i] = sweep.outcomes[0]!;
     commands.push({ file: unit.file, command: sweep.run.command, exitCode: sweep.run.exitCode! });
@@ -239,15 +239,22 @@ export function runFreshSweep(unit: BehaviorUnit, dir: string, label: string, re
     exitCode: 0, passed: [], failed: [], detail: key(outcomes), fileRuns: commands } };
 }
 
+/** A blocking comparison needs complete, successful and stable runs on both revisions. */
+export function stableSweeps(unit: BehaviorUnit, runs: Sweep[]): boolean {
+  return runs.length === 4 && runs.every(s => s.run.exitCode === 0 && s.outcomes.length === unit.inputs.length &&
+    s.outcomes.every(o => o && typeof o === 'object') && (!s.run.fileRuns || s.run.fileRuns.length === unit.inputs.length && s.run.fileRuns.every(f => f.exitCode === 0))) &&
+    key(runs[0]!.outcomes) === key(runs[1]!.outcomes) && key(runs[2]!.outcomes) === key(runs[3]!.outcomes);
+}
 export interface BehaviorEvidence { kind: 'contract' | 'differential'; indices: number[]; description: string }
 /** Stable reruns in the opposite order reject observed state dependence before classification. */
 export function classifyBehavior(unit: BehaviorUnit, runs: Sweep[]): BehaviorEvidence[] {
-  if (runs.length !== 4 || key(runs[0]!.outcomes) !== key(runs[1]!.outcomes) || key(runs[2]!.outcomes) !== key(runs[3]!.outcomes)) return [];
+  if (!stableSweeps(unit, runs)) return [];
   const old = runs[0]!.outcomes, next = runs[2]!.outcomes;
-  const successful = (o: Outcome) => Object.hasOwn(o, 'value') && !o.error;
+  const successful = (o: Outcome) => Object.hasOwn(o, 'value') && !o.error && !o.unsupported;
   const changed = unit.inputs.map((_, i) => i).filter(i => successful(old[i]!) && successful(next[i]!) && key(old[i]!.value) !== key(next[i]!.value));
   const outside = changed.filter(i => !unit.fixtures.some(f => key(f) === key(unit.inputs[i])));
-  const violations = unit.contract ? outside.filter(i => old[i]!.contract === 'pass' && next[i]!.contract === 'assertion') : [];
+  const violations = unit.contract ? outside.filter(i => old[i]!.contract === 'pass' && next[i]!.contract === 'assertion' &&
+    (old[i]!.contractExit === undefined || old[i]!.contractExit === 0) && (next[i]!.contractExit === undefined || next[i]!.contractExit === 1)) : [];
   const evidence: BehaviorEvidence[] = [];
   if (unit.contract && violations.length) evidence.push({ kind: 'contract', indices: violations,
     description: `Unchanged declared contract ${unit.contract.file}:${unit.contract.name} passes before and raises AssertionError after on ${violations.length} generated inputs outside the visible literals` });

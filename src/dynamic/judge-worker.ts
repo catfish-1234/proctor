@@ -13,11 +13,17 @@ export async function judgeDocumentation(old: Snapshot, next: Snapshot, isTest: 
   oldDir: string, newDir: string, nextTests: string[], current: TestRun, result: DynamicResult,
   emit: (id: string, file: string, message: string, runs: TestRun[], line: number, blocking: boolean) => void): Promise<void> {
   const inventory = documentInventory(next, isTest, newDir);
-  const sentences = documentationSentences(old, next, new Set(inventory.files.flatMap(f => f.functions.map(fn => fn.exported))));
-  if (!sentences.length) return;
   const previous = documentInventory(old, isTest, oldDir);
+  const changed = inventory.files.flatMap(f => f.functions.filter(fn => fn.exported &&
+    previous.files.find(p => p.file === f.file)?.functions.some(p => p.exported === fn.exported && p.source !== fn.source && p.params.length === fn.params.length))
+    .map(fn => ({ file: f.file, name: fn.exported })));
+  const sentences = documentationSentences(old, next, new Set(changed.map(c => c.name)), inventory.sourceFiles, new Set(changed.map(c => c.file)));
+  if (!sentences.length) return;
   const matching = (file: string, fn: { exported: string; params: string[]; name: string; source: string; line: number }) =>
-    sentences.filter(s => (!s.arity || s.arity === fn.params.length) && bindsDocumentation({ ...s, arity: fn.params.length, kind: 'example', confidence: 'advisory' }, file, fn, inventory)).slice(0, 4);
+    sentences.filter(s => s.sourceFile ? s.sourceFile === file : (!s.arity || s.arity === fn.params.length) &&
+      bindsDocumentation({ ...s, arity: fn.params.length, kind: 'example', confidence: 'advisory' }, file, fn, inventory))
+      .filter((s, _i, all) => !s.sourceFile || !all.some(other => other.quote === s.quote && !other.sourceFile))
+      .filter((s, i, all) => all.findIndex(other => other.quote === s.quote) === i).slice(0, 4);
   const units = behaviorUnits(old, next, isTest, newDir, (file, fn) => matching(file, fn).flatMap(s => s.args ? [s.args] : []), (file, fn) => matching(file, fn).length > 0);
   const input = createInterface({ input: process.stdin });
   try {
@@ -45,8 +51,9 @@ export async function judgeDocumentation(old: Snapshot, next: Snapshot, isTest: 
       if (!verdict || verdict.violation !== 'yes' || !verdict.claim) continue;
       const sentence = bound.find(s => s.quote === verdict.quote)!;
       const known = documentationRules(old, next).filter(r => bindsDocumentation(r, unit.file, after, inventory));
-      const confidence = known.some(r => r.confidence === 'advisory') ? 'advisory' : 'precise';
-      const rule: DocumentRule = { ...sentence, arity: unit.params!.length, ...verdict.claim, confidence };
+      const ambiguousFile = sentence.sourceFile && [inventory, previous].some(i => i.files.find(f => f.file === unit.file)!.functions.filter(f => f.exported).length !== 1);
+      const confidence = known.some(r => r.confidence === 'advisory') || ambiguousFile ? 'advisory' : 'precise';
+      const rule: DocumentRule = { ...sentence, name: unit.name, arity: unit.params!.length, ...verdict.claim, confidence };
       const claims = documentClaims(unit, old, next, nextTests, current, newDir);
       const probe = { ...unit, inputs: documentationInputs([rule], unit.fixtures, [...claims.map(c => c.args), ...(verdict.claim.args ? [verdict.claim.args] : [])]) };
       if (!probe.inputs.length) continue;

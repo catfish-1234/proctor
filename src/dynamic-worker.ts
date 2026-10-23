@@ -89,10 +89,24 @@ try {
           }
         }
         for (const signal of classifyBehavior(unit, sweeps)) {
-          const observations = signal.indices.map(i => ({ input: unit.inputs[i], before: sweeps[0]!.outcomes[i], after: sweeps[2]!.outcomes[i] }));
+          let proof = sweeps, subject = unit, indices = signal.indices;
+          if (signal.kind === 'contract') {
+            // Confirm one witness independently of batch state. The unchanged helper and
+            // subject each run in fresh processes on both revisions, twice per revision.
+            subject = { ...unit, inputs: [unit.inputs[signal.indices[0]!]!] };
+            proof = [];
+            for (const [dir, label] of [[baseline.dir, 'original code'], [current.dir, 'new code']] as const) for (const reverse of [false, true]) {
+              const sweep = runFreshSweep(subject, dir, `declared contract confirmation / ${label}${reverse ? ' / repeat' : ''}`, reverse, true);
+              if (sweep) { proof.push(sweep); result.runs.push(sweep.run); }
+            }
+            const confirmed = classifyBehavior(subject, proof).find(s => s.kind === 'contract');
+            if (!confirmed) continue;
+            indices = confirmed.indices;
+          }
+          const observations = indices.map(i => ({ input: subject.inputs[i], before: proof[0]!.outcomes[i], after: proof[2]!.outcomes[i] }));
           finding(signal.kind === 'contract' ? 'DY006' : 'DY007', unit.file,
-            `${signal.description} in ${unit.name}. Reproduced in forward and reverse order: ${JSON.stringify(observations)}`,
-            [current.run, ...sweeps.map(s => s.run)], unit.line, signal.kind === 'contract');
+            `${signal.description} in ${unit.name}. Reproduced in forward and reverse order${signal.kind === 'contract' ? ' and confirmed in fresh input processes on both revisions' : ''}: ${JSON.stringify(observations)}`,
+            [current.run, ...sweeps.map(s => s.run), ...(proof === sweeps ? [] : proof.map(s => s.run))], unit.line, signal.kind === 'contract');
         }
       }
     } catch (error) { result.notes.push(`not run: behavior sweeps could not establish reliable evidence: ${String(error)}`); }
@@ -118,13 +132,21 @@ try {
     if (both.length) result.notes.push(`${both.length} named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.`);
     if (!changedSource && !intent && testChanges.length === 1 && edits.length && expectationOnlyEdit(old.get(edits[0]!)?.data.toString() ?? '', next.get(edits[0]!)?.data.toString() ?? '')) {
       const rejected = reverse.failed.filter(id => original.passed.includes(id));
-      const accepted = reverse.passed.filter(id => original.failed.includes(id));
+      const candidates = reverse.passed.filter(id => original.failed.includes(id) && current.run.passed.includes(id));
+      // Re-materialize each control to avoid suite artifacts becoming evidence. An unrelated
+      // red test does not disqualify a uniquely named, independently reproduced outcome.
+      const controls = candidates.length ? [
+        run(old, 'original tests / original code confirmation').run,
+        run(next, 'new tests / new code confirmation').run,
+        run(withTests(old, next), 'new tests / original code confirmation').run,
+      ] : [];
+      const accepted = candidates.filter(id => controls[0]!.failed.includes(id) && controls[1]!.passed.includes(id) && controls[2]!.passed.includes(id));
       for (const id of [...rejected, ...accepted]) {
         const file = locateTest(id, old, oldTests);
         const mismatch = accepted.includes(id)
           ? 'failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior'
           : 'passed with the original expectation, but the edited expectation fails on that same old code';
-        if (file && edits.includes(file)) finding('DY003', file, `Only the expected literal changed (${expectationChanges(old.get(file)?.data.toString() ?? '', next.get(file)?.data.toString() ?? '').map(e => `${e.before} to ${e.after}`).join(', ')}): test ${JSON.stringify(id)} ${mismatch}`, [original, current.run, reverse], 1, accepted.includes(id));
+        if (file && edits.includes(file)) finding('DY003', file, `Only the expected literal changed (${expectationChanges(old.get(file)?.data.toString() ?? '', next.get(file)?.data.toString() ?? '').map(e => `${e.before} to ${e.after}`).join(', ')}): test ${JSON.stringify(id)} ${mismatch}`, [original, current.run, reverse, ...(accepted.includes(id) ? controls : [])], 1, accepted.includes(id));
       }
     }
   }

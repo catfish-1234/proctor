@@ -1,7 +1,7 @@
 import { parse } from 'acorn';
 import { posix } from 'node:path';
 import { parseBehaviorJs, parseBehaviorPython, type Value, type Callable, type ParsedBehavior } from './behavior-parse.js';
-import { behaviorUnits, sweepInputs, type BehaviorUnit, type Outcome, type Sweep } from './behavior.js';
+import { behaviorUnits, sweepInputs, stableSweeps, type BehaviorUnit, type Outcome, type Sweep } from './behavior.js';
 import type { Snapshot } from './snapshots.js';
 
 export const DOCUMENT_UNIT_LIMIT = 2;
@@ -48,7 +48,7 @@ function signature(text: string): { name: string; module?: string; arity: number
 export const isDocumentation = (file: string) => /^(?:SPEC[^/]*|README[^/]*)\.(?:md|rst|txt)$/i.test(file) ||
   /^docs\/[^\n]+\.(?:md|rst|txt)$/i.test(file) && !file.split('/').some(p => ['bench', 'node_modules', 'vendor', 'dist', '.git'].includes(p));
 
-export interface DocumentSentence { file: string; line: number; quote: string; name: string; module?: string; arity: number; args?: Value[] }
+export interface DocumentSentence { file: string; line: number; quote: string; name: string; module?: string; arity: number; args?: Value[]; sourceFile?: string }
 export function extractDocumentation(file: string, source: string, candidates?: DocumentSentence[], names?: Set<string>): DocumentRule[] {
   const rules: DocumentRule[] = [], headings = [{ level: 0, excluded: false, uncertain: false }];
   const contexts = new Map<DocumentRule, typeof headings>();
@@ -141,12 +141,73 @@ export function documentationRules(old: Snapshot, next: Snapshot): DocumentRule[
   return [...old].filter(([file, entry]) => isDocumentation(file) && entry.data.length <= 64 * 1024 && entry.mode === next.get(file)?.mode && entry.data.equals(next.get(file)?.data ?? Buffer.alloc(0)))
     .slice(0, 20).flatMap(([file, entry]) => extractDocumentation(file, entry.data.toString())).slice(0, 32);
 }
-export function documentationSentences(old: Snapshot, next: Snapshot, names?: Set<string>): DocumentSentence[] {
+/** Candidate coverage is independent of the deterministic contract grammar. */
+export function documentationSentences(old: Snapshot, next: Snapshot, names?: Set<string>, sourceFiles: string[] = [], changedFiles = new Set(sourceFiles)): DocumentSentence[] {
   const candidates: DocumentSentence[] = [];
+  const add = (file: string, line: number, quote: string) => {
+    if (!quote || quote.length > 500 || candidates.length >= 32) return;
+    const mentions: DocumentSentence[] = [];
+    for (const token of quote.matchAll(/[$A-Za-z_][$A-Za-z_0-9]*(?:[./-][$A-Za-z_0-9-]+)*/g)) {
+      const text = token[0], parts = text.split('.');
+      const matches = sourceFiles.filter(f => f === text || posix.basename(f) === text);
+      // A basename shared by different files cannot bind a contract to either file.
+      if (matches.length === 1 && changedFiles.has(matches[0]!)) mentions.push({ file, line, quote, name: '', arity: 0, sourceFile: matches[0] });
+      if (parts.length > 2 || text.includes('/')) continue;
+      const name = parts.at(-1)!;
+      if (names?.has(name)) mentions.push({ file, line, quote, name, module: parts.length === 2 ? parts[0] : undefined, arity: 0 });
+    }
+    // Preserve literal example seeds and explicit signature arity without requiring a verb.
+    for (const match of quote.matchAll(/`([^`]+)`/g)) {
+      const call = signature(match[1]!);
+      if (call && (!names || names.has(call.name))) {
+        const existing = mentions.findIndex(m => m.name === call.name && m.module === call.module);
+        const sentence = { file, line, quote, ...call };
+        if (existing >= 0) mentions[existing] = sentence; else mentions.push(sentence);
+      }
+    }
+    for (const mention of mentions) {
+      if (candidates.length >= 32) break;
+      if (!candidates.some(c => c.file === file && c.line === line && c.quote === quote && c.name === mention.name && c.module === mention.module && c.sourceFile === mention.sourceFile)) candidates.push(mention);
+    }
+  };
   for (const [file, entry] of [...old].filter(([f, e]) => isDocumentation(f) && e.data.length <= 64 * 1024 && e.mode === next.get(f)?.mode && e.data.equals(next.get(f)?.data ?? Buffer.alloc(0))).slice(0, 20)) {
-    extractDocumentation(file, entry.data.toString(), candidates, names);
+    let paragraph = '', firstLine = 1, fence = false, comment = false;
+    const headings: { level: number; excluded: boolean }[] = [];
+    const flush = () => {
+      // Split prose at sentence punctuation, preserving quoted calls, paths and wrapped text.
+      let start = 0, quoted = false;
+      for (let i = 0; i < paragraph.length; i++) {
+        const ch = paragraph[i]!;
+        if (ch === '`') quoted = !quoted;
+        if (!quoted && '.!?'.includes(ch) && (i + 1 === paragraph.length || /\s/.test(paragraph[i + 1]!))) {
+          const fragment = paragraph.slice(start, i + 1), quote = fragment.trim();
+          const offset = start + fragment.length - fragment.trimStart().length;
+          add(file, firstLine + paragraph.slice(0, offset).split('\n').length - 1, quote); start = i + 1;
+        }
+      }
+      const fragment = paragraph.slice(start), offset = start + fragment.length - fragment.trimStart().length;
+      add(file, firstLine + paragraph.slice(0, offset).split('\n').length - 1, fragment.trim()); paragraph = '';
+    };
+    for (const [index, raw] of entry.data.toString().split('\n').entries()) {
+      const text = raw.trim();
+      if (text.includes('<!--')) { flush(); comment = true; }
+      if (comment) { if (text.includes('-->')) comment = false; continue; }
+      if (/^(?:```|~~~)/.test(text)) { flush(); fence = !fence; continue; }
+      if (fence || text.startsWith('>')) { flush(); continue; }
+      const heading = /^(#{1,6})\s+(.+)$/.exec(text);
+      if (heading) {
+        flush(); while (headings.length && headings.at(-1)!.level >= heading[1]!.length) headings.pop();
+        headings.push({ level: heading[1]!.length, excluded: /\b(?:legacy|old|previous|deprecated|historical|migration|draft|proposed|incorrect|counterexample|changelog|todo)\b/i.test(heading[2]!) }); continue;
+      }
+      if (headings.some(h => h.excluded)) continue;
+      if (!text || /^[-*]\s+/.test(text)) flush();
+      if (!text) continue;
+      if (!paragraph) firstLine = index + 1;
+      paragraph += (paragraph ? '\n' : '') + text;
+    }
+    flush(); if (candidates.length >= 32) break;
   }
-  return candidates.slice(0, 32);
+  return candidates;
 }
 export function documentSeeds(rule: DocumentRule): Value[][] {
   if (rule.args) return [rule.args];
@@ -228,13 +289,18 @@ export function conflictingDocumentation(rules: DocumentRule[], inputs: Value[][
 export interface DocumentClaim { args: Value[]; expected: Value; file: string; line: number; test: string }
 export interface DocumentEvidence { rule: DocumentRule; index: number; blocking: boolean; claim?: DocumentClaim }
 export function classifyDocumentation(unit: BehaviorUnit, rules: DocumentRule[], runs: Sweep[], claims: DocumentClaim[], changedDocs: boolean): DocumentEvidence[] {
-  if (runs.length !== 4 || JSON.stringify(runs[0]!.outcomes) !== JSON.stringify(runs[1]!.outcomes) || JSON.stringify(runs[2]!.outcomes) !== JSON.stringify(runs[3]!.outcomes)) return [];
+  if (!stableSweeps(unit, runs)) return [];
   const conflict = conflictingDocumentation(rules, unit.inputs), findings: DocumentEvidence[] = [];
   for (const rule of rules) {
     const claim = rule.kind !== 'example' ? claims.find(c => satisfiesDocumentation(rule, c.args, { value: c.expected }) === true &&
-      unit.inputs.some((args, i) => JSON.stringify(args) === JSON.stringify(c.args) && JSON.stringify(runs[2]!.outcomes[i]!.value) === JSON.stringify(c.expected) && !runs[2]!.outcomes[i]!.error)) : undefined;
+      unit.inputs.some((args, i) => JSON.stringify(args) === JSON.stringify(c.args) && !runs[0]!.outcomes[i]!.unsupported &&
+        JSON.stringify(runs[0]!.outcomes[i]) !== JSON.stringify(runs[2]!.outcomes[i]) &&
+        JSON.stringify(runs[2]!.outcomes[i]!.value) === JSON.stringify(c.expected) && !runs[2]!.outcomes[i]!.error)) : undefined;
     const index = unit.inputs.findIndex((args, i) => satisfiesDocumentation(rule, args, runs[2]!.outcomes[i]!) === false &&
-      (satisfiesDocumentation(rule, args, runs[0]!.outcomes[i]!) === true || claim));
+      (satisfiesDocumentation(rule, args, runs[0]!.outcomes[i]!) === true || claim &&
+        // Different exception names do not prove a newly introduced contract violation.
+        [runs[0]!.outcomes[i]!, runs[2]!.outcomes[i]!].every(o => Object.hasOwn(o, 'value') && !o.error && !o.unsupported) &&
+        JSON.stringify(runs[0]!.outcomes[i]!.value) !== JSON.stringify(runs[2]!.outcomes[i]!.value)));
     if (index >= 0) findings.push({ rule, index, claim, blocking: rule.confidence === 'precise' && !conflict && !changedDocs });
   }
   return findings;

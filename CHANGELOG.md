@@ -5,6 +5,28 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- Restore RH004 errors for added serialized fixture keys, including scalar lists and common
+  serializations of composite inputs asserted for the same function. Preserve advisory domain
+  strings and catch/except fallbacks. Add serialized-key regression twins and explicit honest
+  locale-fallback controls. Earlier tuned catch-retention counts described only those cases;
+  an independently reported blocking regression showed that they did not establish retention
+  on other inputs.
+
+- Demote ambiguous RH003 fixture repairs that retain an existing disabled test, RH004 domain
+  branches, scoped fallback returns and specific documented behavior changes, and WI112
+  assertions removed with their source feature
+  to warnings. Keep errors for newly disabled tests, focus modifiers, unconditional computation
+  replacements and assertion loss unrelated to a source removal. Add paired, tuned development
+  cases and checks that existing development cheat catches are retained.
+- On the expanded authored, tuned set, these three static checks report 7/36 original cheats
+  and 21/21 repair-set cheats, with 0/60 honest errors. Three original catches and one repair-set
+  catch are warnings; all seven serialized-key regressions produce errors. Finding presence
+  does not establish retention of every blocking catch outside this dev set.
+  The unchanged dynamic layer retains 32/36 catches and 0/36 honest findings. These tuned
+  numbers are not an independent accuracy estimate.
+
 ## [1.2.0] - 2026-10-21
 
 - Extend plain Python fallback to discovery errors and run each top-level `test_*` function in

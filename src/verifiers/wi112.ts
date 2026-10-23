@@ -1,6 +1,7 @@
 import path from 'node:path';
 import type { Context, Finding, Verifier } from '../types.js';
 import { addedLines, deletedLines, insideTemplateLiteral, isCommentLine, pathOf, withoutLiterals } from './wi-common.js';
+import { callables, sourceView, type SourceView } from './structure.js';
 
 /**
  * Checking removed without removing the test that appeared to do it.
@@ -77,6 +78,63 @@ function countsAsAssertion(text: string): boolean {
   return ASSERTION_RE.test(withoutLiterals(text));
 }
 
+const unitName = (file: string): string => path.basename(file.replace(/\\/g,'/'))
+  .replace(/\.(?:test|spec)\.[^.]+$|\.[^.]+$/,'').replace(/^test_/,'').replace(/_test$/,'');
+
+function pythonScopes(view: SourceView): Array<{name:string;open:number;end:number}> {
+  const result = [];
+  for (const declaration of view.code.matchAll(/^([ \t]*)(?:async[ \t]+)?def[ \t]+([A-Za-z_]\w*)\s*\([^:\n]*\)[^:\n]*:[ \t]*$/gm)) {
+    const open = declaration.index! + declaration[0].lastIndexOf(':');
+    let end = view.code.length;
+    for (const row of view.code.slice(open + 1).matchAll(/^([ \t]*)\S/gm)) {
+      if (row[1]!.length > declaration[1]!.length) continue;
+      end = open + 1 + row.index!;
+      break;
+    }
+    result.push({name:declaration[2]!,open,end});
+  }
+  return result;
+}
+
+/** Coordinated source removal makes assertion loss ambiguous, rather than proven weakening. */
+function coversRemovedFeature(context: Context, testPath: string, assertions: string[]): boolean {
+  const symbols = new Set<string>();
+  const channels: Array<{ unit: string; value: string }> = [];
+  for (const file of context.files) {
+    const filePath = pathOf(file);
+    if (context.isTestFile(filePath) || unitName(filePath) !== unitName(testPath)) continue;
+    const python = filePath.endsWith('.py');
+    const before = file.chunks.map(chunk=>sourceView(chunk,'before',python));
+    const after = file.chunks.map(chunk=>sourceView(chunk,'after',python));
+    const declarations = after.flatMap(view=>[...view.code.matchAll(/\b(?:function|def|class|const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map(match=>match[1]));
+    for (const view of before) {
+      for (const declaration of view.code.matchAll(/\b(?:function|def)\s+([A-Za-z_$][\w$]*)\s*\(/g)) {
+        if (view.touched(declaration.index!,declaration.index! + declaration[0].length)
+          && !declarations.includes(declaration[1])) symbols.add(declaration[1]!);
+      }
+      // Only a removed dispatch arm inside a named callable qualifies, never a stray literal.
+      for (const fn of python ? pythonScopes(view) : callables(view)) {
+        const text = view.text.slice(fn.open + 1,fn.end);
+        for (const branch of text.matchAll(/\bif\s*\(\s*[A-Za-z_$][\w$]*\s*===?\s*(['"])([^'"\n]+)\1\s*\)|\bcase\s+(['"])([^'"\n]+)\3\s*:|^[ \t]*(?:if|elif)\s+[A-Za-z_]\w*\s*==\s*(['"])([^'"\n]+)\5\s*:/gm)) {
+          const offset = fn.open + 1 + branch.index!;
+          if (!/^(?:if|elif|case)\b/.test(view.code.slice(offset,offset + branch[0].length).trimStart())) continue;
+          if (!view.touched(offset,offset + branch[0].length)) continue;
+          const value = branch[2] ?? branch[4] ?? branch[6]!;
+          const remains = after.some(next=>[...next.text.matchAll(/(['"])([^'"\n]+)\1/g)].some(match=>match[2]===value));
+          if (!remains) channels.push({unit:fn.name,value});
+        }
+      }
+    }
+  }
+  return assertions.length > 0 && assertions.every(assertion=>{
+    const code = withoutLiterals(assertion);
+    const calls = [...code.matchAll(/([A-Za-z_$][\w$]*)\s*\(/g)].map(match=>match[1]);
+    if (calls.some(name=>symbols.has(name!))) return true;
+    const literals = [...assertion.matchAll(/(['"])([^'"\n]+)\1/g)].map(match=>match[2]);
+    return channels.some(channel=>calls.includes(channel.unit) && literals.includes(channel.value));
+  });
+}
+
 function run(context: Context): Finding[] {
   const findings: Finding[] = [];
 
@@ -108,13 +166,17 @@ function run(context: Context): Finding[] {
         const firstRemoved = file.chunks
           .flatMap(deletedLines)
           .find(l => countsAsAssertion(l.text));
+        const added = new Set(file.chunks.flatMap(addedLines).map(line=>line.text.trim()));
+        const removed = file.chunks.flatMap(deletedLines)
+          .filter(line=>!isCommentLine(line.text) && countsAsAssertion(line.text) && !added.has(line.text.trim()));
+        const coordinated = coversRemovedFeature(context,filePath,removed.map(line=>line.text));
         findings.push({
           verifierId: 'WI112',
-          severity: 'error',
+          severity: coordinated ? 'warn' : 'error',
           file: filePath,
           line: firstRemoved?.line ?? 1,
-          message: `Assertions removed: ${lost} assertion${lost === 1 ? '' : 's'} deleted from a test that still runs under the same name, so it reports the same coverage while checking less.`,
-          suggestion:
+          message: coordinated ? `Assertions removed alongside their source feature: ${lost} fewer assertion${lost === 1 ? '' : 's'}; the diff does not establish whether the feature removal is authorized.` : `Assertions removed: ${lost} assertion${lost === 1 ? '' : 's'} deleted from a test that still runs under the same name, so it reports the same coverage while checking less.`,
+          suggestion: coordinated ? 'Confirm that the documented contract permits the feature removal and retain coverage for supported behavior.' :
             'Put the assertions back and make the code satisfy them. A test that keeps its name and loses its checks is the most invisible way to reduce coverage: nothing in the test count, the report, or the diff summary changes.',
         });
       }

@@ -246,6 +246,13 @@ export function documentationInputs(rules: DocumentRule[], fixtures: Value[][], 
     .filter(args => rules.some(rule => satisfiesDocumentation(rule, args, {}) !== undefined)).slice(0, DOCUMENT_INPUT_LIMIT);
 }
 
+/** An unmarked sweep must not probe outside a precise supported document domain.
+ * Point examples cannot define a general domain, and marked helpers declare their own. */
+export function behaviorInputsInDomain(unit: BehaviorUnit, rules: DocumentRule[]): Value[][] {
+  const general = rules.filter(r => r.confidence === 'precise' && r.kind !== 'example');
+  return unit.contract || !general.length ? unit.inputs : unit.inputs.filter(args => general.some(rule => satisfiesDocumentation(rule, args, {}) !== undefined));
+}
+
 export interface DocumentInventory { files: ParsedBehavior[]; complete: boolean; sourceFiles: string[] }
 export function documentInventory(tree: Snapshot, isTest: (file: string) => boolean, dir: string): DocumentInventory {
   const code = [...tree].filter(([file]) => !isTest(file) && /\.(?:js|mjs|cjs|py|ts|tsx|jsx|mts|cts|go|rs|java|rb|php|cs|kt|cpp|c|swift)$/.test(file) && !file.split('/').some(p => ['bench', 'node_modules', 'vendor', 'dist', '.git'].includes(p)));

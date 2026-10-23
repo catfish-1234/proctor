@@ -7,7 +7,7 @@ import { detectAdapter, runTests } from './dynamic/adapters.js';
 import { documentedIntent, expectedEdits, expectationChanges, expectationOnlyEdit, findProbes, locateTest, probeInputs, type ProbeValue } from './dynamic/signals.js';
 import { coverageEnvironment, jsMutations, MUTATION_LIMIT, pythonMutations, readCalls } from './dynamic/mutations.js';
 import { behaviorUnits, classifyBehavior, runSweep, runFreshSweep, type Sweep } from './dynamic/behavior.js';
-import { documentationRules, documentedUnits, documentationInputs, classifyDocumentation, isDocumentation } from './dynamic/documentation.js';
+import { documentationRules, documentedUnits, documentationInputs, behaviorInputsInDomain, classifyDocumentation, isDocumentation, type DocumentRule } from './dynamic/documentation.js';
 import { documentClaims } from './dynamic/documentation-claims.js';
 import type { DynamicOptions, DynamicResult, TestRun } from './dynamic/runner.js';
 import type { Finding } from './types.js';
@@ -48,6 +48,7 @@ try {
   const testChanges = [...new Set([...oldTests, ...nextTests])].filter(p => old.get(p)?.data.toString() !== next.get(p)?.data.toString());
   const changedSource = [...new Set([...old.keys(), ...next.keys()])].some(p => !isTest(p) && !/\.(?:md|rst|txt)$/i.test(p) && old.get(p)?.data.toString() !== next.get(p)?.data.toString());
   const intent = documentedIntent(old, next);
+  const domains = new Map<string, DocumentRule[]>();
   // Documentation is an oracle only when it is unchanged and precise. No prose is executed.
   if (current.run.exitCode === 0 && !intent) {
     const docsChanged = [...new Set([...old.keys(), ...next.keys()])].some(file => isDocumentation(file) &&
@@ -56,6 +57,7 @@ try {
     if (rules.length && !docsChanged) {
       try {
         for (const candidate of documentedUnits(old, next, isTest, current.dir, rules)) {
+          domains.set(JSON.stringify([candidate.unit.file, candidate.unit.name]), candidate.rules);
           const claims = documentClaims(candidate.unit, old, next, nextTests, current.run, current.dir);
           const unit = { ...candidate.unit, inputs: documentationInputs(candidate.rules, candidate.unit.fixtures, claims.map(c => c.args)) };
           const sweeps: Sweep[] = [];
@@ -77,7 +79,9 @@ try {
   // test contract can turn a stable generated-input contradiction into a blocking result.
   if (current.run.exitCode === 0 && !intent) {
     try {
-      for (const unit of behaviorUnits(old, next, isTest, current.dir)) {
+      for (const candidate of behaviorUnits(old, next, isTest, current.dir)) {
+        const unit = { ...candidate, inputs: behaviorInputsInDomain(candidate, domains.get(JSON.stringify([candidate.file, candidate.name])) ?? []) };
+        if (!unit.inputs.length) continue;
         // Edited tests can introduce a new domain. Without an unchanged declared contract,
         // the prototype cannot attribute the difference to behavior outside that domain.
         if (testChanges.length && !unit.contract) continue;

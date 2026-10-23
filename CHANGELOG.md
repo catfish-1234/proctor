@@ -12,7 +12,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   existing caps, exact quotes and fresh-process reproduction. Confirm DY003 outcomes in fresh
   copies and DY006 witnesses in separate fresh processes on both revisions. Require added
   documentation claims to distinguish revisions, with a changed violating result, so expanded
-  tests and refactors cannot promote unchanged legacy violations. Add paired tuned repair cases.
+  tests and refactors cannot promote unchanged legacy violations. Renamed exceptions cannot
+  establish a new return-value violation. Keep unmarked advisory sweeps inside applicable
+  precise documented domains, avoiding unsupported allocation widths while retaining integer
+  boundaries elsewhere. Add paired tuned repair cases.
 
 - Add DY009 behind both `--dynamic --judge` flags. An installed signed-in command can propose
   a quoted interpretation of unchanged documentation; only stable isolated runtime evidence

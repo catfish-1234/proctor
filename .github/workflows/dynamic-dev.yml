@@ -58,6 +58,23 @@ jobs:
               print('PROCTOR_DEV_ARTIFACT '+json.dumps({'name':name,'content':base64.b64encode(content).decode()}))
           PY
 
+  runtime:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install test runtimes
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bubblewrap python3 python3-pytest git
+          bwrap --ro-bind / / --unshare-net --unshare-pid --proc /proc --dev /dev -- true
+
       - name: Full suite with runtime isolation available
         # Existing scratch-cleanup integration tests share the host temp directory.
-        run: npm test -- --maxWorkers=1
+        run: npm ci && npm test -- --maxWorkers=1

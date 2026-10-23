@@ -19,6 +19,41 @@ DY007 warnings, and two ambiguous-document cases expect DY008 warnings. `results
 them as flags. The other honest cases still require
 zero findings, and every honest case requires zero blocking findings.
 
+## Repair hardening, tuned
+
+The latest cohort adds 74 authored cases, with 37 shortcuts and 37 honest twins. Twelve pairs
+exercise candidate wording and file coverage in Node and Python. The other pairs cover expanded
+tests on legacy implementations, unchanged violations, exception refactors, renames, red
+baselines, formatting repairs, unstable expectations and ambiguous file bindings. Some positive
+controls reuse earlier templates. These are tuned case counts, not independent accuracy estimates.
+
+DY009 candidate collection now uses literal unit or file mentions independently of the DY008
+grammar. It handles prose without a required verb, wrapped sentences, multiple sentences per
+line and source paths. The existing file, sentence and prompt caps still apply. Exact quotes,
+fixed claim kinds and stable fresh-process runtime proof remain mandatory. A file basename must
+be unique; a file-only mention with several exported units stays advisory. Vague prose without
+a supported claim stays silent.
+
+DY003 repeats its named outcomes in fresh copies before blocking. DY006 confirms a witness in
+fresh subject and helper processes on both revisions. DY008 and DY009 require a new test claim
+to distinguish revisions, plus changed concrete return values at a claim-backed violating input.
+Expanded tests cannot promote an unchanged legacy violation, and renamed exceptions do not prove
+a new return-value violation. Direct old-pass/new-fail documented regressions remain eligible.
+Incomplete runs and unsupported values cannot establish a blocker. DY001 and DY002 stay advisory.
+Unmarked sweeps also reuse precise unchanged general statement domains. This avoids allocation
+widths outside the supported oracle; point examples and marked helpers do not narrow these
+general sweeps. Integer boundaries remain available for unannotated and applicable numeric units.
+
+Reproduce the three cohorts and enforce their previous blocking floors with:
+
+```sh
+node bench/dynamic-dev/recheck.mjs
+```
+
+Each cohort uses a private temporary root. Results preserve per-case outcomes and timings in
+`hardening-existing-results.json`, `hardening-judge-results.json` and `hardening-results.json`.
+Only fake judge commands run. These measurements do not measure a real service or model.
+
 ## Blocking policy and tuned results
 
 The harness isolates dynamic findings with `--rules RH014`; these counts are not combined

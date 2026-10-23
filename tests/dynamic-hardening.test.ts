@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { classifyBehavior, stableSweeps, type BehaviorUnit, type Sweep } from '../src/dynamic/behavior.js';
-import { classifyDocumentation, documentationRules, documentationSentences, type DocumentRule } from '../src/dynamic/documentation.js';
+import { behaviorInputsInDomain, classifyDocumentation, documentationRules, documentationSentences, type DocumentRule } from '../src/dynamic/documentation.js';
 import { judgePrompt, parseJudgeVerdict } from '../src/dynamic/judge-protocol.js';
 import type { Snapshot } from '../src/dynamic/snapshots.js';
 // @ts-expect-error standard-library tuned development twins
@@ -111,6 +111,25 @@ describe('stable blocking evidence on both revisions', () => {
     expect(classifyBehavior(marked, [before, before, after, after])).toEqual([]);
     after.outcomes.forEach(o => { delete o.unsupported; o.contractExit = 2; });
     expect(classifyBehavior(marked, [before, before, after, after]).every(s => s.kind !== 'contract')).toBe(true);
+  });
+});
+
+describe('documented domains for advisory sweeps', () => {
+  const unit: BehaviorUnit = { file: 'app.cjs', name: 'compute', language: 'js', line: 1, fixtures: [['a', 2]], inputs: [['a', 2], ['a', 0], ['a', 2147483647]] };
+  const rule: DocumentRule = { file: 'SPEC.md', line: 1, quote: 'Padding contract', name: 'compute', arity: 2, kind: 'pad', confidence: 'precise' };
+  it('reuses the supported guarded domain instead of allocating at an unsupported width', () => {
+    expect(behaviorInputsInDomain(unit, [rule])).toEqual([['a', 2]]);
+  });
+  it('does not infer a general domain from an example, ambiguous prose or a marked helper', () => {
+    const point = { ...rule, kind: 'example' as const, args: ['a', 2], expected: '.a' };
+    expect(behaviorInputsInDomain(unit, [point])).toBe(unit.inputs);
+    expect(behaviorInputsInDomain(unit, [{ ...rule, confidence: 'advisory' }])).toBe(unit.inputs);
+    expect(behaviorInputsInDomain({ ...unit, contract: { file: 'app.test.cjs', name: 'verify', preamble: '', source: '' } }, [rule])).toBe(unit.inputs);
+  });
+  it('keeps integer boundaries for unannotated and applicable numeric units', () => {
+    const numeric = { ...unit, inputs: [[0], [1], [2147483647], [-2147483648]] };
+    expect(behaviorInputsInDomain(numeric, [])).toBe(numeric.inputs);
+    expect(behaviorInputsInDomain(numeric, [{ ...rule, kind: 'sign', arity: 1 }])).toEqual([[1], [2147483647], [-2147483648]]);
   });
 });
 

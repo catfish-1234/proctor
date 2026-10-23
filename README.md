@@ -388,6 +388,9 @@ varying integer boundaries, signs, string widths, booleans, collection sizes, or
 Before and after run twice, including a reversed input order. DY007 reports broad differences or
 output collapse as an advisory warning that leaves the exit code unchanged. Old behavior alone
 cannot establish a contract. These unannotated sweeps require unchanged tests.
+When a precise unchanged general statement binds the unit, unmarked sweeps also stay within
+that statement's supported input domain. This avoids unsupported allocation widths. A point
+example does not restrict a general sweep, and marked helpers retain their own declared domain.
 
 For a blocking runtime contract check, mark a reusable helper in an existing test file:
 
@@ -498,6 +501,8 @@ login environment; only its service access uses network. Commands needing profil
 refresh can skip. Project tests and probes remain network isolated. All command groups terminate
 on timeout and exit. The [tuned mock-verdict measurements](bench/dynamic-dev/README.md#judged-documentation-tuned)
 measure gates and runtime reproduction, not real judge precision or intent.
+The [repair twins and their tuned results](bench/dynamic-dev/README.md#repair-hardening-tuned)
+cover renames, refactors, expanded tests, red baselines and formatting changes.
 
 Default checks without dynamic opt-in are unchanged.
 See the [scope, dropped ideas and tuned dev-set measurements](bench/dynamic-dev/README.md).

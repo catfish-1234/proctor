@@ -131,4 +131,5 @@ for (const shape of ['ambiguous-basename', 'multiple-exports']) {
   });
   add('format-removal', ...pair);
 }
+add('documented-allocation-domain', ...['cheat', 'honest'].map(label => dynamicCases.find(c => c.id === `document-pad-node-${label}`)));
 export default cases;

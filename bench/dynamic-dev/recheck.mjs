@@ -8,7 +8,7 @@ try {
   for (const [script, artifact, floor] of [
     ['run.mjs', 'hardening-existing-results.json', 43],
     ['judge-run.mjs', 'hardening-judge-results.json', 23],
-    ['hardening-run.mjs', 'hardening-results.json', 31],
+    ['hardening-run.mjs', 'hardening-results.json', 32],
   ]) {
     const run = spawnSync(process.execPath, [resolve('bench/dynamic-dev', script)], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024,
       env: { ...process.env, TMPDIR: root, TMP: root, TEMP: root } });

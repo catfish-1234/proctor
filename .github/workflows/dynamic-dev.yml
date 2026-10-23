@@ -15,8 +15,8 @@ permissions:
 
 jobs:
   development:
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -30,11 +30,14 @@ jobs:
       - name: Install test runtimes
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends bubblewrap python3 git
+          sudo apt-get install -y --no-install-recommends bubblewrap python3 python3-pytest git
           bwrap --ro-bind / / --unshare-net --unshare-pid --proc /proc --dev /dev -- true
 
       - name: Build
         run: npm ci && npm run build
+
+      - name: Full suite with runtime isolation available
+        run: npm test
 
       - name: Recheck tuned development cohorts
         run: node bench/dynamic-dev/recheck.mjs

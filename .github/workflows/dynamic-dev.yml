@@ -36,9 +36,6 @@ jobs:
       - name: Build
         run: npm ci && npm run build
 
-      - name: Full suite with runtime isolation available
-        run: npm test
-
       - name: Recheck tuned development cohorts
         run: node bench/dynamic-dev/recheck.mjs
 
@@ -60,3 +57,7 @@ jobs:
               content=Path('bench/dynamic-dev',name).read_bytes()
               print('PROCTOR_DEV_ARTIFACT '+json.dumps({'name':name,'content':base64.b64encode(content).decode()}))
           PY
+
+      - name: Full suite with runtime isolation available
+        # Existing scratch-cleanup integration tests share the host temp directory.
+        run: npm test -- --maxWorkers=1

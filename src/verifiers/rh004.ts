@@ -435,7 +435,7 @@ function stringBranches(view: SourceView, python: boolean, parse: ExpressionPars
 
 /** Parse only changed string branches. The ordinary path never loads the expression parser. */
 async function serializedSignatures(context: Context): Promise<Array<{finding:Finding;endLine:number}>> {
-  const candidates = context.files.filter(file=>!context.isTestFile(pathOf(file))).flatMap(file=>file.chunks
+  const candidates = context.files.filter(file=>isWatchedSource(context,pathOf(file))).flatMap(file=>file.chunks
     .filter(chunk=>chunk.changes.some(change=>change.type==='add' && /['"`]/.test(change.content))
       && chunk.changes.some(change=>/\bif\b/.test(change.content)))
     .map(chunk=>({file,chunk})));

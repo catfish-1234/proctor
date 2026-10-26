@@ -48,6 +48,10 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Install bubblewrap (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y bubblewrap
+
       - name: Test
         run: npm test
 

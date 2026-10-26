@@ -15,6 +15,9 @@ const DEFAULT_GLOBS = [
   // are recognized, not just plain .ts/.js, otherwise those tests escape every test-file check.
   '**/*.test.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
   '**/*.spec.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+  // Bare exact stems complement the patterns above/below; picomatch's **/ also matches the root.
+  '**/test.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+  '**/test.py',
   'test/**/*',
   'tests/**/*',
   '__tests__/**/*',

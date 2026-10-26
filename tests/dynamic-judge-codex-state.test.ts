@@ -3,7 +3,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { delimiter, join, relative } from 'node:path';
+import { delimiter, isAbsolute, join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createJudge, type JudgeCli } from '../src/dynamic/judge.js';
 import { judgePrompt, type JudgeRequest } from '../src/dynamic/judge-protocol.js';
@@ -12,7 +12,7 @@ vi.mock('node:child_process', async importOriginal => {
   const actual = await importOriginal<typeof import('node:child_process')>();
   return { ...actual, spawn: vi.fn() };
 });
-const { spawn: realSpawn } = await vi.importActual<typeof import('node:child_process')>('node:child_process');
+const { spawn: realSpawn, spawnSync: realSpawnSync } = await vi.importActual<typeof import('node:child_process')>('node:child_process');
 const toolPath = process.env.PATH;
 const request: JudgeRequest = { name: 'compute', arity: 1, before: 'x=>x', after: 'x=>x.slice(0,1)', sentences: ['`app.compute(x)` keeps every character.'] };
 const verdict = { violation: 'yes', quote: request.sentences[0], claim: { kind: 'width' } };
@@ -46,7 +46,8 @@ beforeEach(() => {
   for (const dir of [codexHome, work, repo, bin, join(work, 'tmp')]) mkdirSync(dir, { recursive: true });
   writeFileSync(join(codexHome, 'installation_id'), seed);
   for (const cli of ['codex', 'claude', 'gemini']) writeFileSync(join(bin, cli), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
-  vi.stubEnv('HOME', home); vi.stubEnv('CODEX_HOME', undefined); vi.stubEnv('PATH', bin);
+  // os.homedir() reads HOME on POSIX and USERPROFILE on Windows.
+  vi.stubEnv('HOME', home); vi.stubEnv('USERPROFILE', home); vi.stubEnv('CODEX_HOME', undefined); vi.stubEnv('PATH', bin);
   vi.mocked(spawn).mockReset().mockImplementation(() => output());
 });
 afterEach(() => {
@@ -57,8 +58,17 @@ afterEach(() => {
 describe('codex judge installation identity bind', () => {
   it('lets fake codex write installation_id while real writes to auth.json and siblings fail with EROFS', async context => {
     const bwrap = (toolPath ?? '').split(delimiter).map(dir => join(dir, 'bwrap')).find(path => existsSync(path));
-    if (!bwrap) context.skip('Real Linux bind contract requires bubblewrap on the pre-test PATH');
+    // The pinned Linux CI runner sets PROCTOR_REQUIRE_BWRAP: the real bind contract must execute there.
+    const required = !!process.env.PROCTOR_REQUIRE_BWRAP;
+    if (!bwrap && !required) context.skip('bubblewrap not found on the pre-test PATH');
     expect(bwrap, 'bubblewrap is required for the file bind contract').toBeDefined();
+    // An installed binary can still be denied user namespaces by the runner.
+    const probe = realSpawnSync(bwrap!, ['--die-with-parent', '--unshare-pid', '--ro-bind', '/', '/', '--', '/bin/true'], { timeout: 2000, killSignal: 'SIGKILL', stdio: 'ignore' });
+    if (probe.error || probe.status !== 0) {
+      const reason = `bubblewrap cannot execute (user namespaces unavailable): ${probe.error?.message ?? `exit ${probe.status}`}`;
+      if (required) expect(probe.error ?? probe.status, reason).toBe(0);
+      else context.skip(reason);
+    }
     symlinkSync(bwrap!, join(bin, 'bwrap'));
     writeFileSync(join(bin, 'codex'), `#!${process.execPath}
 const fs = require('node:fs');
@@ -158,9 +168,16 @@ fs.writeSync(1, ${JSON.stringify(JSON.stringify(verdict))});
   });
 
   it('skips a relative CODEX_HOME even when it resolves inside HOME', async () => {
-    vi.stubEnv('CODEX_HOME', relative(process.cwd(), codexHome));
-    await ask();
-    expectSkipped();
+    const cwd = process.cwd();
+    // The checkout and temp directory can be on different Windows drives.
+    process.chdir(root);
+    try {
+      const relativeHome = relative(process.cwd(), codexHome);
+      expect(isAbsolute(relativeHome)).toBe(false);
+      vi.stubEnv('CODEX_HOME', relativeHome);
+      await ask();
+      expectSkipped();
+    } finally { process.chdir(cwd); }
   });
 
   it('keeps a missing host identity absent, records a diagnostic and preserves the failed call', async () => {

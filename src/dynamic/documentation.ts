@@ -144,6 +144,12 @@ export function documentationRules(old: Snapshot, next: Snapshot): DocumentRule[
 /** Candidate coverage is independent of the deterministic contract grammar. */
 export function documentationSentences(old: Snapshot, next: Snapshot, names?: Set<string>, sourceFiles: string[] = [], changedFiles = new Set(sourceFiles)): DocumentSentence[] {
   const candidates: DocumentSentence[] = [];
+  // Deliberate prose case-folding is collision-guarded and preserves original symbol names.
+  const proseNames = names ? new Map<string, string | undefined>() : undefined;
+  if (names && proseNames) for (const name of names) {
+    const folded = name.toLowerCase();
+    proseNames.set(folded, proseNames.has(folded) ? undefined : name);
+  }
   const add = (file: string, line: number, quote: string) => {
     if (!quote || quote.length > 500 || candidates.length >= 32) return;
     const mentions: DocumentSentence[] = [];
@@ -153,8 +159,11 @@ export function documentationSentences(old: Snapshot, next: Snapshot, names?: Se
       // A basename shared by different files cannot bind a contract to either file.
       if (matches.length === 1 && changedFiles.has(matches[0]!)) mentions.push({ file, line, quote, name: '', arity: 0, sourceFile: matches[0] });
       if (parts.length > 2 || text.includes('/')) continue;
-      const name = parts.at(-1)!;
-      if (names?.has(name)) mentions.push({ file, line, quote, name, module: parts.length === 2 ? parts[0] : undefined, arity: 0 });
+      const segment = parts.at(-1)!;
+      // Inline code keeps literal, case-sensitive binding, like the signatures below.
+      const inCode = quote.slice(0, token.index).split('`').length % 2 === 0;
+      const name = inCode ? (names?.has(segment) ? segment : undefined) : proseNames?.get(segment.toLowerCase());
+      if (name !== undefined) mentions.push({ file, line, quote, name, module: parts.length === 2 ? parts[0] : undefined, arity: 0 });
     }
     // Preserve literal example seeds and explicit signature arity without requiring a verb.
     for (const match of quote.matchAll(/`([^`]+)`/g)) {
@@ -311,4 +320,4 @@ export function classifyDocumentation(unit: BehaviorUnit, rules: DocumentRule[],
     if (index >= 0) findings.push({ rule, index, claim, blocking: rule.confidence === 'precise' && !conflict && !changedDocs });
   }
   return findings;
-}
+                                                                                    }

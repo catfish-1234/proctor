@@ -15,6 +15,9 @@ const DEFAULT_GLOBS = [
   // are recognized, not just plain .ts/.js, otherwise those tests escape every test-file check.
   '**/*.test.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
   '**/*.spec.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+  // Bare exact stems complement the patterns above/below; picomatch's **/ also matches the root.
+  '**/test.{ts,tsx,mts,cts,js,jsx,mjs,cjs}',
+  '**/test.py',
   'test/**/*',
   'tests/**/*',
   '__tests__/**/*',
@@ -218,6 +221,10 @@ function normalizeConfig(config: ProctorConfig): ProctorConfig {
     warn("config 'dynamicTimeoutMs' must be an integer from 1 to 2147483647; ignoring it");
     delete out.dynamicTimeoutMs;
   }
+  if (config.judge !== undefined && (!config.judge || typeof config.judge !== 'object' || Array.isArray(config.judge) || !['claude', 'codex', 'gemini'].includes(config.judge.cli))) {
+    warn("config 'judge.cli' must be claude, codex or gemini; ignoring it");
+    delete out.judge;
+  }
   return out;
 }
 
@@ -355,6 +362,7 @@ export async function buildContext(cwd: string, files: ParsedFile[], opts?: { co
     commitMessage,
     snapshotGlobs,
     aiModel,
+    ...(config.judge !== undefined ? { judgeCli: config.judge.cli } : {}),
     ...(config.dynamic !== undefined ? { dynamic: config.dynamic } : {}),
     ...(config.dynamicTimeoutMs !== undefined ? { dynamicTimeoutMs: config.dynamicTimeoutMs } : {}),
   };

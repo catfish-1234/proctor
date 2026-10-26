@@ -17,7 +17,7 @@ import samples from '../bench/dynamic-dev/cases.mjs';
 // @ts-expect-error standard-library fixture helper
 import { makeRepo, writeTree } from '../bench/dynamic-dev/run.mjs';
 
-type Sample = { id: string; family: string; label: string; before: Record<string, string>; after: Record<string, string>; expected: string[] };
+type Sample = { id: string; family: string; label: string; before: Record<string, string>; after: Record<string, string>; expected: string[]; expectedBlocking?: string[]; expectedAdvisory?: string[] };
 const cases = samples as Sample[];
 const CLI = resolve('dist/cli.js');
 const workerPath = resolve('dist/dynamic-worker.js');
@@ -246,8 +246,12 @@ describe('isolated dynamic execution and precision twins', () => {
         if (sample.label === 'honest') expect(result.runs[1]!.exitCode).toBe(0);
       }
       const ids = result.findings.map(f => f.verifierId);
-      if (sample.label === 'honest' || sample.expected.length === 0) expect(ids).toEqual([]);
+      if (sample.label === 'honest') {
+        expect(result.findings.filter(f => f.severity === 'error')).toEqual([]);
+        expect(ids).toEqual(sample.expectedAdvisory ?? []);
+      } else if (sample.expected.length === 0) expect(ids).toEqual([]);
       for (const id of sample.expected) expect(ids).toContain(id);
+      for (const id of sample.expectedBlocking ?? []) expect(result.findings.some(f => f.verifierId === id && f.severity === 'error')).toBe(true);
       for (const f of result.findings) {
         expect(f.message).toContain('Evidence:'); expect(f.message).toContain('exit ');
       }

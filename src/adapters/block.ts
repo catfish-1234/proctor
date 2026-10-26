@@ -20,9 +20,7 @@ export const BLOCK_END = '<!-- proctor:end -->';
  * removing that "block" would take the user's content with it. Tempering makes the engine give up
  * on the stray marker and match proctor's actual block instead.
  */
-const BLOCK_RE = new RegExp(
-  `${BLOCK_START}\\r?\\n?((?:(?!${BLOCK_START})[\\s\\S])*?)\\r?\\n?${BLOCK_END}\\r?\\n?`
-);
+const BLOCK_RE = /<!-- proctor:start -->\r?\n?((?:(?!<!-- proctor:start -->)[\s\S])*?)\r?\n?<!-- proctor:end -->\r?\n?/;
 
 /**
  * Content carrying a literal end marker would close the block early, leaving the rest of the
@@ -51,7 +49,7 @@ export function extractBlock(file: string): string | undefined {
 
 /** How many managed blocks the file holds. More than one means proctor cannot tell which is its own. */
 export function countBlocks(file: string): number {
-  return (file.match(new RegExp(BLOCK_RE, 'g')) ?? []).length;
+  return (file.match(/<!-- proctor:start -->\r?\n?((?:(?!<!-- proctor:start -->)[\s\S])*?)\r?\n?<!-- proctor:end -->\r?\n?/g) ?? []).length;
 }
 
 /**
@@ -66,7 +64,7 @@ export function countBlocks(file: string): number {
  * block. Callers that cannot tolerate the ambiguity should check `countBlocks` first.
  */
 export function removeBlock(file: string): string {
-  const matches = [...file.matchAll(new RegExp(BLOCK_RE, 'g'))];
+  const matches = [...file.matchAll(/<!-- proctor:start -->\r?\n?((?:(?!<!-- proctor:start -->)[\s\S])*?)\r?\n?<!-- proctor:end -->\r?\n?/g)];
   const last = matches[matches.length - 1];
   if (last === undefined) return file;
   const stripped = file.slice(0, last.index) + file.slice(last.index + last[0].length);
@@ -93,7 +91,7 @@ export function upsertBlock(existing: string | undefined, content: string, ours 
   // obvious case) would otherwise be replaced by the ruleset on first install. Append instead.
   if (!ours) return `${existing.trimEnd()}\n\n${block}`;
 
-  const matches = [...existing.matchAll(new RegExp(BLOCK_RE, 'g'))];
+  const matches = [...existing.matchAll(/<!-- proctor:start -->\r?\n?((?:(?!<!-- proctor:start -->)[\s\S])*?)\r?\n?<!-- proctor:end -->\r?\n?/g)];
   if (matches.length > 0) {
     const lastIndex = matches.length - 1;
     const wanted = neutralizeMarkers(content.trim());

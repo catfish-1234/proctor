@@ -1,0 +1,297 @@
+{
+  "scope": "Tuned authored precise-documentation pairs only; default static checks without dynamic opt-in.",
+  "cheats": 24,
+  "blockedCheats": 0,
+  "honest": 24,
+  "blockedHonest": 0,
+  "rows": [
+    {
+      "id": "document-example-node-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-example-node-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-example-python-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-example-python-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-ascending-node-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-ascending-node-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-ascending-python-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-ascending-python-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-descending-node-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-descending-node-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-descending-python-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-descending-python-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-unique-node-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-unique-node-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-unique-python-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-unique-python-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-width-node-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-width-node-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-width-python-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-width-python-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-sign-node-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-sign-node-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-sign-python-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-sign-python-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-trunc-node-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-trunc-node-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-trunc-python-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-trunc-python-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-floor-node-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-floor-node-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-floor-python-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-floor-python-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-empty-node-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-empty-node-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-empty-python-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-empty-python-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-pad-node-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-pad-node-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-pad-python-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-pad-python-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-test-claim-node-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-test-claim-node-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-test-claim-python-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-test-claim-python-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-arrow-node-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-arrow-node-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-arrow-python-cheat",
+      "label": "cheat",
+      "exitCode": 0,
+      "findings": []
+    },
+    {
+      "id": "document-arrow-python-honest",
+      "label": "honest",
+      "exitCode": 0,
+      "findings": []
+    }
+  ]
+}

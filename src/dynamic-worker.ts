@@ -6,6 +6,9 @@ import { loadSnapshots, materialize, type Snapshot } from './dynamic/snapshots.j
 import { detectAdapter, runTests } from './dynamic/adapters.js';
 import { documentedIntent, expectedEdits, expectationChanges, expectationOnlyEdit, findProbes, locateTest, probeInputs, type ProbeValue } from './dynamic/signals.js';
 import { coverageEnvironment, jsMutations, MUTATION_LIMIT, pythonMutations, readCalls } from './dynamic/mutations.js';
+import { behaviorUnits, classifyBehavior, runSweep, runFreshSweep, type Sweep } from './dynamic/behavior.js';
+import { documentationRules, documentedUnits, documentationInputs, behaviorInputsInDomain, classifyDocumentation, isDocumentation, type DocumentRule } from './dynamic/documentation.js';
+import { documentClaims } from './dynamic/documentation-claims.js';
 import type { DynamicOptions, DynamicResult, TestRun } from './dynamic/runner.js';
 import type { Finding } from './types.js';
 
@@ -15,8 +18,8 @@ const result: DynamicResult = { status: 'completed', findings: [], runs: [], not
 function evidence(...runs: TestRun[]): string {
   return runs.map(r => `${r.label}: \`${r.command}\`, exit ${r.exitCode}, ${r.passed.length} passed, ${r.failed.length} failed${r.failed.length ? ` (${r.failed.join(', ')})` : ''}${r.fileRuns ? '; ' + r.fileRuns.map(f => `\`${f.command}\`, exit ${f.exitCode}, file ${f.file}`).join('; ') : ''}`).join('; ');
 }
-function finding(id: string, file: string, message: string, runs: TestRun[], line = 1): void {
-  result.findings.push({ verifierId: id, severity: 'warn', file, line, message: `${message} Evidence: ${evidence(...runs)}.`, suggestion: 'Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.' });
+function finding(id: string, file: string, message: string, runs: TestRun[], line = 1, blocking = false): void {
+  result.findings.push({ verifierId: id, severity: blocking ? 'error' : 'warn', file, line, message: `${message} Evidence: ${evidence(...runs)}.`, suggestion: 'Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.' });
 }
 try {
   const { old, next } = loadSnapshots(options);
@@ -36,7 +39,8 @@ try {
     result.runs.push(testRun);
     return { run: testRun, dir };
   }
-  const original = run(old, 'original tests / original code').run;
+  const baseline = run(old, 'original tests / original code');
+  const original = baseline.run;
   const current = run(next, 'new tests / new code');
   if (original.failed.length && current.run.exitCode === 0) {
     result.notes.push('Original tests are red and new tests are green. Continue with per-test comparisons and applicable probes; this is a normal fix shape.');
@@ -44,6 +48,73 @@ try {
   const testChanges = [...new Set([...oldTests, ...nextTests])].filter(p => old.get(p)?.data.toString() !== next.get(p)?.data.toString());
   const changedSource = [...new Set([...old.keys(), ...next.keys()])].some(p => !isTest(p) && !/\.(?:md|rst|txt)$/i.test(p) && old.get(p)?.data.toString() !== next.get(p)?.data.toString());
   const intent = documentedIntent(old, next);
+  const domains = new Map<string, DocumentRule[]>();
+  // Documentation is an oracle only when it is unchanged and precise. No prose is executed.
+  if (current.run.exitCode === 0 && !intent) {
+    const docsChanged = [...new Set([...old.keys(), ...next.keys()])].some(file => isDocumentation(file) &&
+      (old.get(file)?.mode !== next.get(file)?.mode || old.get(file)?.data.toString() !== next.get(file)?.data.toString()));
+    const rules = documentationRules(old, next);
+    if (rules.length && !docsChanged) {
+      try {
+        for (const candidate of documentedUnits(old, next, isTest, current.dir, rules)) {
+          domains.set(JSON.stringify([candidate.unit.file, candidate.unit.name]), candidate.rules);
+          const claims = documentClaims(candidate.unit, old, next, nextTests, current.run, current.dir);
+          const unit = { ...candidate.unit, inputs: documentationInputs(candidate.rules, candidate.unit.fixtures, claims.map(c => c.args)) };
+          const sweeps: Sweep[] = [];
+          for (const [dir, label] of [[baseline.dir, 'original code'], [current.dir, 'new code']] as const) for (const reverse of [false, true]) {
+            const sweep = runFreshSweep(unit, dir, `documented behavior / ${label}${reverse ? ' / reversed repeat' : ''}`, reverse);
+            if (sweep) { sweeps.push(sweep); result.runs.push(sweep.run); }
+          }
+          for (const signal of classifyDocumentation(unit, candidate.rules, sweeps, claims, docsChanged)) {
+            const args = unit.inputs[signal.index], before = sweeps[0]!.outcomes[signal.index], after = sweeps[2]!.outcomes[signal.index];
+            finding('DY008', unit.file,
+              `${signal.blocking ? 'Violation of unchanged documented contract' : 'Possible contradiction to ambiguous documentation'} ${signal.rule.file}:${signal.rule.line}: ${JSON.stringify(signal.rule.quote)}. ${unit.name} input ${JSON.stringify(args)}: before ${JSON.stringify(before)}, after ${JSON.stringify(after)}; reproduced in separate fresh input processes.${signal.claim ? ` Added passing test ${JSON.stringify(signal.claim.test)} at ${signal.claim.file}:${signal.claim.line} claims this rule with input ${JSON.stringify(signal.claim.args)} and expected ${JSON.stringify(signal.claim.expected)}.` : ' The original result satisfied this statement.'}`,
+              [current.run, ...sweeps.map(s => s.run)], unit.line, signal.blocking);
+          }
+        }
+      } catch (error) { result.notes.push(`not run: documented behavior could not establish reliable evidence: ${String(error)}`); }
+    } else if (rules.length && docsChanged) result.notes.push('not run: documented behavior contract files changed in this diff');
+  }
+  // A previous implementation is a reference, not an oracle. Only an unchanged, explicit
+  // test contract can turn a stable generated-input contradiction into a blocking result.
+  if (current.run.exitCode === 0 && !intent) {
+    try {
+      for (const candidate of behaviorUnits(old, next, isTest, current.dir)) {
+        const unit = { ...candidate, inputs: behaviorInputsInDomain(candidate, domains.get(JSON.stringify([candidate.file, candidate.name])) ?? []) };
+        if (!unit.inputs.length) continue;
+        // Edited tests can introduce a new domain. Without an unchanged declared contract,
+        // the prototype cannot attribute the difference to behavior outside that domain.
+        if (testChanges.length && !unit.contract) continue;
+        const sweeps: Sweep[] = [];
+        for (const [dir, label] of [[baseline.dir, 'original code'], [current.dir, 'new code']] as const) {
+          for (const reverse of [false, true]) {
+            const sweep = runSweep(unit, dir, `behavior sweep / ${label}${reverse ? ' / reversed repeat' : ''}`, reverse);
+            if (sweep) { sweeps.push(sweep); result.runs.push(sweep.run); }
+          }
+        }
+        for (const signal of classifyBehavior(unit, sweeps)) {
+          let proof = sweeps, subject = unit, indices = signal.indices;
+          if (signal.kind === 'contract') {
+            // Confirm one witness independently of batch state. The unchanged helper and
+            // subject each run in fresh processes on both revisions, twice per revision.
+            subject = { ...unit, inputs: [unit.inputs[signal.indices[0]!]!] };
+            proof = [];
+            for (const [dir, label] of [[baseline.dir, 'original code'], [current.dir, 'new code']] as const) for (const reverse of [false, true]) {
+              const sweep = runFreshSweep(subject, dir, `declared contract confirmation / ${label}${reverse ? ' / repeat' : ''}`, reverse, true);
+              if (sweep) { proof.push(sweep); result.runs.push(sweep.run); }
+            }
+            const confirmed = classifyBehavior(subject, proof).find(s => s.kind === 'contract');
+            if (!confirmed) continue;
+            indices = confirmed.indices;
+          }
+          const observations = indices.map(i => ({ input: subject.inputs[i], before: proof[0]!.outcomes[i], after: proof[2]!.outcomes[i] }));
+          finding(signal.kind === 'contract' ? 'DY006' : 'DY007', unit.file,
+            `${signal.description} in ${unit.name}. Reproduced in forward and reverse order${signal.kind === 'contract' ? ' and confirmed in fresh input processes on both revisions' : ''}: ${JSON.stringify(observations)}`,
+            [current.run, ...sweeps.map(s => s.run), ...(proof === sweeps ? [] : proof.map(s => s.run))], unit.line, signal.kind === 'contract');
+        }
+      }
+    } catch (error) { result.notes.push(`not run: behavior sweeps could not establish reliable evidence: ${String(error)}`); }
+  }
   const edits = testChanges.filter(p => expectedEdits(old.get(p)?.data.toString() ?? '', next.get(p)?.data.toString() ?? ''));
   function withTests(source: Snapshot, tests: Snapshot): Snapshot {
     const hybrid = new Map(source);
@@ -65,13 +136,21 @@ try {
     if (both.length) result.notes.push(`${both.length} named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.`);
     if (!changedSource && !intent && testChanges.length === 1 && edits.length && expectationOnlyEdit(old.get(edits[0]!)?.data.toString() ?? '', next.get(edits[0]!)?.data.toString() ?? '')) {
       const rejected = reverse.failed.filter(id => original.passed.includes(id));
-      const accepted = reverse.passed.filter(id => original.failed.includes(id));
+      const candidates = reverse.passed.filter(id => original.failed.includes(id) && current.run.passed.includes(id));
+      // Re-materialize each control to avoid suite artifacts becoming evidence. An unrelated
+      // red test does not disqualify a uniquely named, independently reproduced outcome.
+      const controls = candidates.length ? [
+        run(old, 'original tests / original code confirmation').run,
+        run(next, 'new tests / new code confirmation').run,
+        run(withTests(old, next), 'new tests / original code confirmation').run,
+      ] : [];
+      const accepted = candidates.filter(id => controls[0]!.failed.includes(id) && controls[1]!.passed.includes(id) && controls[2]!.passed.includes(id));
       for (const id of [...rejected, ...accepted]) {
         const file = locateTest(id, old, oldTests);
         const mismatch = accepted.includes(id)
           ? 'failed with the original expectation, but the edited expectation passes on that same old code; the edit already matches the old behavior'
           : 'passed with the original expectation, but the edited expectation fails on that same old code';
-        if (file && edits.includes(file)) finding('DY003', file, `Only the expected literal changed (${expectationChanges(old.get(file)?.data.toString() ?? '', next.get(file)?.data.toString() ?? '').map(e => `${e.before} to ${e.after}`).join(', ')}): test ${JSON.stringify(id)} ${mismatch}`, [original, current.run, reverse]);
+        if (file && edits.includes(file)) finding('DY003', file, `Only the expected literal changed (${expectationChanges(old.get(file)?.data.toString() ?? '', next.get(file)?.data.toString() ?? '').map(e => `${e.before} to ${e.after}`).join(', ')}): test ${JSON.stringify(id)} ${mismatch}`, [original, current.run, reverse, ...(accepted.includes(id) ? controls : [])], 1, accepted.includes(id));
       }
     }
   }
@@ -166,6 +245,16 @@ try {
       if (file && repeats.some(r => r.passed.includes(id)) && repeats.filter(r => r.failed.includes(id)).length >= 2) {
         finding('DY005', file, `Test ${JSON.stringify(id)} has inconsistent outcomes across four runs after adding a sleep or retry; this can also be order dependence`, repeats);
       }
+    }
+  }
+  if (options.judge && current.run.exitCode === 0 && !intent && !result.findings.some(f => f.severity === 'error')) {
+    const docsChanged = [...new Set([...old.keys(), ...next.keys()])].some(file => isDocumentation(file) &&
+      (old.get(file)?.mode !== next.get(file)?.mode || old.get(file)?.data.toString() !== next.get(file)?.data.toString()));
+    if (!docsChanged) {
+      try {
+        const { judgeDocumentation } = await import('./dynamic/judge-worker.js');
+        await judgeDocumentation(old, next, isTest, baseline.dir, current.dir, nextTests, current.run, result, finding);
+      } catch { /* An unavailable optional interpretation cannot establish a finding. */ }
     }
   }
 } catch (error) {

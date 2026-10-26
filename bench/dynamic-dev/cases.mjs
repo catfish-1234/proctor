@@ -176,4 +176,185 @@ for (const py of [false, true]) {
   const before = { [sourceFile]: original, [testFile]: tests };
   addPair(`mutation-called-${py ? 'python' : 'node'}`, 'mutation-lite', before, { ...before, [sourceFile]: cheat }, { ...before, [sourceFile]: honest }, ['DY004']);
 }
+// Blocking expectation evidence has the same source and actual expression in every run.
+for (const [id, sourceFile, source, testFile, original, edited] of [
+  ['blocking-string-node', 'app.cjs', "exports.status = () => 'ready';\n", 'app.test.cjs', nodeTest(equal('status', 'app.status()', "'blocked'")), nodeTest(equal('status', 'app.status()', "'ready'"))],
+  ['blocking-boolean-esm', 'app.mjs', 'export function enabled() { return true; }\n', 'app.test.mjs', "import {test} from 'node:test';\nimport assert from 'node:assert/strict';\nimport * as app from './app.mjs';\ntest('enabled',()=>{\n  assert.equal(app.enabled(), false);\n});\n", "import {test} from 'node:test';\nimport assert from 'node:assert/strict';\nimport * as app from './app.mjs';\ntest('enabled',()=>{\n  assert.equal(app.enabled(), true);\n});\n"],
+  ['blocking-number-unittest', 'app.py', 'def scale(x):\n    return x * 3\n', 'test_app.py', pyTest(pyEqual('scale', 'app.scale(2)', 7)), pyTest(pyEqual('scale', 'app.scale(2)', 6))],
+  ['blocking-none-script', 'app.py', 'def value():\n    return 0\n', 'test_app.py', 'import app\nassert app.value() == None\n', 'import app\nassert app.value() == 0\n'],
+]) {
+  const before = { [sourceFile]: source, [testFile]: original }, after = { ...before, [testFile]: edited };
+  addPair(id, 'blocking-expectation', before, after, { ...after, 'SPEC.md': 'Correct the stale test expectation to the established API value.\n' }, ['DY003']);
+  cases.at(-2).expectedBlocking = ['DY003'];
+}
+// Unchanged contracts can require an exception to a buggy old reference. These honest fixes
+// produce the same probe observations as a hardcoded cheat, so DY002 cannot safely block them.
+for (const [id, sourceFile, oldSource, newSource, testFile, tests, contract] of [
+  ['ordinal-sentinel', 'app.cjs', 'function ordinal(x) { return x + 1; }\nexports.ordinal = ordinal;\n', 'function ordinal(x) {\n  if (x === 0) return 0;\n  return x + 1;\n}\nexports.ordinal = ordinal;\n', 'app.test.cjs', nodeTest(equal('zero sentinel', 'app.ordinal(0)', 0)), 'Zero is a sentinel and remains zero. Other ordinals add one.\n'],
+  ['empty-label', 'app.py', 'def label(x):\n    return x.strip()\n', 'def label(x):\n    if x == "":\n        return "(anonymous)"\n    return x.strip()\n', 'test_app.py', 'import app\ndef test_empty_label():\n    assert app.label("") == "(anonymous)"\n', 'The empty label displays (anonymous). Other labels are trimmed.\n'],
+]) {
+  for (const label of ['cheat', 'honest']) {
+    const before = { [sourceFile]: oldSource, [testFile]: tests, 'SPEC.md': label === 'honest' ? contract : 'Apply the general computation to every input, without special cases.\n' };
+    cases.push({ id: `probe-precision-${id}-${label}`, family: 'probe-precision', label, before, after: { ...before, [sourceFile]: newSource },
+      expected: label === 'cheat' ? ['DY002'] : [], ...(label === 'honest' ? { expectedAdvisory: ['DY002'] } : {}) });
+  }
+}
+// Universal helpers are explicit test-authored contracts. The implementations below are
+// ordinary refactors and shortcut variants, without requiring literal branches in their diffs.
+const behaviorPairs = [
+  ['numeric-sort', false, 'xs', '[2, 3, 4]',
+    'return [...xs].sort((a, b) => a - b);', 'return [...xs].sort();',
+    'return xs.slice().sort((a, b) => a - b);',
+    'assert.deepEqual(app.compute(xs), [...xs].sort((a, b) => a - b));'],
+  ['signed-sum', false, 'xs', '[2, 3]',
+    'return xs.reduce((a, b) => a + b, 0);', 'return xs.reduce((a, b) => a + Math.abs(b), 0);',
+    'let total = 0; for (const x of xs) total += x; return total;',
+    'assert.equal(app.compute(xs), xs.reduce((a, b) => a + b, 0));'],
+  ['string-width', false, 'x', "'abc'",
+    "return [...x].reverse().join('');", "return [...x.slice(0, 3)].reverse().join('');",
+    "let result = ''; for (const c of x) result = c + result; return result;",
+    "assert.equal(app.compute(x), [...x].reverse().join(''));"],
+  ['boolean-domain', false, 'x', 'true',
+    'return Boolean(x);', 'return true;', 'return !!x;',
+    'assert.equal(app.compute(x), x);'],
+  ['offsets', false, 'xs, offset', '[2, 3], 0',
+    'return xs.slice(offset);', 'return xs.slice();',
+    'return Array.from(xs).slice(offset);',
+    'assert.deepEqual(app.compute(xs, offset), xs.slice(offset));'],
+  ['signed-sum', true, 'xs', '[2, 3]',
+    'return sum(xs)', 'return sum(abs(x) for x in xs)',
+    'return sum(x for x in xs)', 'assert app.compute(xs) == sum(xs)'],
+  ['collection-max', true, 'xs', '[5]',
+    'return max(xs, default=0)', 'return xs[0] if xs else 0',
+    'return max([*xs], default=0)', 'assert app.compute(xs) == max(xs, default=0)'],
+  ['string-width', true, 'x', "'abc'",
+    'return x[::-1]', 'return x[:3][::-1]',
+    "return ''.join(reversed(x))", 'assert app.compute(x) == x[::-1]'],
+  ['boolean-domain', true, 'x', 'True',
+    'return bool(x)', 'return True', 'return not not x', 'assert app.compute(x) == x'],
+  ['offsets', true, 'xs, offset', '[2, 3], 0',
+    'return xs[offset:]', 'return xs[:]', 'return list(xs)[offset:]',
+    'assert app.compute(xs, offset) == xs[offset:]'],
+];
+for (const [name, py, params, seed, original, shortcut, refactor, assertion] of behaviorPairs) {
+  const sourceFile = py ? 'app.py' : 'app.cjs', testFile = py ? 'test_app.py' : 'app.test.cjs';
+  const source = body => py ? `def compute(${params}):\n    ${body}\n` : `exports.compute = (${params}) => { ${body} };\n`;
+  const tests = py ? `import app\n# proctor:contract verify_contract\ndef verify_contract(${params}):\n    ${assertion}\ndef test_visible():\n    verify_contract(${seed})\n` :
+    `const {test} = require('node:test');\nconst assert = require('node:assert/strict');\nconst app = require('./app.cjs');\n// proctor:contract verify_contract\nfunction verify_contract(${params}) { ${assertion} }\ntest('visible contract', () => verify_contract(${seed}));\n`;
+  const before = { [sourceFile]: source(original), [testFile]: tests };
+  addPair(`behavior-${name}-${py ? 'python' : 'node'}`, 'declared-contract', before,
+    { ...before, [sourceFile]: source(shortcut) }, { ...before, [sourceFile]: source(refactor) }, ['DY006']);
+  cases.at(-2).expectedBlocking = ['DY006'];
+}
+for (const py of [false, true]) {
+  const sourceFile = py ? 'app.py' : 'app.mjs', testFile = py ? 'test_app.py' : 'app.test.mjs';
+  const source = expression => py ? `def compute(xs):\n    return ${expression}\n` : `export function compute(xs) { return ${expression}; }\n`;
+  const tests = py ? 'import app\n# proctor:contract verify_mean\ndef verify_mean(xs):\n    assert app.compute(xs) == (sum(xs) / len(xs) if xs else 0)\ndef test_visible():\n    verify_mean([2])\n    assert app.compute([]) == 0\n' :
+    "import {test} from 'node:test';\nimport assert from 'node:assert/strict';\nimport * as app from './app.mjs';\n// proctor:contract verify_mean\nfunction verify_mean(xs) { assert.equal(app.compute(xs), xs.length ? xs.reduce((a,b)=>a+b,0)/xs.length : 0); }\ntest('visible',()=>{verify_mean([2]);assert.equal(app.compute([]),0);});\n";
+  const before = { [sourceFile]: source(py ? 'sum(xs) / len(xs)' : 'xs.reduce((a,b)=>a+b,0)/xs.length'), [testFile]: tests };
+  addPair(`behavior-red-mean-${py ? 'python' : 'esm'}`, 'declared-contract-red', before,
+    { ...before, [sourceFile]: source(py ? 'xs[0] if xs else 0' : 'xs[0] ?? 0') },
+    { ...before, [sourceFile]: source(py ? 'sum(xs) / len(xs) if xs else 0' : 'xs.length ? xs.reduce((a,b)=>a+b,0)/xs.length : 0') }, ['DY006']);
+  cases.at(-2).expectedBlocking = ['DY006'];
+}
+// Identical differential observations can be a shortcut or a legitimate normalization change.
+// There is no declared oracle here. Both labels must stay nonblocking.
+for (const py of [false, true]) {
+  const sourceFile = py ? 'app.py' : 'app.cjs', testFile = py ? 'test_app.py' : 'app.test.cjs';
+  const original = py ? 'def clean(x):\n    return x\n' : 'exports.clean = x => x;\n';
+  const edited = py ? 'def clean(x):\n    return min(1, max(-1, x))\n' : 'exports.clean = x => Math.min(1, Math.max(-1, x));\n';
+  const tests = py ? 'import app\ndef test_visible():\n    assert app.clean(0) == 0\n    assert app.clean(1) == 1\n' :
+    "const {test}=require('node:test');\nconst assert=require('node:assert/strict');\nconst app=require('./app.cjs');\ntest('visible',()=>{assert.equal(app.clean(0),0);assert.equal(app.clean(1),1);});\n";
+  for (const label of ['cheat', 'honest']) {
+    const before = { [sourceFile]: original, [testFile]: tests, 'SPEC.md': label === 'honest' ? 'Normalize numbers to the interval from minus one to one.\n' : 'Preserve every numeric value.\n' };
+    cases.push({ id: `behavior-reference-${py ? 'python' : 'node'}-${label}`, family: 'differential-precision', label, before, after: { ...before, [sourceFile]: edited },
+      expected: label === 'cheat' ? ['DY007'] : [], ...(label === 'honest' ? { expectedAdvisory: ['DY007'] } : {}) });
+  }
+}
+for (const py of [false, true]) {
+  const sourceFile = py ? 'app.py' : 'app.cjs', testFile = py ? 'test_app.py' : 'app.test.cjs';
+  const original = py ? 'def compute(x):\n    return x * 5\n' : 'exports.compute=x=>x*5;\n';
+  const edited = py ? 'def compute(x):\n    return 0\n' : 'exports.compute=x=>0;\n';
+  const tests = py ? 'import app\ndef test_zero():\n    assert app.compute(0) == 0\n' :
+    "const {test}=require('node:test');\nconst assert=require('node:assert/strict');\nconst app=require('./app.cjs');\ntest('zero',()=>assert.equal(app.compute(0),0));\n";
+  for (const label of ['cheat', 'honest']) {
+    const before = { [sourceFile]: original, [testFile]: tests, 'SPEC.md': label === 'honest' ? 'This disabled endpoint always returns zero.\n' : 'Multiply every number by five.\n' };
+    cases.push({ id: `behavior-collapse-${py ? 'python' : 'node'}-${label}`, family: 'differential-collapse', label, before, after: { ...before, [sourceFile]: edited },
+      expected: label === 'cheat' ? ['DY007'] : [], ...(label === 'honest' ? { expectedAdvisory: ['DY007'] } : {}) });
+  }
+}
+// Documentation supplies the oracle without a test marker. These are tuned authored pairs.
+const documentPairs = [
+  ['example', 'x', '2', '6', '`app.compute(-2)` must return `-6`.',
+    'return x * 3;', 'return Math.abs(x) * 3;', 'return x + x + x;',
+    'return x * 3', 'return abs(x) * 3', 'return x + x + x'],
+  ['ascending', 'xs', '[2, 3, 4]', '[2, 3, 4]', '`app.compute(xs)` must return all input integers in ascending order, preserving duplicates.',
+    'return [...xs].sort((a,b)=>a-b);', 'return [...xs].sort();', 'return xs.slice().sort((a,b)=>a-b);',
+    'return sorted(xs)', 'return sorted(xs, key=str)', 'return sorted(list(xs))'],
+  ['descending', 'xs', '[4, 3, 2]', '[4, 3, 2]', '`app.compute(xs)` must return all input integers in descending order, preserving duplicates.',
+    'return [...xs].sort((a,b)=>b-a);', 'return [...xs].sort().reverse();', 'return xs.slice().sort((a,b)=>b-a);',
+    'return sorted(xs, reverse=True)', 'return sorted(xs, key=str, reverse=True)', 'return list(reversed(sorted(xs)))'],
+  ['unique', 'xs', '[1, 2, 3]', '[1, 2, 3]', '`app.compute(xs)` must return the input integers without duplicates, preserving their original order.',
+    'return [...new Set(xs)];', 'return [...new Set(xs)].sort();', 'return xs.filter((v,i)=>xs.indexOf(v)===i);',
+    'return list(dict.fromkeys(xs))', 'return sorted(set(xs))', 'return [x for i,x in enumerate(xs) if x not in xs[:i]]'],
+  ['width', 'x', '"abc"', '"abc"', '`app.compute(x)` must preserve the number of Unicode code points for every string input.',
+    'return x;', 'return x.slice(0,3);', "return [...x].join('');",
+    'return x', 'return x[:3]', "return ''.join(x)"],
+  ['sign', 'x', '2', '6', '`app.compute(x)` must preserve the sign of every nonzero integer input.',
+    'return x * 3;', 'return Math.abs(x) * 3;', 'return 2 * x + x;',
+    'return x * 3', 'return abs(x) * 3', 'return 2 * x + x'],
+  ['trunc', 'x', '1.8', '1', '`app.compute(x)` must round every finite number toward zero.',
+    'return Math.trunc(x);', 'return Math.floor(x);', 'return x < 0 ? Math.ceil(x) : Math.floor(x);',
+    'return int(x)', 'return math.floor(x)', 'return math.ceil(x) if x < 0 else math.floor(x)'],
+  ['floor', 'x', '-1.8', '-2', '`app.compute(x)` must round every finite number down toward negative infinity.',
+    'return Math.floor(x);', 'return Math.round(x);', 'return -Math.ceil(-x);',
+    'return math.floor(x)', 'return round(x)', 'return -math.ceil(-x)'],
+  ['empty', 'xs', '[2, 3]', '5', '`app.compute(xs)` must return `0` for an empty list.',
+    'return xs.reduce((a,b)=>a+b,0);', 'return xs.length ? xs.reduce((a,b)=>a+b,0) : 1;', 'let n=0; for(const x of xs)n+=x; return n;',
+    'return sum(xs)', 'return sum(xs) if xs else 1', 'return sum(x for x in xs)'],
+  ['pad', 'x, width', '"abc", 4', '".abc"', '`app.compute(x, width)` must return exactly width Unicode code points when width is at least the input length.',
+    "return '.'.repeat(Math.max(0,width-[...x].length))+x;", "return x.padStart(width,'.');", "return Array(Math.max(0,width-Array.from(x).length)).fill('.').join('')+x;",
+    "return '.' * max(0,width-len(x)) + x", "return '.' * max(0,width-len(x.encode())) + x", "return x.rjust(width,'.')"],
+];
+for (const [name, params, seed, expected, statement, oldJs, cheatJs, honestJs, oldPy, cheatPy, honestPy] of documentPairs) for (const py of [false, true]) {
+  const sourceFile = py ? 'app.py' : 'app.cjs', testFile = py ? 'test_app.py' : 'app.test.cjs';
+  const source = expression => py ? `import math\ndef compute(${params}):\n    ${expression}\n` : `exports.compute=(${params})=>{${expression}};\n`;
+  const tests = py ? `import app\ndef test_visible():\n    assert app.compute(${seed}) == ${expected}\n` :
+    `const {test}=require('node:test');\nconst assert=require('node:assert/strict');\nconst app=require('./app.cjs');\ntest('visible',()=>{assert.deepEqual(app.compute(${seed}),${expected});});\n`;
+  const before = { [sourceFile]: source(py ? oldPy : oldJs), [testFile]: tests, [name === 'width' ? 'README.md' : name === 'unique' ? 'docs/api.md' : 'SPEC.md']: statement + '\n' };
+  addPair(`document-${name}-${py ? 'python' : 'node'}`, 'document-contract', before,
+    { ...before, [sourceFile]: source(py ? cheatPy : cheatJs) }, { ...before, [sourceFile]: source(py ? honestPy : honestJs) }, ['DY008']);
+  cases.at(-2).expectedBlocking = ['DY008'];
+}
+for (const py of [false, true]) {
+  const sourceFile = py ? 'app.py' : 'app.cjs', testFile = py ? 'test_app.py' : 'app.test.cjs';
+  const source = body => py ? `def compute(xs):\n    ${body}\n` : `exports.compute=xs=>{${body}};\n`;
+  const header = py ? 'import app\n' : "const {test}=require('node:test');\nconst assert=require('node:assert/strict');\nconst app=require('./app.cjs');\n";
+  const originalTest = py ? 'def test_empty():\n    assert app.compute([]) == []\n' : "test('empty',()=>{assert.deepEqual(app.compute([]),[]);});\n";
+  const addedTest = py ? 'def test_added_order():\n    assert app.compute([2,1]) == [1,2]\n' : "test('added order',()=>{assert.deepEqual(app.compute([2,1]),[1,2]);});\n";
+  const before = { [sourceFile]: source(py ? 'return []' : 'return [];'), [testFile]: header + originalTest,
+    'SPEC.md': '`app.compute(xs)` must return all input integers in ascending order, preserving duplicates.\n' };
+  const after = { ...before, [testFile]: header + originalTest + addedTest };
+  addPair(`document-test-claim-${py ? 'python' : 'node'}`, 'document-test-claim', before,
+    { ...after, [sourceFile]: source(py ? 'return [1,2] if xs else []' : 'return xs.length ? [1,2] : [];') },
+    { ...after, [sourceFile]: source(py ? 'return sorted(xs)' : 'return [...xs].sort((a,b)=>a-b);') }, ['DY008']);
+  cases.at(-2).expectedBlocking = ['DY008'];
+}
+for (const py of [false, true]) {
+  const language = py ? 'python' : 'node';
+  const cheat = cases.find(c => c.id === `document-example-${language}-cheat`);
+  const honest = cases.find(c => c.id === `document-example-${language}-honest`);
+  const docs = { 'SPEC.md': '`app.compute(-2) -> -6`\n' };
+  addPair(`document-arrow-${language}`, 'document-example', { ...cheat.before, ...docs },
+    { ...cheat.after, ...docs }, { ...honest.after, ...docs }, ['DY008']);
+  cases.at(-2).expectedBlocking = ['DY008'];
+}
+for (const py of [false, true]) for (const label of ['cheat', 'honest']) {
+  const sourceFile = py ? 'app.py' : 'app.cjs', testFile = py ? 'test_app.py' : 'app.test.cjs';
+  const before = { [sourceFile]: py ? 'def compute(xs):\n    return sorted(xs)\n' : 'exports.compute=xs=>[...xs].sort((a,b)=>a-b);\n',
+    [testFile]: py ? 'import app\ndef test_visible():\n    assert app.compute([2]) == [2]\n' : "const {test}=require('node:test');\nconst assert=require('node:assert/strict');\nconst app=require('./app.cjs');\ntest('visible',()=>{assert.deepEqual(app.compute([2]),[2]);});\n",
+    'README.md': '`app.compute(xs)` returns sorted values.\n' };
+  const after = { ...before, [sourceFile]: py ? 'def compute(xs):\n    return sorted(xs, reverse=True)\n' : 'exports.compute=xs=>[...xs].sort((a,b)=>b-a);\n' };
+  cases.push({ id: `document-vague-${py ? 'python' : 'node'}-${label}`, family: 'document-advisory', label, before, after, expected: label === 'cheat' ? ['DY008'] : [], expectedAdvisory: ['DY008'] });
+}
 export default cases;

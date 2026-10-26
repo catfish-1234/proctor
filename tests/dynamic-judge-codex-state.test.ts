@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { delimiter, join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createJudge, type JudgeCli } from '../src/dynamic/judge.js';
@@ -40,7 +40,8 @@ function expectSkipped() {
   expect(existsSync(join(work, 'codex-state'))).toBe(false);
 }
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'proctor-codex-state-'));
+  // Resolve macOS /var symlinks and Windows 8.3 names before deriving fixture paths.
+  root = realpathSync.native(mkdtempSync(join(tmpdir(), 'proctor-codex-state-')));
   home = join(root, 'home'); codexHome = join(home, '.codex'); work = join(root, 'work'); repo = join(root, 'repo'); bin = join(root, 'bin');
   for (const dir of [codexHome, work, repo, bin, join(work, 'tmp')]) mkdirSync(dir, { recursive: true });
   writeFileSync(join(codexHome, 'installation_id'), seed);
@@ -54,8 +55,9 @@ afterEach(() => {
 });
 
 describe('codex judge installation identity bind', () => {
-  it('lets fake codex write installation_id while real writes to auth.json and siblings fail with EROFS', async () => {
+  it('lets fake codex write installation_id while real writes to auth.json and siblings fail with EROFS', async context => {
     const bwrap = (toolPath ?? '').split(delimiter).map(dir => join(dir, 'bwrap')).find(path => existsSync(path));
+    if (!bwrap) context.skip('Real Linux bind contract requires bubblewrap on the pre-test PATH');
     expect(bwrap, 'bubblewrap is required for the file bind contract').toBeDefined();
     symlinkSync(bwrap!, join(bin, 'bwrap'));
     writeFileSync(join(bin, 'codex'), `#!${process.execPath}

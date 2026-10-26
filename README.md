@@ -307,6 +307,32 @@ See the language matrix for each check's scope.
 Some WI checks accept an explanatory comment; others require a committed approval or suppression
 marker. Check the rule's `--explain` output before relying on an exception.
 
+Three static checks keep ambiguous repairs visible as warnings. RH003 warns when a rewrite re-emits an
+already skipped Python test, or renames a skipped JavaScript test without disabling a known
+active test. RH004 warns for string or boolean domain branches, literal returns inside
+conditional fallback paths, and explicit SPEC or CHANGELOG behavior notes naming the changed
+function or both special-case literals. WI112 warns when every removed assertion targets a source function
+or dispatch arm removed from the corresponding module in the same diff. Newly disabled tests,
+focus modifiers, unconditional computation replacements without a specific behavior note, and
+unrelated assertion deletions keep their existing errors. WI112 remains opt-in.
+
+RH004 keeps an error for an added key that encodes a list of scalar values, or matches a common
+serialization of a composite literal asserted as input to the same function in changed tests.
+This includes joined, JSON and template string signatures. Domain names and catch/except
+fallbacks remain advisory. Serialized fixture evidence is not demoted by a behavior note.
+
+These warnings do not establish that a repair is correct. Compare the change with the project's
+documented contract and test the supported paths. Incomplete diff context can prevent matching
+a repair, and an unauthorized feature removal can look like an authorized one. Warnings remain
+visible in reports and follow the existing exit policy: `--ci` fails on errors only; a warning
+without `--ci` can exit `1`. Paired, tuned development cases and reproduction steps live in
+[bench/dynamic-dev](bench/dynamic-dev/README.md). They are not an independent accuracy estimate.
+On the tuned authored cases, these checks report 7/36 original cheats and 21/21 repair-set
+cheats, with 0/60 honest errors. Three original catches and one repair-set catch are warnings.
+All seven added serialized-key cheats produce errors. These tuned counts do not establish
+retention of blocking catches or accuracy on other inputs; an independently reported lost
+blocking catch motivated the serialization regressions.
+
 ## Badges
 
 [![proctor](https://img.shields.io/badge/proctor-honest_pass-22C55E)](https://github.com/catfish-1234/proctor)

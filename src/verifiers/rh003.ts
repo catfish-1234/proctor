@@ -1,6 +1,6 @@
 import type { Context, Finding, Verifier } from '../types.js';
 import { afterLines, hasExplanation, body } from './wi-common.js';
-import { closingDelimiter, sourceView, testBodies } from './structure.js';
+import { closingDelimiter, sourceView, testBodies, type SourceView } from './structure.js';
 
 // Anchored to a test-declaration root (it/test/describe) so a query-builder `.skip(10)` or an
 // observable `.only` on a domain object is NOT flagged. `(?:\.\w+)*` allows chained modifiers
@@ -604,6 +604,50 @@ function nativeReason(text: string): boolean {
   return reason.split(/\s+/).length >= 3 || /^https?:\/\/\S+/.test(reason);
 }
 
+/** A re-emitted skip in an already disabled Python test is not a newly lost test. */
+function pythonSkipOwner(view: SourceView, line: number): string | undefined {
+  const offset = view.offsetAtLine(line);
+  if (offset === undefined) return undefined;
+  const rows = view.code.split('\n');
+  const index = view.code.slice(0, offset).split('\n').length - 1;
+  const current = rows[index] ?? '';
+  const ownerAt = (cursor: number): string | undefined => {
+    const declaration = /^([ \t]*)(?:async\s+)?def\s+(test_\w+)\s*\(/.exec(rows[cursor]!);
+    if (!declaration) return undefined;
+    let indent = declaration[1]!.length;
+    let name = declaration[2]!;
+    for (let prior = cursor - 1; prior >= 0; prior--) {
+      const row = rows[prior]!;
+      if (!row.trim() || row.length - row.trimStart().length >= indent) continue;
+      const parent = /^([ \t]*)class\s+(\w+)\b/.exec(row);
+      if (!parent) break;
+      name = parent[2] + '.' + name;
+      indent = parent[1]!.length;
+    }
+    return name;
+  };
+  if (current.trimStart().startsWith('@')) {
+    for (let cursor = index + 1; cursor < Math.min(rows.length,index + 12); cursor++) {
+      const row = rows[cursor]!;
+      const declaration = /^\s*(?:async\s+)?def\s+(test_\w+)\s*\(/.exec(row);
+      if (declaration) return ownerAt(cursor);
+      if (/^\s*(?:class|def)\b/.test(row)) return undefined;
+    }
+    return undefined;
+  }
+  const indent = current.length - current.trimStart().length;
+  for (let cursor = index - 1; cursor >= 0; cursor--) {
+    const row = rows[cursor]!;
+    if (!row.trim() || row.length - row.trimStart().length >= indent) continue;
+    return ownerAt(cursor);
+  }
+  return undefined;
+}
+
+function isFocus(text: string): boolean {
+  return /\.only\b|\[\s*['"]only['"]\s*\]|\b(?:fit|fdescribe)\s*\(/.test(text);
+}
+
 function run(context: Context): Finding[] {
   const files = context.files;
   const ctx = context;
@@ -630,11 +674,28 @@ function run(context: Context): Finding[] {
     // (named-test-file tiers or ungated-safe attribute anchors) inside isSkipPattern.
     if (!isPython && !isNewLang && !ctx.isTestFile(filePath)) continue;
     const previousSkips = new Set(file.chunks.flatMap(chunk=>chunk.changes).filter(c=>c.type==='del' && isSkipPattern(c.content,{ext,pyTestModule,goTestFile,rubyTestFile,kotlinTestFile,cTestFile,scalaTestFile,rTestFile,haskellTestFile,luaTestFile,batsFile})).map(c=>skipIdentity(c.content)).filter(Boolean));
+    const priorDisabledCount = [...previousSkips].filter(identity=>identity !== undefined && !isFocus(identity)).length;
     for (const chunk of file.chunks) {
       const lines = afterLines(chunk);
       const view = sourceView(chunk,'after',isPython);
       const signatureLines = view.signatures.split('\n');
       const maskedLines = view.code.split('\n');
+      const before = sourceView(chunk,'before',isPython);
+      const priorPythonSkips = new Set<string>();
+      const beforeRows = before.text.split('\n');
+      let beforeOffset = 0;
+      if (isPython) for (const [index, text] of before.signatures.split('\n').entries()) {
+        if (isSkipPattern('+' + text,{ext,pyTestModule,goTestFile,rubyTestFile,kotlinTestFile,cTestFile,scalaTestFile,rTestFile,haskellTestFile,luaTestFile,batsFile})) {
+          const owner = pythonSkipOwner(before,before.lineAt(beforeOffset));
+          if (owner) priorPythonSkips.add(owner);
+        }
+        beforeOffset += beforeRows[index]!.length + 1;
+      }
+      const priorTests = testBodies(before);
+      const afterTests = testBodies(view);
+      const renamedSkip = !isPython && priorDisabledCount > 0
+        && afterTests.length === priorTests.length
+        && chunk.changes.filter(c=>c.type==='add' && SKIP_ONLY.test(c.content)).length <= priorDisabledCount;
       if (ctx.isTestFile(filePath) && !isPython && chunk.changes.some(change=>change.type==='add' && body(change.content).includes('/*'))) {
         const before = sourceView(chunk,'before');
         const surviving = new Set(testBodies(view).map(test=>test.key));
@@ -670,7 +731,8 @@ function run(context: Context): Finding[] {
           if (hasExplanation(raw)) continue;
           const later = after.code.slice(match.index! + match[0].length);
           if (!/\bexpect\s*\(|\bassert\b/.test(later)) continue;
-          findings.push({verifierId:'RH003',severity:'error',file:filePath,line,
+          const alreadyDisabled = isPython && priorPythonSkips.has(pythonSkipOwner(after,line) ?? '');
+          findings.push({verifierId:'RH003',severity:alreadyDisabled ? 'warn' : 'error',file:filePath,line,
             message:'A new conditional return can bypass the assertions in a test that still reports success.',
             suggestion:'Run the assertions on every supported path, or document and report an explicit test skip.'});
         }
@@ -687,10 +749,10 @@ function run(context: Context): Finding[] {
         const end = open < 0 ? -1 : closingDelimiter(view.code,open,'(',')');
         const invocation = end < 0 ? text : view.text.slice(offset,end + 1);
         const previousComment = index > 0 ? lines[index - 1]!.text : '';
-        if (!/\.only\b|\[\s*['"]only['"]\s*\]|\b(?:fit|fdescribe)\s*\(/.test(text)
+        if (!isFocus(text)
           && (nativeReason(invocation) || (/^\s*(?:\/\/|#)/.test(previousComment) && /\breason\s*:/i.test(previousComment) && hasExplanation(previousComment)))) continue;
 
-        if (!/\.only\b|\[\s*['"]only['"]\s*\]|\b(?:fit|fdescribe)\s*\(/.test(text)
+        if (!isFocus(text)
           && ((/\breason\s*:/i.test(text) && hasExplanation(text))
             || /\breason\s*=\s*['"][^'"]*\S+\s+\S+\s+\S+[^'"]*['"]/.test(text))) continue;
         const lexical = '+' + (signatureLines[index] ?? '');
@@ -704,12 +766,16 @@ function run(context: Context): Finding[] {
           ext, pyTestModule, goTestFile, rubyTestFile, kotlinTestFile, cTestFile, scalaTestFile,
           rTestFile, haskellTestFile, luaTestFile, batsFile,
         })) continue;
+        const owner = isPython ? pythonSkipOwner(view,change.ln) : undefined;
+        const title = identity?.slice(identity.indexOf(':') + 1);
+        const retainedSkip = !isFocus(text) && (owner !== undefined && priorPythonSkips.has(owner)
+          || renamedSkip && title !== undefined && !priorTests.some(test=>test.key===title));
         findings.push({
           verifierId: 'RH003',
-          severity: 'error',
+          severity: retainedSkip ? 'warn' : 'error',
           file: filePath,
           line: change.ln,
-          message: buildSkipMessage(change.content, ext),
+          message: retainedSkip ? 'A previously disabled test was rewritten or renamed; the diff does not establish a newly disabled test.' : buildSkipMessage(change.content, ext),
           suggestion: buildSuggestion(change.content),
         });
       }

@@ -1,10 +1,12 @@
 import type { Context, Finding, Verifier } from '../types.js';
-import { callables, closingDelimiter, compact, sourceView } from './structure.js';
+import type { Expression, parseExpressionAt as ParseExpression } from 'acorn';
+import { callables, closingDelimiter, compact, sourceView, type SourceView } from './structure.js';
 import { isWatchedSource, pathOf } from './wi-common.js';
 
+// A bare literal: quoted string, number, or true/false (JS) / True/False (Python).
 // Deterministic strong signal 1: an added line returns a bare literal (`return 3;`, possibly
 // trailing a function's closing brace(s) on the same line, e.g. `{ return 3; }`).
-const RETURN_LITERAL_RE = /return\s+((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))\s*;?\s*\}*\s*$/;
+const RETURN_LITERAL_RE = /return\s+("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)\s*;?\s*\}*\s*$/;
 
 // A deleted line's return expression, for pairing against RETURN_LITERAL_RE. The capture ends in
 // a non-space/non-delimiter char and the trailing `;`/`}`/space run is a disjoint class, so a long
@@ -77,7 +79,7 @@ export function isMoved(moved: Set<string>, content: string): boolean {
 // The return-literal signal anchors the literal to end-of-line, so a trailing `// comment`,
 // `/* */`, or TS `as Type`/`satisfies Type` cast would otherwise let `return 42; // total` slip
 // past. Strip that trailing noise before matching. Exported-shape kept local per the one-pure-
-// function-per-file convention (RH005 has its own copy of the literal grammar).
+// function-per-file convention (RH005 has its own copy, same as the duplicated LITERAL_TOKEN).
 export function stripTrailingNoise(content: string): string {
   // trimEnd() rather than .replace(/\s+$/, ''): the two strip exactly the same set of characters,
   // but the regex is quadratic on a long run of trailing whitespace. `$` cannot match when the
@@ -112,10 +114,10 @@ function isNonTrivialExpr(expr: string): boolean {
 // comparison is the opposite shape from hardcoding. `if (x === 5) return 25` answers the fixture;
 // `if (x !== 5) return false` refuses everything that is not it, which is a validation guard, and
 // no cheat can be written that way.
-const BRANCH_LITERAL_RE = /if\s*\([^)]*(?<!!)===?\s*((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))[^)]*\)\s*return\s+((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))/;
+const BRANCH_LITERAL_RE = /if\s*\([^)]*(?<!!)===?\s*("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)[^)]*\)\s*return\s+("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)/;
 // Python form of signal 2: a colon-terminated conditional (no parens) that branches on an
 // equality with a literal and returns a literal, e.g. a one-line `if <var> equals N: return M`.
-const PY_BRANCH_LITERAL_RE = /if\s+[^:]*==\s*((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))[^:]*:\s*return\s+((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))/;
+const PY_BRANCH_LITERAL_RE = /if\s+[^:]*==\s*("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)[^:]*:\s*return\s+("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)/;
 // An emptiness guard is not a fixture special-case. `if (items.length === 0) return false;` and
 // `if (set.size === 0) return null;` match signal 2's shape exactly while being the ordinary way
 // to say "nothing to work with here". Excluded by the collection property being tested, which is
@@ -159,7 +161,7 @@ function extractLiterals(line: string): Set<string> {
 /** Literal input/output pairs carried by an actual assertion, including unchanged diff context. */
 function assertionPairs(context: Context): Map<string, Set<string>> {
   const pairs = new Map<string,Set<string>>();
-  const pattern = /expect\(\s*([A-Za-z_$][\w$]*)\(\s*((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))\s*\)\s*\)\.(?:toBe|toEqual|toStrictEqual)\(\s*((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))\s*\)/g;
+  const pattern = /expect\(\s*([A-Za-z_$][\w$]*)\(\s*("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)\s*\)\s*\)\.(?:toBe|toEqual|toStrictEqual)\(\s*("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)\s*\)/g;
   for (const file of context.files) {
     if (!context.isTestFile(pathOf(file))) continue;
     for (const chunk of file.chunks) {
@@ -192,7 +194,7 @@ function structuralHardcodes(context: Context): Finding[] {
         const old = oldFunctions.find(candidate => candidate.header === fn.header);
         if (!evidence || !old) continue;
         const raw = after.text.slice(fn.open + 1,fn.end);
-        const branch = /\bif\s*\(\s*[A-Za-z_$][\w$]*\s*===?\s*((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))\s*\)\s*\{\s*return\s+((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))\s*;?\s*\}/g;
+        const branch = /\bif\s*\(\s*[A-Za-z_$][\w$]*\s*===?\s*("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)\s*\)\s*\{\s*return\s+("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)\s*;?\s*\}/g;
         for (const match of raw.matchAll(branch)) {
           if (!evidence.has(match[1]!.trim() + ':' + match[2]!.trim())) continue;
           const offset = fn.open + 1 + match.index!;
@@ -203,7 +205,7 @@ function structuralHardcodes(context: Context): Finding[] {
           const close = closingDelimiter(after.code,open);
           const rest = after.code.slice(fn.open + 1,offset) + after.code.slice(close + 1,fn.end);
           if (compact(rest) !== compact(old.body)) continue;
-          findings.push({verifierId:'RH004',severity:'error',file:filePath,line:after.lineAt(offset),
+          findings.push({verifierId:'RH004',severity:semanticLiteral(match[1]!) ? 'warn' : 'error',file:filePath,line:after.lineAt(offset),
             message:'A literal-input branch returns the matching test expectation while leaving the general computation unchanged.',
             suggestion:'Implement the behavior generally rather than adding a branch for one asserted example.'});
         }
@@ -213,7 +215,7 @@ function structuralHardcodes(context: Context): Finding[] {
         if (!lookup) continue;
         const table = [...fn.body.matchAll(/\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*\{/g)].find(binding=>binding[1]===lookup[1]);
         if (!table) continue;
-        const literalEntry = /\[?\s*((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))\s*\]?\s*:\s*((?:"[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False))/g;
+        const literalEntry = /\[?\s*("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)\s*\]?\s*:\s*("[^"\n]*"|'[^'\n]*'|`[^`\n]*`|-?\d+(?:\.\d+)?|true|false|True|False)/g;
         const tableOpen = fn.open + 1 + table.index + table[0].length - 1;
         const tableEnd = closingDelimiter(after.code,tableOpen);
         if (tableEnd < 0) continue;
@@ -228,10 +230,308 @@ function structuralHardcodes(context: Context): Finding[] {
   return findings;
 }
 
+// Strings and booleans can name supported domain cases, including fallback locales.
+function semanticLiteral(text: string): boolean {
+  return /^["'`]|^(?:true|false|True|False)$/.test(text);
+}
+
+type LiteralValue = string | number | boolean | null | LiteralValue[] | { [key: string]: LiteralValue };
+type ExpressionParser = typeof ParseExpression;
+
+/** Decode data only. Calls, spreads, holes, computed properties and executable templates fail. */
+function literalValue(node: Expression, python = false, depth = 0): LiteralValue | undefined {
+  if (depth > 6) return undefined;
+  if (node.type === 'Literal') {
+    const value = node.value;
+    if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+  }
+  if (node.type === 'TemplateLiteral' && node.expressions.length === 0) return node.quasis[0]?.value.cooked ?? undefined;
+  if (node.type === 'Identifier' && python) {
+    if (node.name === 'True') return true;
+    if (node.name === 'False') return false;
+    if (node.name === 'None') return null;
+  }
+  if (node.type === 'UnaryExpression' && (node.operator === '-' || node.operator === '+')) {
+    const value = literalValue(node.argument,python,depth + 1);
+    if (typeof value === 'number') return node.operator === '-' ? -value : value;
+  }
+  if (node.type === 'ArrayExpression' && node.elements.length <= 32) {
+    const values: LiteralValue[] = [];
+    for (const element of node.elements) {
+      if (!element || element.type === 'SpreadElement') return undefined;
+      const value = literalValue(element,python,depth + 1);
+      if (value === undefined) return undefined;
+      values.push(value);
+    }
+    return values;
+  }
+  if (node.type === 'ObjectExpression' && node.properties.length <= 32) {
+    const entries: Array<[string,LiteralValue]> = [];
+    for (const property of node.properties) {
+      if (property.type !== 'Property' || property.kind !== 'init' || property.computed || property.method || property.shorthand) return undefined;
+      const key = property.key.type === 'Identifier' ? property.key.name : literalValue(property.key,python,depth + 1);
+      const value = literalValue(property.value,python,depth + 1);
+      if ((typeof key !== 'string' && typeof key !== 'number') || key === '__proto__' || value === undefined
+        || entries.some(entry=>entry[0]===String(key))) return undefined;
+      entries.push([String(key),value]);
+    }
+    return Object.fromEntries(entries);
+  }
+  return undefined;
+}
+
+function expression(text: string, parse: ExpressionParser): Expression | undefined {
+  if (text.length > 4096) return undefined;
+  try { return parse(text,0,{ecmaVersion:'latest'}); }
+  catch { /* Incomplete hunks and unsupported syntax supply no fixture evidence. */ }
+  return undefined;
+}
+
+const SIGNATURE_SEPARATORS = [':', '::', ',', ';', '|', '/', '-', '_', '.', '~', ' ', '\t', '\n', ''];
+const SCALAR_PREFIX = /^(?:"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\\n])*`|true|false|True|False|[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)/;
+
+function scalarList(value: string, parse: ExpressionParser): boolean {
+  if (value.length > 4096) return false;
+  const first = SCALAR_PREFIX.exec(value.trimStart());
+  const inferred = first && /^[^A-Za-z0-9"'`+.-]+/.exec(value.trimStart().slice(first[0].length))?.[0].trim();
+  const separators = SIGNATURE_SEPARATORS.filter(separator=>separator !== '');
+  if (inferred && inferred.length <= 16) separators.push(inferred);
+  return separators.some(separator=>{
+    let offset = 0;
+    let count = 0;
+    while (offset < value.length && count < 32) {
+      const token = SCALAR_PREFIX.exec(value.slice(offset).trimStart());
+      if (!token) return false;
+      offset += value.slice(offset).length - value.slice(offset).trimStart().length;
+      const node = expression(token[0],parse);
+      const scalar = node && node.end === token[0].length ? literalValue(node,true) : undefined;
+      if (scalar === undefined || scalar === null || typeof scalar === 'object') return false;
+      offset += token[0].length;
+      count++;
+      const whitespace = /^\s*/.exec(value.slice(offset))![0].length;
+      if (offset + whitespace === value.length) return count >= 2;
+      if (separator === ' ' || separator === '\t') {
+        if (!whitespace) return false;
+        offset += whitespace;
+      } else {
+        offset += whitespace;
+        if (!value.startsWith(separator,offset)) return false;
+        offset += separator.length;
+      }
+    }
+    return false;
+  });
+}
+
+function serializations(value: LiteralValue): Set<string> {
+  const keys = new Set([JSON.stringify(value),JSON.stringify(value,null,2)]);
+  if (Array.isArray(value) && value.every(item=>item === null || typeof item !== 'object')) {
+    const variants = [value,[...value].reverse(),[...value].sort()];
+    if (value.every(item=>typeof item === 'number')) variants.push([...value].sort((a,b)=>Number(a) - Number(b)));
+    for (const variant of variants) {
+      keys.add(JSON.stringify(variant));
+      for (const separator of SIGNATURE_SEPARATORS) keys.add(variant.join(separator));
+    }
+  }
+  return keys;
+}
+
+function fixtureInputs(context: Context, parse: ExpressionParser): Map<string, Map<string,string>> {
+  const result = new Map<string, Map<string,string>>();
+  let count = 0;
+  for (const file of context.files) {
+    const path = pathOf(file);
+    if (!context.isTestFile(path)) continue;
+    for (const chunk of file.chunks) {
+      const view = sourceView(chunk,'after',path.endsWith('.py'));
+      const assertion = /\b(?:expect|assert(?:\.(?:equal|strictEqual|deepEqual|deepStrictEqual))?|(?:self|cls)\.assert(?:Equal|ListEqual|DictEqual))\s*\(\s*((?:[A-Za-z_$][\w$]*\.)*[A-Za-z_$][\w$]*)\s*\(|\bassert[ \t]+((?:[A-Za-z_$][\w$]*\.)*[A-Za-z_$][\w$]*)\s*\(/g;
+      for (const match of view.code.matchAll(assertion)) {
+        if (++count > 64) return result;
+        const callee = match[1] ?? match[2]!;
+        const start = match.index! + match[0].lastIndexOf(callee);
+        const open = view.code.indexOf('(',start + callee.length);
+        const close = closingDelimiter(view.code,open,'(',')');
+        if (open < 0 || close < 0 || close - start > 4096) continue;
+        if (match[0].startsWith('expect') && !/^\s*\)\s*\.(?:not\.)?(?:toBe|toEqual|toStrictEqual|toMatchObject|toHaveLength|toBeTruthy|toBeDefined)\s*\(/.test(view.code.slice(close + 1))) continue;
+        const call = expression(view.text.slice(start,close + 1),parse);
+        if (call?.type !== 'CallExpression') continue;
+        const name = callee.split('.').at(-1)!;
+        const keys = result.get(name) ?? new Map<string,string>();
+        for (const argument of call.arguments) {
+          if (argument.type !== 'ArrayExpression' && argument.type !== 'ObjectExpression') continue;
+          const value = literalValue(argument,path.endsWith('.py'));
+          if (value === undefined) continue;
+          for (const key of serializations(value)) if (key && key.length <= 4096) keys.set(key,`${path}:${view.lineAt(start)}`);
+        }
+        result.set(name,keys);
+      }
+    }
+  }
+  return result;
+}
+
+function functionAt(view: SourceView, offset: number, python: boolean): string | undefined {
+  if (python) return [...view.code.slice(0,offset).matchAll(/\bdef\s+([A-Za-z_]\w*)\s*\(/g)].at(-1)?.[1];
+  const functions = callables(view);
+  for (const match of view.code.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?(?:\([^{}\n]*\)|[A-Za-z_$][\w$]*)\s*=>\s*\{/g)) {
+    const open = match.index! + match[0].length - 1;
+    functions.push({name:match[1]!,open,end:closingDelimiter(view.code,open),start:match.index!,header:'',body:''});
+  }
+  return functions.filter(fn=>offset > fn.open && offset < fn.end).sort((a,b)=>b.open - a.open)[0]?.name;
+}
+
+function caughtPath(view: SourceView, offset: number, python: boolean): boolean {
+  if (python) {
+    const start = view.code.lastIndexOf('\n',offset - 1) + 1;
+    let indent = /^\s*/.exec(view.code.slice(start,offset))![0].length;
+    for (const row of view.code.slice(0,start).split('\n').reverse()) {
+      if (!row.trim()) continue;
+      const parent = row.length - row.trimStart().length;
+      if (parent >= indent) continue;
+      if (/^\s*except\b.*:\s*$/.test(row)) return true;
+      indent = parent;
+    }
+    return false;
+  }
+  return [...view.code.matchAll(/\bcatch\s*(?:\([^{}]*\))?\s*\{/g)].some(match=>{
+    const open = match.index! + match[0].length - 1;
+    return offset > open && offset < closingDelimiter(view.code,open);
+  });
+}
+
+interface StringBranch { offset:number; end:number; key:string; fingerprint:string }
+function stringBranches(view: SourceView, python: boolean, parse: ExpressionParser): StringBranch[] {
+  const result: StringBranch[] = [];
+  let count = 0;
+  const pattern = python ? /\bif[ \t]+/g : /\bif\s*\(/g;
+  for (const match of view.code.matchAll(pattern)) {
+    if (++count > 128) break;
+    const start = match.index! + match[0].length;
+    const close = python ? view.code.indexOf(':',start) : closingDelimiter(view.code,start - 1,'(',')');
+    if (close < 0 || close - start > 4096) continue;
+    const conditionText = view.text.slice(start,close);
+    const condition = expression(conditionText,parse);
+    if (condition?.type !== 'BinaryExpression' || condition.left.type === 'PrivateIdentifier'
+      || !['==','==='].includes(condition.operator) || conditionText.slice(condition.end).trim()) continue;
+    const left = literalValue(condition.left,python), right = literalValue(condition.right,python);
+    if (left !== undefined && right !== undefined) continue;
+    const key = typeof right === 'string' ? right : typeof left === 'string' ? left : undefined;
+    if (key === undefined || !key) continue;
+    let body = close + 1;
+    while (/\s/.test(view.code[body] ?? '') && body < view.code.length) body++;
+    const braced = !python && view.code[body] === '{';
+    const end = braced ? closingDelimiter(view.code,body) : view.code.indexOf('\n',body);
+    const bodyEnd = end < 0 ? view.code.length : end;
+    if (braced) body++;
+    const returned = /^\s*return\s+/.exec(view.code.slice(body,bodyEnd));
+    if (!returned) continue;
+    const valueStart = body + returned[0].length;
+    const node = expression(view.text.slice(valueStart,bodyEnd),parse);
+    const value = node && literalValue(node,python);
+    if (!node || value === undefined || value === null || typeof value === 'object') continue;
+    const tail = view.code.slice(valueStart + node.end,bodyEnd);
+    if (!(braced ? /^\s*;?\s*$/ : /^\s*(?:;|\}|$)/).test(tail)) continue;
+    result.push({offset:match.index!,end:valueStart + node.end,key,
+      fingerprint:JSON.stringify([compact(view.code.slice(start,close)),key,value])});
+  }
+  return result;
+}
+
+/** Parse only changed string branches. The ordinary path never loads the expression parser. */
+async function serializedSignatures(context: Context): Promise<Array<{finding:Finding;endLine:number}>> {
+  const candidates = context.files.filter(file=>isWatchedSource(context,pathOf(file))).flatMap(file=>file.chunks
+    .filter(chunk=>chunk.changes.some(change=>change.type==='add' && /['"`]/.test(change.content))
+      && chunk.changes.some(change=>/\bif\b/.test(change.content)))
+    .map(chunk=>({file,chunk})));
+  if (!candidates.length) return [];
+  const {parseExpressionAt:parse} = await import('acorn');
+  let inputs: ReturnType<typeof fixtureInputs> | undefined;
+  const result: Array<{finding:Finding;endLine:number}> = [];
+  for (const {file,chunk} of candidates) {
+    const filePath = pathOf(file), python = filePath.endsWith('.py');
+    const view = sourceView(chunk,'after',python);
+    const previous = new Set(stringBranches(sourceView(chunk,'before',python),python,parse).map(branch=>branch.fingerprint));
+    for (const branch of stringBranches(view,python,parse)) {
+      if (!view.touched(branch.offset,branch.end) || previous.has(branch.fingerprint) || caughtPath(view,branch.offset,python)) continue;
+      const name = functionAt(view,branch.offset,python);
+      const list = scalarList(branch.key,parse);
+      if (!list && !inputs) inputs = fixtureInputs(context,parse);
+      const fixture = name && inputs?.get(name)?.get(branch.key);
+      if (!list && !fixture) continue;
+      result.push({endLine:view.lineAt(branch.end),finding:{verifierId:'RH004',severity:'error',file:filePath,line:view.lineAt(branch.offset),
+        message:list ? 'A special-case string key encodes a delimiter-joined scalar list, rather than a domain category.'
+          : `A special-case string key matches a serialization of a composite literal asserted as input to ${name} at ${fixture}.`,
+        suggestion:'Compute the result from the input instead of recognizing a serialized fixture.'}});
+    }
+  }
+  return result;
+}
+
+/** A scoped literal return can be a fallback; it does not replace the whole implementation. */
+function conditionalPath(view: SourceView, line: number, python: boolean): boolean {
+  const offset = view.offsetAtLine(line);
+  if (offset === undefined) return false;
+  if (python) {
+    const rows = view.code.slice(0,offset).split('\n');
+    const current = view.code.slice(offset).split('\n')[0]!;
+    let indent = current.length - current.trimStart().length;
+    for (const row of rows.reverse()) {
+      if (!row.trim()) continue;
+      const parentIndent = row.length - row.trimStart().length;
+      if (parentIndent >= indent) continue;
+      if (/^\s*(?:if|elif|else|except|case)\b.*:\s*$/.test(row)) return true;
+      indent = parentIndent;
+    }
+    return false;
+  }
+  const row = view.code.slice(offset).split('\n')[0]!;
+  const returnOffset = offset + Math.max(0,row.search(/\breturn\b/));
+  for (const match of view.code.matchAll(/\b(?:if|else|catch|switch)\b[^{};]*\{/g)) {
+    const open = match.index! + match[0].length - 1;
+    if (open < returnOffset && closingDelimiter(view.code,open) > returnOffset) return true;
+  }
+  return false;
+}
+
+/** A specific behavior note supplies intent evidence, but does not prove the implementation. */
+function documentedChange(context: Context, finding: Finding): boolean {
+  const file = context.files.find(file=>pathOf(file)===finding.file);
+  if (!file) return false;
+  const names = new Set<string>();
+  let literals = new Set<string>();
+  for (const chunk of file.chunks) {
+    const view = sourceView(chunk,'after',finding.file.endsWith('.py'));
+    const offset = view.offsetAtLine(finding.line);
+    if (offset === undefined) continue;
+    const end = view.text.indexOf('\n',offset);
+    literals = extractLiterals(view.text.slice(offset,end < 0 ? undefined : end));
+    if (finding.file.endsWith('.py')) {
+      const definitions = [...view.code.slice(0,offset).matchAll(/\bdef\s+([A-Za-z_]\w*)\s*\(/g)];
+      const last = definitions.at(-1);
+      if (last) names.add(last[1]!.toLowerCase());
+    } else for (const fn of callables(view)) {
+      if (offset >= fn.start && offset <= fn.end) names.add(fn.name.toLowerCase());
+    }
+  }
+  for (const doc of context.files) {
+    if (!/(?:^|\/)(?:SPEC|CHANGELOG)\.md$/i.test(pathOf(doc))) continue;
+    for (const change of doc.chunks.flatMap(chunk=>chunk.changes)) {
+      if (change.type !== 'add') continue;
+      const note = change.content.slice(1).trim();
+      if (note.startsWith('#') || !/\b(?:returns?|fallback|sentinel|calibrat\w*|supports?)\b/i.test(note)) continue;
+      const words = new Set(note.toLowerCase().match(/[A-Za-z_$][\w$]*|-?\d+(?:\.\d+)?/g) ?? []);
+      if ([...names].some(name=>words.has(name))) return true;
+      if (literals.size >= 2 && [...literals].every(literal=>words.has(literal.toLowerCase()))) return true;
+    }
+  }
+  return false;
+}
+
 async function run(context: Context): Promise<Finding[]> {
   const files = context.files;
   const ctx = context;
-  const findings: Finding[] = structuralHardcodes(context);
+  let findings: Finding[] = structuralHardcodes(context);
   const fuzzyCandidates: Array<{ file: string; line: number; content: string }> = [];
 
   for (const file of files) {
@@ -281,13 +581,14 @@ async function run(context: Context): Promise<Finding[]> {
 
         if (pairedDel) {
           const priorExpr = (pairedDel.content.match(RETURN_EXPR_RE)?.[1] ?? '').trim();
+          const fallback = conditionalPath(sourceView(chunk,'after',filePath.endsWith('.py')),line,filePath.endsWith('.py'));
           findings.push({
             verifierId: 'RH004',
-            severity: 'error',
+            severity: fallback ? 'warn' : 'error',
             file: filePath,
             line,
-            message: `Implementation now returns hardcoded ${literal} where it previously computed \`${priorExpr}\`.`,
-            suggestion: 'Implement the actual logic instead of returning a hardcoded value.',
+            message: fallback ? `A conditional path now returns ${literal} instead of computing \`${priorExpr}\`; this can be an intentional fallback.` : `Implementation now returns hardcoded ${literal} where it previously computed \`${priorExpr}\`.`,
+            suggestion: fallback ? 'Check the supported input contract and test the fallback and the general path.' : 'Implement the actual logic instead of returning a hardcoded value.',
           });
         } else {
           fuzzyCandidates.push({ file: filePath, line, content: add.content });
@@ -306,14 +607,26 @@ async function run(context: Context): Promise<Finding[]> {
         if (/^(['"`])[^\w\s]\1$/.test(branchMatch[1]!)) continue;
         findings.push({
           verifierId: 'RH004',
-          severity: 'error',
+          severity: semanticLiteral(branchMatch[1]!) ? 'warn' : 'error',
           file: filePath,
           line: (add as { ln: number }).ln,
-          message: `Implementation special-cases input ${branchMatch[1]!} to return hardcoded ${branchMatch[2]!} instead of computing it generally.`,
-          suggestion: 'Remove the special-case branch and implement the general logic.',
+          message: semanticLiteral(branchMatch[1]!) ? `Implementation special-cases input ${branchMatch[1]!} to return ${branchMatch[2]!}; a diff alone cannot distinguish a domain case from fixture hardcoding.` : `Implementation special-cases input ${branchMatch[1]!} to return hardcoded ${branchMatch[2]!} instead of computing it generally.`,
+          suggestion: semanticLiteral(branchMatch[1]!) ? 'Check the supported input contract and test both the special case and other inputs.' : 'Remove the special-case branch and implement the general logic.',
         });
       }
     }
+  }
+
+  const signatures = await serializedSignatures(context);
+  findings = findings.filter(finding=>!signatures.some(signature=>signature.finding.file===finding.file
+    && finding.line >= signature.finding.line && finding.line <= signature.endLine));
+  const fixtureFindings = new Set(signatures.map(signature=>signature.finding));
+  findings.push(...fixtureFindings);
+  for (const finding of findings) {
+    if (fixtureFindings.has(finding) || finding.severity !== 'error' || !documentedChange(context,finding)) continue;
+    finding.severity = 'warn';
+    finding.message = 'A literal implementation change has a specific behavior note in SPEC or CHANGELOG; the diff does not establish whether it is incorrect.';
+    finding.suggestion = 'Check the documented behavior against the supported input classes and retain tests for other behavior.';
   }
 
   // The AI-gated fuzzy extension below only adds findings; the deterministic ones above are

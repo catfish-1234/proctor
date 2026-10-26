@@ -125,7 +125,7 @@ fs.writeSync(1, ${JSON.stringify(JSON.stringify(verdict))});
     const stateFile = join(work, 'codex-state', 'installation_id');
     vi.mocked(spawn).mockImplementation(() => {
       expect(readFileSync(stateFile)).toEqual(Buffer.from(seed));
-      expect(lstatSync(stateFile).mode & 0o777).toBe(0o600);
+      if (process.platform !== 'win32') expect(lstatSync(stateFile).mode & 0o777).toBe(0o600);
       expect(lstatSync(stateFile).ino).not.toBe(lstatSync(join(codexHome, 'installation_id')).ino);
       writeFileSync(stateFile, 'changed by fake codex');
       return output();

@@ -320,4 +320,4 @@ export function classifyDocumentation(unit: BehaviorUnit, rules: DocumentRule[],
     if (index >= 0) findings.push({ rule, index, claim, blocking: rule.confidence === 'precise' && !conflict && !changedDocs });
   }
   return findings;
-                                                                                    }
+  }

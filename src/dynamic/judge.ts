@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
-import { accessSync, constants, lstatSync, realpathSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { accessSync, constants, lstatSync, mkdirSync, realpathSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { delimiter, dirname, isAbsolute, join, relative, sep } from 'node:path';
+import { homedir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { JUDGE_CALL_LIMIT, judgePrompt, parseJudgeVerdict, type JudgeRequest, type JudgeVerdict } from './judge-protocol.js';
 
@@ -63,7 +64,37 @@ export function createJudge(cwd: string, work: string, deadline: number, signal:
     const output = await new Promise<string | undefined>((resolve) => {
       // The CLI can reach its service and read its own login. It cannot write the user's
       // tree. Its working directory contains no project files or project configuration.
-      const args = ['--die-with-parent', '--unshare-pid', '--ro-bind', '/', '/', '--bind', work, work, '--proc', '/proc', '--dev', '/dev', '--', backend.binary, ...judgeCommand(backend.cli, prompt)];
+      const args = ['--die-with-parent', '--unshare-pid', '--ro-bind', '/', '/', '--bind', work, work, '--proc', '/proc', '--dev', '/dev'];
+      let stateFile: string | undefined;
+      if (backend.cli === 'codex') {
+        const configuredHome = process.env.CODEX_HOME ?? join(homedir(), '.codex');
+        let seedFile: string | undefined;
+        try {
+          if (!isAbsolute(configuredHome)) throw new Error('Codex home is not absolute');
+          const codexHome = realpathSync(configuredHome), home = realpathSync(homedir());
+          const homePath = relative(home, codexHome);
+          if (homePath === '..' || homePath.startsWith('..' + sep) || isAbsolute(homePath)) throw new Error('Codex home is outside the user home');
+          seedFile = join(codexHome, 'installation_id');
+          const stat = lstatSync(seedFile);
+          if (!stat.isFile() || stat.size > 4096) throw new Error('Unsafe codex installation identity');
+          const seedPath = relative(codexHome, realpathSync(seedFile));
+          if (seedPath === '..' || seedPath.startsWith('..' + sep) || isAbsolute(seedPath)) throw new Error('Codex installation identity is outside its home');
+          const seed = readFileSync(seedFile);
+          if (seed.length > 4096 || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(seed.toString('utf8').trim())) throw new Error('Invalid codex installation identity');
+          if (!lstatSync(work).isDirectory() || realpathSync(work) !== work) throw new Error('Unsafe judge work directory');
+          // Codex needs a private writable copy of its existing installation identity.
+          stateFile = join(work, 'codex-state', 'installation_id');
+          rmSync(dirname(stateFile), { recursive: true, force: true });
+          mkdirSync(dirname(stateFile), { mode: 0o700 });
+          writeFileSync(stateFile, seed, { flag: 'wx', mode: 0o600 });
+          args.push('--bind', stateFile, seedFile);
+        } catch (error) {
+          const failure = error as NodeJS.ErrnoException;
+          if (failure.code === 'ENOENT' && (failure.path === configuredHome || failure.path === seedFile)) process.stderr.write('proctor judge: codex installation_id is missing; writable bind skipped\n');
+          // Unsafe or unavailable state keeps the existing read-only sandbox.
+        }
+      }
+      args.push('--', backend.binary, ...judgeCommand(backend.cli, prompt));
       const child = spawn('bwrap', args, { cwd: work, env: { ...process.env, TMPDIR: join(work, 'tmp'), TMP: join(work, 'tmp'), TEMP: join(work, 'tmp') }, detached: true, stdio: ['pipe', 'pipe', 'pipe'] });
       let stdout = '', invalid = false;
       const kill = () => {
@@ -84,6 +115,8 @@ export function createJudge(cwd: string, work: string, deadline: number, signal:
       child.once('close', code => {
         clearTimeout(timer); kill(); signal.removeEventListener('abort', abort);
         process.removeListener('exit', kill); process.removeListener('SIGINT', onInt); process.removeListener('SIGTERM', onTerm);
+        if (stateFile) try { rmSync(dirname(stateFile), { recursive: true, force: true }); }
+        catch { /* The per-run work directory cleanup also removes transient state. */ }
         resolve(!invalid && code === 0 ? unwrapJudge(backend.cli, stdout) : undefined);
       });
     });

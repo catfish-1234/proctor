@@ -14,7 +14,7 @@ const readmeContent = readFileSync(README_PATH, 'utf8');
  * being complete, not about which file it happens to live in, so they run against the README plus
  * every page it links to. Nothing here was weakened: the same content still has to exist.
  */
-const docsContent = readmeContent + ['docs/CLI.md', 'docs/CONFIGURATION.md', 'docs/LANGUAGES.md']
+const docsContent = readmeContent + ['docs/CLI.md', 'docs/CONFIGURATION.md', 'docs/LANGUAGES.md', 'docs/BENCHMARKS.md']
   .map(f => readFileSync(join(__dirname, '..', f), 'utf8'))
   .join('\n');
 const BENCH_CSV_PATH = join(__dirname, '../bench/results-live.csv');
@@ -91,10 +91,10 @@ describe('README.md content', () => {
     const honestPassOff = pct(off, 5, 'true');
     const honestPassOn = pct(on, 5, 'true');
 
-    expect(readmeContent).toContain(cheatRateOff);
-    expect(readmeContent).toContain(cheatRateOn);
-    expect(readmeContent).toContain(honestPassOff);
-    expect(readmeContent).toContain(honestPassOn);
+    expect(docsContent).toContain(cheatRateOff);
+    expect(docsContent).toContain(cheatRateOn);
+    expect(docsContent).toContain(honestPassOff);
+    expect(docsContent).toContain(honestPassOn);
   });
 
   it('"By the numbers" detection counts are derived from fixtures/, not written by hand', () => {
@@ -134,8 +134,8 @@ describe('README.md content', () => {
 
     expect(plantedCheats.size).toBeGreaterThan(0);
     expect(nearMisses.length).toBeGreaterThan(0);
-    expect(readmeContent).toContain(`**${plantedCheats.size} of ${plantedCheats.size}**`);
-    expect(readmeContent).toContain(`**0 of ${nearMisses.length}**`);
+    expect(docsContent).toContain(`**${plantedCheats.size} of ${plantedCheats.size}**`);
+    expect(docsContent).toContain(`**0 of ${nearMisses.length}**`);
   });
 
   it('"By the numbers" cites its external figures rather than asserting them', () => {
@@ -160,9 +160,21 @@ describe('README.md content', () => {
     expect(section).toMatch(/What we don'?t claim/i);
   });
 
-  it('links to bench/METHODOLOGY.md and documents a regenerate command', () => {
-    expect(readmeContent).toContain('bench/METHODOLOGY.md');
-    expect(readmeContent).toMatch(/proctor bench/i);
+  it('the docs link bench/METHODOLOGY.md and document a regenerate command', () => {
+    expect(docsContent).toContain('bench/METHODOLOGY.md');
+    expect(docsContent).toMatch(/proctor bench/i);
+  });
+
+  it('states scope and limits plainly, with no implied prevention', () => {
+    const start = readmeContent.indexOf('## What proctor is for');
+    expect(start).toBeGreaterThanOrEqual(0);
+    const rest = readmeContent.slice(start + '## What proctor is for'.length);
+    const nextHeading = rest.indexOf('\n## ');
+    const section = rest.slice(0, nextHeading === -1 ? rest.length : nextHeading);
+    expect(section).toMatch(/not a prevention mechanism/i);
+    expect(section).toMatch(/false positives/i);
+    expect(section).toMatch(/false negatives/i);
+    expect(section).toMatch(/review/i);
   });
 
   it('does not link to the wrong GitHub org (kavishdua) for repo links', () => {
@@ -183,8 +195,7 @@ describe('README.md content', () => {
     expect(readmeContent).toMatch(/approvedTestChanges.*do not count as clean/s);
   });
 
-  it('links to RESEARCH.md, which describes the Claim + Verifier core architecture', () => {
-    expect(readmeContent).toContain('RESEARCH.md');
+  it('RESEARCH.md remains in the repo and describes the Claim + Verifier core architecture', () => {
     const researchContent = readFileSync(join(__dirname, '../RESEARCH.md'), 'utf8');
     expect(researchContent).toMatch(/\bVerifier\b/);
     expect(researchContent).toMatch(/\bContext\b/);

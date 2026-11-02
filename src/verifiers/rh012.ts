@@ -166,6 +166,15 @@ function isCommandLine(text: string): boolean {
   return key === null || COMMAND_KEYS.has(key[1]!.toLowerCase());
 }
 
+/**
+ * A `cmd || fallback` retry/swallow chain shares its leading command with `cmd` alone, so
+ * dropping the fallback strengthens the pipeline instead of removing the suite. `&&` chains
+ * stay exact: every segment is a suite of its own, and losing one is a real removal.
+ */
+function baseCommandKey(content: string): string {
+  return commandKey(content).split('||')[0]!.trim();
+}
+
 function commandKey(content: string): string {
   const command = stripDiffPrefix(content);
   const invocation = TEST_COMMAND_RE.exec(command);
@@ -253,7 +262,10 @@ function run(context: Context): Finding[] {
       }
       for (const change of chunk.changes) {
         if (change.type !== 'add') continue;
-        if (TEST_COMMAND_RE.test(change.content)) addedCommands.add(commandKey(change.content));
+        if (TEST_COMMAND_RE.test(change.content)) {
+          addedCommands.add(commandKey(change.content));
+          addedCommands.add(baseCommandKey(change.content));
+        }
       }
     }
 
@@ -318,7 +330,7 @@ function run(context: Context): Finding[] {
             const stripped = stripDiffPrefix(change.content);
             if (!TEST_COMMAND_RE.test(stripped)) continue;
             if (!isCommandLine(stripped)) continue;
-            if (addedCommands.has(commandKey(change.content))) continue;
+            if (addedCommands.has(commandKey(change.content)) || addedCommands.has(baseCommandKey(change.content))) continue;
             findings.push({
               verifierId: 'RH012',
               severity: 'error',

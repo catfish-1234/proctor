@@ -137,6 +137,30 @@ describe('RH012, CI pipeline tampering', () => {
       );
       expect(findings).toEqual([]);
     });
+
+    it('does not flag dropping a `|| retry` fallback from a test command', () => {
+      // `npm test || npm test` re-runs a flaky suite until it passes; removing the fallback
+      // strengthens the pipeline, so the suite is still there and nothing was removed.
+      const findings = check(
+        diffFile('.github/workflows/ci.yml', [
+          ['del', '      - run: npm test || npm test'],
+          ['add', '      - run: npm test'],
+        ])
+      );
+      expect(findings).toEqual([]);
+    });
+
+    it('still flags a suite dropped from an `&&` chain', () => {
+      // Every `&&` segment is a suite of its own; deleting one removes real coverage.
+      const findings = check(
+        diffFile('.github/workflows/ci.yml', [
+          ['del', '      - run: npm test && npm run test:e2e'],
+          ['add', '      - run: npm test'],
+        ])
+      );
+      expect(findings).toHaveLength(1);
+      expect(findings[0]!.message).toContain('no longer runs this suite');
+    });
   });
 
   describe('contracted test matrices', () => {

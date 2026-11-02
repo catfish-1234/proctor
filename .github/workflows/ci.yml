@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  checks:
+  test:
     strategy:
       fail-fast: false
       matrix:
@@ -53,3 +53,27 @@ jobs:
 
       - name: Validate Claude Code plugin
         run: npx --yes @anthropic-ai/claude-code plugin validate ./plugin --strict
+
+  # Aggregate gate. The branch ruleset on main requires a status context named "checks"; the
+  # matrix job above only reports its expanded legs ("test (<os>, <node>)"), so this job reports
+  # that context. It is not a rubber stamp: it runs after the whole matrix finishes and fails on
+  # any result other than success, so a failed, cancelled, or skipped leg fails this job. The
+  # matrix is static (5 legs, defined above) and legs have no skip conditions, so a passing
+  # aggregate means all 5 legs ran and passed.
+  checks:
+    name: checks
+    needs: [test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all CI matrix legs succeeded
+        env:
+          RESULT: ${{ needs.test.result }}
+        run: |
+          set -euo pipefail
+          echo "CI matrix result: ${RESULT}"
+          if [ "${RESULT}" != "success" ]; then
+            echo "A matrix leg failed, was cancelled, or was skipped; the aggregate gate fails."
+            exit 1
+          fi
+          echo "All 5 CI matrix legs completed successfully."

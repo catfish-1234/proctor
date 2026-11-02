@@ -56,55 +56,24 @@ jobs:
 
   # Aggregate gate. The branch ruleset on main requires a status context named "checks"; the
   # matrix job above only reports its expanded legs ("test (<os>, <node>)"), so this job reports
-  # that context. It is not a rubber stamp: it runs after the matrix finishes, then verifies via
-  # the API that every expected leg exists, completed, and concluded success. Any failed,
-  # cancelled, skipped, or missing leg fails this job.
+  # that context. It is not a rubber stamp: it runs after the whole matrix finishes and fails on
+  # any result other than success, so a failed, cancelled, or skipped leg fails this job. The
+  # matrix is static (5 legs, defined above) and legs have no skip conditions, so a passing
+  # aggregate means all 5 legs ran and passed.
   checks:
     name: checks
     needs: [test]
     if: always()
     runs-on: ubuntu-latest
-    permissions:
-      checks: read
-      contents: read
     steps:
-      - name: Verify every CI matrix leg succeeded
+      - name: Verify all CI matrix legs succeeded
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          # Pull-request check runs attach to the PR head commit, not the ephemeral merge commit.
-          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          RESULT: ${{ needs.test.result }}
         run: |
           set -euo pipefail
-          curl -sf -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${REPO}/commits/${SHA}/check-runs?per_page=100" > check-runs.json
-          python3 <<'PY'
-          import json, sys
-
-          expected = {
-              "test (ubuntu-latest, 20)",
-              "test (ubuntu-latest, 22)",
-              "test (macos-latest, 20)",
-              "test (macos-latest, 22)",
-              "test (windows-latest, 22)",
-          }
-          with open("check-runs.json") as f:
-              runs = json.load(f)["check_runs"]
-          # Keep the latest run per leg name so a retried leg is judged by its retry.
-          latest = {}
-          for run in sorted(runs, key=lambda r: r["id"]):
-              if run["name"] in expected:
-                  latest[run["name"]] = run
-          missing = sorted(expected - set(latest))
-          bad = sorted(
-              "%s: status=%s conclusion=%s" % (name, run["status"], run["conclusion"])
-              for name, run in latest.items()
-              if run["status"] != "completed" or run["conclusion"] != "success"
-          )
-          for line in ["missing leg: %s" % n for n in missing] + bad:
-              print(line)
-          if missing or bad:
-              sys.exit(1)
-          print("All %d CI matrix legs completed successfully." % len(expected))
-          PY
+          echo "CI matrix result: ${RESULT}"
+          if [ "${RESULT}" != "success" ]; then
+            echo "A matrix leg failed, was cancelled, or was skipped; the aggregate gate fails."
+            exit 1
+          fi
+          echo "All 5 CI matrix legs completed successfully."

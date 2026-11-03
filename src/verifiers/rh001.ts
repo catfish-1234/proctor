@@ -1,7 +1,7 @@
 import { basename } from 'node:path';
 import type { Context, Finding, Verifier } from '../types.js';
 import { closingDelimiter, sourceView } from './structure.js';
-import type { ParsedFile } from '../diff.js';
+import { MAX_LINE_LENGTH, type ParsedFile } from '../diff.js';
 import { insideTemplateLiteral } from './wi-common.js';
 
 // Modifier forms (it.each, test.skip, describe.only, ...) are deletions of tests too, keep
@@ -92,6 +92,27 @@ function assertionCount(file: ParsedFile, kind: 'del' | 'add'): number {
   return n;
 }
 
+/** Complete C# test files may move with only their namespace name changed. */
+function csharpMoveIdentity(file: ParsedFile, kind: 'del' | 'add'): string | undefined {
+  const path = kind === 'del' ? file.from : file.to;
+  if (!path?.endsWith('.cs') || !(kind === 'del' ? file.deleted : file.new)) return;
+  if (file.chunks.length !== 1) return;
+  const chunk = file.chunks[0]!;
+  const start = kind === 'del' ? chunk.oldStart : chunk.newStart;
+  const count = kind === 'del' ? chunk.oldLines : chunk.newLines;
+  if (start !== 1 || count !== chunk.changes.length
+    || chunk.changes.some(c => c.type !== kind || c.content.length >= MAX_LINE_LENGTH)) return;
+  const view = sourceView(chunk, kind === 'del' ? 'before' : 'after');
+  const namespace = /\bnamespace\s+([A-Za-z_]\w*(?:\s*\.\s*[A-Za-z_]\w*)*)\s*(?=[{;])/.exec(view.code);
+  if (!namespace || !/^(?:\s*using\b[^;{}]*;)*\s*$/.test(view.code.slice(0, namespace.index))
+    || !/\[(?:Test|TestMethod|Fact|Theory)\s*(?:\(|\])/.test(view.code)
+    || !/\bAssert\s*\./.test(view.code)) return;
+  // Preserve declarations, assertions, literals, helpers and attributes verbatim.
+  // Titles and assertion counts cannot prove that a replacement exercises the same behavior.
+  const nameStart = namespace.index + namespace[0].lastIndexOf(namespace[1]!);
+  return `${basename(path)}\0${view.text.slice(0, nameStart)}${view.text.slice(nameStart + namespace[1]!.length)}`;
+}
+
 /**
  * True when the tests being removed from `file` show up in another test file in the same diff.
  *
@@ -101,10 +122,19 @@ function assertionCount(file: ParsedFile, kind: 'del' | 'add'): number {
  * is what stops the obvious dodge: cloning the titles into empty test bodies so the names line up
  * while the checks themselves quietly disappear.
  *
- * A file whose deletion removes no recognizable test titles at all (an unparsed language, a
- * fixture-only file) never qualifies, so the plain deletion case still fires.
+ * C# instead requires complete file identity apart from the namespace name, and each newly added
+ * file can cover only one deletion. Other files without recognizable test titles never qualify.
  */
-function testsRelocated(file: ParsedFile, files: ParsedFile[], ctx: Context): boolean {
+function testsRelocated(file: ParsedFile, files: ParsedFile[], ctx: Context, claimed: Set<ParsedFile>): boolean {
+  if (file.from?.endsWith('.cs')) {
+    const identity = csharpMoveIdentity(file, 'del');
+    if (!identity) return false;
+    const replacement = files.find(other => other !== file && !claimed.has(other)
+      && ctx.isTestFile(other.to ?? '') && csharpMoveIdentity(other, 'add') === identity);
+    if (!replacement) return false;
+    claimed.add(replacement);
+    return true;
+  }
   const removed = testTitlesIn(file, 'del');
   if (removed.size === 0) return false;
 
@@ -151,6 +181,7 @@ function run(context: Context): Finding[] {
   const files = context.files;
   const ctx = context;
   const findings: Finding[] = [];
+  const claimedMoves = new Set<ParsedFile>();
 
   for (const file of files) {
     const from = file.from ?? '';
@@ -176,7 +207,7 @@ function run(context: Context): Finding[] {
       // Moving or splitting a test file shows up as delete-here plus add-there whenever git
       // doesn't score it as a rename (a move with edits usually doesn't). If the same test names
       // land in another test file in this same diff, the tests weren't dropped, they relocated.
-      if (testsRelocated(file, files, ctx)) continue;
+      if (testsRelocated(file, files, ctx, claimedMoves)) continue;
       findings.push({
         verifierId: 'RH001',
         severity: 'error',

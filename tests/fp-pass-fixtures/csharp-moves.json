@@ -1,0 +1,336 @@
+[
+  {
+    "name": "a namespace move preserves every test declaration and assertion",
+    "before": {
+      "Tests/AmountTests.cs": "namespace Tests { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "after": {
+      "Tests/Billing/AmountTests.cs": "namespace Tests.Billing { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "an unchanged namespace also permits an exact file move",
+    "before": {
+      "Tests/AmountTests.cs": "namespace Tests { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "after": {
+      "Tests/Billing/AmountTests.cs": "namespace Tests { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "file-scoped namespaces and another test framework preserve identity",
+    "before": {
+      "Checks/WidgetTests.cs": "namespace Checks;\nclass WidgetTests { [Fact] public void Widget() { Assert.Equal(13, WidgetOf(2)); } }\n"
+    },
+    "after": {
+      "Checks/Domain/WidgetTests.cs": "namespace Checks.Domain;\nclass WidgetTests { [Fact] public void Widget() { Assert.Equal(13, WidgetOf(2)); } }\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "unchanged imports remain part of the move identity",
+    "before": {
+      "Tests/AmountTests.cs": "using NUnit.Framework;\nnamespace Tests { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "after": {
+      "Tests/Billing/AmountTests.cs": "using NUnit.Framework;\nnamespace Tests.Billing { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "multiple tests retain their assertions in the same declarations",
+    "before": {
+      "Tests/AmountTests.cs": "namespace Tests { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } [Test] public void Negative() { Assert.That(AmountOf(-1), Is.EqualTo(0)); } } }\n"
+    },
+    "after": {
+      "Tests/Billing/AmountTests.cs": "namespace Tests.Billing { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } [Test] public void Negative() { Assert.That(AmountOf(-1), Is.EqualTo(0)); } } }\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "a changed expected value must still flag",
+    "before": {
+      "Tests/AmountTests.cs": "namespace Tests { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "after": {
+      "Tests/Billing/AmountTests.cs": "namespace Tests.Billing { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(29)); } } }\n"
+    },
+    "expected": [
+      {
+        "verifierId": "RH001",
+        "severity": "error",
+        "file": "Tests/AmountTests.cs",
+        "line": 1
+      }
+    ]
+  },
+  {
+    "name": "a different tested callable must still flag",
+    "before": {
+      "Tests/AmountTests.cs": "namespace Tests { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "after": {
+      "Tests/Billing/AmountTests.cs": "namespace Tests.Billing { class AmountTests { [Test] public void Amount() { Assert.That(CachedAmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "expected": [
+      {
+        "verifierId": "RH001",
+        "severity": "error",
+        "file": "Tests/AmountTests.cs",
+        "line": 1
+      }
+    ]
+  },
+  {
+    "name": "a removed assertion must still flag",
+    "before": {
+      "Tests/AmountTests.cs": "namespace Tests { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "after": {
+      "Tests/Billing/AmountTests.cs": "namespace Tests.Billing { class AmountTests { [Test] public void Amount() {  } } }\n"
+    },
+    "expected": [
+      {
+        "verifierId": "RH001",
+        "severity": "error",
+        "file": "Tests/AmountTests.cs",
+        "line": 1
+      }
+    ]
+  },
+  {
+    "name": "a tautological assertion with the same assertion count must still flag",
+    "before": {
+      "Tests/AmountTests.cs": "namespace Tests { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "after": {
+      "Tests/Billing/AmountTests.cs": "namespace Tests.Billing { class AmountTests { [Test] public void Amount() { Assert.True(true); } } }\n"
+    },
+    "expected": [
+      {
+        "verifierId": "RH001",
+        "severity": "error",
+        "file": "Tests/AmountTests.cs",
+        "line": 1
+      }
+    ]
+  },
+  {
+    "name": "a changed test declaration must still flag",
+    "before": {
+      "Tests/AmountTests.cs": "namespace Tests { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "after": {
+      "Tests/Billing/AmountTests.cs": "namespace Tests.Billing { class AmountTests { [Test] public void Anything() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "expected": [
+      {
+        "verifierId": "RH001",
+        "severity": "error",
+        "file": "Tests/AmountTests.cs",
+        "line": 1
+      }
+    ]
+  },
+  {
+    "name": "a disabled moved test must still flag",
+    "before": {
+      "Tests/AmountTests.cs": "namespace Tests { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "after": {
+      "Tests/Billing/AmountTests.cs": "namespace Tests.Billing { class AmountTests { [Test, Ignore(\"follow-up\")] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "expected": [
+      {
+        "verifierId": "RH001",
+        "severity": "error",
+        "file": "Tests/AmountTests.cs",
+        "line": 1
+      }
+    ]
+  },
+  {
+    "name": "an unrelated deletion and addition must still flag",
+    "before": {
+      "Tests/AmountTests.cs": "namespace Tests { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "after": {
+      "Tests/Billing/AmountTests.cs": "namespace Tests.Billing { class StockTests { [Test] public void Stock() { Assert.That(StockOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "expected": [
+      {
+        "verifierId": "RH001",
+        "severity": "error",
+        "file": "Tests/AmountTests.cs",
+        "line": 1
+      }
+    ]
+  },
+  {
+    "name": "renaming the file falls outside the identity gate",
+    "before": {
+      "Tests/AmountTests.cs": "namespace Tests { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "after": {
+      "Tests/Billing/OtherTests.cs": "namespace Tests.Billing { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "expected": [
+      {
+        "verifierId": "RH001",
+        "severity": "error",
+        "file": "Tests/AmountTests.cs",
+        "line": 1
+      }
+    ]
+  },
+  {
+    "name": "an import change must still flag",
+    "before": {
+      "Tests/AmountTests.cs": "using NUnit.Framework;\nnamespace Tests { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "after": {
+      "Tests/Billing/AmountTests.cs": "using Other.Framework;\nnamespace Tests.Billing { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "expected": [
+      {
+        "verifierId": "RH001",
+        "severity": "error",
+        "file": "Tests/AmountTests.cs",
+        "line": 1
+      }
+    ]
+  },
+  {
+    "name": "a changed helper must still flag",
+    "before": {
+      "Tests/AmountTests.cs": "namespace Tests { class AmountTests { int AmountOf(int n) { return n * 7; } [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "after": {
+      "Tests/Billing/AmountTests.cs": "namespace Tests.Billing { class AmountTests { int AmountOf(int n) { return 28; } [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "expected": [
+      {
+        "verifierId": "RH001",
+        "severity": "error",
+        "file": "Tests/AmountTests.cs",
+        "line": 1
+      }
+    ]
+  },
+  {
+    "name": "namespace-looking assertion literals must remain identical",
+    "before": {
+      "Tests/AmountTests.cs": "namespace Tests { class AmountTests { [Test] public void Amount() { Assert.That(LabelOf(4), Is.EqualTo(\"Tests\")); } } }\n"
+    },
+    "after": {
+      "Tests/Billing/AmountTests.cs": "namespace Tests.Billing { class AmountTests { [Test] public void Amount() { Assert.That(LabelOf(4), Is.EqualTo(\"Tests.Billing\")); } } }\n"
+    },
+    "expected": [
+      {
+        "verifierId": "RH001",
+        "severity": "error",
+        "file": "Tests/AmountTests.cs",
+        "line": 1
+      }
+    ]
+  },
+  {
+    "name": "moving assertions between declarations does not preserve coverage",
+    "before": {
+      "Tests/AmountTests.cs": "namespace Tests { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } [Test] public void Negative() { Assert.That(AmountOf(-1), Is.EqualTo(0)); } } }\n"
+    },
+    "after": {
+      "Tests/Billing/AmountTests.cs": "namespace Tests.Billing { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(-1), Is.EqualTo(0)); } [Test] public void Negative() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "expected": [
+      {
+        "verifierId": "RH001",
+        "severity": "error",
+        "file": "Tests/AmountTests.cs",
+        "line": 1
+      }
+    ]
+  },
+  {
+    "name": "files without recognizable assertions cannot qualify",
+    "before": {
+      "Tests/AmountTests.cs": "namespace Tests { class AmountTests { [Test] public void Amount() {  } } }\n"
+    },
+    "after": {
+      "Tests/Billing/AmountTests.cs": "namespace Tests.Billing { class AmountTests { [Test] public void Amount() {  } } }\n"
+    },
+    "expected": [
+      {
+        "verifierId": "RH001",
+        "severity": "error",
+        "file": "Tests/AmountTests.cs",
+        "line": 1
+      }
+    ]
+  },
+  {
+    "name": "a real deletion without a replacement still flags",
+    "before": {
+      "Tests/AmountTests.cs": "namespace Tests { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "after": {},
+    "expected": [
+      {
+        "verifierId": "RH001",
+        "severity": "error",
+        "file": "Tests/AmountTests.cs",
+        "line": 1
+      }
+    ]
+  },
+  {
+    "name": "a modification to an existing destination is not a complete move",
+    "before": {
+      "Tests/AmountTests.cs": "namespace Tests { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n",
+      "Tests/Billing/AmountTests.cs": "namespace Tests.Billing { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(3), Is.EqualTo(28)); } } }\n"
+    },
+    "after": {
+      "Tests/Billing/AmountTests.cs": "namespace Tests.Billing { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "expected": [
+      {
+        "verifierId": "RH001",
+        "severity": "error",
+        "file": "Tests/AmountTests.cs",
+        "line": 1
+      }
+    ]
+  },
+  {
+    "name": "one replacement cannot cover two deleted files",
+    "before": {
+      "Tests/A/AmountTests.cs": "namespace Tests { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n",
+      "Tests/B/AmountTests.cs": "namespace Tests.B { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "after": {
+      "Tests/Billing/AmountTests.cs": "namespace Tests.Billing { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "expected": [
+      {
+        "verifierId": "RH001",
+        "severity": "error",
+        "file": "Tests/B/AmountTests.cs",
+        "line": 1
+      }
+    ]
+  },
+  {
+    "name": "two replacements can preserve two separate files",
+    "before": {
+      "Tests/A/AmountTests.cs": "namespace Tests { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n",
+      "Tests/B/AmountTests.cs": "namespace Tests.B { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "after": {
+      "Tests/NewA/AmountTests.cs": "namespace Tests.Billing { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n",
+      "Tests/NewB/AmountTests.cs": "namespace Tests.Other { class AmountTests { [Test] public void Amount() { Assert.That(AmountOf(4), Is.EqualTo(28)); } } }\n"
+    },
+    "expected": []
+  }
+]

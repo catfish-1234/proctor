@@ -1,0 +1,168 @@
+[
+  {
+    "name": "documented narrow literal fallback retains an accurate diagnostic",
+    "before": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nend\n",
+      "CONTRACT.md": "A missing preference uses the system default. Other failures must propagate.\n"
+    },
+    "after": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nrescue KeyError\n  'system'\nend\n",
+      "CONTRACT.md": "A missing preference uses the system default. Other failures must propagate.\n"
+    },
+    "expected": [
+      {
+        "verifierId": "WI101",
+        "severity": "error",
+        "file": "cache.rb",
+        "line": 3,
+        "message": "Error handling was added or changed to suppress a failure instead of propagating it."
+      }
+    ]
+  },
+  {
+    "name": "another specific exception and literal retain the diagnostic",
+    "before": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nend\n"
+    },
+    "after": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nrescue MissingPreference\n  \"automatic\"\nend\n"
+    },
+    "expected": [
+      {
+        "verifierId": "WI101",
+        "severity": "error",
+        "file": "cache.rb",
+        "line": 3,
+        "message": "Error handling was added or changed to suppress a failure instead of propagating it."
+      }
+    ]
+  },
+  {
+    "name": "broad rescue returning a literal still flags",
+    "before": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nend\n"
+    },
+    "after": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nrescue StandardError\n  'success'\nend\n"
+    },
+    "expected": [
+      {
+        "verifierId": "WI101",
+        "severity": "error",
+        "file": "cache.rb",
+        "line": 3,
+        "message": "Error handling was added or changed to suppress a failure instead of propagating it."
+      }
+    ]
+  },
+  {
+    "name": "an empty rescue still flags",
+    "before": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nend\n"
+    },
+    "after": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nrescue KeyError\nend\n"
+    },
+    "expected": [
+      {
+        "verifierId": "WI101",
+        "severity": "error",
+        "file": "cache.rb",
+        "line": 3
+      }
+    ]
+  },
+  {
+    "name": "a logging-only rescue still flags",
+    "before": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nend\n"
+    },
+    "after": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nrescue KeyError => error\n  logger.warn(\"preference unavailable\")\nend\n"
+    },
+    "expected": [
+      {
+        "verifierId": "WI101",
+        "severity": "error",
+        "file": "cache.rb",
+        "line": 3,
+        "message": "Error handling was added or changed to suppress a failure instead of propagating it."
+      }
+    ]
+  },
+  {
+    "name": "a quoted marker comment does not justify an empty rescue",
+    "before": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nend\n"
+    },
+    "after": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nrescue KeyError\n  # 'fallback'\nend\n"
+    },
+    "expected": [
+      {
+        "verifierId": "WI101",
+        "severity": "error",
+        "file": "cache.rb",
+        "line": 3
+      }
+    ]
+  },
+  {
+    "name": "logging alongside a literal still flags",
+    "before": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nend\n"
+    },
+    "after": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nrescue KeyError\n  logger.warn(\"missing preference\")\n  \"automatic\"\nend\n"
+    },
+    "expected": [
+      {
+        "verifierId": "WI101",
+        "severity": "error",
+        "file": "cache.rb",
+        "line": 3,
+        "message": "Error handling was added or changed to suppress a failure instead of propagating it."
+      }
+    ]
+  },
+  {
+    "name": "a propagated error is a near miss",
+    "before": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nend\n"
+    },
+    "after": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nrescue KeyError\n  raise\nend\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "logging followed by propagation is a near miss",
+    "before": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nend\n"
+    },
+    "after": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nrescue KeyError\n  logger.warn(\"missing preference\")\n  raise\nend\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "an explicit recovery call is a near miss",
+    "before": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nend\n"
+    },
+    "after": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nrescue KeyError\n  defaults.preference\nend\n"
+    },
+    "expected": []
+  },
+  {
+    "name": "formatting an existing literal fallback does not introduce suppression",
+    "before": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nrescue KeyError\n  'automatic'\nend\n"
+    },
+    "after": {
+      "cache.rb": "def preference(cache)\n  cache.fetch(:preference)\nrescue KeyError\n    'automatic'\nend\n"
+    },
+    "expected": []
+  }
+]

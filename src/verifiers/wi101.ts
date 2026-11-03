@@ -285,7 +285,7 @@ function structuralSwallows(context: Context): Finding[] {
           ? prior.filter(old=>before.lineAt(old.start)===retainedOpener.ln1) : prior;
         if (previous.some(old => old.key === handler.key && discardedHandler(old.code))) continue;
         findings.push({ verifierId:'WI101',severity:'error',file:path,line:after.lineAt(handler.start),
-          message:'Error handling was added or changed to an empty or logging-only handler, so failures no longer propagate.',
+          message:'Error handling was added or changed to suppress a failure instead of propagating it.',
           suggestion:'Return an error, retry, or propagate the failure. Document a specific, deliberate fallback.' });
       }
       const removed = deletedLines(chunk);

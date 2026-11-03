@@ -8,7 +8,7 @@ export type ParsedFile = ReturnType<typeof parseDiff>[number];
 // payload. Truncating each change's content bounds worst-case regex time as a systemic backstop,
 // independent of any single regex's complexity. Detection patterns anchor near the line start, so
 // truncation doesn't lose real signal.
-const MAX_LINE_LENGTH = 4000;
+export const MAX_LINE_LENGTH = 4000;
 const MAX_DIFF_BUFFER = 512 * 1024 * 1024;
 
 // Human-facing Git settings and diff drivers must not change the patch the detector reads.

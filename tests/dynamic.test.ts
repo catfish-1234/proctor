@@ -1,4 +1,5 @@
 import { describe, expect, it, type TestContext } from 'vitest';
+import { cases, runnable, dynamic, workerPath, sandboxAvailable, registerCorpus, isolateTempDir } from './dynamic-corpus-shared.js';
 import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, rmSync, existsSync, readdirSync, cpSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -18,23 +19,10 @@ import samples from '../bench/dynamic-dev/cases.mjs';
 import { makeRepo, writeTree } from '../bench/dynamic-dev/run.mjs';
 
 type Sample = { id: string; family: string; label: string; before: Record<string, string>; after: Record<string, string>; expected: string[] };
-const cases = samples as Sample[];
 const CLI = resolve('dist/cli.js');
-const workerPath = resolve('dist/dynamic-worker.js');
-const sandboxAvailable = process.platform === 'linux' && spawnSync('bwrap', ['--ro-bind', '/', '/', '--unshare-net', '--unshare-pid', '--proc', '/proc', '--dev', '/dev', '--', 'true']).status === 0;
-function runnable(result: Awaited<ReturnType<typeof runDynamic>>, context: TestContext): void {
-  if (!sandboxAvailable) {
-    expect(result.status).toBe('skipped'); expect(result.reason).toBeTruthy(); expect(result.findings).toEqual([]);
-    context.skip(`Dynamic isolation is unavailable: ${result.reason}`);
-  }
-  expect(result.status, result.reason).toBe('completed');
-}
-
-function dynamic(dir: string, extra = {}) {
-  const { files } = runGitDiff(['HEAD'], dir, { includeUntracked: true });
-  return runDynamic({ cwd: dir, workerPath, files, testPathGlobs: ['**/*.test.{js,mjs,cjs}', '**/test_*.py'], ...extra });
-}
 const tree = (files: Record<string, string>): Snapshot => new Map(Object.entries(files).map(([p, s]) => [p, { data: Buffer.from(s), mode: 0o644 }]));
+
+isolateTempDir();
 
 describe('dynamic result parsing and conservative signals', () => {
   it('keeps named TAP results and drops skipped, TODO and ambiguous names', () => {
@@ -236,25 +224,7 @@ describe('dynamic probe and mutation extensions', () => {
 });
 
 describe('isolated dynamic execution and precision twins', () => {
-  for (const sample of cases) it(sample.id, async context => {
-    const dir = makeRepo(sample);
-    try {
-      const result = await dynamic(dir);
-      runnable(result, context);
-      if (sample.id.startsWith('red-') || sample.id.startsWith('plain-red-') || ['typed-probe', 'bare-python', 'mutation-lite'].includes(sample.family)) {
-        expect(result.runs[0]!.failed.length).toBeGreaterThan(0);
-        if (sample.label === 'honest') expect(result.runs[1]!.exitCode).toBe(0);
-      }
-      const ids = result.findings.map(f => f.verifierId);
-      if (sample.label === 'honest' || sample.expected.length === 0) expect(ids).toEqual([]);
-      for (const id of sample.expected) expect(ids).toContain(id);
-      for (const f of result.findings) {
-        expect(f.message).toContain('Evidence:'); expect(f.message).toContain('exit ');
-      }
-      for (const [path, text] of Object.entries(sample.after)) expect(readFileSync(join(dir, path), 'utf8')).toBe(text);
-      expect(spawnSync('git', ['diff', '--cached', '--exit-code'], { cwd: dir }).status).toBe(0);
-    } finally { rmSync(dir, { recursive: true, force: true }); }
-  });
+  registerCorpus(0, 3);
   it('keeps default output identical and does not execute tests without opt-in', () => {
     const sample = cases[0]!;
     const dir = makeRepo(sample);

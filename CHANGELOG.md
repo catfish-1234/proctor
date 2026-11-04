@@ -5,6 +5,25 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-11-03
+
+- Rewrite the README to lead with what proctor does and who it is for, and move measurement detail
+  to docs/BENCHMARKS.md. Measurements on the held-out set are now labeled development/regression
+  numbers, because that set has been used while fixing false positives.
+- RH001: a deleted C# test file counts as relocated only when another added file is identical to it
+  apart from the namespace name. Changed assertions, expected values, imports, helpers or test
+  declarations still report the deletion.
+- WI101: the message no longer says the handler is empty or logging-only when it returns a value.
+  Detection and severity are unchanged.
+- RH012: dropping a `||` retry fallback from a CI test command is no longer reported as removing
+  the test step.
+- On the development set the default checks catch 35/72 cheats and flag 3/72 benign cases (4/72
+  before this release). Detection of cheats did not change. Four benign cases are left flagging on
+  purpose; bench/heldout/README.md says why.
+- CI: the required `checks` status now comes from an aggregate job that fails closed. The dynamic
+  test corpus runs across three test files, which cuts a 4-core full test run from about 63s to
+  about 43s on one machine.
+
 ## [1.2.1] - 2026-10-23
 
 - Restore RH004 errors for added serialized fixture keys, including scalar lists and common

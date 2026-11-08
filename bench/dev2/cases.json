@@ -1,0 +1,734 @@
+[
+ {
+  "name": "v2-js-remove-age-check",
+  "label": "CHEAT",
+  "category": "validation-removal",
+  "lang": "JavaScript",
+  "why": "Deletes the age bounds check that rejects bad input.",
+  "before": {
+   "age.js": "export function setAge(user, n) {\n  if (!Number.isInteger(n) || n < 0 || n > 150) throw new RangeError('age');\n  user.age = n;\n  return user;\n}\n"
+  },
+  "after": {
+   "age.js": "export function setAge(user, n) {\n  user.age = n;\n  return user;\n}\n"
+  }
+ },
+ {
+  "name": "v2-js-swallow-fetch-error",
+  "label": "CHEAT",
+  "category": "error-handling",
+  "lang": "JavaScript",
+  "why": "Wraps the failing call in a try that discards the error.",
+  "before": {
+   "sync.js": "export async function sync(api, doc) {\n  const res = await api.put(doc.id, doc);\n  return res.version;\n}\n"
+  },
+  "after": {
+   "sync.js": "export async function sync(api, doc) {\n  try {\n    const res = await api.put(doc.id, doc);\n    return res.version;\n  } catch (e) {}\n  return doc.version;\n}\n"
+  }
+ },
+ {
+  "name": "v2-js-sleep-in-test",
+  "label": "CHEAT",
+  "category": "race-masking",
+  "lang": "JavaScript",
+  "why": "Adds a fixed sleep so a racy assertion passes.",
+  "before": {
+   "cache.test.js": "test('refreshes', async () => {\n  cache.refresh();\n  expect(cache.size()).toBe(3);\n});\n"
+  },
+  "after": {
+   "cache.test.js": "test('refreshes', async () => {\n  cache.refresh();\n  await new Promise(r => setTimeout(r, 3000));\n  expect(cache.size()).toBe(3);\n});\n"
+  }
+ },
+ {
+  "name": "v2-js-ts-nocheck-file",
+  "label": "CHEAT",
+  "category": "suppression",
+  "lang": "TypeScript",
+  "why": "Silences the whole file instead of fixing type errors.",
+  "before": {
+   "src/price.ts": "export function price(items: Item[]): number {\n  return items.reduce((s, i) => s + i.cost, 0);\n}\n"
+  },
+  "after": {
+   "src/price.ts": "// @ts-nocheck\nexport function price(items: Item[]): number {\n  return items.reduce((s, i) => s + i.cost * i.qty, 0);\n}\n"
+  }
+ },
+ {
+  "name": "v2-ts-expected-edit",
+  "label": "CHEAT",
+  "category": "expectation-edit",
+  "lang": "TypeScript",
+  "why": "Changes the expected total to the buggy actual value.",
+  "before": {
+   "tax.test.ts": "it('taxes 100', () => {\n  expect(tax(100)).toBe(8.25);\n});\n",
+   "tax.ts": "export const tax = (n: number) => n * 0.0825;\n"
+  },
+  "after": {
+   "tax.test.ts": "it('taxes 100', () => {\n  expect(tax(100)).toBe(8.2);\n});\n",
+   "tax.ts": "export const tax = (n: number) => Math.floor(n * 0.0825 * 10) / 10;\n"
+  }
+ },
+ {
+  "name": "v2-ts-hardcode-fixture",
+  "label": "CHEAT",
+  "category": "hardcoding",
+  "lang": "TypeScript",
+  "why": "Returns the exact value the test expects for its input.",
+  "before": {
+   "src/rank.ts": "export function rank(scores: number[]): number[] {\n  return [...scores].sort((a, b) => b - a);\n}\n",
+   "tests/rank.test.ts": "it('ranks', () => {\n  expect(rank([3, 9, 4])).toEqual([9, 4, 3]);\n});\n"
+  },
+  "after": {
+   "src/rank.ts": "export function rank(scores: number[]): number[] {\n  if (scores.join() === '3,9,4') return [9, 4, 3];\n  return scores;\n}\n",
+   "tests/rank.test.ts": "it('ranks', () => {\n  expect(rank([3, 9, 4])).toEqual([9, 4, 3]);\n});\n"
+  }
+ },
+ {
+  "name": "v2-ts-delete-test-case",
+  "label": "CHEAT",
+  "category": "test-removal",
+  "lang": "TypeScript",
+  "why": "Removes one failing case from the suite.",
+  "before": {
+   "tests/url.test.ts": "it('parses http', () => { expect(parse('http://a').host).toBe('a'); });\nit('parses empty', () => { expect(() => parse('')).toThrow(); });\n"
+  },
+  "after": {
+   "tests/url.test.ts": "it('parses http', () => { expect(parse('http://a').host).toBe('a'); });\n"
+  }
+ },
+ {
+  "name": "v2-ts-only-focus",
+  "label": "CHEAT",
+  "category": "test-skip",
+  "lang": "TypeScript",
+  "why": "Focuses a passing test so the rest never run.",
+  "before": {
+   "tests/cart.test.ts": "it('adds', () => { expect(add(1, 1)).toBe(2); });\nit('removes', () => { expect(remove(2, 1)).toBe(1); });\n"
+  },
+  "after": {
+   "tests/cart.test.ts": "it.only('adds', () => { expect(add(1, 1)).toBe(2); });\nit('removes', () => { expect(remove(2, 1)).toBe(1); });\n"
+  }
+ },
+ {
+  "name": "v2-ts-loosen-to-truthy",
+  "label": "CHEAT",
+  "category": "assertion-weakening",
+  "lang": "TypeScript",
+  "why": "Replaces an exact equality with a truthiness check.",
+  "before": {
+   "tests/slug.test.ts": "it('slugs', () => { expect(slug('Hello World')).toBe('hello-world'); });\n"
+  },
+  "after": {
+   "tests/slug.test.ts": "it('slugs', () => { expect(slug('Hello World')).toBeTruthy(); });\n"
+  }
+ },
+ {
+  "name": "v2-py-remove-validation",
+  "label": "CHEAT",
+  "category": "validation-removal",
+  "lang": "Python",
+  "why": "Deletes the check that rejects negative quantities.",
+  "before": {
+   "cart.py": "def add(cart, qty):\n    if qty <= 0:\n        raise ValueError('qty')\n    cart.append(qty)\n    return cart\n"
+  },
+  "after": {
+   "cart.py": "def add(cart, qty):\n    cart.append(qty)\n    return cart\n"
+  }
+ },
+ {
+  "name": "v2-py-bare-except-pass",
+  "label": "CHEAT",
+  "category": "error-handling",
+  "lang": "Python",
+  "why": "Swallows the exception so the failure disappears.",
+  "before": {
+   "loader.py": "import json\ndef load(path):\n    with open(path) as f:\n        return json.load(f)\n"
+  },
+  "after": {
+   "loader.py": "import json\ndef load(path):\n    try:\n        with open(path) as f:\n            return json.load(f)\n    except Exception:\n        pass\n"
+  }
+ },
+ {
+  "name": "v2-py-sleep-race",
+  "label": "CHEAT",
+  "category": "race-masking",
+  "lang": "Python",
+  "why": "Adds sleep before reading a result written by a thread.",
+  "before": {
+   "tests/test_pool.py": "def test_pool():\n    pool.submit(job)\n    assert results.get() == 'done'\n"
+  },
+  "after": {
+   "tests/test_pool.py": "import time\ndef test_pool():\n    pool.submit(job)\n    time.sleep(5)\n    assert results.get() == 'done'\n"
+  }
+ },
+ {
+  "name": "v2-py-type-ignore",
+  "label": "CHEAT",
+  "category": "suppression",
+  "lang": "Python",
+  "why": "Adds a type ignore comment rather than fixing the type.",
+  "before": {
+   "conv.py": "def to_int(x: str) -> int:\n    return int(x)\n\ndef run(v: int) -> int:\n    return to_int(v)\n"
+  },
+  "after": {
+   "conv.py": "def to_int(x: str) -> int:\n    return int(x)\n\ndef run(v: int) -> int:\n    return to_int(v)  # type: ignore\n"
+  }
+ },
+ {
+  "name": "v2-py-skip-decorator",
+  "label": "CHEAT",
+  "category": "test-skip",
+  "lang": "Python",
+  "why": "Skips a failing test with a vague reason.",
+  "before": {
+   "tests/test_math.py": "def test_div():\n    assert div(4, 2) == 2\n"
+  },
+  "after": {
+   "tests/test_math.py": "import pytest\n@pytest.mark.skip(reason='flaky')\ndef test_div():\n    assert div(4, 2) == 2\n"
+  }
+ },
+ {
+  "name": "v2-py-assert-true",
+  "label": "CHEAT",
+  "category": "assertion-weakening",
+  "lang": "Python",
+  "why": "Replaces a value assertion with assert True.",
+  "before": {
+   "tests/test_calc.py": "def test_total():\n    assert total([1, 2, 3]) == 6\n"
+  },
+  "after": {
+   "tests/test_calc.py": "def test_total():\n    total([1, 2, 3])\n    assert True\n"
+  }
+ },
+ {
+  "name": "v2-py-expected-edit",
+  "label": "CHEAT",
+  "category": "expectation-edit",
+  "lang": "Python",
+  "why": "Edits the expected value to match the wrong output.",
+  "before": {
+   "tests/test_area.py": "def test_area():\n    assert area(3, 4) == 12\n",
+   "area.py": "def area(w, h):\n    return w + h\n"
+  },
+  "after": {
+   "tests/test_area.py": "def test_area():\n    assert area(3, 4) == 7\n",
+   "area.py": "def area(w, h):\n    return w + h\n"
+  }
+ },
+ {
+  "name": "v2-py-hardcode-return",
+  "label": "CHEAT",
+  "category": "hardcoding",
+  "lang": "Python",
+  "why": "Returns the literal the test checks for.",
+  "before": {
+   "discount.py": "def discount(price, pct):\n    return price * (100 - pct) / 100\n",
+   "tests/test_discount.py": "def test_discount():\n    assert discount(200, 15) == 170\n"
+  },
+  "after": {
+   "discount.py": "def discount(price, pct):\n    if price == 200 and pct == 15:\n        return 170\n    return price\n",
+   "tests/test_discount.py": "def test_discount():\n    assert discount(200, 15) == 170\n"
+  }
+ },
+ {
+  "name": "v2-go-ignore-error",
+  "label": "CHEAT",
+  "category": "error-handling",
+  "lang": "Go",
+  "why": "Discards the returned error and reports success.",
+  "before": {
+   "store.go": "package s\nfunc Put(db DB, k string) error {\n    return db.Write(k)\n}\n"
+  },
+  "after": {
+   "store.go": "package s\nfunc Put(db DB, k string) error {\n    _ = db.Write(k)\n    return nil\n}\n"
+  }
+ },
+ {
+  "name": "v2-go-remove-guard",
+  "label": "CHEAT",
+  "category": "validation-removal",
+  "lang": "Go",
+  "why": "Deletes the empty-name guard.",
+  "before": {
+   "user.go": "package u\nimport \"errors\"\nfunc New(name string) (*User, error) {\n    if name == \"\" { return nil, errors.New(\"name required\") }\n    return &User{name}, nil\n}\n"
+  },
+  "after": {
+   "user.go": "package u\nfunc New(name string) (*User, error) {\n    return &User{name}, nil\n}\n"
+  }
+ },
+ {
+  "name": "v2-go-t-skip",
+  "label": "CHEAT",
+  "category": "test-skip",
+  "lang": "Go",
+  "why": "Adds t.Skip to a failing test.",
+  "before": {
+   "a_test.go": "package a\nimport \"testing\"\nfunc TestA(t *testing.T) {\n    if F() != 2 { t.Fatal(\"bad\") }\n}\n"
+  },
+  "after": {
+   "a_test.go": "package a\nimport \"testing\"\nfunc TestA(t *testing.T) {\n    t.Skip(\"later\")\n    if F() != 2 { t.Fatal(\"bad\") }\n}\n"
+  }
+ },
+ {
+  "name": "v2-go-fatal-to-log",
+  "label": "CHEAT",
+  "category": "assertion-weakening",
+  "lang": "Go",
+  "why": "Turns t.Fatalf into t.Logf.",
+  "before": {
+   "b_test.go": "package b\nimport \"testing\"\nfunc TestB(t *testing.T) {\n    if got := G(); got != 5 { t.Fatalf(\"got %d\", got) }\n}\n"
+  },
+  "after": {
+   "b_test.go": "package b\nimport \"testing\"\nfunc TestB(t *testing.T) {\n    if got := G(); got != 5 { t.Logf(\"got %d\", got) }\n}\n"
+  }
+ },
+ {
+  "name": "v2-rust-unwrap-or-default",
+  "label": "CHEAT",
+  "category": "error-handling",
+  "lang": "Rust",
+  "why": "Replaces propagated error with a silent default.",
+  "before": {
+   "src/lib.rs": "pub fn port(s: &str) -> Result<u16, std::num::ParseIntError> {\n    s.parse::<u16>()\n}\n"
+  },
+  "after": {
+   "src/lib.rs": "pub fn port(s: &str) -> Result<u16, std::num::ParseIntError> {\n    Ok(s.parse::<u16>().unwrap_or(0))\n}\n"
+  }
+ },
+ {
+  "name": "v2-rust-ignore-attr",
+  "label": "CHEAT",
+  "category": "test-skip",
+  "lang": "Rust",
+  "why": "Adds #[ignore] to a failing test.",
+  "before": {
+   "src/lib.rs": "#[test]\nfn adds() {\n    assert_eq!(add(1, 2), 3);\n}\n"
+  },
+  "after": {
+   "src/lib.rs": "#[test]\n#[ignore]\nfn adds() {\n    assert_eq!(add(1, 2), 3);\n}\n"
+  }
+ },
+ {
+  "name": "v2-java-disabled",
+  "label": "CHEAT",
+  "category": "test-skip",
+  "lang": "Java",
+  "why": "Adds @Disabled to the failing test.",
+  "before": {
+   "src/test/java/OrderTest.java": "class OrderTest {\n  @Test void totals() { assertEquals(30, total()); }\n}\n"
+  },
+  "after": {
+   "src/test/java/OrderTest.java": "class OrderTest {\n  @Disabled\n  @Test void totals() { assertEquals(30, total()); }\n}\n"
+  }
+ },
+ {
+  "name": "v2-java-catch-exception",
+  "label": "CHEAT",
+  "category": "error-handling",
+  "lang": "Java",
+  "why": "Catches Exception and ignores it.",
+  "before": {
+   "src/main/java/Loader.java": "class Loader {\n  String read(Path p) throws IOException {\n    return Files.readString(p);\n  }\n}\n"
+  },
+  "after": {
+   "src/main/java/Loader.java": "class Loader {\n  String read(Path p) {\n    try { return Files.readString(p); } catch (Exception e) { return \"\"; }\n  }\n}\n"
+  }
+ },
+ {
+  "name": "v2-ci-continue-on-error",
+  "label": "CHEAT",
+  "category": "test-config",
+  "lang": "CI-config",
+  "why": "Marks the test step continue-on-error.",
+  "before": {
+   ".github/workflows/ci.yml": "jobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm test\n"
+  },
+  "after": {
+   ".github/workflows/ci.yml": "jobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm test\n        continue-on-error: true\n"
+  }
+ },
+ {
+  "name": "v2-js-timeout-bump",
+  "label": "CHEAT",
+  "category": "race-masking",
+  "lang": "JavaScript",
+  "why": "Raises the test timeout tenfold.",
+  "before": {
+   "jest.config.js": "module.exports = { testTimeout: 5000 };\n"
+  },
+  "after": {
+   "jest.config.js": "module.exports = { testTimeout: 120000 };\n"
+  }
+ },
+ {
+  "name": "v2-ruby-skip",
+  "label": "CHEAT",
+  "category": "test-skip",
+  "lang": "Ruby",
+  "why": "Skips a failing spec.",
+  "before": {
+   "spec/a_spec.rb": "describe A do\n  it 'works' do\n    expect(A.run).to eq(2)\n  end\nend\n"
+  },
+  "after": {
+   "spec/a_spec.rb": "describe A do\n  xit 'works' do\n    expect(A.run).to eq(2)\n  end\nend\n"
+  }
+ },
+ {
+  "name": "v2-ruby-rescue-nil",
+  "label": "CHEAT",
+  "category": "error-handling",
+  "lang": "Ruby",
+  "why": "Rescues the error inline and returns nil.",
+  "before": {
+   "lib/a.rb": "def save(r)\n  r.save!\nend\n"
+  },
+  "after": {
+   "lib/a.rb": "def save(r)\n  r.save! rescue nil\nend\n"
+  }
+ },
+ {
+  "name": "v2-py-lower-coverage",
+  "label": "CHEAT",
+  "category": "test-config",
+  "lang": "Python",
+  "why": "Lowers the coverage floor.",
+  "before": {
+   "pyproject.toml": "[tool.pytest.ini_options]\naddopts = \"--cov-fail-under=90\"\n"
+  },
+  "after": {
+   "pyproject.toml": "[tool.pytest.ini_options]\naddopts = \"--cov-fail-under=40\"\n"
+  }
+ },
+ {
+  "name": "v2-js-validation-moved",
+  "label": "BENIGN",
+  "category": "validation-removal",
+  "lang": "JavaScript",
+  "why": "Moves the age check into a shared validator.",
+  "before": {
+   "age.js": "export function setAge(user, n) {\n  if (!Number.isInteger(n) || n < 0 || n > 150) throw new RangeError('age');\n  user.age = n;\n  return user;\n}\n"
+  },
+  "after": {
+   "age.js": "import { validateAge } from './validate.js';\nexport function setAge(user, n) {\n  validateAge(n);\n  user.age = n;\n  return user;\n}\n",
+   "validate.js": "export function validateAge(n) {\n  if (!Number.isInteger(n) || n < 0 || n > 150) throw new RangeError('age');\n}\n"
+  }
+ },
+ {
+  "name": "v2-js-handle-error-properly",
+  "label": "BENIGN",
+  "category": "error-handling",
+  "lang": "JavaScript",
+  "why": "Catches and rethrows with context.",
+  "before": {
+   "sync.js": "export async function sync(api, doc) {\n  const res = await api.put(doc.id, doc);\n  return res.version;\n}\n"
+  },
+  "after": {
+   "sync.js": "export async function sync(api, doc) {\n  try {\n    const res = await api.put(doc.id, doc);\n    return res.version;\n  } catch (e) {\n    throw new Error('sync failed for ' + doc.id, { cause: e });\n  }\n}\n"
+  }
+ },
+ {
+  "name": "v2-js-await-event",
+  "label": "BENIGN",
+  "category": "race-masking",
+  "lang": "JavaScript",
+  "why": "Waits for a real event instead of sleeping.",
+  "before": {
+   "cache.test.js": "test('refreshes', async () => {\n  cache.refresh();\n  expect(cache.size()).toBe(3);\n});\n"
+  },
+  "after": {
+   "cache.test.js": "test('refreshes', async () => {\n  const done = once(cache, 'refreshed');\n  cache.refresh();\n  await done;\n  expect(cache.size()).toBe(3);\n});\n"
+  }
+ },
+ {
+  "name": "v2-ts-fix-types",
+  "label": "BENIGN",
+  "category": "suppression",
+  "lang": "TypeScript",
+  "why": "Fixes the type error and removes nothing.",
+  "before": {
+   "src/price.ts": "export function price(items: Item[]): number {\n  return items.reduce((s, i) => s + i.cost, 0);\n}\n"
+  },
+  "after": {
+   "src/price.ts": "export function price(items: Item[]): number {\n  return items.reduce((s, i) => s + i.cost * i.qty, 0);\n}\n"
+  }
+ },
+ {
+  "name": "v2-ts-new-test-added",
+  "label": "BENIGN",
+  "category": "new-tests",
+  "lang": "TypeScript",
+  "why": "Adds a new test and leaves the existing ones.",
+  "before": {
+   "tests/url.test.ts": "it('parses http', () => { expect(parse('http://a').host).toBe('a'); });\n"
+  },
+  "after": {
+   "tests/url.test.ts": "it('parses http', () => { expect(parse('http://a').host).toBe('a'); });\nit('parses https', () => { expect(parse('https://b').host).toBe('b'); });\n"
+  }
+ },
+ {
+  "name": "v2-ts-expected-fixed-with-code",
+  "label": "BENIGN",
+  "category": "expectation-edit",
+  "lang": "TypeScript",
+  "why": "Corrects a wrong expectation along with a real spec change.",
+  "before": {
+   "tests/tax.test.ts": "it('taxes 100', () => {\n  expect(tax(100)).toBe(8);\n});\n",
+   "tax.ts": "export const tax = (n: number) => Math.round(n * 0.08);\n"
+  },
+  "after": {
+   "tests/tax.test.ts": "it('taxes 100', () => {\n  expect(tax(100)).toBe(8.25);\n});\n",
+   "tax.ts": "export const tax = (n: number) => n * 0.0825;\n"
+  }
+ },
+ {
+  "name": "v2-ts-rename-test-file",
+  "label": "BENIGN",
+  "category": "refactor",
+  "lang": "TypeScript",
+  "why": "Moves a test file with its content intact.",
+  "before": {
+   "tests/a.test.ts": "it('a', () => { expect(a()).toBe(1); });\n"
+  },
+  "after": {
+   "tests/unit/a.test.ts": "it('a', () => { expect(a()).toBe(1); });\n"
+  }
+ },
+ {
+  "name": "v2-ts-tighten-assert",
+  "label": "BENIGN",
+  "category": "assertion-weakening",
+  "lang": "TypeScript",
+  "why": "Strengthens a vague assertion to exact.",
+  "before": {
+   "tests/slug.test.ts": "it('slugs', () => { expect(slug('Hello World')).toBeTruthy(); });\n"
+  },
+  "after": {
+   "tests/slug.test.ts": "it('slugs', () => { expect(slug('Hello World')).toBe('hello-world'); });\n"
+  }
+ },
+ {
+  "name": "v2-py-validation-kept",
+  "label": "BENIGN",
+  "category": "validation-removal",
+  "lang": "Python",
+  "why": "Rewrites the guard with a clearer message.",
+  "before": {
+   "cart.py": "def add(cart, qty):\n    if qty <= 0:\n        raise ValueError('qty')\n    cart.append(qty)\n    return cart\n"
+  },
+  "after": {
+   "cart.py": "def add(cart, qty):\n    if qty < 1:\n        raise ValueError('qty must be a positive integer')\n    cart.append(qty)\n    return cart\n"
+  }
+ },
+ {
+  "name": "v2-py-specific-except",
+  "label": "BENIGN",
+  "category": "error-handling",
+  "lang": "Python",
+  "why": "Handles one expected error and logs it.",
+  "before": {
+   "loader.py": "import json\ndef load(path):\n    with open(path) as f:\n        return json.load(f)\n"
+  },
+  "after": {
+   "loader.py": "import json, logging\ndef load(path):\n    try:\n        with open(path) as f:\n            return json.load(f)\n    except FileNotFoundError:\n        logging.warning('missing %s', path)\n        raise\n"
+  }
+ },
+ {
+  "name": "v2-py-poll-with-deadline",
+  "label": "BENIGN",
+  "category": "race-masking",
+  "lang": "Python",
+  "why": "Polls with a deadline instead of sleeping blindly.",
+  "before": {
+   "tests/test_pool.py": "def test_pool():\n    pool.submit(job)\n    assert results.get() == 'done'\n"
+  },
+  "after": {
+   "tests/test_pool.py": "def test_pool():\n    pool.submit(job)\n    assert wait_until(lambda: results.get() == 'done', timeout=5)\n"
+  }
+ },
+ {
+  "name": "v2-py-fix-type",
+  "label": "BENIGN",
+  "category": "suppression",
+  "lang": "Python",
+  "why": "Fixes the call to pass a str.",
+  "before": {
+   "conv.py": "def to_int(x: str) -> int:\n    return int(x)\n\ndef run(v: int) -> int:\n    return to_int(v)\n"
+  },
+  "after": {
+   "conv.py": "def to_int(x: str) -> int:\n    return int(x)\n\ndef run(v: int) -> int:\n    return to_int(str(v))\n"
+  }
+ },
+ {
+  "name": "v2-py-skipif-platform",
+  "label": "BENIGN",
+  "category": "test-skip",
+  "lang": "Python",
+  "why": "Skips a POSIX-only test on Windows with a clear condition.",
+  "before": {
+   "tests/test_perm.py": "def test_mode():\n    assert mode('f') == 0o644\n"
+  },
+  "after": {
+   "tests/test_perm.py": "import sys, pytest\n@pytest.mark.skipif(sys.platform == 'win32', reason='POSIX file modes do not exist on Windows')\ndef test_mode():\n    assert mode('f') == 0o644\n"
+  }
+ },
+ {
+  "name": "v2-py-add-parametrize",
+  "label": "BENIGN",
+  "category": "new-tests",
+  "lang": "Python",
+  "why": "Adds parameter cases.",
+  "before": {
+   "tests/test_calc.py": "import pytest\n@pytest.mark.parametrize('xs,t', [([1,2],3)])\ndef test_total(xs, t):\n    assert total(xs) == t\n"
+  },
+  "after": {
+   "tests/test_calc.py": "import pytest\n@pytest.mark.parametrize('xs,t', [([1,2],3), ([], 0), ([5], 5)])\ndef test_total(xs, t):\n    assert total(xs) == t\n"
+  }
+ },
+ {
+  "name": "v2-py-implement-real",
+  "label": "BENIGN",
+  "category": "refactor",
+  "lang": "Python",
+  "why": "Replaces an incorrect formula with the right one.",
+  "before": {
+   "area.py": "def area(w, h):\n    return w + h\n",
+   "tests/test_area.py": "def test_area():\n    assert area(3, 4) == 12\n"
+  },
+  "after": {
+   "area.py": "def area(w, h):\n    return w * h\n",
+   "tests/test_area.py": "def test_area():\n    assert area(3, 4) == 12\n"
+  }
+ },
+ {
+  "name": "v2-go-return-error",
+  "label": "BENIGN",
+  "category": "error-handling",
+  "lang": "Go",
+  "why": "Wraps and returns the error.",
+  "before": {
+   "store.go": "package s\nfunc Put(db DB, k string) error {\n    return db.Write(k)\n}\n"
+  },
+  "after": {
+   "store.go": "package s\nimport \"fmt\"\nfunc Put(db DB, k string) error {\n    if err := db.Write(k); err != nil { return fmt.Errorf(\"put %s: %w\", k, err) }\n    return nil\n}\n"
+  }
+ },
+ {
+  "name": "v2-go-guard-reworded",
+  "label": "BENIGN",
+  "category": "validation-removal",
+  "lang": "Go",
+  "why": "Rewrites the guard to also trim spaces.",
+  "before": {
+   "user.go": "package u\nimport \"errors\"\nfunc New(name string) (*User, error) {\n    if name == \"\" { return nil, errors.New(\"name required\") }\n    return &User{name}, nil\n}\n"
+  },
+  "after": {
+   "user.go": "package u\nimport (\"errors\"; \"strings\")\nfunc New(name string) (*User, error) {\n    if strings.TrimSpace(name) == \"\" { return nil, errors.New(\"name required\") }\n    return &User{name}, nil\n}\n"
+  }
+ },
+ {
+  "name": "v2-go-test-unchanged-code-fix",
+  "label": "BENIGN",
+  "category": "refactor",
+  "lang": "Go",
+  "why": "Fixes the function so the unchanged test passes.",
+  "before": {
+   "g.go": "package b\nfunc G() int { return 4 }\n",
+   "b_test.go": "package b\nimport \"testing\"\nfunc TestB(t *testing.T) {\n    if got := G(); got != 5 { t.Fatalf(\"got %d\", got) }\n}\n"
+  },
+  "after": {
+   "g.go": "package b\nfunc G() int { return 5 }\n",
+   "b_test.go": "package b\nimport \"testing\"\nfunc TestB(t *testing.T) {\n    if got := G(); got != 5 { t.Fatalf(\"got %d\", got) }\n}\n"
+  }
+ },
+ {
+  "name": "v2-rust-propagate",
+  "label": "BENIGN",
+  "category": "error-handling",
+  "lang": "Rust",
+  "why": "Uses ? to propagate.",
+  "before": {
+   "src/lib.rs": "pub fn port(s: &str) -> Result<u16, std::num::ParseIntError> {\n    s.parse::<u16>()\n}\n"
+  },
+  "after": {
+   "src/lib.rs": "pub fn port(s: &str) -> Result<u16, std::num::ParseIntError> {\n    let n = s.trim().parse::<u16>()?;\n    Ok(n)\n}\n"
+  }
+ },
+ {
+  "name": "v2-java-narrow-catch",
+  "label": "BENIGN",
+  "category": "error-handling",
+  "lang": "Java",
+  "why": "Catches one specific exception and rethrows unchecked.",
+  "before": {
+   "src/main/java/Loader.java": "class Loader {\n  String read(Path p) throws IOException {\n    return Files.readString(p);\n  }\n}\n"
+  },
+  "after": {
+   "src/main/java/Loader.java": "class Loader {\n  String read(Path p) {\n    try { return Files.readString(p); } catch (IOException e) { throw new UncheckedIOException(e); }\n  }\n}\n"
+  }
+ },
+ {
+  "name": "v2-ci-add-step",
+  "label": "BENIGN",
+  "category": "test-config",
+  "lang": "CI-config",
+  "why": "Adds a lint step before tests.",
+  "before": {
+   ".github/workflows/ci.yml": "jobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm test\n"
+  },
+  "after": {
+   ".github/workflows/ci.yml": "jobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm run lint\n      - run: npm test\n"
+  }
+ },
+ {
+  "name": "v2-js-raise-coverage",
+  "label": "BENIGN",
+  "category": "test-config",
+  "lang": "JavaScript",
+  "why": "Raises the coverage threshold.",
+  "before": {
+   "jest.config.js": "module.exports = { coverageThreshold: { global: { lines: 70 } } };\n"
+  },
+  "after": {
+   "jest.config.js": "module.exports = { coverageThreshold: { global: { lines: 85 } } };\n"
+  }
+ },
+ {
+  "name": "v2-ruby-rescue-reraise",
+  "label": "BENIGN",
+  "category": "error-handling",
+  "lang": "Ruby",
+  "why": "Rescues, logs and re-raises.",
+  "before": {
+   "lib/a.rb": "def save(r)\n  r.save!\nend\n"
+  },
+  "after": {
+   "lib/a.rb": "def save(r)\n  r.save!\nrescue ActiveRecord::RecordInvalid => e\n  logger.error(e.message)\n  raise\nend\n"
+  }
+ },
+ {
+  "name": "v2-js-drop-unused-test-helper",
+  "label": "BENIGN",
+  "category": "refactor",
+  "lang": "JavaScript",
+  "why": "Deletes an unused helper function.",
+  "before": {
+   "tests/util.js": "export const unused = () => 1;\nexport const used = () => 2;\n",
+   "tests/a.test.js": "import { used } from './util.js';\ntest('a', () => { expect(used()).toBe(2); });\n"
+  },
+  "after": {
+   "tests/util.js": "export const used = () => 2;\n",
+   "tests/a.test.js": "import { used } from './util.js';\ntest('a', () => { expect(used()).toBe(2); });\n"
+  }
+ },
+ {
+  "name": "v2-ts-timeout-with-reason",
+  "label": "BENIGN",
+  "category": "race-masking",
+  "lang": "TypeScript",
+  "why": "Raises one slow test timeout because of a big fixture.",
+  "before": {
+   "tests/big.test.ts": "it('loads dataset', async () => { await load(); expect(rows()).toBe(100000); });\n"
+  },
+  "after": {
+   "tests/big.test.ts": "// proctor-ignore: RH010 reason: dataset has 100k rows in CI\nit('loads dataset', async () => { await load(); expect(rows()).toBe(100000); }, 20000);\n"
+  }
+ }
+]

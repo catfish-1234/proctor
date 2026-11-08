@@ -5,6 +5,24 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- RH010: a fixed sleep of one second or more added to a test now warns, and so does a runner-wide
+  test timeout raised four times over to 60 seconds or more.
+- RH002: a Go `t.Fatal`/`t.Error` check rewritten into `t.Log` with the same condition is now
+  reported as a weakened assertion.
+- WI101: a Go `return f(x)` rewritten to `_ = f(x)` plus a success return, and a Rust result turned
+  into a default with `Ok(... .unwrap_or(...))`, are now reported as discarded errors.
+- RH004: an input-specific branch that returns a value an existing test expects, in front of
+  unchanged general code, now warns.
+- WI103 stays opt-in. Its guard-rewrite detection now also recognizes a Go guard rewritten to
+  return an `errors.New` or `fmt.Errorf` error, so that is no longer reported as removed.
+- Measured on the 700-commit human sample: defaults flag 30/700 commits (26/700 before), blocking
+  stays at 14/700. On the 72-case development set, default checks catch 42/72 (35/72 before) and
+  flag 4/72 benign cases (3/72 before). Both are development numbers. See docs/BENCHMARKS.md and
+  bench/dev2/README.md. Proctor still misses most cheats that need running the code or reading a
+  spec, and this release does not change that claim.
+
 ## [1.2.2] - 2026-11-03
 
 - Rewrite the README to lead with what proctor does and who it is for, and move measurement detail

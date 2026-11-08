@@ -64,7 +64,7 @@ const EXTRACTED_VALIDATOR_RE =
 // diff did: the case is still rejected, and loudly. A zero exit is deliberately excluded,
 // since exiting 0 in place of a throw is how a guard gets laundered into a no-op.
 const REWRITTEN_GUARD_RE =
-  /\b(?:throw|raise|panic)\b|^\s*assert\b|\b(?:process\.exit|sys\.exit|os\.Exit)\s*\(\s*[1-9]/;
+  /\b(?:throw|raise|panic)\b|\breturn\b[^\n]*\b(?:errors\.New|fmt\.Errorf)\s*\(|^\s*assert\b|\b(?:process\.exit|sys\.exit|os\.Exit)\s*\(\s*[1-9]/;
 
 /** Normalizes a guard so the same statement reformatted or reindented is recognized as unchanged. */
 function guardKey(text: string): string {

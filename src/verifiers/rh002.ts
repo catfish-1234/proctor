@@ -1007,6 +1007,24 @@ function run(context: Context): Finding[] {
         }
       }
 
+      // Go standard library: a failing check that used to stop the test (t.Fatal, t.Error, t.FailNow)
+      // rewritten into one that only logs, with the same condition and message left in place.
+      if (filePath.endsWith('_test.go')) {
+        const failing = /\bt\.(?:Fatalf?|Errorf?)\(/;
+        for (const del of dels) {
+          if (!failing.test(del.content)) continue;
+          const asLog = del.content.slice(1).replace(/\bt\.(?:Fatal|Error)(f?)\(/, 't.Log$1(').replace(/\s+/g, '');
+          const wa = adds.find(a => !reported.has((a as { ln: number }).ln) && a.content.slice(1).replace(/\s+/g, '') === asLog);
+          if (!wa) continue;
+          reported.add((wa as { ln: number }).ln);
+          findings.push({
+            verifierId: 'RH002', severity: 'error', file: filePath, line: (wa as { ln: number }).ln,
+            message: 'Assertion weakened: a failing check now only logs, so the test passes whatever the result.',
+            suggestion: 'Restore t.Fatal or t.Errorf so a wrong result fails the test.',
+          });
+        }
+      }
+
       // Swift Testing: #expect(LHS == RHS) -> #expect(LHS != nil), same subject.
       if (filePath.endsWith('.swift')) {
         for (const del of dels) {

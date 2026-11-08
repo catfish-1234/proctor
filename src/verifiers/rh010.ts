@@ -23,6 +23,24 @@ const TIMEOUT_S_THRESHOLD = 120;
 const NETWORK_MOCK_RE = /\.(?:mockResolvedValue|mockReturnValue)(?:Once)?\(([^)]*)\)|\.reply\(\s*\d+\s*,([^)]*)\)/;
 const ASSERTION_LITERAL_RE = /\.(?:toBe|toEqual)\(([^)]*)\)|assertEqual\([^,]+,([^)]*)\)/;
 
+
+const SLEEP_MS_THRESHOLD = 1000;
+/** Milliseconds of a fixed sleep on one line, or undefined when the line is not one. */
+function fixedSleepMs(text: string): number | undefined {
+  const code = withoutTrailingComment(body(text));
+  let m = /\bsetTimeout\s*\(\s*(?:\w+|\(\s*\)\s*=>\s*\w+(?:\(\))?)\s*,\s*(\d+)\s*\)/.exec(code);
+  if (m && /\bnew\s+Promise\b|\bawait\b/.test(code)) return Number(m[1]);
+  m = /\btime\.sleep\s*\(\s*(\d+(?:\.\d+)?)\s*\)/.exec(code);
+  if (m) return Math.round(Number(m[1]) * 1000);
+  m = /\bThread\.sleep\s*\(\s*(\d+)L?\s*\)/.exec(code);
+  if (m) return Number(m[1]);
+  m = /\btime\.Sleep\s*\(\s*(\d+)\s*\*\s*time\.(Millisecond|Second)\s*\)/.exec(code);
+  if (m) return Number(m[1]) * (m[2] === 'Second' ? 1000 : 1);
+  m = /^\s*sleep\s*\(?\s*(\d+(?:\.\d+)?)\s*\)?\s*$/.exec(code);
+  if (m) return Math.round(Number(m[1]) * 1000);
+  return undefined;
+}
+
 function normalize(s: string): string {
   return s.trim().replace(/;$/, '');
 }
@@ -52,7 +70,31 @@ function run(context: Context): Finding[] {
 
   for (const file of files) {
     const filePath = file.to ?? file.from ?? '';
-    if (!ctx.isTestFile(filePath)) continue;
+    if (!ctx.isTestFile(filePath)) {
+      // A runner-wide timeout raised several times over lets every slow or hanging test through.
+      if (/(?:jest|vitest|playwright|mocha)\.config\.|\.mocharc|pytest\.ini$|pyproject\.toml$|package\.json$/.test(filePath)) {
+        for (const chunk of file.chunks) {
+          const timeoutOf = (text: string) => {
+            const m = /\b(?:testTimeout|timeout)\b["']?\s*[:=]\s*(\d+)/.exec(text);
+            return m ? Number(m[1]) : undefined;
+          };
+          const before = chunk.changes.filter(c => c.type === 'del').map(c => timeoutOf(c.content)).find(v => v !== undefined);
+          for (const add of chunk.changes.filter(c => c.type === 'add')) {
+            const now = timeoutOf(add.content);
+            if (now === undefined || before === undefined || now < 60_000 || now < before * 4) continue;
+            findings.push({
+              verifierId: 'RH010',
+              severity: 'warn',
+              file: filePath,
+              line: (add as { ln: number }).ln,
+              message: `Test timeout raised from ${before} to ${now} in runner config, which lets slow or hanging tests pass for every test.`,
+              suggestion: 'Find out why the test is slow. If one test really needs longer, raise the timeout on that test only and say why.',
+            });
+          }
+        }
+      }
+      continue;
+    }
 
     // A promise assertion or async setup call can remain textually intact while no longer being
     // observed: deleting only its leading `await` lets the test finish before rejection. Exact
@@ -154,6 +196,21 @@ function run(context: Context): Finding[] {
             line,
             message: `@pytest.mark.timeout(${pyTimeoutM[1]!}) added. An unusually large timeout can mask a hanging or failing operation instead of fixing it.`,
             suggestion: 'Investigate why the test needs a long timeout instead of masking it.',
+          });
+          continue;
+        }
+
+        // A fixed sleep dropped in before an assertion hides a race instead of waiting for the
+        // thing the test depends on. Short pauses (under a second) are common and left alone.
+        const sleepMs = fixedSleepMs(content);
+        if (sleepMs !== undefined && sleepMs >= SLEEP_MS_THRESHOLD) {
+          findings.push({
+            verifierId: 'RH010',
+            severity: 'warn',
+            file: filePath,
+            line,
+            message: `Fixed ${sleepMs} ms sleep added to a test, which can hide a race by waiting long enough for it to usually resolve.`,
+            suggestion: 'Wait for the specific event, callback or condition the test depends on, or poll with a deadline, instead of sleeping.',
           });
           continue;
         }

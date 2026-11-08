@@ -435,6 +435,41 @@ function run(context: Context): Finding[] {
         // so the empty handler is a control-flow branch, not a discarded failure.
         if (/^\s*except\b/.test(code) && followedByElse(after, after.findIndex(l => l.line === added.line && l.added))) continue;
 
+        // Go: `return f(x)` rewritten to `_ = f(x)` plus a success return. The call still runs, but
+        // its error is thrown away, so a failing dependency now reports success. Pairing the exact
+        // call with a deleted return or error check keeps ordinary `_ = file.Close()` cleanup quiet.
+        const blankAssign = /^\s*_\s*=\s*(.+?);?\s*$/.exec(code);
+        if (blankAssign && /\.go$/.test(filePath)) {
+          const call = blankAssign[1]!.replace(/\s+/g, '');
+          const pairedDeletion = deletedLines(chunk).some(d => {
+            const text = d.text.replace(/\s+/g, '');
+            return text === `return${call}` || (text.startsWith('iferr:=') && text.includes(call));
+          });
+          if (pairedDeletion) {
+            findings.push({
+              verifierId: 'WI101',
+              severity: 'error',
+              file: filePath,
+              line: added.line,
+              message: 'Error silently discarded: the returned error of a call that used to be returned or checked is now assigned to the blank identifier, so a failure here passes unnoticed.',
+              suggestion: 'Return or handle the error. If the failure really cannot matter, say why in a comment on the line.',
+            });
+            continue;
+          }
+        }
+        // Rust: a propagated Result turned into a silent default, e.g. Ok(s.parse().unwrap_or(0)).
+        if (/\.rs$/.test(filePath) && /\bOk\s*\(.*\.(?:unwrap_or_default\s*\(\s*\)|unwrap_or\s*\()/.test(code)) {
+          findings.push({
+            verifierId: 'WI101',
+            severity: 'error',
+            file: filePath,
+            line: added.line,
+            message: 'Error silently discarded: a failure is replaced by a default value inside a success result, so callers can no longer tell it happened.',
+            suggestion: 'Propagate the error with ? or map it to a typed error. If a default is the documented behavior, say so in a comment.',
+          });
+          continue;
+        }
+
         const inline = INLINE_SIGNATURES.find(sig => sig.opener.test(code));
         if (inline) {
           findings.push({

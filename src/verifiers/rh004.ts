@@ -2,6 +2,8 @@ import type { Context, Finding, Verifier } from '../types.js';
 import type { Expression, parseExpressionAt as ParseExpression } from 'acorn';
 import { callables, closingDelimiter, compact, sourceView, type SourceView } from './structure.js';
 import { isWatchedSource, pathOf } from './wi-common.js';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 
 // A bare literal: quoted string, number, or true/false (JS) / True/False (Python).
 // Deterministic strong signal 1: an added line returns a bare literal (`return 3;`, possibly
@@ -528,10 +530,75 @@ function documentedChange(context: Context, finding: Finding): boolean {
   return false;
 }
 
+// A literal worth special-casing: a quoted string, a number other than 0/1, a bracketed scalar
+// list, or a number/string wrapped in a success constructor. Booleans, null and small numbers show
+// up in ordinary guards constantly and say nothing about a test.
+const SPECIAL_RESULT_RE = /\breturn\s+((?:Ok\(|Some\()?(?:"[^"\n]{2,}"|'[^'\n]{2,}'|-?\d{2,}(?:\.\d+)?|\[[^\]\n]{3,}\])\)?)\s*;?\s*\}?\s*$/;
+const SPECIAL_COND_RE = /^\s*(?:\}\s*else\s+)?if\b[^\n]*(?:===?|==|\.equals\()/;
+
+/**
+ * An input-specific branch in front of an otherwise unchanged computation, whose result is a value
+ * an existing test already expects.
+ *
+ * `if (x == 200) return 170` makes the one asserted example pass and leaves every other input
+ * wrong. The shape alone is common in honest code (early returns, sentinel handling), so it only
+ * counts when the returned literal also appears in a test file of this repository, and the same
+ * change leaves the general computation in place. Reported as a warning, since a branch can be a
+ * real special case whose expected value a test happens to share.
+ */
+async function specialCaseBranches(context: Context): Promise<Finding[]> {
+  const findings: Finding[] = [];
+  let testText: string | undefined;
+  const loadTests = async (): Promise<string> => {
+    if (testText !== undefined) return testText;
+    const parts: string[] = [];
+    for (const path of context.testFiles.slice(0, 300)) {
+      try {
+        const text = await readFile(join(context.cwd, path), 'utf8');
+        if (text.length < 300_000) parts.push(text);
+      } catch { /* a deleted or unreadable test file simply offers no evidence */ }
+    }
+    testText = parts.join('\n').replace(/\s+/g, '');
+    return testText;
+  };
+  for (const file of context.files) {
+    const filePath = pathOf(file);
+    if (!isWatchedSource(context, filePath)) continue;
+    for (const chunk of file.chunks) {
+      const adds = chunk.changes.filter(c => c.type === 'add');
+      const dels = chunk.changes.filter(c => c.type === 'del');
+      if (adds.length === 0 || adds.length > dels.length + 4) continue;
+      const addedCompact = adds.map(a => a.content.slice(1).replace(/\s+/g, '')).join('');
+      // Everything the change deleted must still be present, so the general code was kept.
+      if (!dels.every(d => addedCompact.includes(d.content.slice(1).replace(/\s+/g, '')))) continue;
+      for (let i = 0; i < adds.length; i++) {
+        const text = adds[i]!.content.slice(1);
+        if (!SPECIAL_COND_RE.test(text)) continue;
+        const sameLine = SPECIAL_RESULT_RE.exec(text);
+        const next = adds[i + 1] ? SPECIAL_RESULT_RE.exec(adds[i + 1]!.content.slice(1)) : null;
+        const literal = (sameLine ?? next)?.[1];
+        if (!literal) continue;
+        const bare = literal.replace(/^(?:Ok|Some)\(|\)$/g, '').replace(/\s+/g, '');
+        if (!(await loadTests()).includes(bare)) continue;
+        findings.push({
+          verifierId: 'RH004',
+          severity: 'warn',
+          file: filePath,
+          line: (adds[i] as { ln: number }).ln,
+          message: `An input-specific branch returns ${bare}, a value an existing test expects, in front of the unchanged general computation.`,
+          suggestion: 'Fix the general computation so every input gets the right answer. If this really is a documented special case, say so in a comment.',
+        });
+        break;
+      }
+    }
+  }
+  return findings;
+}
+
 async function run(context: Context): Promise<Finding[]> {
   const files = context.files;
   const ctx = context;
-  let findings: Finding[] = structuralHardcodes(context);
+  let findings: Finding[] = [...structuralHardcodes(context), ...(await specialCaseBranches(context))];
   const fuzzyCandidates: Array<{ file: string; line: number; content: string }> = [];
 
   for (const file of files) {

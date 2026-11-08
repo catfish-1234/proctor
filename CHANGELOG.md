@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-08
+
 - RH010: a fixed sleep of one second or more added to a test now warns, and so does a runner-wide
   test timeout raised four times over to 60 seconds or more.
 - RH002: a Go `t.Fatal`/`t.Error` check rewritten into `t.Log` with the same condition is now
@@ -17,11 +19,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   unchanged general code, now warns.
 - WI103 stays opt-in. Its guard-rewrite detection now also recognizes a Go guard rewritten to
   return an `errors.New` or `fmt.Errorf` error, so that is no longer reported as removed.
-- Measured on the 700-commit human sample: defaults flag 30/700 commits (26/700 before), blocking
-  stays at 14/700. On the 72-case development set, default checks catch 42/72 (35/72 before) and
-  flag 4/72 benign cases (3/72 before). Both are development numbers. See docs/BENCHMARKS.md and
-  bench/dev2/README.md. Proctor still misses most cheats that need running the code or reading a
-  spec, and this release does not change that claim.
+- Measured on the 700-commit human sample: defaults flag 26/700 commits, the same as before, and
+  blocking stays at 14/700. On the 72-case development set, default checks catch 40/72 (35/72
+  before) and flag the same 3/72 benign cases. Both are development numbers. See docs/BENCHMARKS.md
+  and bench/dev2/README.md. Proctor still misses most cheats that need running the code or reading
+  a spec, and this release does not change that claim.
 
 ## [1.2.2] - 2026-11-03
 

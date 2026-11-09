@@ -6,7 +6,12 @@ import { join, resolve } from 'node:path';
 
 const CLI = resolve(process.cwd(), 'dist/cli.js');
 let dir: string;
-const run = (...args: string[]) => spawnSync(process.execPath, [CLI, ...args], { cwd: dir, encoding: 'utf8' });
+const run = (...args: string[]) => spawnSync(process.execPath, [CLI, ...args], {
+  cwd: dir,
+  encoding: 'utf8',
+  // CI runners force color on; assertions match the plain words, not the escape codes.
+  env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0' },
+});
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'proctor-doctor-'));

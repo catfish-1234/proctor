@@ -198,11 +198,15 @@ async function getJson(
   return { unavailable: 'too many redirects' };
 }
 
+const HTTP_ACCESS_REASONS: Record<number, string> = {
+  401: 'the token is missing or invalid',
+  403: 'rate-limited or the token lacks access',
+  404: 'not found or not accessible with this token',
+};
+
 function statusReason(status: number, what: string): string {
-  if (status === 401) return `GitHub returned 401 reading ${what}; the token is missing or invalid`;
-  if (status === 403) return `GitHub returned 403 reading ${what}; rate-limited or the token lacks access`;
-  if (status === 404) return `GitHub returned 404 reading ${what}; the repository is private and no readable token is set, or it does not exist`;
-  return `GitHub returned ${status} reading ${what}`;
+  const explanation = HTTP_ACCESS_REASONS[status];
+  return `GitHub returned ${status} reading ${what}${explanation ? `; ${explanation}` : ''}`;
 }
 
 export async function fetchBranchProtection(opts: FetchProtectionOptions): Promise<ProtectionResult> {

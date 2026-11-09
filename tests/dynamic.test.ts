@@ -456,7 +456,7 @@ describe('red baseline evidence and direct Python files', () => {
       const r = await dynamic(dir); runnable(r, context);
       expect(r.findings).toEqual([]);
       expect(r.runs[0]!.failed).toEqual(['still red']);
-      expect(r.runs.find(run => run.label === 'new tests / original code')!.failed).toEqual(['still red']);
+      expect(r.runs.find(run => run.label === 'new tests + baseline controls / original code')!.failed).toEqual(['still red']);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
   it('respects documented expectation corrections on red baselines', async context => {

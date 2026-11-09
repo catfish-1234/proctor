@@ -36,12 +36,13 @@ function snapshot(cwd: string, ref?: string): Snapshot {
   }
   return files;
 }
-export function loadSnapshots(options: DynamicOptions): { old: Snapshot; next: Snapshot } {
+export function loadSnapshots(options: DynamicOptions): { old: Snapshot; next: Snapshot; baseCommit: string; headCommit: string } {
   const top = git(options.cwd, ['rev-parse', '--show-toplevel']).toString().trim();
   if (resolve(top) !== resolve(options.cwd)) throw Error('not run: invoke dynamic checks at the repository root');
-  const ref = options.base ? git(top, ['merge-base', '--', options.base, 'HEAD']).toString().trim() : 'HEAD';
+  const headCommit = git(top, ['rev-parse', '--verify', 'HEAD^{commit}']).toString().trim();
+  const ref = options.base ? git(top, ['merge-base', '--', options.base, headCommit]).toString().trim() : headCommit;
   const old = snapshot(top, ref);
-  const next = snapshot(top, options.staged ? undefined : 'HEAD');
+  const next = snapshot(top, options.staged ? undefined : headCommit);
   if (!options.base && !options.staged) {
     for (const file of options.files) {
       if (file.from && file.from !== '/dev/null' && file.from !== file.to) next.delete(file.from);
@@ -62,7 +63,7 @@ export function loadSnapshots(options: DynamicOptions): { old: Snapshot; next: S
   for (const path of ['package.json', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'requirements.txt', 'poetry.lock', 'uv.lock']) {
     if (old.get(path)?.data.toString() !== next.get(path)?.data.toString()) throw Error(`not run: dependency manifest changed (${path})`);
   }
-  return { old, next };
+  return { old, next, baseCommit: ref, headCommit };
 }
 
 /** No hardlinks or links back to the user's dependency tree. */
@@ -90,4 +91,22 @@ export function materialize(tree: Snapshot, dir: string, cwd: string): void {
   }
   const deps = join(cwd, 'node_modules');
   if (existsSync(deps)) copyDependencies(deps, join(dir, 'node_modules'), deps, join(dir, 'node_modules'));
+}
+
+/** Bounded runner-control coverage, not every file capable of affecting a project test run. */
+export function isTestControl(path: string): boolean {
+  const name = path.split('/').at(-1) ?? '';
+  return /^(?:jest|vitest)\.config\.(?:[cm]?[jt]s|json)$/.test(name) ||
+    ['conftest.py', 'pytest.ini', '.pytest.ini', 'tox.ini', 'setup.cfg', 'pyproject.toml', 'unittest.cfg'].includes(name);
+}
+
+/** Pair tests with the selected baseline's runner controls, including removals/additions. */
+export function withBaselineControls(source: Snapshot, baseline: Snapshot): Snapshot {
+  const result = new Map(source);
+  for (const path of new Set([...source.keys(), ...baseline.keys()])) {
+    if (!isTestControl(path)) continue;
+    const control = baseline.get(path);
+    if (control) result.set(path, control); else result.delete(path);
+  }
+  return result;
 }

@@ -77,6 +77,13 @@ directory instead of the current one, which is useful when proctor is driving an
 | `--fix` | with `--explain`, print what an honest fix for that check looks like |
 | `--markdown <file>` | also append a Markdown summary to this file, e.g. `--markdown "$GITHUB_STEP_SUMMARY"` |
 
+Cross-runs pair original tests with a bounded set of baseline runner controls (Jest/Vitest
+config files, pytest/unittest config and conftest.py), including restored deletions and removed
+additions. Config changes trigger a separate baseline-controlled run even when tests are unchanged;
+its failures are diagnostic evidence, not a cheating finding. Snapshot notes identify resolved
+Git commit hashes, not trusted sources. Custom setup modules, installed dependencies and the runner
+itself are not authenticated by these snapshots. Legitimate API/config changes can change results.
+
 Dynamic test reports are project-controlled evidence, not authenticated proof that a test ran.
 Duplicate identities, contradictory counts or streams, truncated reports and unsafe/missing JUnit
 artifacts make the run inconclusive (`dynamic: skipped`, with a reason), not a cheating finding.

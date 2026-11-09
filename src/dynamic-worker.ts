@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import picomatch from 'picomatch';
-import { loadSnapshots, materialize, type Snapshot } from './dynamic/snapshots.js';
+import { loadSnapshots, materialize, isTestControl, withBaselineControls, type Snapshot } from './dynamic/snapshots.js';
 import { detectAdapter, runTests } from './dynamic/adapters.js';
 import { documentedIntent, expectedEdits, expectationChanges, expectationOnlyEdit, findProbes, locateTest, probeInputs, type ProbeValue } from './dynamic/signals.js';
 import { coverageEnvironment, jsMutations, MUTATION_LIMIT, pythonMutations, readCalls } from './dynamic/mutations.js';
@@ -19,7 +19,10 @@ function finding(id: string, file: string, message: string, runs: TestRun[], lin
   result.findings.push({ verifierId: id, severity: 'warn', file, line, message: `${message} Evidence: ${evidence(...runs)}.`, suggestion: 'Review the observed behavior and add a focused regression test. Runtime evidence cannot establish intent.' });
 }
 try {
-  const { old, next } = loadSnapshots(options);
+  const { old, next, baseCommit, headCommit } = loadSnapshots(options);
+  result.notes.push(`Snapshot references: baseline ${baseCommit}; head ${headCommit}${options.staged ? ' plus index' : options.base ? '' : ' plus working-tree changes'}. These identify local inputs, not independently trusted revisions or runner/dependency identity.`);
+  const controlChanges = [...new Set([...old.keys(), ...next.keys()])].filter(p => isTestControl(p) && old.get(p)?.data.toString() !== next.get(p)?.data.toString());
+  if (controlChanges.length) result.notes.push(`Cross-runs restore selected baseline test controls: ${controlChanges.join(', ')}. Custom setup imports, installed dependencies and other runner controls may still affect execution; this is bounded coverage, not authenticated execution.`);
   const isTest = picomatch(options.testPathGlobs, { dot: true });
   const oldTests = [...old.keys()].filter(p => isTest(p)), nextTests = [...next.keys()].filter(p => isTest(p));
   const adapter = detectAdapter(old, oldTests);
@@ -49,10 +52,11 @@ try {
     const hybrid = new Map(source);
     for (const p of new Set([...oldTests, ...nextTests])) hybrid.delete(p);
     for (const [p, data] of tests) if (isTest(p)) hybrid.set(p, data);
-    return hybrid;
+    return withBaselineControls(hybrid, old);
   }
-  const cross = testChanges.length ? run(withTests(next, old), 'original tests / new code').run : current.run;
-  if (!intent) {
+  const cross = testChanges.length || controlChanges.length ? run(withTests(next, old), 'original tests + baseline controls / new code').run : current.run;
+  if (controlChanges.length && cross.failed.some(id => original.passed.includes(id))) result.notes.push('Baseline-controlled tests fail on the new revision. A runner/config change can be legitimate; inspect the differential runs. Configuration differences alone are not a cheating finding.');
+  if (!intent && !controlChanges.length) {
     for (const id of cross.failed.filter(id => original.passed.includes(id))) {
       const file = locateTest(id, old, oldTests);
       if (file && !edits.includes(file)) finding('DY001', file, `Previously passing original test ${JSON.stringify(id)} fails against the new code`, [original, current.run, cross]);
@@ -60,7 +64,7 @@ try {
   }
   let reverse: TestRun | undefined;
   if (testChanges.length) {
-    reverse = run(withTests(old, next), 'new tests / original code').run;
+    reverse = run(withTests(old, next), 'new tests + baseline controls / original code').run;
     const both = current.run.passed.filter(id => reverse!.passed.includes(id));
     if (both.length) result.notes.push(`${both.length} named tests passed on both code revisions. This alone does not show that changed tests exercise the change and is not a finding.`);
     if (!changedSource && !intent && testChanges.length === 1 && edits.length && expectationOnlyEdit(old.get(edits[0]!)?.data.toString() ?? '', next.get(edits[0]!)?.data.toString() ?? '')) {
@@ -77,7 +81,7 @@ try {
   }
   // Probes need unchanged tests and a passing new suite, even when the old suite is red. An added test or spec
   // can intentionally introduce an exception, so this prototype gives it the benefit of doubt.
-  if (current.run.exitCode === 0 && !testChanges.length && !intent) {
+  if (current.run.exitCode === 0 && !testChanges.length && !controlChanges.length && !intent) {
     for (const probe of findProbes(old, next, isTest)) {
       const values = probeInputs(probe.input);
       const observed: ProbeValue[][] = [];
@@ -111,7 +115,7 @@ try {
   }
   // A red baseline with unchanged tests is the fix shape where cross-runs have no extra information.
   // Mutations are advisory coverage evidence, limited to functions observed in a separate green run.
-  if (original.failed.length && current.run.exitCode === 0 && !testChanges.length && !intent) {
+  if (original.failed.length && current.run.exitCode === 0 && !testChanges.length && !controlChanges.length && !intent) {
     try {
       const coverage = coverageEnvironment(current.dir);
       const control = runTests(nextAdapter, current.dir, 'new tests / new code coverage control', coverage.env);

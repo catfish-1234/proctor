@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Add Gemini CLI AfterAgent enforcement via `proctor stop-hook --format gemini`, reusing the
+  Codex check pipeline. Blocking findings return exit-0 deny JSON with correction feedback;
+  clean checks, loop-guard skips, malformed input, and internal failures silently allow.
+- `proctor setup` merges a 60-second AfterAgent hook into `.gemini/settings.json` for resolved
+  Gemini CLI targets, preserving settings and hooks. Setup explains hook fingerprints, one-time
+  trust, and `/hooks`; `uninstall` removes only proctor's command. The Gemini extension bundles
+  the hook in the documented `hooks/hooks.json` layout and runs the shipped CLI directly.
+
 ## [1.4.0] - 2026-11-08
 
 - Add Codex CLI Stop hook enforcement via `proctor stop-hook --format codex`: blocking findings

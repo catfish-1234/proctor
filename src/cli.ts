@@ -22,6 +22,7 @@ import { runBench } from './bench/index.js';
 import { installPreCommitHook } from './hooks/pre-commit.js';
 import { installStopHook } from './hooks/claude-settings.js';
 import { installCodexStopHook } from './hooks/codex-hooks.js';
+import { installGeminiAfterAgentHook } from './hooks/gemini-hooks.js';
 import { parseStopHookInput, runStopHookCheck, formatStopHookResult, type StopHookFormat } from './hooks/stop-hook.js';
 import { APPROVAL_GUIDANCE, RULE_METADATA } from './rules.js';
 import { buildReceipt } from './receipt.js';
@@ -294,27 +295,27 @@ program
 
 program
   .command('stop-hook')
-  .description('Stop hook: reads stdin JSON and blocks on error findings')
-  .addOption(new Option('--format <format>', 'Stop hook protocol').choices(['claude', 'codex']).default('claude'))
+  .description('Stop/AfterAgent hook: reads stdin JSON and blocks on error findings')
+  .addOption(new Option('--format <format>', 'Stop hook protocol').choices(['claude', 'codex', 'gemini']).default('claude'))
   .action(async (options: { format: StopHookFormat }) => {
     try {
       const raw = await readStdin();
-      const { cwd, skip } = parseStopHookInput(raw, process.cwd());
+      const { cwd, skip } = parseStopHookInput(raw, process.cwd(), options.format);
       if (skip) return;
       const { exitCode, output } = formatStopHookResult(
         runStopHookCheck(cwd, process.argv[1] ?? ''), options.format
       );
-      if (options.format === 'codex') {
+      if (options.format !== 'claude') {
         if (output) process.stdout.write(output + '\n');
-        // Let stdout drain: truncating the JSON would make Codex reject the hook response.
+        // Let stdout drain: truncating the JSON would make the harness reject the response.
         process.exitCode = exitCode;
         return;
       }
       if (output) process.stderr.write(output);
       process.exit(exitCode);
     } catch (err: unknown) {
-      // A Codex hook must never wedge a turn because reading stdin or running proctor failed.
-      if (options.format !== 'codex') throw err;
+      // A JSON hook must never wedge a turn because reading stdin or running proctor failed.
+      if (options.format === 'claude') throw err;
     }
   });
 
@@ -396,6 +397,25 @@ program
       } catch (err: unknown) {
         const msg = String(err).replace(/^Error:\s*/, '');
         process.stderr.write(`proctor: could not install the Codex Stop hook (${msg})\n`);
+        process.exitCode = 1;
+      }
+    }
+
+    if (targets.some(a => a.id === 'gemini-cli')) {
+      try {
+        const afterAgent = await installGeminiAfterAgentHook(join(cwd, '.gemini'));
+        if (afterAgent.status === 'invalid-json') {
+          process.stderr.write(`proctor: ${afterAgent.path} is not valid JSON, so the Gemini AfterAgent hook was not installed; fix it and re-run\n`);
+          process.exitCode = 1;
+        } else {
+          process.stdout.write(
+            afterAgent.status === 'already' ? 'Gemini AfterAgent hook already installed.\n' : `Gemini AfterAgent hook installed: ${afterAgent.path}\n`
+          );
+          process.stdout.write('Gemini CLI fingerprints project hooks and warns before running new or changed hooks: review the one-time trust prompt, and manage hooks via /hooks in the CLI.\n');
+        }
+      } catch (err: unknown) {
+        const msg = String(err).replace(/^Error:\s*/, '');
+        process.stderr.write(`proctor: could not install the Gemini AfterAgent hook (${msg})\n`);
         process.exitCode = 1;
       }
     }

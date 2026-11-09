@@ -603,6 +603,26 @@ program
   });
 
 program
+  .command('doctor')
+  .description('Audit the enforcement chain: ruleset, hooks, unresolved gate, CI gate, CODEOWNERS. Reports missing / configured / unverified - never a misleading all-clear')
+  .action(async () => {
+    const { runDoctor } = await import('./doctor.js');
+    const items = await runDoctor(process.cwd());
+    let missing = 0;
+    for (const item of items) {
+      if (item.state === 'missing') missing++;
+      const label = item.state === 'missing' ? pc.red('MISSING   ')
+        : item.state === 'configured' ? pc.yellow('CONFIGURED')
+        : item.state === 'unverified' ? pc.yellow('UNVERIFIED')
+        : pc.dim('INFO      ');
+      process.stdout.write(`${label}  ${item.name}: ${item.detail}\n`);
+      if (item.fix) process.stdout.write(pc.dim(`           fix: ${item.fix}\n`));
+    }
+    process.stdout.write(pc.dim("\nCONFIGURED means the local file or setting exists. Only a check that runs outside the agent's write scope (CI it cannot edit, review it cannot bypass) is an independent gate, and proctor cannot verify that from here.\n"));
+    if (missing > 0) process.exitCode = 1;
+  });
+
+program
   .command('drift-check')
   .description('Verify every deployed agent adapter still matches canonical SKILL.md')
   .action(async () => {

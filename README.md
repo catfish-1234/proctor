@@ -478,6 +478,24 @@ jobs:
 The example pins the commit behind the `v1.0.0` release. You can use the `v1.0.0` tag instead, but
 a full commit SHA is immutable, so it keeps builds reproducible.
 
+### Make the gate independent
+
+Local hooks are agent-writable; only CI outside the agent's write scope is an independent check.
+For that to hold, the workflow itself must survive the agent:
+
+1. Require the proctor status check on the protected branch (repo Settings > Branches), so a red
+   proctor run blocks merging.
+2. Cover `.github/` in `CODEOWNERS` (for example `/.github/ @you`) AND enable "require review
+   from code owners", so a pull request that weakens or deletes the workflow needs your review.
+3. Keep the agent's own credentials away from repo settings: nothing the agent can authenticate
+   as should be able to edit branch protection or dismiss the required check.
+
+`proctor doctor` audits what it can see: ruleset deployed and undrifted, pre-commit hook and
+unresolved gate installed, agent Stop hooks, the CI workflow, and CODEOWNERS coverage. It reports
+each layer as MISSING, CONFIGURED, or UNVERIFIED. CONFIGURED means the file exists - it never
+means independently verified, because branch protection, required review, and who holds admin
+cannot be checked from a working tree.
+
 ## Dynamic checks
 
 `proctor check --dynamic` runs extra checks using a runnable project test suite. The default

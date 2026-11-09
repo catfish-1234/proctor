@@ -268,6 +268,15 @@ The badge reflects the run it was generated from: a run with an error-severity f
 Checks that every deployed skill copy still matches the source file. Exits `1` if any copy has
 drifted, `0` otherwise. Handy as a CI check so a stale copy gets caught.
 
+### `proctor doctor`
+
+Audits the enforcement chain: ruleset deployed and undrifted, pre-commit hook and unresolved
+gate installed, agent Stop hooks, CI workflow, and CODEOWNERS coverage of `.github/`. Each layer
+is reported MISSING, CONFIGURED, or UNVERIFIED. CONFIGURED means the local file or setting
+exists; proctor never reports a local file as an independently verified gate, because branch
+protection, required review, and credential separation can only be checked at the repository
+host. Exits `1` when any layer is missing.
+
 For shared files, only the managed block is compared. Your surrounding notes are ignored,
 but deleting a previously deployed block counts as drift.
 

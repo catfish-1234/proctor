@@ -7,6 +7,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-11-09
+
+- Pair dynamic cross-runs with a bounded set of baseline Jest/Vitest and Python test
+  controls, restoring deletions and removing additions. Config-only changes trigger a
+  separate baseline-controlled run. Config-change failures are diagnostic evidence,
+  not cheating findings; probes and mutations do not attribute findings across changed controls.
+- Record resolved baseline/head commit hashes as local input references, not independent
+  trust or runner/dependency authentication. Custom setup imports and other runner controls
+  remain outside this bounded coverage. No additional live-harness verification is claimed.
+
 ## [1.6.1] - 2026-11-09
 
 - Treat ambiguous dynamic test reports as inconclusive (`dynamic: skipped`, with a reason),

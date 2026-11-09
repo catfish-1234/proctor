@@ -71,4 +71,37 @@ describe('proctor doctor', () => {
     const result = run('doctor');
     expect(result.stdout).toMatch(/CONFIGURED\s+CI gate/);
   });
+
+  it('labels configured CI detection as presence-only', () => {
+    mkdirSync(join(dir, '.github', 'workflows'), { recursive: true });
+    writeFileSync(join(dir, '.github', 'workflows', 'proctor.yml'), WORKFLOW);
+    const result = run('doctor');
+    expect(result.stdout).toContain('Presence-only');
+  });
+
+  it('ignores comments and incidental mentions of proctor in workflows', () => {
+    mkdirSync(join(dir, '.github', 'workflows'), { recursive: true });
+    writeFileSync(join(dir, '.github', 'workflows', 'other.yml'),
+      'name: proctor-notes\non: [pull_request]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo "not the proctor gate"\n      # - uses: catfish-1234/proctor@v1\n');
+    const result = run('doctor');
+    expect(result.stdout).toMatch(/MISSING\s+CI gate/);
+  });
+
+  it('reports a workflow whose proctor job is disabled as missing', () => {
+    mkdirSync(join(dir, '.github', 'workflows'), { recursive: true });
+    writeFileSync(join(dir, '.github', 'workflows', 'proctor.yml'),
+      'name: proctor\non: [pull_request]\njobs:\n  proctor:\n    if: false\n    runs-on: ubuntu-latest\n    steps:\n      - uses: catfish-1234/proctor@v1\n');
+    const result = run('doctor');
+    expect(result.status).toBe(1);
+    expect(result.stdout).toMatch(/MISSING\s+CI gate/);
+    expect(result.stdout).toContain('disabled');
+  });
+
+  it('reports a workflow whose proctor step is disabled as missing', () => {
+    mkdirSync(join(dir, '.github', 'workflows'), { recursive: true });
+    writeFileSync(join(dir, '.github', 'workflows', 'proctor.yml'),
+      'name: proctor\non: [pull_request]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: catfish-1234/proctor@v1\n        if: false\n');
+    const result = run('doctor');
+    expect(result.stdout).toMatch(/MISSING\s+CI gate/);
+  });
 });

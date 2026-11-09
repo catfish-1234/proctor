@@ -50,7 +50,62 @@ function codeownersContent(cwd: string): string | undefined {
   return undefined;
 }
 
-function workflowMentionsProctor(cwd: string): string | undefined {
+interface WorkflowHit {
+  file: string;
+  /** false when proctor is invoked only inside a job or step disabled with `if: false`. */
+  enabled: boolean;
+}
+
+/**
+ * Invocation-level detection: a workflow counts when a job actually invokes proctor
+ * (`uses: ...proctor...` or a `proctor check` run command) in a job/step that is not disabled.
+ * Comments, the workflow's `name:`, and incidental mentions do not count. This is still a
+ * presence-only parse of one file - it cannot tell whether the job runs on pull requests, is
+ * pinned, or is required - and the item detail says so.
+ */
+function workflowFileRunsProctor(path: string): { enabled: boolean } | undefined {
+  let lines: string[];
+  try {
+    lines = readFileSync(path, 'utf8').split('\n').map(l => l.replace(/\s+#.*$/, ''));
+  } catch {
+    return undefined;
+  }
+  const jobsIdx = lines.findIndex(l => l.trim() === 'jobs:');
+  if (jobsIdx < 0) return undefined;
+  const indentOf = (l: string) => l.length - l.trimStart().length;
+  const jobStarts: number[] = [];
+  for (let i = jobsIdx + 1; i < lines.length; i++) {
+    const l = lines[i]!;
+    if (!l.trim()) continue;
+    const indent = indentOf(l);
+    if (indent === 0) break; // left the jobs: block
+    if (indent === 2 && !l.trim().startsWith('-') && l.trim().endsWith(':')) jobStarts.push(i);
+  }
+  const invokesProctor = (block: string[]) =>
+    block.some(l => /uses:\s*\S*proctor/i.test(l) || /(?:^|[\s|])(?:[\w./-]*\/)?proctor\s+check\b/.test(l));
+  const disabled = (block: string[], maxIndent: number) =>
+    block.some(l => indentOf(l) <= maxIndent && /^if:\s*false\s*$/.test(l.trim()));
+  let sawDisabled = false;
+  for (let j = 0; j < jobStarts.length; j++) {
+    const block = lines.slice(jobStarts[j]!, j + 1 < jobStarts.length ? jobStarts[j + 1]! : lines.length);
+    if (disabled(block, 4)) {
+      if (invokesProctor(block)) sawDisabled = true;
+      continue;
+    }
+    const stepStarts = block.map((_l, i) => i).filter(i => block[i]!.trim().startsWith('-'));
+    const steps = stepStarts.length
+      ? stepStarts.map((s, k) => block.slice(s, k + 1 < stepStarts.length ? stepStarts[k + 1]! : block.length))
+      : [block];
+    for (const step of steps) {
+      if (!invokesProctor(step)) continue;
+      if (disabled(step, 99)) sawDisabled = true;
+      else return { enabled: true };
+    }
+  }
+  return sawDisabled ? { enabled: false } : undefined;
+}
+
+function workflowRunsProctor(cwd: string): WorkflowHit | undefined {
   const dir = join(cwd, '.github', 'workflows');
   let files: string[];
   try {
@@ -58,12 +113,13 @@ function workflowMentionsProctor(cwd: string): string | undefined {
   } catch {
     return undefined;
   }
+  let disabledHit: { file: string; enabled: boolean } | undefined;
   for (const f of files) {
-    // Match on any mention: the published action (`uses: catfish-1234/proctor@v1`), a self-hosted
-    // composite action invoked by path, or a bare `proctor check` run step.
-    if (fileContains(join(dir, f), /proctor/i)) return f;
+    const hit = workflowFileRunsProctor(join(dir, f));
+    if (hit?.enabled) return { file: f, enabled: true };
+    if (hit && !disabledHit) disabledHit = { file: f, enabled: false };
   }
-  return undefined;
+  return disabledHit;
 }
 
 export async function runDoctor(cwd: string): Promise<DoctorItem[]> {
@@ -110,10 +166,12 @@ export async function runDoctor(cwd: string): Promise<DoctorItem[]> {
     }
   }
 
-  const wf = workflowMentionsProctor(cwd);
-  items.push(wf
-    ? { name: 'CI gate', state: 'configured', detail: `.github/workflows/${wf} runs proctor. Configured, not verified: this proves the file exists, not that it runs on every PR, nor that anyone is required to wait for it.` }
-    : { name: 'CI gate', state: 'missing', detail: 'no workflow runs proctor; every local layer above is agent-writable, so nothing independent checks a pushed diff', fix: 'add a workflow that runs proctor check --base on pull_request (see README: make the gate independent)' });
+  const wf = workflowRunsProctor(cwd);
+  items.push(wf?.enabled
+    ? { name: 'CI gate', state: 'configured', detail: `.github/workflows/${wf.file} invokes proctor in an enabled job. Presence-only: this proves an invocation exists, not that it runs on every PR, is pinned or unmodified, or that anyone is required to wait for it.` }
+    : wf
+      ? { name: 'CI gate', state: 'missing', detail: `.github/workflows/${wf.file} invokes proctor only in a disabled job or step (if: false), so nothing runs it`, fix: 'enable the job, or add a workflow that runs proctor check --base on pull_request (see README: make the gate independent)' }
+      : { name: 'CI gate', state: 'missing', detail: 'no workflow invokes proctor; every local layer above is agent-writable, so nothing independent checks a pushed diff', fix: 'add a workflow that runs proctor check --base on pull_request (see README: make the gate independent)' });
 
   const owners = codeownersContent(cwd);
   const coversWorkflows = (owners ?? '').split('\n')

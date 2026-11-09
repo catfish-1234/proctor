@@ -298,4 +298,33 @@ describe('proctor doctor server verification', () => {
     expect(result.stdout).toMatch(/UNVERIFIED\s+Required status checks/);
   });
 
+  it('combines classic review with an evaluate-only ruleset instead of losing the enforced rule', async () => {
+    handler = url => {
+      if (url.endsWith('/rulesets/7')) return { status: 200, body: { enforcement: 'evaluate', bypass_actors: [] } };
+      if (url.endsWith('/branches/main/protection')) return { status: 200, body: {
+        required_status_checks: { contexts: ['classic-gate'] },
+        required_pull_request_reviews: { required_approving_review_count: 2, require_code_owner_reviews: true },
+        allow_deletions: { enabled: false }, allow_force_pushes: { enabled: false },
+      } };
+      return goodHandler(url);
+    };
+    const result = await runAsync(['doctor'], { GITHUB_TOKEN: 'test-only' });
+    expect(result.stdout).toMatch(/SERVER-OK\s+Review requirement/);
+    expect(result.stdout).toContain('2 approval(s), code-owner review');
+    expect(result.stdout).toContain('classic-gate');
+    expect(result.stdout).toMatch(/SERVER-OK\s+Branch history protection/);
+  });
+
+  it('a partial successful classic response does not prove absence', async () => {
+    handler = url => {
+      if (url.endsWith('/repos/o/r')) return { status: 200, body: { default_branch: 'main' } };
+      if (url.includes('/rules/branches/main')) return { status: 200, body: [] };
+      if (url.endsWith('/branches/main/protection')) return { status: 200, body: {} };
+      return { status: 404, body: {} };
+    };
+    const result = await runAsync(['doctor'], { GITHUB_TOKEN: 'test-only' });
+    expect(result.stdout).toMatch(/UNVERIFIED\s+Required status checks/);
+    expect(result.stdout).toMatch(/UNVERIFIED\s+Branch history protection/);
+  });
+
 });

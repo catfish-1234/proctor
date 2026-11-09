@@ -7,6 +7,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-11-09
+
+- Treat ambiguous dynamic test reports as inconclusive (`dynamic: skipped`, with a reason),
+  never as cheating findings. Reject duplicate/conflicting names, contradictory JSON summaries
+  or report streams, TAP bailout/root-plan mismatches, and incomplete/count-inconsistent JUnit.
+  Read JUnit only through a bounded regular-file descriptor without following symlinks.
+- Keep runtime evidence limits explicit: project-controlled coherent fabricated reports can
+  still pass consistency checks. Dynamic checks remain opt-in and advisory; this adds no
+  live-verified agent/harness coverage or authenticated proof of test execution.
+
 ## [1.6.0] - 2026-11-09
 
 - Add `proctor doctor` to audit deployed rulesets, Stop hooks, the pre-commit unresolved gate,

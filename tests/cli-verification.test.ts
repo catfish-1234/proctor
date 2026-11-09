@@ -44,7 +44,7 @@ describe('CLI requested verification state',()=>{
     try{const r=invoke(dir,'--require-dynamic','--result-json');expect(r.status).toBe(3);const result=JSON.parse(r.stdout);expect(result.status).toBe('incomplete');expect(result.findings).toEqual([]);expect(result.checks.dynamic.reason).toContain('duplicate');expect(r.stderr).not.toContain('honest pass');}finally{rmSync(dir,{recursive:true,force:true});}
   });
   it('keeps bounded timeout distinct from cheating',()=>{
-    const dir=makeRepo({before:{'app.test.mjs':"import {test} from 'node:test';test('wait',async()=>await new Promise(r=>setTimeout(r,3000)));"},after:{'app.test.mjs':"import {test} from 'node:test';test('wait',async()=>await new Promise(r=>setTimeout(r,3000)));"}});
+    const dir=makeRepo({before:{'app.test.mjs':"import {test} from 'node:test';test('wait',()=>{for(;;){}});"},after:{'app.test.mjs':"import {test} from 'node:test';test('wait',()=>{for(;;){}});"}});
     try{const r=invoke(dir,'--require-dynamic','--dynamic-timeout','1','--result-json');expect(r.status).toBe(3);expect(JSON.parse(r.stdout).status).toBe('incomplete');expect(r.stderr).not.toContain('honest pass');}finally{rmSync(dir,{recursive:true,force:true});}
   });
   it('honors committed dynamic opt-in and keeps unsupported Stop hooks fail-open',()=>{

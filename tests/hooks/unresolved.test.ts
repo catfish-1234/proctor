@@ -41,7 +41,7 @@ describe('unresolved record', () => {
     expect(path).toBe(unresolvedPath(dir));
     const r = readUnresolved(dir);
     expect(r.state).toBe('unresolved');
-    if (r.state !== 'unresolved') return;
+    if (r.state !== 'unresolved') throw new Error('expected unresolved');
     expect(r.record).toMatchObject({ schema: 1, source: 'antigravity-stop-hook', conversationId: 'conv-1', baseHead: currentHead(dir), occurrences: 1, blockBudget: 5 });
     expect(r.record.originalFindings).toContain('RH001');
     expect(Object.keys(r.record).sort()).toEqual(['baseHead', 'blockBudget', 'conversationId', 'firstSeenAt', 'lastSeenAt', 'latestFindings', 'occurrences', 'originalFindings', 'schema', 'source']);

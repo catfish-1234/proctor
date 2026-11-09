@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-08
+
 - Add Codex CLI Stop hook enforcement via `proctor stop-hook --format codex`: blocking findings
   return an exit-0 JSON decision with feedback; clean checks, loop-guard skips and internal
   failures stay silent and allow the turn. The default Claude Code and Cursor behavior is unchanged.

@@ -20,10 +20,11 @@ import { deploySkill, uninstallProctor } from './adapters/deploy.js';
 import { loadTaskPool } from './bench/tasks.js';
 import { runBench } from './bench/index.js';
 import { installPreCommitHook } from './hooks/pre-commit.js';
+import { readUnresolved, recordUnresolved, verifyUnresolved, cliCheckRunner } from './hooks/unresolved.js';
 import { installStopHook } from './hooks/claude-settings.js';
 import { installCodexStopHook } from './hooks/codex-hooks.js';
 import { installGeminiAfterAgentHook } from './hooks/gemini-hooks.js';
-import { parseStopHookInput, runStopHookCheck, formatStopHookResult, decideBlockBudget, readBudget, writeBudget, type StopHookFormat } from './hooks/stop-hook.js';
+import { parseStopHookInput, runStopHookCheck, formatStopHookResult, decideBlockBudget, readBudget, writeBudget, stopHookPolicy, type StopHookFormat } from './hooks/stop-hook.js';
 import { APPROVAL_GUIDANCE, RULE_METADATA } from './rules.js';
 import { buildReceipt } from './receipt.js';
 import { badgeLine, badgeUrl, badgeMarkdown } from './badge/index.js';
@@ -294,6 +295,33 @@ program
   });
 
 program
+  .command('unresolved')
+  .description('Show or verify findings an agent left unresolved after its Stop-hook block budget ran out')
+  .option('--verify', 'run a fresh complete check (working tree and commits since the finding) and clear the record only if it passes')
+  .option('--gate', 'like --verify, quiet; exit 0 when clean or absent, 2 when findings remain, 3 when it could not be verified (used by the pre-commit hook)')
+  .action((options: { verify?: boolean; gate?: boolean }) => {
+    const cwd = process.cwd();
+    if (!options.verify && !options.gate) {
+      const state = readUnresolved(cwd);
+      if (state.state === 'none') { process.stdout.write('No unresolved findings recorded for this worktree.\n'); return; }
+      if (state.state === 'corrupt') {
+        process.stdout.write(`UNVERIFIED: ${state.path} is ${state.reason}. Review it; proctor will not treat it as clean.\n`);
+        process.exitCode = 3;
+        return;
+      }
+      const r = state.record;
+      process.stdout.write(`UNRESOLVED since ${r.firstSeenAt} (${r.occurrences} exhausted stop(s), last ${r.lastSeenAt}, source ${r.source}).\nBaseline: ${r.baseHead ?? 'none (no commits)'}\nOriginal finding:\n${r.originalFindings}\nRun 'proctor unresolved --verify' after fixing. This record is local feedback and can be removed by anyone with write access to the git directory; CI on the pushed diff is the independent check.\n`);
+      process.exitCode = 2;
+      return;
+    }
+    const result = verifyUnresolved(cwd, cliCheckRunner(process.argv[1] ?? ''));
+    if (result.status === 'none') { if (!options.gate) process.stdout.write('No unresolved findings recorded.\n'); return; }
+    if (result.status === 'cleared') { if (!options.gate) process.stdout.write('Fresh complete check passed; unresolved record cleared.\n'); return; }
+    process.stderr.write(`proctor: ${result.status === 'unresolved' ? 'UNRESOLVED findings from an earlier agent turn remain' : 'could NOT verify the unresolved record'}: ${result.detail}. Run 'proctor unresolved' for details.\n`);
+    process.exitCode = result.status === 'unresolved' ? 2 : 3;
+  });
+
+program
   .command('stop-hook')
   .description('Stop/AfterAgent hook: reads stdin JSON and blocks on error findings')
   .addOption(new Option('--format <format>', 'Stop hook protocol').choices(['claude', 'codex', 'gemini', 'antigravity']).default('claude'))
@@ -307,10 +335,18 @@ program
         // No stop_hook_active here: every Stop re-checks, and a bounded counter (not the retry
         // count itself) decides when an unresolvable finding stops blocking.
         if (check.exitCode !== 2) { writeBudget(conversationId, undefined); return; }
-        const budget = decideBlockBudget(readBudget(conversationId), executionNum);
+        const policy = stopHookPolicy(process.env);
+        const budget = decideBlockBudget(readBudget(conversationId), executionNum, policy.budget);
         writeBudget(conversationId, budget.next);
         if (!budget.block) {
-          process.stderr.write('proctor: block budget exhausted for this conversation; findings remain unresolved and this Stop is allowed\n');
+          if (policy.mode === 'advisory') {
+            process.stderr.write('proctor: block budget exhausted (advisory mode); findings remain unresolved and nothing was recorded\n');
+            return;
+          }
+          const written = recordUnresolved({ cwd, source: 'antigravity-stop-hook', conversationId, findings: check.output, blockBudget: policy.budget });
+          process.stderr.write(written
+            ? `proctor: block budget exhausted; findings remain UNRESOLVED and are recorded at ${written}. Run 'proctor unresolved' to review. This is local feedback, not a tamper-proof gate.\n`
+            : 'proctor: block budget exhausted; findings remain UNRESOLVED and could NOT be recorded (no writable git directory)\n');
           return;
         }
       }

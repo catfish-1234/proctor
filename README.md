@@ -193,37 +193,50 @@ extension command without a separate npm install. This verifies the hook contrac
 integration; live Gemini CLI sessions were not exercised. Contract source:
 [Gemini hooks reference](https://geminicli.com/docs/hooks/reference/#afteragent).
 
-**Antigravity CLI (`agy`)** ships a Stop-hook plugin in `antigravity-plugin/`. Install it from a
-checkout of this repository (Antigravity installs plugins from a local directory), with proctor on
-your `PATH` (`npm install -g @kavishdua/proctor`):
+**Antigravity CLI (`agy`)** ships a Stop-hook plugin in `antigravity-plugin/`. Read the limits
+first, because this hook is local feedback, not a gate:
+
+- **The independent check is CI.** `proctor check --base <ref>` on the pushed diff (see the GitHub
+  Action) is the only check that does not run inside the agent's session. It is independent only
+  if the workflow, proctor config and required-check settings are controlled outside the agent's
+  write and admin scope (for example branch protection that the agent's token cannot change).
+  proctor does not set up branch protection or change account permissions.
+- **The Stop hook is bounded feedback.** A block is a message to the agent. The agent can read it,
+  keep the change anyway, or inspect the hook (a live trial did all of that). Antigravity has no
+  `stop_hook_active` flag, so proctor re-checks on every Stop and re-blocks while the finding
+  remains, up to a budget of 5 consecutive blocks per conversation
+  (`PROCTOR_STOP_HOOK_BLOCK_BUDGET`, 1-50), so a stuck agent cannot burn unlimited model quota.
+- **After the budget the finding is recorded as unresolved**, not forgotten. proctor writes
+  `proctor/unresolved.json` inside the worktree's git directory (never into the working tree, so
+  it cannot be committed), with the original finding, a baseline commit and timestamps, and no
+  transcript content. `proctor unresolved` shows it and exits 2. The pre-commit hook runs
+  `proctor unresolved --gate`, which blocks commits until a fresh complete check (working tree
+  against HEAD plus every commit since the baseline) passes. Only that check clears it; a
+  `--staged` or `--uncommitted` check alone never does, and an error or a missing baseline is
+  reported as "unverified", not as clean. The record is a file anyone with access to the git
+  directory can delete, and `git commit --no-verify` skips the hook, so this is not tamper-proof.
+- `PROCTOR_STOP_HOOK_MODE=advisory` is an explicit opt-in that allows the Stop after the budget
+  without recording anything. The default is `enforce`.
+- proctor's checks are static diff checks. This hook does not catch cheating those checks cannot
+  see.
+- Verified live on Antigravity CLI 1.5.3 only: a deleted test was blocked and the reason reached
+  the model; the agent did not restore it within four minutes and instead inspected the hook.
+  Other versions, the desktop app and IDE, and tamper-resistance were not tested. The Antigravity
+  docs disagree on the Stop response (`block` on the plugin page, `continue` on the hooks page);
+  `block` is what 1.5.3 honors.
+
+Install from a checkout of this repository (Antigravity installs plugins from a local
+directory), with proctor on your `PATH` (`npm install -g @kavishdua/proctor`):
 
 ```bash
 agy plugin validate --strict ./antigravity-plugin
 agy plugin install ./antigravity-plugin
 ```
 
-Its `Stop` hook runs `proctor stop-hook --format antigravity` and, when the uncommitted diff games
-the tests, returns `{"decision":"block","reason":"<finding output>"}`; Antigravity injects the
-reason into the conversation and the agent continues. `proctor setup` does not edit Antigravity
-settings; installing the plugin is the only change, and `agy plugin uninstall proctor` removes it.
-
-Limits of this hook, stated plainly:
-
-- A block is a message to the agent, not a guarantee. The agent can read the finding, keep the
-  change anyway, or try to inspect the hook. Antigravity has no `stop_hook_active` flag (its Stop
-  payload carries `executionNum`, which resets to 0 on each user turn), so proctor re-checks on
-  every Stop and blocks again while the finding remains. To avoid wedging a session it allows the
-  Stop after 5 consecutive blocks in one conversation and prints
-  `block budget exhausted` to stderr; findings are then unresolved, not cleared. The counter lives
-  in the OS temp directory, never in your repository.
-- It does not protect itself. Whoever controls the machine or the agent's permissions can disable
-  or uninstall the plugin (`agy plugin disable proctor`), edit its files, or run with hooks off,
-  and Antigravity treats a failing hook as fail-open. Treat it as a tripwire that catches
-  ordinary shortcuts, and keep `proctor check` in CI as the enforcement point.
-- Verified live on Antigravity CLI 1.5.3 only: a deleted test was blocked and the reason reached
-  the model. Other versions, the Antigravity desktop app and IDE, and tamper-resistance were not
-  tested. The docs disagree on the Stop response (`block` on the plugin page, `continue` on the
-  hooks page); `block` is what 1.5.3 honors.
+The plugin's `Stop` hook runs `proctor stop-hook --format antigravity` and returns
+`{"decision":"block","reason":"<finding output>"}` when the uncommitted diff games the tests.
+`proctor setup` does not edit Antigravity settings; `agy plugin uninstall proctor` removes the
+plugin. Install the git hook with `proctor install-hook` to get the unresolved-findings gate.
 
 The hooks run checks automatically. A config file is optional.
 

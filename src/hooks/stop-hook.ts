@@ -140,6 +140,20 @@ function rulesIn(output: string): string[] {
 
 /** Consecutive blocked Stops allowed per conversation before failing open (see decideBlockBudget). */
 export const ANTIGRAVITY_MAX_CONSECUTIVE_BLOCKS = 5;
+export type StopHookMode = 'enforce' | 'advisory';
+
+/**
+ * Pure: reads PROCTOR_STOP_HOOK_MODE (`enforce` default; `advisory` is an explicit opt-in that
+ * allows the Stop after the budget WITHOUT recording unresolved state) and
+ * PROCTOR_STOP_HOOK_BLOCK_BUDGET (integer 1-50, default 5; invalid values use the default).
+ */
+export function stopHookPolicy(env: Record<string, string | undefined>): { mode: StopHookMode; budget: number } {
+  const n = Number(env['PROCTOR_STOP_HOOK_BLOCK_BUDGET']);
+  return {
+    mode: env['PROCTOR_STOP_HOOK_MODE'] === 'advisory' ? 'advisory' : 'enforce',
+    budget: Number.isInteger(n) && n >= 1 && n <= 50 ? n : ANTIGRAVITY_MAX_CONSECUTIVE_BLOCKS,
+  };
+}
 
 export interface BlockBudgetState {
   /** Consecutive blocks issued while the findings were not resolved. */

@@ -56,14 +56,57 @@ interface WorkflowHit {
   enabled: boolean;
 }
 
+/** True when this repository IS proctor (its own dogfood workflows invoke dist/cli.js check). */
+function repoIsProctor(cwd: string): boolean {
+  try {
+    const pkg = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8')) as { name?: unknown };
+    if (typeof pkg.name === 'string' && /(^|\/)proctor$/.test(pkg.name)) return true;
+  } catch { /* not proctor itself */ }
+  for (const f of ['action.yml', 'action.yaml']) {
+    if (fileContains(join(cwd, f), /^name:\s*['"]?proctor['"]?\s*$/m)) return true;
+  }
+  return false;
+}
+
+/** Recognize command-position invocations, not echo strings, comments or labels. */
+function commandInvokesProctor(line: string, selfIsProctor: boolean): boolean {
+  const command = line.replace(/^\s*(?:-\s*)?run:\s*/, '').trim();
+  if (/^(?:(?:npx|pnpm\s+exec|npm\s+exec)\s+(?:--[\w-]+\s+)*)?(?:[\w./-]*\/)?proctor\s+check\b/.test(command)) return true;
+  return selfIsProctor && /^node\s+[^\n]*cli\.js[\x27\x22]?\s+check\b/.test(command);
+}
+
+/** Local action detection is presence-only; conditional/disabled steps are not enforcement. */
+function localActionInvokesProctor(cwd: string, usesPath: string, selfIsProctor: boolean): boolean {
+  // Reject traversal and absolute paths. Only repository-local composite actions are inspected.
+  if (usesPath.split('/').includes('..')) return false;
+  for (const f of ['action.yml', 'action.yaml']) {
+    try {
+      const lines = readFileSync(join(cwd, usesPath, f), 'utf8').split('\n').map(l => l.replace(/\s+#.*$/, ''));
+      if (lines.some(l => commandInvokesProctor(l, selfIsProctor))) return true;
+    } catch { /* try next */ }
+  }
+  return false;
+}
+
+/** Shared invocation test for a block of workflow lines (job or step). */
+function blockInvokesProctor(block: string[], cwd: string, selfIsProctor: boolean): boolean {
+  return block.some(l => {
+    if (/^\s*(?:-\s*)?uses:\s*[\w.-]+\/proctor@[^\s]+\s*$/i.test(l)) return true;
+    if (commandInvokesProctor(l, selfIsProctor)) return true;
+    const usesLocal = /^\s*(?:-\s*)?uses:\s*(\.\/[^\s#]*)\s*$/.exec(l);
+    return !!usesLocal && localActionInvokesProctor(cwd, usesLocal[1]!, selfIsProctor);
+  });
+}
+
 /**
  * Invocation-level detection: a workflow counts when a job actually invokes proctor
- * (`uses: ...proctor...` or a `proctor check` run command) in a job/step that is not disabled.
- * Comments, the workflow's `name:`, and incidental mentions do not count. This is still a
- * presence-only parse of one file - it cannot tell whether the job runs on pull requests, is
- * pinned, or is required - and the item detail says so.
+ * (`uses: ...proctor...`, a local `uses: ./` action that runs proctor, or a `proctor check`
+ * run command - including proctor's own `dist/cli.js check` dogfood) in a job/step that is
+ * not disabled. Comments, the workflow's `name:`, and incidental mentions do not count.
+ * This is still a presence-only parse of one file - it cannot tell whether the job runs on
+ * pull requests, is pinned, or is required - and the item detail says so.
  */
-function workflowFileRunsProctor(path: string): { enabled: boolean } | undefined {
+function workflowFileRunsProctor(path: string, cwd: string, selfIsProctor: boolean): { enabled: boolean } | undefined {
   let lines: string[];
   try {
     lines = readFileSync(path, 'utf8').split('\n').map(l => l.replace(/\s+#.*$/, ''));
@@ -81,8 +124,7 @@ function workflowFileRunsProctor(path: string): { enabled: boolean } | undefined
     if (indent === 0) break; // left the jobs: block
     if (indent === 2 && !l.trim().startsWith('-') && l.trim().endsWith(':')) jobStarts.push(i);
   }
-  const invokesProctor = (block: string[]) =>
-    block.some(l => /uses:\s*\S*proctor/i.test(l) || /(?:^|[\s|])(?:[\w./-]*\/)?proctor\s+check\b/.test(l));
+  const invokesProctor = (block: string[]) => blockInvokesProctor(block, cwd, selfIsProctor);
   const disabled = (block: string[], maxIndent: number) =>
     block.some(l => indentOf(l) <= maxIndent && /^if:\s*false\s*$/.test(l.trim()));
   let sawDisabled = false;
@@ -113,9 +155,10 @@ function workflowRunsProctor(cwd: string): WorkflowHit | undefined {
   } catch {
     return undefined;
   }
+  const selfIsProctor = repoIsProctor(cwd);
   let disabledHit: { file: string; enabled: boolean } | undefined;
   for (const f of files) {
-    const hit = workflowFileRunsProctor(join(dir, f));
+    const hit = workflowFileRunsProctor(join(dir, f), cwd, selfIsProctor);
     if (hit?.enabled) return { file: f, enabled: true };
     if (hit && !disabledHit) disabledHit = { file: f, enabled: false };
   }

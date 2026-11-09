@@ -105,3 +105,18 @@ describe('proctor doctor', () => {
     expect(result.stdout).toMatch(/MISSING\s+CI gate/);
   });
 });
+
+describe('local doctor invocation detection', () => {
+  it('detects self-use ./ and quoted dist CLI command', () => {
+    mkdirSync(join(dir, '.github', 'workflows'), { recursive: true });
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: '@kavishdua/proctor' }));
+    writeFileSync(join(dir, 'action.yml'), 'name: proctor\nruns:\n  using: composite\n  steps:\n    - run: node "${{ github.action_path }}/dist/cli.js" check --ci\n');
+    writeFileSync(join(dir, '.github', 'workflows', 'gate.yml'), 'jobs:\n  scan:\n    steps:\n      - uses: ./\n');
+    expect(run('doctor').stdout).toMatch(/CONFIGURED\s+CI gate/);
+  });
+  it('ignores echo text with command-looking words', () => {
+    mkdirSync(join(dir, '.github', 'workflows'), { recursive: true });
+    writeFileSync(join(dir, '.github', 'workflows', 'noise.yml'), 'jobs:\n  test:\n    steps:\n      - run: echo "proctor check"\n');
+    expect(run('doctor').stdout).toMatch(/MISSING\s+CI gate/);
+  });
+});

@@ -7,8 +7,10 @@ You can also run `proctor --help` or `proctor <command> --help`.
 
 Detects the agents in this repository, writes their rulesets, and installs the git pre-commit
 hook. If Claude Code or Codex CLI is among the selected agents, it also installs that agent's
-Stop hook in `.claude/settings.json` or `.codex/hooks.json`, respectively. For Gemini CLI, it
-installs an AfterAgent hook in `.gemini/settings.json`.
+Stop hook in `.claude/settings.json` or `.codex/hooks.json`, respectively. For Gemini CLI
+(experimental: contract-verified only, consumer auth retired by Google), it installs an
+AfterAgent hook in `.gemini/settings.json` only when explicitly selected with
+`--agents gemini-cli` or `--all`, never on detection alone.
 
 ```bash
 proctor setup
@@ -24,7 +26,9 @@ Codex requires both project trust (the interactive prompt, or `trust_level = "tr
 hooks (the prompt or `/hooks` in the CLI). Project-local hooks are silently ignored until the
 project is trusted, and require hook approval before they run.
 
-Gemini CLI hooks are enabled by default since v0.26.0. Gemini fingerprints project hooks and
+Gemini CLI support is experimental and opt-in (contract-verified only; consumer Gemini CLI auth
+is retired by Google, and Antigravity CLI is the supported successor). Gemini CLI hooks are
+enabled by default since v0.26.0. Gemini fingerprints project hooks and
 warns before running new or changed hooks. Review the one-time trust prompt and manage hooks
 with the `/hooks` panel command.
 

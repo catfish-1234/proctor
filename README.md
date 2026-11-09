@@ -496,16 +496,15 @@ each layer as MISSING, CONFIGURED, or UNVERIFIED. CONFIGURED means the file exis
 means independently verified, because branch protection, required review, and who holds admin
 cannot be checked from a working tree.
 
-When the repository's origin remote is a github.com URL, doctor also asks the owning source: it
+Doctor is offline by default. With explicit `proctor doctor --github` opt-in and a github.com origin remote, doctor asks the owning source: it
 makes read-only GET requests to the GitHub API for repository metadata, branch rules, and ruleset
 configuration, and reports what the server actually enforces as SERVER-OK (or MISSING when the
 server confirms a rule is absent). SERVER-OK means server-verified configuration, not proof of
 agent-independent enforcement: an agent whose credentials have admin or settings write access
 could still change or bypass those rules, and doctor cannot see the agent's credentials. Only the
-repository owner and name appear in the request URLs; no file contents, block records, or secrets
-are sent. If you already have `GITHUB_TOKEN` or `GH_TOKEN` set, it is sent as an Authorization
+repository owner and name appear in the request URLs; no file contents or block records are sent. If you already have `GITHUB_TOKEN` or `GH_TOKEN` set, it is sent as an Authorization
 header so private repositories can be read; without one, only public rulesets are visible and
-anything unreadable is reported UNVERIFIED, never as absent. The number of requests is printed
+anything unreadable is reported UNVERIFIED, never as absent. Redirects outside the HTTPS GitHub API origin are refused before following them. The number of requests is printed
 with each run, and `--offline` skips the network entirely.
 
 ## Dynamic checks

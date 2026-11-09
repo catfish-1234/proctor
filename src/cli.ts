@@ -605,10 +605,11 @@ program
 program
   .command('doctor')
   .description('Audit the enforcement chain: ruleset, hooks, unresolved gate, CI gate, CODEOWNERS, and (read-only) GitHub branch rules. Reports missing / configured / unverified - never a misleading all-clear')
-  .option('--offline', 'skip the read-only GitHub lookup; server-side layers report unverified')
-  .action(async (cmdOpts: { offline?: boolean }) => {
+  .option('--github', 'opt in to read-only requests to api.github.com for this origin repository; existing GITHUB_TOKEN/GH_TOKEN is used only there')
+  .option('--offline', 'skip all network access, even when --github is present')
+  .action(async (cmdOpts: { offline?: boolean; github?: boolean }) => {
     const { runDoctor } = await import('./doctor.js');
-    const items = await runDoctor(process.cwd(), { offline: cmdOpts.offline === true });
+    const items = await runDoctor(process.cwd(), { offline: cmdOpts.offline === true, github: cmdOpts.github === true });
     let missing = 0;
     for (const item of items) {
       if (item.state === 'missing') missing++;

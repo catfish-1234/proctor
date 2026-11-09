@@ -1,5 +1,7 @@
+import { runDoctor } from '../src/doctor.js';
+import { fetchBranchProtection } from '../src/github-rules.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, appendFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -106,9 +108,22 @@ describe('proctor doctor', () => {
   });
 });
 
+describe('local doctor invocation detection', () => {
+  it('detects self-use ./ and quoted dist CLI command', () => {
+    mkdirSync(join(dir, '.github', 'workflows'), { recursive: true });
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: '@kavishdua/proctor' }));
+    writeFileSync(join(dir, 'action.yml'), 'name: proctor\nruns:\n  using: composite\n  steps:\n    - run: node "${{ github.action_path }}/dist/cli.js" check --ci\n');
+    writeFileSync(join(dir, '.github', 'workflows', 'gate.yml'), 'jobs:\n  scan:\n    steps:\n      - uses: ./\n');
+    expect(run('doctor').stdout).toMatch(/CONFIGURED\s+CI gate/);
+  });
+  it('ignores echo text with command-looking words', () => {
+    mkdirSync(join(dir, '.github', 'workflows'), { recursive: true });
+    writeFileSync(join(dir, '.github', 'workflows', 'noise.yml'), 'jobs:\n  test:\n    steps:\n      - run: echo "proctor check"\n');
+    expect(run('doctor').stdout).toMatch(/MISSING\s+CI gate/);
+  });
+});
+
 describe('proctor doctor server verification', () => {
-  let server: import('node:http').Server;
-  let apiBase: string;
   let hits: { url: string; auth?: string }[];
   let handler: (url: string) => { status: number; body: unknown };
 
@@ -125,37 +140,23 @@ describe('proctor doctor server verification', () => {
     return { status: 404, body: {} };
   };
 
-  beforeEach(async () => {
+  beforeEach(() => {
     hits = [];
     handler = goodHandler;
-    const { createServer } = await import('node:http');
-    server = createServer((req, res) => {
-      hits.push({ url: req.url ?? '', auth: typeof req.headers.authorization === 'string' ? req.headers.authorization : undefined });
-      const { status, body } = handler(req.url ?? '');
-      res.writeHead(status, { 'content-type': 'application/json' });
-      res.end(JSON.stringify(body));
-    });
-    await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
-    const addr = server.address();
-    apiBase = `http://127.0.0.1:${typeof addr === 'object' && addr ? addr.port : 0}`;
     spawnSync('git', ['remote', 'add', 'origin', 'https://github.com/o/r.git'], { cwd: dir });
   });
-  afterEach(() => new Promise<void>(r => server.close(() => r())));
-
-  // The stub server lives in this process, so the CLI must be spawned async: a spawnSync
-  // would freeze the event loop and deadlock the very server the CLI is waiting on.
-  const runApi = (...args: string[]) => runAsync(args, { PROCTOR_GITHUB_API_BASE: apiBase, GITHUB_TOKEN: '', GH_TOKEN: '' });
-
-  const runAsync = (args: string[], extraEnv: Record<string, string>) => new Promise<{ status: number | null; stdout: string }>((resolvePromise, rejectPromise) => {
-    const child = spawn(process.execPath, [CLI, ...args], {
-      cwd: dir,
-      env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0', ...extraEnv },
+  const runApi = async (...args: string[]) => runAsync(args, { GITHUB_TOKEN: '', GH_TOKEN: '' });
+  const runAsync = async (args: string[], env: Record<string, string>) => {
+    const items = await runDoctor(dir, {
+      github: true, offline: args.includes('--offline'), env,
+      fetchImpl: async (url, init) => {
+        hits.push({ url, auth: init?.headers?.Authorization });
+        const { status, body } = handler(url);
+        return { ok: status === 200, status, json: async () => body };
+      },
     });
-    let stdout = '';
-    child.stdout.on('data', d => { stdout += d; });
-    child.on('error', rejectPromise);
-    child.on('close', status => resolvePromise({ status, stdout }));
-  });
+    return { stdout: items.map(i => `${i.state === 'server' ? 'SERVER-OK' : i.state.toUpperCase()}  ${i.name}: ${i.detail}`).join('\n') };
+  };
 
   it('reports server-verified rules from the owning source and discloses the network access', async () => {
     const result = await runApi('doctor');
@@ -172,7 +173,7 @@ describe('proctor doctor server verification', () => {
   });
 
   it('sends an existing GITHUB_TOKEN and never prints it', async () => {
-    const result = await runAsync(['doctor'], { PROCTOR_GITHUB_API_BASE: apiBase, GITHUB_TOKEN: 'secret-token-value' });
+    const result = await runAsync(['doctor'], { GITHUB_TOKEN: 'secret-token-value' });
     expect(hits.length).toBeGreaterThan(0);
     expect(hits[0]!.auth).toBe('Bearer secret-token-value');
     expect(result.stdout).not.toContain('secret-token-value');
@@ -190,22 +191,22 @@ describe('proctor doctor server verification', () => {
   });
 
   it('reports an unreachable API as unverified', async () => {
-    apiBase = 'http://127.0.0.1:1';
-    const result = await runApi('doctor');
+    const items = await runDoctor(dir, { github: true, env: {}, fetchImpl: async () => { throw new Error('unreachable'); } });
+    const result = { stdout: items.map(i => `${i.state.toUpperCase()}  ${i.name}`).join('\n') };
     expect(result.stdout).toMatch(/UNVERIFIED\s+Branch protection/);
     expect(result.stdout).not.toMatch(/MISSING\s+Required status checks/);
   });
 
-  it('reports a server-confirmed absence of rules as missing', async () => {
+  it('reports empty rules as unverified when classic protection is unreadable', async () => {
     handler = (url: string) => {
       if (url.endsWith('/repos/o/r')) return { status: 200, body: { default_branch: 'main' } };
       if (url.includes('/rules/branches/main')) return { status: 200, body: [] };
       return { status: 404, body: {} };
     };
     const result = await runApi('doctor');
-    expect(result.stdout).toMatch(/MISSING\s+Required status checks \(server\)/);
-    expect(result.stdout).toMatch(/MISSING\s+Review requirement \(server\)/);
-    expect(result.stdout).toMatch(/MISSING\s+Branch history protection \(server\)/);
+    expect(result.stdout).toMatch(/UNVERIFIED\s+Required status checks \(server\)/);
+    expect(result.stdout).toMatch(/UNVERIFIED\s+Review requirement \(server\)/);
+    expect(result.stdout).toMatch(/UNVERIFIED\s+Branch history protection \(server\)/);
   });
 
   it('downgrades evaluate-mode rulesets to not-enforced', async () => {
@@ -235,4 +236,66 @@ describe('proctor doctor server verification', () => {
     expect(result.stdout).toMatch(/UNVERIFIED\s+Branch protection/);
     expect(hits).toHaveLength(0);
   });
+  it('does not request GitHub unless --github is explicitly selected', async () => {
+    const items = await runDoctor(dir, { env: {}, fetchImpl: async () => { throw new Error('must not call'); } });
+    expect(items.find(i => i.name === 'Branch protection')?.state).toBe('unverified');
+    expect(hits).toHaveLength(0);
+    expect(run('doctor', '--help').stdout).toContain('--github');
+  });
+
+  it('does not forward Authorization to a different host or downgraded protocol', async () => {
+    for (const destination of ['https://evil.example/api', 'http://api.github.com/repos/o/r']) {
+      const calls: string[] = [];
+      const result = await fetchBranchProtection({ owner: 'o', repo: 'r', token: 'test-only', fetchImpl: async (url, init) => {
+        calls.push(url);
+        expect(init?.redirect).toBe('manual');
+        return { ok: false, status: 302, headers: { get: () => destination }, json: async () => ({}) };
+      } });
+      expect(result.kind).toBe('unavailable');
+      expect(calls).toEqual(['https://api.github.com/repos/o/r']);
+    }
+  });
+
+  it('unknown ruleset enforcement is unverified, never evaluate-only or missing', async () => {
+    handler = url => url.endsWith('/rulesets/7') ? { status: 403, body: {} } : goodHandler(url);
+    const result = await runAsync(['doctor'], { GITHUB_TOKEN: 'test-only' });
+    expect(result.stdout).toMatch(/UNVERIFIED\s+Required status checks/);
+    expect(result.stdout).not.toContain('only in evaluate mode');
+  });
+
+  it('recognizes self-use action and describes transitive needs without asserting enforcement', async () => {
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: '@kavishdua/proctor' }));
+    writeFileSync(join(dir, 'action.yml'), 'name: proctor\nruns:\n  using: composite\n  steps:\n    - run: node "${{ github.action_path }}/dist/cli.js" check --ci\n');
+    mkdirSync(join(dir, '.github', 'workflows'), { recursive: true });
+    writeFileSync(join(dir, '.github', 'workflows', 'gate.yml'), 'jobs:\n  scan:\n    steps:\n      - uses: ./\n  middle:\n    needs: [scan]\n    steps:\n      - run: echo done\n  checks:\n    needs: [middle]\n    steps:\n      - run: echo done\n');
+    const result = await runApi('doctor');
+    expect(result.stdout).toMatch(/CONFIGURED\s+CI gate/);
+    expect(result.stdout).toContain('dependency closure');
+    expect(result.stdout).toContain('needs alone does not prove failure propagation');
+    expect(result.stdout).toMatch(/UNVERIFIED\s+Required-context match/);
+  });
+
+  it('marks absence missing only when classic protection is successfully read too', async () => {
+    handler = url => {
+      if (url.endsWith('/repos/o/r')) return { status: 200, body: { default_branch: 'main' } };
+      if (url.includes('/rules/branches/main')) return { status: 200, body: [] };
+      if (url.endsWith('/branches/main/protection')) return { status: 200, body: { required_status_checks: null, required_pull_request_reviews: null, allow_deletions: { enabled: true }, allow_force_pushes: { enabled: true } } };
+      return { status: 404, body: {} };
+    };
+    const result = await runAsync(['doctor'], { GITHUB_TOKEN: 'test-only' });
+    expect(result.stdout).toMatch(/MISSING\s+Required status checks/);
+    expect(result.stdout).toMatch(/MISSING\s+Review requirement/);
+    expect(result.stdout).toMatch(/MISSING\s+Branch history protection/);
+  });
+
+  it('a masked classic-protection 404 is not absence', async () => {
+    handler = url => {
+      if (url.endsWith('/repos/o/r')) return { status: 200, body: { default_branch: 'main' } };
+      if (url.includes('/rules/branches/main')) return { status: 200, body: [] };
+      return { status: 404, body: {} };
+    };
+    const result = await runAsync(['doctor'], { GITHUB_TOKEN: 'test-only' });
+    expect(result.stdout).toMatch(/UNVERIFIED\s+Required status checks/);
+  });
+
 });

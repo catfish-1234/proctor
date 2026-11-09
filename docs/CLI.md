@@ -276,7 +276,7 @@ is reported MISSING, CONFIGURED, or UNVERIFIED. CONFIGURED means the local file 
 exists; proctor never reports a local file as an independently verified gate. Exits `1` when any
 layer is missing.
 
-When the origin remote is a github.com URL, doctor also verifies server-side rules at the owning
+Doctor is offline by default. With explicit `proctor doctor --github` opt-in and a github.com origin remote, doctor verifies server-side rules at the owning
 source with read-only GitHub API GET requests (repository metadata, branch rules, ruleset
 configuration and enforcement mode). Rules from rulesets in evaluate mode are reported as
 logged-not-enforced, bypass actors are named by role, and any API failure is reported UNVERIFIED
@@ -285,8 +285,8 @@ moment; it is not proof of agent-independent enforcement, because doctor cannot 
 agent's credentials hold admin or settings write access. An existing `GITHUB_TOKEN`/`GH_TOKEN`
 environment variable is sent as the Authorization header so private repositories can be read;
 its value is never printed. Only the repository owner and name appear in request URLs - no file
-contents, block records, or other data leave the machine - and each run prints how many requests
-it made. Use `--offline` to skip all network access; server-side layers then report UNVERIFIED.
+contents or block records leave the machine - and each run prints how many requests
+it made. Use `--offline` to skip all network access (even with `--github`); server-side layers then report UNVERIFIED.
 
 For shared files, only the managed block is compared. Your surrounding notes are ignored,
 but deleting a previously deployed block counts as drift.

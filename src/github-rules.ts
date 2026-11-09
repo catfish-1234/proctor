@@ -26,8 +26,8 @@ export interface GitHubRepo {
 export function parseGitHubRemote(url: string): GitHubRepo | undefined {
   const trimmed = url.trim();
   const m =
-    /^https:\/\/github\.com\/([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?$/i.exec(trimmed) ??
-    /^(?:ssh:\/\/git@github\.com\/|git@github\.com:)([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?$/i.exec(trimmed);
+    /^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?\/?$/i.exec(trimmed) ??
+    /^(?:ssh:\/\/git@github\.com\/|git@github\.com:)([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?\/?$/i.exec(trimmed);
   if (!m) return undefined;
   return { owner: m[1]!, repo: m[2]! };
 }
@@ -48,8 +48,8 @@ export function originRemoteUrl(cwd: string): string | undefined {
 /** Minimal fetch shape so tests can inject a stub and the doctor can count requests. */
 export type FetchLike = (
   url: string,
-  init?: { headers?: Record<string, string>; signal?: AbortSignal },
-) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
+  init?: { headers?: Record<string, string>; signal?: AbortSignal; redirect?: string },
+) => Promise<{ ok: boolean; status: number; headers?: { get(name: string): string | null }; json(): Promise<unknown> }>;
 
 export interface ReviewRule {
   requiredApprovals: number;
@@ -76,10 +76,15 @@ export interface BranchProtection {
   deletionProtected: boolean;
   forcePushProtected: boolean;
   rulesets: RulesetInfo[];
-  /** Classic branch protection exists but could not be read (no usable token). */
+  /** Classic branch protection could not be read (no usable token, or the read failed). While
+   *  true, an empty ruleset list does NOT prove no protection: classic rules may still apply. */
   classicProtectionUnreadable: boolean;
   /** True when at least one rule came from a ruleset whose enforcement status is unknown. */
   enforcementIncomplete: boolean;
+  /** True only when every relevant protection surface was affirmatively read (rulesets AND
+   *  classic branch protection), so an empty result can be reported as a confirmed absence.
+   *  When false, absence findings must be reported as unverified instead of missing. */
+  absenceVerifiable: boolean;
 }
 
 export type ProtectionResult =
@@ -100,6 +105,7 @@ interface RawBypassActor {
 }
 
 function describeBypassActor(actor: RawBypassActor): string {
+  if (!actor || typeof actor !== 'object') return 'unknown actor type';
   if (actor.actor_type === 'RepositoryRole') {
     return `repository role ${REPOSITORY_ROLE_NAMES[actor.actor_id ?? -1] ?? `id ${actor.actor_id}`}`;
   }
@@ -117,31 +123,79 @@ export interface FetchProtectionOptions {
   onRequest?: (url: string) => void;
 }
 
+interface FetchResponse {
+  ok: boolean;
+  status: number;
+  headers?: { get(name: string): string | null };
+  json(): Promise<unknown>;
+}
+
+/**
+ * One GET, following redirects manually. The Authorization header is attached only to requests
+ * to the original API host and is never forwarded across hosts: a cross-host redirect ends the
+ * chain as unavailable rather than leaking the token. Redirects are expected in practice (GitHub
+ * redirects repository endpoints after renames).
+ */
 async function getJson(
   opts: FetchProtectionOptions,
   base: string,
   path: string,
 ): Promise<{ status: number; data: unknown } | { unavailable: string }> {
-  const url = `${base}${path}`;
-  const headers: Record<string, string> = {
-    Accept: 'application/vnd.github+json',
-    'User-Agent': 'proctor-doctor',
-  };
-  if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
-  let res: Awaited<ReturnType<FetchLike>>;
-  opts.onRequest?.(url);
-  try {
-    res = await opts.fetchImpl(url, { headers, signal: AbortSignal.timeout(10_000) });
-  } catch (err) {
-    return { unavailable: `network request failed (${err instanceof Error ? err.message : String(err)})` };
+  const baseHost = (() => {
+    try {
+      return new URL(base).host;
+    } catch {
+      return undefined;
+    }
+  })();
+  let url = `${base}${path}`;
+  for (let hops = 0; hops < 4; hops++) {
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github+json',
+      'User-Agent': 'proctor-doctor',
+    };
+    let host: string | undefined;
+    try {
+      host = new URL(url).host;
+    } catch {
+      return { unavailable: `invalid URL ${url}` };
+    }
+    if (opts.token && host === baseHost) headers.Authorization = `Bearer ${opts.token}`;
+    let res: FetchResponse;
+    opts.onRequest?.(url);
+    try {
+      res = (await opts.fetchImpl(url, {
+        headers,
+        signal: AbortSignal.timeout(10_000),
+        redirect: 'manual',
+      })) as FetchResponse;
+    } catch {
+      return { unavailable: 'network request failed or timed out' };
+    }
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers?.get('location');
+      if (!location) return { unavailable: `redirect (${res.status}) without a Location header` };
+      let next: URL;
+      try {
+        next = new URL(location, url);
+      } catch {
+        return { unavailable: `redirect (${res.status}) to an invalid Location` };
+      }
+      if (next.origin !== new URL(base).origin || next.username || next.password) {
+        return { unavailable: `redirect (${res.status}) to a different host (${next.host}); not followed, so no credentials can leak` };
+      }
+      url = next.toString();
+      continue;
+    }
+    let data: unknown;
+    try {
+      data = await res.json();
+    } catch {
+      data = undefined;
+    }
+    return { status: res.status, data };
   }
-  let data: unknown;
-  try {
-    data = await res.json();
-  } catch {
-    data = undefined;
-  }
-  return { status: res.status, data };
+  return { unavailable: 'too many redirects' };
 }
 
 function statusReason(status: number, what: string): string {
@@ -163,20 +217,29 @@ export async function fetchBranchProtection(opts: FetchProtectionOptions): Promi
   const defaultBranch =
     typeof (meta.data as { default_branch?: unknown }).default_branch === 'string'
       ? ((meta.data as { default_branch: string }).default_branch || 'main')
-      : 'main';
+      : '';
+  if (!defaultBranch) return { kind: 'unavailable', reason: 'repository metadata has no default branch' };
 
-  const rulesResp = await getJson(opts, base, `${repoPath}/rules/branches/${encodeURIComponent(defaultBranch)}`);
-  if ('unavailable' in rulesResp) return { kind: 'unavailable', reason: rulesResp.unavailable };
-  if (rulesResp.status !== 200 || !Array.isArray(rulesResp.data)) {
-    return { kind: 'unavailable', reason: statusReason(rulesResp.status, 'branch rules') };
+  const rules: RawRule[] = [];
+  for (let page = 1; page <= 10; page++) {
+    const rulesResp = await getJson(opts, base, `${repoPath}/rules/branches/${encodeURIComponent(defaultBranch)}?per_page=100&page=${page}`);
+    if ('unavailable' in rulesResp) return { kind: 'unavailable', reason: rulesResp.unavailable };
+    if (rulesResp.status !== 200 || !Array.isArray(rulesResp.data)) {
+      return { kind: 'unavailable', reason: statusReason(rulesResp.status, 'branch rules') };
+    }
+    if (rulesResp.data.some(r => !r || typeof r !== 'object' || typeof r.type !== 'string')) {
+      return { kind: 'unavailable', reason: 'branch rules response has an unsupported shape' };
+    }
+    rules.push(...rulesResp.data as RawRule[]);
+    if (rulesResp.data.length < 100) break;
+    if (page === 10) return { kind: 'unavailable', reason: 'branch rules exceed the bounded pagination limit; coverage is incomplete' };
   }
-  const rules = rulesResp.data as RawRule[];
 
   // Enforcement and bypass actors live on the ruleset, not the rule. A ruleset in "evaluate"
   // mode logs violations without blocking, and its rules must not be reported as enforced.
   const rulesetIds = [...new Set(rules.map(r => r.ruleset_id).filter((id): id is number => typeof id === 'number'))];
   const enforcementById = new Map<number, RulesetInfo>();
-  let enforcementIncomplete = false;
+  let enforcementIncomplete = rules.some(r => typeof r.ruleset_id !== 'number');
   for (const id of rulesetIds) {
     const detail = await getJson(opts, base, `${repoPath}/rulesets/${id}`);
     if ('unavailable' in detail || detail.status !== 200 || typeof detail.data !== 'object' || detail.data === null) {
@@ -188,6 +251,7 @@ export async function fetchBranchProtection(opts: FetchProtectionOptions): Promi
     const bypassRoles = Array.isArray(body.bypass_actors)
       ? (body.bypass_actors as RawBypassActor[]).map(describeBypassActor)
       : [];
+    if (!['active', 'evaluate', 'disabled'].includes(String(body.enforcement))) enforcementIncomplete = true;
     enforcementById.set(id, {
       id,
       enforcement: typeof body.enforcement === 'string' ? body.enforcement : 'unknown',
@@ -195,7 +259,7 @@ export async function fetchBranchProtection(opts: FetchProtectionOptions): Promi
     });
   }
   const isEnforced = (rule: RawRule) =>
-    rule.ruleset_id === undefined || enforcementById.get(rule.ruleset_id)?.enforcement === 'active';
+    rule.ruleset_id !== undefined && enforcementById.get(rule.ruleset_id)?.enforcement === 'active';
 
   const requiredContexts: string[] = [];
   const evaluateOnlyContexts: string[] = [];
@@ -207,18 +271,29 @@ export async function fetchBranchProtection(opts: FetchProtectionOptions): Promi
     const active = isEnforced(rule);
     if (rule.type === 'required_status_checks') {
       const params = rule.parameters as { required_status_checks?: { context?: unknown }[] } | undefined;
-      for (const c of params?.required_status_checks ?? []) {
+      const checks = params?.required_status_checks;
+      if (checks !== undefined && !Array.isArray(checks)) return { kind: 'unavailable', reason: 'unsupported status-check rules shape' };
+      for (const c of checks ?? []) {
+        if (!c || typeof c !== 'object') return { kind: 'unavailable', reason: 'unsupported status-check entry shape' };
         if (typeof c.context !== 'string' || !c.context) continue;
-        (active ? requiredContexts : evaluateOnlyContexts).push(c.context);
+        if (active) requiredContexts.push(c.context);
+        else if (enforcementById.get(rule.ruleset_id!)?.enforcement === 'evaluate') evaluateOnlyContexts.push(c.context);
       }
     } else if (rule.type === 'pull_request') {
       const p = rule.parameters ?? {};
-      reviewRule = {
+      const candidate: ReviewRule = {
         requiredApprovals: typeof p.required_approving_review_count === 'number' ? p.required_approving_review_count : 0,
         requiresCodeOwnerReview: p.require_code_owner_review === true,
         requiresApprovalForUnattributedChanges: p.require_extra_approval_for_unattributed_changes === true,
       };
-      reviewRuleEnforced = reviewRuleEnforced || active;
+      if (active) {
+        reviewRule = {
+          requiredApprovals: Math.max(reviewRuleEnforced ? (reviewRule as ReviewRule | null)?.requiredApprovals ?? 0 : 0, candidate.requiredApprovals),
+          requiresCodeOwnerReview: (reviewRuleEnforced && (reviewRule as ReviewRule | null)?.requiresCodeOwnerReview === true) || candidate.requiresCodeOwnerReview,
+          requiresApprovalForUnattributedChanges: (reviewRuleEnforced && (reviewRule as ReviewRule | null)?.requiresApprovalForUnattributedChanges === true) || candidate.requiresApprovalForUnattributedChanges,
+        };
+        reviewRuleEnforced = true;
+      } else if (!reviewRuleEnforced) reviewRule = candidate;
     } else if (rule.type === 'deletion') {
       deletionProtected = deletionProtected || active;
     } else if (rule.type === 'non_fast_forward') {
@@ -233,7 +308,9 @@ export async function fetchBranchProtection(opts: FetchProtectionOptions): Promi
     const classic = await getJson(opts, base, `${repoPath}/branches/${encodeURIComponent(defaultBranch)}/protection`);
     if (!('unavailable' in classic) && classic.status === 200 && typeof classic.data === 'object' && classic.data !== null) {
       const body = classic.data as {
-        required_status_checks?: { contexts?: unknown };
+        required_status_checks?: { contexts?: unknown; checks?: { context?: unknown }[] };
+        allow_deletions?: { enabled?: boolean };
+        allow_force_pushes?: { enabled?: boolean };
         required_pull_request_reviews?: { required_approving_review_count?: unknown; require_code_owner_reviews?: unknown };
       };
       const contexts = Array.isArray(body.required_status_checks?.contexts) ? body.required_status_checks!.contexts! : [];
@@ -249,9 +326,14 @@ export async function fetchBranchProtection(opts: FetchProtectionOptions): Promi
         };
         reviewRuleEnforced = true;
       }
-      if (body.required_status_checks) deletionProtected = deletionProtected;
+      if (body.allow_deletions?.enabled === false) deletionProtected = true;
+      if (body.allow_force_pushes?.enabled === false) forcePushProtected = true;
+      for (const check of body.required_status_checks?.checks ?? []) {
+        if (typeof check.context === 'string' && !requiredContexts.includes(check.context)) requiredContexts.push(check.context);
+      }
     } else if (!('unavailable' in classic) && classic.status === 404) {
-      // No classic protection; rulesets above are the whole picture.
+      // A 404 can also mask insufficient token scope; do not claim complete absence.
+      classicProtectionUnreadable = true;
     } else {
       classicProtectionUnreadable = true;
     }
@@ -272,6 +354,7 @@ export async function fetchBranchProtection(opts: FetchProtectionOptions): Promi
       rulesets: [...enforcementById.values()],
       classicProtectionUnreadable,
       enforcementIncomplete,
+      absenceVerifiable: !classicProtectionUnreadable && !enforcementIncomplete,
     },
   };
 }

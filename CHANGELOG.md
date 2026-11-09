@@ -7,6 +7,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-09
+
+- Add `proctor doctor` to audit deployed rulesets, Stop hooks, the pre-commit unresolved gate,
+  CI invocation and CODEOWNERS coverage. Local files are presence-only evidence, never proof of
+  an independent gate. Workflow detection ignores comments, echo text and disabled jobs/steps,
+  and recognizes the repository's local composite action.
+- Add explicit `proctor doctor --github` opt-in for read-only GitHub configuration checks on the
+  actual origin repository. Default doctor is offline; `--offline` overrides opt-in. Reports
+  required status checks, pull-request rules and branch-history protection as server-confirmed
+  configuration, not proof an agent cannot edit or bypass it. Incomplete API/classic-protection
+  coverage stays unverified. Local transitive job-dependency matches remain advisory; they do
+  not prove failure propagation. Requests never send file contents or block records; an existing
+  GitHub token is used only in the API Authorization header, and cross-origin redirects are refused.
+
 ## [1.5.0] - 2026-11-09
 
 - Add Antigravity CLI Stop-hook enforcement via `proctor stop-hook --format antigravity` and an

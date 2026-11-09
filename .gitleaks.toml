@@ -15,5 +15,5 @@ paths = [
   '''src/bench/''',
   # tests/hooks/unresolved.test.ts plants credential-shaped literals to verify
   # redactSecrets strips them from stored findings; they are synthetic.
-  '''tests/hooks/unresolved\\.test\\.ts''',
+  '''tests/hooks/unresolved\.test\.ts''',
 ]

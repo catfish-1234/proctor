@@ -88,7 +88,7 @@ describe('unresolved record', () => {
   it('survives many sequential updates and recovers from a stale lock', () => {
     const path = rec('one')!;
     writeFileSync(path + '.lock', '');
-    const old = new Date(Date.now() - 60_000);
+    const old = new Date(Date.now() - 90_000);
     utimesSync(path + '.lock', old, old);
     for (let n = 0; n < 20; n++) rec(`n${n}`);
     const r = readUnresolved(dir);

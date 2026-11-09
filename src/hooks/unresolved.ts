@@ -116,20 +116,39 @@ export function readUnresolved(cwd: string): UnresolvedRead {
 
 /** Short exclusive lock so concurrent hooks (parallel agents, one worktree) do not lose updates. */
 function withLock<T>(lockFile: string, fn: () => T): T | undefined {
-  const deadline = Date.now() + 1500;
+  // Generous deadline: with many parallel hook processes (Windows especially spawns slowly), a
+  // short one silently drops findings, which is worse than a slow hook.
+  const deadline = Date.now() + 30_000;
   for (;;) {
     try {
       closeSync(openSync(lockFile, 'wx'));
       break;
     } catch (err: unknown) {
       if ((err as NodeJS.ErrnoException).code !== 'EEXIST') return undefined;
-      try { if (Date.now() - statSync(lockFile).mtimeMs > 10_000) rmSync(lockFile, { force: true }); } catch { /* raced */ }
+      // Only break a lock old enough that its holder is almost certainly dead; a live holder's
+      // critical section must never be entered twice.
+      try { if (Date.now() - statSync(lockFile).mtimeMs > 60_000) rmSync(lockFile, { force: true }); } catch { /* raced */ }
       if (Date.now() > deadline) return undefined;
-      const wait = Date.now() + 25;
+      const wait = Date.now() + 10 + Math.floor(Math.random() * 40);
       while (Date.now() < wait) { /* brief spin: hook processes are short-lived */ }
     }
   }
   try { return fn(); } finally { rmSync(lockFile, { force: true }); }
+}
+
+/** Windows transiently refuses a replace-rename (EPERM/EBUSY) while a reader has the file open. */
+function renameWithRetry(src: string, dest: string): void {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      renameSync(src, dest);
+      return;
+    } catch (err: unknown) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (attempt >= 4 || (code !== 'EPERM' && code !== 'EBUSY' && code !== 'EACCES')) throw err;
+      const wait = Date.now() + 25;
+      while (Date.now() < wait) { /* brief spin */ }
+    }
+  }
 }
 
 export interface RecordInput {
@@ -170,7 +189,7 @@ export function recordUnresolved(input: RecordInput): string | undefined {
     };
     const tmp = `${path}.${process.pid}.tmp`;
     writeFileSync(tmp, JSON.stringify(record, null, 2) + '\n', { mode: 0o600 });
-    renameSync(tmp, path); // atomic replace: readers see the old or the new record, never a partial one
+    renameWithRetry(tmp, path); // atomic replace: readers see the old or the new record, never a partial one
     return path;
   });
   return written;

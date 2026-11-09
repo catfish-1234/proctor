@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Add Codex CLI Stop hook enforcement via `proctor stop-hook --format codex`: blocking findings
+  return an exit-0 JSON decision with feedback; clean checks, loop-guard skips and internal
+  failures stay silent and allow the turn. The default Claude Code and Cursor behavior is unchanged.
+- `proctor setup` merges a 60-second Codex Stop hook into `.codex/hooks.json` when Codex is a
+  resolved target, preserving existing hooks and settings. Setup explains both project trust and
+  hook review via `/hooks`; `uninstall` removes only proctor's Codex command.
+
 ## [1.3.0] - 2026-11-08
 
 - RH010: a fixed sleep of one second or more added to a test now warns, and so does a runner-wide

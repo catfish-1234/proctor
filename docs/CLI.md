@@ -6,7 +6,8 @@ You can also run `proctor --help` or `proctor <command> --help`.
 ### `proctor setup`
 
 Detects the agents in this repository, writes their rulesets, and installs the git pre-commit
-hook. If Claude Code is among the selected agents, it also installs the Stop hook.
+hook. If Claude Code or Codex CLI is among the selected agents, it also installs that agent's
+Stop hook in `.claude/settings.json` or `.codex/hooks.json`, respectively.
 
 ```bash
 proctor setup
@@ -14,8 +15,13 @@ proctor setup
 
 This assumes a local install: `npm install --save-dev @kavishdua/proctor`.
 
-This combines the three `install-*` commands below. The ruleset provides instructions;
-the hooks enforce the checks.
+This combines ruleset deployment with git and supported agent hook installation. The ruleset
+provides instructions; the hooks enforce the checks.
+
+Codex requires both project trust (the interactive prompt, or `trust_level = "trusted"` under
+`[projects."/absolute/path/to/repo"]` in `~/.codex/config.toml`) and review of new or changed
+hooks (the prompt or `/hooks` in the CLI). Project-local hooks are silently ignored until the
+project is trusted, and require hook approval before they run.
 
 **How detection works.** An agent counts as in use when its own config file or directory is already
 in the repository: `.cursor/` for Cursor, `.claude/` or `CLAUDE.md` for Claude Code, `WARP.md` for
@@ -66,7 +72,7 @@ Exit codes: `0` means no warning or error findings, `1` means warnings only, `2`
 was found, and `3` means Proctor itself failed before it could complete the check. With `--ci`,
 warnings exit `0` and remain in machine-readable reports and Markdown. Invalid arguments can
 exit `1` (Commander usage errors) or `2` (validation errors); `--ai` without its key exits `1`.
-The pre-commit hook propagates `3` and blocks. The Claude Stop hook allows infrastructure
+The pre-commit hook propagates `3` and blocks. The Stop hooks allow infrastructure
 failures, as described below.
 
 ```bash
@@ -97,9 +103,25 @@ own, and tells you it did.
 
 ### `proctor stop-hook`
 
-The Claude Code Stop hook itself. Reads the hook payload from stdin, runs `check --uncommitted
---ci`, and exits `2` to block the turn if it finds something serious. Never exits `1`, since that's
-non-blocking in Claude Code.
+Reads the hook payload from stdin and runs `check --uncommitted --ci`.
+
+| Flag | What it does |
+|------|--------------|
+| `--format <format>` | `claude` (default) keeps the Claude Code protocol: findings on stderr and exit `2` to block, never `1`. `codex` writes one JSON block decision on stdout and always exits `0` |
+
+In Codex format, a blocking finding prints exactly `{"decision":"block","reason":"<finding output>"}`,
+with the complete finding output encoded as one string. A clean check or skip prints nothing.
+Both formats skip when the input has `stop_hook_active: true`, preventing a Stop loop, and use
+the session working directory when the payload omits `cwd`.
+
+```bash
+proctor stop-hook --format codex
+```
+
+`proctor setup --agents codex` registers `npx @kavishdua/proctor stop-hook --format codex` in
+`.codex/hooks.json` with a 60-second timeout. Codex must trust the project and the new or changed
+hook must be reviewed via the prompt or `/hooks` before it runs. See the
+[Codex hooks contract](https://learn.chatgpt.com/docs/hooks.md).
 
 It reads staged, unstaged, and untracked changes. It allows the turn outside a git repository,
 during a merge, rebase, cherry-pick, or revert, or if proctor errors or takes longer than 60 seconds.
@@ -141,7 +163,8 @@ detected  cursor                 .cursor/rules/proctor.mdc
 ### `proctor uninstall`
 
 Removes everything proctor installed in this repository: the ruleset files, the managed block in
-each shared file, the adapter manifest, the pre-commit hook, and the Stop hook entry.
+each shared file, the adapter manifest, the pre-commit hook, and the Claude Code and Codex Stop
+hook entries. Unrelated hooks and settings stay in place.
 
 | Flag | What it does |
 |------|--------------|

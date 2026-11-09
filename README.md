@@ -80,6 +80,8 @@ The check writes nothing to the repository being checked and makes no runtime ne
 ## Install
 
 Agent plugins install the ruleset. For CLI checks and hooks, use the local npm installation below.
+`proctor setup` adds turn-end enforcement for Claude Code and Codex CLI. The Cursor plugin
+also includes a stop hook.
 
 **Claude Code**
 
@@ -121,9 +123,10 @@ which may be outside the working tree when you use worktrees or `core.hooksPath`
 | The ruleset file for each agent this repo uses, e.g. `.claude/skills/proctor/SKILL.md`, `.cursor/rules/proctor.mdc`, `AGENTS.md` | The honest-completion rules your agent reads before it works | A shared file like `AGENTS.md` keeps your content; only proctor's delimited block is replaced |
 | Git's hook directory (`.git/hooks/pre-commit` normally), or `.husky/pre-commit` when Husky is a dev dependency | Blocks a cheat at commit time; the Husky file is also staged | A foreign hook is backed up to `pre-commit.bak`, then replaced; merge it manually if needed |
 | `.claude/settings.json` | The Claude Code Stop hook, written only if this repo uses Claude Code | Merged into the existing JSON; nothing else in the file changes |
+| `.codex/hooks.json` | The Codex CLI Stop hook, written only if Codex is a selected or detected agent | Merged into the existing JSON, preserving other hooks and top-level fields |
 | `.proctor-adapter-manifest.json` | Records what was written, so `uninstall` can take exactly that back out | Rewritten |
 
-proctor detects agents from their config files, such as `.cursor/`, `.claude/`, or `WARP.md`,
+proctor detects agents from their config files, such as `.cursor/`, `.claude/`, `.codex/`, or `WARP.md`,
 and installs the ruleset for those agents. If it finds none, it writes `AGENTS.md`.
 Run `proctor agents` to check the list before installing. Use `--all` for all 30 supported agents,
 or `--agents claude-code,cursor` to choose them yourself.
@@ -144,6 +147,26 @@ git add -A && git commit -m "chore: add proctor"
 ```
 
 If you use Claude Code, restart it so it picks up the new Stop hook.
+
+If you use **Codex CLI**, two trust steps are required before the hook runs:
+
+1. Trust the project at Codex's interactive prompt, or set `trust_level = "trusted"` under
+   `[projects."/absolute/path/to/repo"]` in `~/.codex/config.toml`. Project hooks are silently
+   ignored in untrusted projects.
+2. Review and approve the new or changed hook when Codex prompts, or via `/hooks` in the CLI.
+
+The Codex hook runs `proctor stop-hook --format codex`, which emits a JSON block decision with
+finding feedback and exits `0`. It stays silent on clean checks, internal errors, and a follow-up
+Stop with `stop_hook_active: true`, preventing a loop.
+
+Verified end-to-end against codex-cli 0.164.0 on November 8, 2026: in `codex exec`, a change that
+deleted a failing test was blocked at Stop with an RH001 finding, and Codex continued and acted on
+the block reason; an honest fix completed with no block. Hook trust is one-time: Codex asks to
+review new or changed hooks (the interactive prompt or `/hooks`), records trust against the hook
+definition, and after that the hook runs in both interactive sessions and `codex exec`. The
+`--dangerously-bypass-hook-trust` flag exists for one-off automation that vets hook sources outside
+Codex; it is not part of standard setup. Contract source:
+[Codex hooks](https://learn.chatgpt.com/docs/hooks.md).
 
 The hooks run checks automatically. A config file is optional.
 
@@ -409,7 +432,7 @@ See the [scope, dropped ideas and tuned dev-set measurements](bench/dynamic-dev/
 
 proctor combines a **ruleset** with a **guard**. The ruleset tells the agent how to complete work
 and report results. The deterministic, diff-level guard checks for known tampering patterns at
-commit time and, with the Claude Code Stop hook, at the end of a turn. It works
+commit time and, with the Claude Code, Codex CLI, or Cursor Stop hooks, at the end of a turn. It works
 below the agent's own reasoning by checking the changed code rather than the agent's explanation.
 
 ## Can the agent get around it?

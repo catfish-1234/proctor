@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Add Antigravity CLI Stop-hook enforcement via `proctor stop-hook --format antigravity` and an
+  installable `antigravity-plugin/`. The Stop payload has no `stop_hook_active`, so every Stop
+  re-checks the diff and re-blocks; a per-conversation budget of 5 consecutive blocks (in the OS
+  temp dir) fails open to avoid wedging a session. Verified live on agy 1.5.3; the hook can be
+  disabled by whoever controls the machine, so keep `proctor check` in CI.
 - Add Gemini CLI AfterAgent enforcement via `proctor stop-hook --format gemini`, reusing the
   Codex check pipeline. Blocking findings return exit-0 deny JSON with correction feedback;
   clean checks, loop-guard skips, malformed input, and internal failures silently allow.

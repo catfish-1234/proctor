@@ -23,7 +23,7 @@ import { installPreCommitHook } from './hooks/pre-commit.js';
 import { installStopHook } from './hooks/claude-settings.js';
 import { installCodexStopHook } from './hooks/codex-hooks.js';
 import { installGeminiAfterAgentHook } from './hooks/gemini-hooks.js';
-import { parseStopHookInput, runStopHookCheck, formatStopHookResult, type StopHookFormat } from './hooks/stop-hook.js';
+import { parseStopHookInput, runStopHookCheck, formatStopHookResult, decideBlockBudget, readBudget, writeBudget, type StopHookFormat } from './hooks/stop-hook.js';
 import { APPROVAL_GUIDANCE, RULE_METADATA } from './rules.js';
 import { buildReceipt } from './receipt.js';
 import { badgeLine, badgeUrl, badgeMarkdown } from './badge/index.js';
@@ -296,15 +296,25 @@ program
 program
   .command('stop-hook')
   .description('Stop/AfterAgent hook: reads stdin JSON and blocks on error findings')
-  .addOption(new Option('--format <format>', 'Stop hook protocol').choices(['claude', 'codex', 'gemini']).default('claude'))
+  .addOption(new Option('--format <format>', 'Stop hook protocol').choices(['claude', 'codex', 'gemini', 'antigravity']).default('claude'))
   .action(async (options: { format: StopHookFormat }) => {
     try {
       const raw = await readStdin();
-      const { cwd, skip } = parseStopHookInput(raw, process.cwd(), options.format);
+      const { cwd, skip, conversationId, executionNum } = parseStopHookInput(raw, process.cwd(), options.format);
       if (skip) return;
-      const { exitCode, output } = formatStopHookResult(
-        runStopHookCheck(cwd, process.argv[1] ?? ''), options.format
-      );
+      const check = runStopHookCheck(cwd, process.argv[1] ?? '');
+      if (options.format === 'antigravity' && conversationId !== undefined) {
+        // No stop_hook_active here: every Stop re-checks, and a bounded counter (not the retry
+        // count itself) decides when an unresolvable finding stops blocking.
+        if (check.exitCode !== 2) { writeBudget(conversationId, undefined); return; }
+        const budget = decideBlockBudget(readBudget(conversationId), executionNum);
+        writeBudget(conversationId, budget.next);
+        if (!budget.block) {
+          process.stderr.write('proctor: block budget exhausted for this conversation; findings remain unresolved and this Stop is allowed\n');
+          return;
+        }
+      }
+      const { exitCode, output } = formatStopHookResult(check, options.format);
       if (options.format !== 'claude') {
         if (output) process.stdout.write(output + '\n');
         // Let stdout drain: truncating the JSON would make the harness reject the response.

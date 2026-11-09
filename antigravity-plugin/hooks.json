@@ -1,0 +1,8 @@
+{
+  "proctor": {
+    "enabled": true,
+    "Stop": [
+      { "type": "command", "command": "./scripts/stop.sh", "timeout": 90 }
+    ]
+  }
+}

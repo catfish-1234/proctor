@@ -455,7 +455,15 @@ program
       }
     }
 
-    if (targets.some(a => a.id === 'gemini-cli')) {
+    const geminiTarget = targets.find(a => a.id === 'gemini-cli');
+    if (geminiTarget) {
+      // Experimental adapters never install on detection alone: the user must name the adapter
+      // explicitly (--agents) or ask for everything (--all).
+      const geminiOptIn = options.all === true || (options.agents ?? '').split(',').map(s => s.trim()).includes('gemini-cli');
+      if (geminiTarget.experimental && !geminiOptIn) {
+        process.stdout.write(`Gemini CLI enforcement hook NOT installed (experimental, opt-in only: ${geminiTarget.experimental}). The ruleset in GEMINI.md still applies. Opt in: proctor setup --agents gemini-cli\n`);
+      } else {
+      if (geminiTarget.experimental) process.stdout.write(`Note: Gemini CLI support is experimental: ${geminiTarget.experimental}.\n`);
       try {
         const afterAgent = await installGeminiAfterAgentHook(join(cwd, '.gemini'));
         if (afterAgent.status === 'invalid-json') {
@@ -471,6 +479,7 @@ program
         const msg = String(err).replace(/^Error:\s*/, '');
         process.stderr.write(`proctor: could not install the Gemini AfterAgent hook (${msg})\n`);
         process.exitCode = 1;
+      }
       }
     }
 
@@ -506,7 +515,8 @@ program
     const detected = new Set((await detectAgents(process.cwd())).map(a => a.id));
     for (const adapter of AGENT_ADAPTERS) {
       const mark = detected.has(adapter.id) ? pc.green('detected') : pc.dim('       -');
-      process.stdout.write(`${mark}  ${adapter.id.padEnd(22)} ${pc.dim(adapter.relativePath)}\n`);
+      const experimental = adapter.experimental ? pc.yellow('  [experimental: opt-in hook, contract-verified only]') : '';
+      process.stdout.write(`${mark}  ${adapter.id.padEnd(22)} ${pc.dim(adapter.relativePath)}${experimental}\n`);
     }
     process.stdout.write(
       pc.dim(`\n${detected.size} of ${AGENT_ADAPTERS.length} detected. proctor setup installs to the detected ones; --all installs to every one.\n`)

@@ -18,11 +18,24 @@ beforeEach(() => {
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 describe('setup with Gemini targets', () => {
-  it('installs Gemini enforcement for a detected .gemini project and explains hook fingerprints and one-time trust', () => {
+  it('does not install the experimental Gemini hook for a detected .gemini project unless opted in', () => {
     mkdirSync(join(dir, '.gemini'));
     const result = run('setup');
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('Detected 1 agent in this repo: gemini-cli');
+    expect(result.stdout).toContain('experimental');
+    expect(result.stdout).toContain('--agents gemini-cli');
+    expect(existsSync(hooksPath())).toBe(false);
+    expect(existsSync(join(dir, '.git', 'hooks', 'pre-commit'))).toBe(true);
+    expect(existsSync(join(dir, 'GEMINI.md'))).toBe(true);
+    expect(existsSync(join(dir, '.claude'))).toBe(false);
+  });
+
+  it('installs the experimental Gemini hook with an explicit opt-in and explains hook fingerprints and one-time trust', () => {
+    mkdirSync(join(dir, '.gemini'));
+    const result = run('setup', '--agents', 'gemini-cli');
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('experimental');
     expect(result.stdout).toContain('Gemini AfterAgent hook installed:');
     expect(result.stdout).toContain('fingerprints project hooks');
     expect(result.stdout).toContain('new or changed hooks');
@@ -42,10 +55,12 @@ describe('setup with Gemini targets', () => {
     expect(readHooks().hooks.AfterAgent).toHaveLength(1);
   });
 
-  it('installs Gemini hooks when only GEMINI.md is detected', () => {
+  it('does not install the Gemini hook when only GEMINI.md is detected', () => {
     writeFileSync(join(dir, 'GEMINI.md'), 'My project instructions\n');
-    expect(run('setup').status).toBe(0);
-    expect(readHooks().hooks.AfterAgent).toHaveLength(1);
+    const result = run('setup');
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('experimental');
+    expect(existsSync(hooksPath())).toBe(false);
     expect(readFileSync(join(dir, 'GEMINI.md'), 'utf8')).toContain('My project instructions');
   });
 
@@ -57,8 +72,10 @@ describe('setup with Gemini targets', () => {
     expect(codex.hooks.Stop[0].hooks[0].command).toContain('--format codex');
   });
 
-  it('installs Gemini hooks under --all', () => {
-    expect(run('setup', '--all').status).toBe(0);
+  it('installs Gemini hooks under --all and still warns they are experimental', () => {
+    const result = run('setup', '--all');
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('experimental');
     expect(readHooks().hooks.AfterAgent).toHaveLength(1);
     expect(existsSync(join(dir, '.claude', 'settings.json'))).toBe(true);
   });
@@ -72,9 +89,9 @@ describe('setup with Gemini targets', () => {
     mkdirSync(join(dir, '.gemini'));
     const existing = { description: 'keep', hooks: { AfterAgent: [{ hooks: [{ command: 'echo other' }] }] } };
     writeFileSync(hooksPath(), JSON.stringify(existing));
-    expect(run('setup').status).toBe(0);
+    expect(run('setup', '--agents', 'gemini-cli').status).toBe(0);
     const before = readFileSync(hooksPath(), 'utf8');
-    const result = run('setup');
+    const result = run('setup', '--agents', 'gemini-cli');
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('Gemini AfterAgent hook already installed');
     expect(result.stdout).toContain('/hooks');
@@ -87,7 +104,7 @@ describe('setup with Gemini targets', () => {
   it('reports invalid JSON, preserves it, and completes the ruleset and git hook', () => {
     mkdirSync(join(dir, '.gemini'));
     writeFileSync(hooksPath(), '{not json');
-    const result = run('setup');
+    const result = run('setup', '--agents', 'gemini-cli');
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('Gemini AfterAgent hook was not installed');
     expect(result.stdout).toContain('Setup incomplete');
@@ -98,7 +115,7 @@ describe('setup with Gemini targets', () => {
 
   it('reports an unwritable hooks path without claiming setup succeeded', () => {
     mkdirSync(hooksPath(), { recursive: true });
-    const result = run('setup');
+    const result = run('setup', '--agents', 'gemini-cli');
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('could not install the Gemini AfterAgent hook');
     expect(result.stdout).toContain('Setup incomplete');

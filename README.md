@@ -79,9 +79,12 @@ The check writes nothing to the repository being checked and makes no runtime ne
 
 ## Install
 
-Agent plugins install the ruleset. The Gemini CLI extension also bundles an AfterAgent hook.
+Agent plugins install the ruleset. The Gemini CLI extension also bundles an AfterAgent hook
+(experimental, opt-in: contract-verified only, and consumer Gemini CLI auth is retired by Google;
+Antigravity CLI is the supported successor).
 For CLI checks and project hooks, use the local npm installation below. `proctor setup` adds
-turn-end enforcement for Claude Code, Codex CLI, and Gemini CLI. The Cursor plugin also includes
+turn-end enforcement for Claude Code and Codex CLI, and for Gemini CLI when you opt in with
+`proctor setup --agents gemini-cli` (experimental). The Cursor plugin also includes
 a stop hook.
 
 **Claude Code**
@@ -91,7 +94,9 @@ a stop hook.
 /plugin install proctor@proctor-marketplace
 ```
 
-**Gemini CLI or Qwen Code**
+**Gemini CLI or Qwen Code** (experimental: contract-verified only, never exercised against a live
+Gemini CLI session; consumer Gemini CLI auth is retired by Google, and Antigravity CLI is the
+supported successor)
 
 ```bash
 gemini extensions install https://github.com/catfish-1234/proctor
@@ -130,7 +135,7 @@ which may be outside the working tree when you use worktrees or `core.hooksPath`
 | Git's hook directory (`.git/hooks/pre-commit` normally), or `.husky/pre-commit` when Husky is a dev dependency | Blocks a cheat at commit time; the Husky file is also staged | A foreign hook is backed up to `pre-commit.bak`, then replaced; merge it manually if needed |
 | `.claude/settings.json` | The Claude Code Stop hook, written only if this repo uses Claude Code | Merged into the existing JSON; nothing else in the file changes |
 | `.codex/hooks.json` | The Codex CLI Stop hook, written only if Codex is a selected or detected agent | Merged into the existing JSON, preserving other hooks and top-level fields |
-| `.gemini/settings.json` | The Gemini CLI AfterAgent hook, written only if Gemini CLI is a selected or detected agent | Merged into the existing JSON, preserving other hooks and settings |
+| `.gemini/settings.json` | The Gemini CLI AfterAgent hook (experimental), written only when Gemini CLI is explicitly selected (`--agents gemini-cli` or `--all`), never on detection alone | Merged into the existing JSON, preserving other hooks and settings |
 | `.proctor-adapter-manifest.json` | Records what was written, so `uninstall` can take exactly that back out | Rewritten |
 
 proctor detects agents from their config files, such as `.cursor/`, `.claude/`, `.codex/`, `.gemini/`, or `WARP.md`,
@@ -175,7 +180,7 @@ definition, and after that the hook runs in both interactive sessions and `codex
 Codex; it is not part of standard setup. Contract source:
 [Codex hooks](https://learn.chatgpt.com/docs/hooks.md).
 
-If you use **Gemini CLI**, hooks are enabled by default since v0.26.0. Gemini fingerprints project
+If you use **Gemini CLI** (experimental, opt-in), hooks are enabled by default since v0.26.0. Gemini fingerprints project
 hooks and warns before running new or changed ones. Review the one-time trust prompt and manage
 hooks in the `/hooks` panel.
 

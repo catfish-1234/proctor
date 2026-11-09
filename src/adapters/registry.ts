@@ -31,6 +31,11 @@ export interface AgentAdapter {
    * Omit when `relativePath` is itself the agent's pre-existing file (GEMINI.md, WARP.md, ...).
    */
   detect?: string[];
+  /**
+   * When set, this adapter's enforcement hook is opt-in only: `setup` skips installing it unless
+   * the user names the adapter in --agents or passes --all, and prints this reason either way.
+   */
+  experimental?: string;
 }
 
 // Cursor's `.mdc` convention supports `description`, `globs`, and `alwaysApply` YAML frontmatter
@@ -85,7 +90,8 @@ export const AGENT_ADAPTERS: AgentAdapter[] = [
   // Windsurf's rules.md is the workspace rules file users write their own rules into, not a
   // proctor-owned path, so it merges rather than overwrites.
   { id: 'windsurf', displayName: 'Windsurf', relativePath: '.windsurf/rules/rules.md', scriptable: false, shared: true, detect: ['.windsurf', '.windsurfrules'] },
-  { id: 'gemini-cli', displayName: 'Gemini CLI', relativePath: 'GEMINI.md', scriptable: true, shared: true, detect: ['.gemini'] },
+  { id: 'gemini-cli', displayName: 'Gemini CLI', relativePath: 'GEMINI.md', scriptable: true, shared: true, detect: ['.gemini'],
+    experimental: 'consumer Gemini CLI auth is retired by Google (Antigravity CLI is the supported successor) and its AfterAgent hook is contract-verified only, never live-verified' },
   { id: 'aider', displayName: 'Aider', relativePath: 'CONVENTIONS.md', scriptable: true, shared: true, detect: ['.aider.conf.yml', '.aider.conf.yaml'] },
   { id: 'continue', displayName: 'Continue.dev', relativePath: '.continue/rules/proctor.md', scriptable: true, detect: ['.continue'] },
   { id: 'cline', displayName: 'Cline', relativePath: '.clinerules/proctor.md', scriptable: true, detect: ['.clinerules'] },

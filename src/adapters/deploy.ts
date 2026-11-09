@@ -5,6 +5,7 @@ import { upsertBlock, extractBlock, removeBlock, countBlocks } from './block.js'
 import { recordWritten, readManifest, MANIFEST_FILENAME } from './manifest.js';
 import { removePreCommitHook } from '../hooks/pre-commit.js';
 import { removeStopHook } from '../hooks/claude-settings.js';
+import { removeCodexStopHook } from '../hooks/codex-hooks.js';
 
 /**
  * Writing the canonical ruleset out to agent paths, and taking it back off again.
@@ -184,6 +185,13 @@ export async function uninstallProctor(cwd: string, dryRun: boolean): Promise<Un
     if (stop) done.push(`Removed the proctor Stop hook from: ${rel(stop)}`);
   } catch (err: unknown) {
     failed.push(`the Stop hook entry (${(err as NodeJS.ErrnoException).code ?? 'unknown error'})`);
+  }
+
+  try {
+    const stop = await removeCodexStopHook(join(cwd, '.codex'), dryRun);
+    if (stop) done.push(`Removed the proctor Codex Stop hook from: ${rel(stop)}`);
+  } catch (err: unknown) {
+    failed.push(`the Codex Stop hook entry (${(err as NodeJS.ErrnoException).code ?? 'unknown error'})`);
   }
 
   return { done, failed, note };

@@ -13,7 +13,7 @@ export interface ParsedStopHookInput {
   skip: boolean;
 }
 
-/** Pure: parses the Claude Code Stop hook's stdin JSON. No I/O, unit-testable in isolation. */
+/** Pure: parses the Claude Code or Codex Stop hook's stdin JSON. No I/O. */
 export function parseStopHookInput(raw: string, fallbackCwd: string): ParsedStopHookInput {
   try {
     const input = JSON.parse(raw) as StopHookInput;
@@ -28,6 +28,17 @@ export function parseStopHookInput(raw: string, fallbackCwd: string): ParsedStop
 export interface StopHookResult {
   exitCode: 0 | 2;
   output: string;
+}
+
+export type StopHookFormat = 'claude' | 'codex';
+
+/** Codex blocks via JSON on stdout with exit 0, and requires silence for an allowed turn. */
+export function formatStopHookResult(result: StopHookResult, format: StopHookFormat): StopHookResult {
+  if (format === 'claude') return result;
+  return {
+    exitCode: 0,
+    output: result.exitCode === 2 ? JSON.stringify({ decision: 'block', reason: result.output }) : '',
+  };
 }
 
 /**

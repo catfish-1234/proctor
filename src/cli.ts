@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import { resolve, join } from 'node:path';
 import { homedir } from 'node:os';
 import pkg from '../package.json' with { type: 'json' };
@@ -21,7 +21,8 @@ import { loadTaskPool } from './bench/tasks.js';
 import { runBench } from './bench/index.js';
 import { installPreCommitHook } from './hooks/pre-commit.js';
 import { installStopHook } from './hooks/claude-settings.js';
-import { parseStopHookInput, runStopHookCheck } from './hooks/stop-hook.js';
+import { installCodexStopHook } from './hooks/codex-hooks.js';
+import { parseStopHookInput, runStopHookCheck, formatStopHookResult, type StopHookFormat } from './hooks/stop-hook.js';
 import { APPROVAL_GUIDANCE, RULE_METADATA } from './rules.js';
 import { buildReceipt } from './receipt.js';
 import { badgeLine, badgeUrl, badgeMarkdown } from './badge/index.js';
@@ -293,14 +294,28 @@ program
 
 program
   .command('stop-hook')
-  .description('Claude Code Stop hook: reads stdin JSON, exits 2 on error findings')
-  .action(async () => {
-    const raw = await readStdin();
-    const { cwd, skip } = parseStopHookInput(raw, process.cwd());
-    if (skip) process.exit(0);
-    const { exitCode, output } = runStopHookCheck(cwd, process.argv[1] ?? '');
-    if (output) process.stderr.write(output);
-    process.exit(exitCode);
+  .description('Stop hook: reads stdin JSON and blocks on error findings')
+  .addOption(new Option('--format <format>', 'Stop hook protocol').choices(['claude', 'codex']).default('claude'))
+  .action(async (options: { format: StopHookFormat }) => {
+    try {
+      const raw = await readStdin();
+      const { cwd, skip } = parseStopHookInput(raw, process.cwd());
+      if (skip) return;
+      const { exitCode, output } = formatStopHookResult(
+        runStopHookCheck(cwd, process.argv[1] ?? ''), options.format
+      );
+      if (options.format === 'codex') {
+        if (output) process.stdout.write(output + '\n');
+        // Let stdout drain: truncating the JSON would make Codex reject the hook response.
+        process.exitCode = exitCode;
+        return;
+      }
+      if (output) process.stderr.write(output);
+      process.exit(exitCode);
+    } catch (err: unknown) {
+      // A Codex hook must never wedge a turn because reading stdin or running proctor failed.
+      if (options.format !== 'codex') throw err;
+    }
   });
 
 program
@@ -318,7 +333,7 @@ program
 
 program
   .command('setup')
-  .description('One-command install: writes the ruleset to every agent this repo uses, and installs both hooks')
+  .description('One-command install: writes the ruleset and installs the git and supported agent hooks')
   .option('--all', `write the ruleset to all ${AGENT_ADAPTERS.length} supported agents, not only the ones this repo uses`)
   .option('--agents <ids>', 'comma-separated agent ids to install to (e.g. claude-code,cursor), instead of detecting')
   .action(async (options: { all?: boolean; agents?: string }) => {
@@ -363,6 +378,25 @@ program
         process.stdout.write(
           stop.status === 'already' ? 'Stop hook already installed.\n' : `Stop hook installed: ${stop.path}\n`
         );
+      }
+    }
+
+    if (targets.some(a => a.id === 'codex')) {
+      try {
+        const stop = await installCodexStopHook(join(cwd, '.codex'));
+        if (stop.status === 'invalid-json') {
+          process.stderr.write(`proctor: ${stop.path} is not valid JSON, so the Codex Stop hook was not installed; fix it and re-run\n`);
+          process.exitCode = 1;
+        } else {
+          process.stdout.write(
+            stop.status === 'already' ? 'Codex Stop hook already installed.\n' : `Codex Stop hook installed: ${stop.path}\n`
+          );
+          process.stdout.write('Codex requires project trust and hook review before this hook runs: trust this project, then approve the new or changed hook when prompted or via /hooks in the CLI.\n');
+        }
+      } catch (err: unknown) {
+        const msg = String(err).replace(/^Error:\s*/, '');
+        process.stderr.write(`proctor: could not install the Codex Stop hook (${msg})\n`);
+        process.exitCode = 1;
       }
     }
 

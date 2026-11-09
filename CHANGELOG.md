@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-09
+
 - Add Antigravity CLI Stop-hook enforcement via `proctor stop-hook --format antigravity` and an
   installable `antigravity-plugin/`. The Stop payload has no `stop_hook_active`, so every Stop
   re-checks the diff and re-blocks, up to a per-conversation budget (default 5, set with
@@ -19,10 +21,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Add Gemini CLI AfterAgent enforcement via `proctor stop-hook --format gemini`, reusing the
   Codex check pipeline. Blocking findings return exit-0 deny JSON with correction feedback;
   clean checks, loop-guard skips, malformed input, and internal failures silently allow.
-- `proctor setup` merges a 60-second AfterAgent hook into `.gemini/settings.json` for resolved
-  Gemini CLI targets, preserving settings and hooks. Setup explains hook fingerprints, one-time
+- Gemini CLI support is experimental and opt-in: `proctor setup` merges a 60-second AfterAgent
+  hook into `.gemini/settings.json` only when Gemini CLI is explicitly selected
+  (`--agents gemini-cli` or `--all`), never on detection alone, and says so; `proctor agents`
+  marks it experimental. Consumer Gemini CLI auth is retired by Google and the hook is
+  contract-verified only, never live-verified; Antigravity CLI is the supported successor. The
+  ruleset still deploys to GEMINI.md on detection. Setup explains hook fingerprints, one-time
   trust, and `/hooks`; `uninstall` removes only proctor's command. The Gemini extension bundles
   the hook in the documented `hooks/hooks.json` layout and runs the shipped CLI directly.
+- Bump vitest to 4.1.12 (dev-only), clearing two moderate `@vitest/mocker` advisories.
 
 ## [1.4.0] - 2026-11-08
 

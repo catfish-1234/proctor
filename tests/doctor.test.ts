@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, appendFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -103,5 +103,136 @@ describe('proctor doctor', () => {
       'name: proctor\non: [pull_request]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: catfish-1234/proctor@v1\n        if: false\n');
     const result = run('doctor');
     expect(result.stdout).toMatch(/MISSING\s+CI gate/);
+  });
+});
+
+describe('proctor doctor server verification', () => {
+  let server: import('node:http').Server;
+  let apiBase: string;
+  let hits: { url: string; auth?: string }[];
+  let handler: (url: string) => { status: number; body: unknown };
+
+  const RULES = [
+    { type: 'deletion', ruleset_id: 7 },
+    { type: 'non_fast_forward', ruleset_id: 7 },
+    { type: 'pull_request', parameters: { required_approving_review_count: 1, require_code_owner_review: true, require_extra_approval_for_unattributed_changes: true }, ruleset_id: 7 },
+    { type: 'required_status_checks', parameters: { required_status_checks: [{ context: 'proctor' }, { context: 'checks' }] }, ruleset_id: 7 },
+  ];
+  const goodHandler = (url: string) => {
+    if (url.endsWith('/repos/o/r')) return { status: 200, body: { default_branch: 'main' } };
+    if (url.includes('/rules/branches/main')) return { status: 200, body: RULES };
+    if (url.endsWith('/rulesets/7')) return { status: 200, body: { enforcement: 'active', bypass_actors: [] } };
+    return { status: 404, body: {} };
+  };
+
+  beforeEach(async () => {
+    hits = [];
+    handler = goodHandler;
+    const { createServer } = await import('node:http');
+    server = createServer((req, res) => {
+      hits.push({ url: req.url ?? '', auth: typeof req.headers.authorization === 'string' ? req.headers.authorization : undefined });
+      const { status, body } = handler(req.url ?? '');
+      res.writeHead(status, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(body));
+    });
+    await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
+    const addr = server.address();
+    apiBase = `http://127.0.0.1:${typeof addr === 'object' && addr ? addr.port : 0}`;
+    spawnSync('git', ['remote', 'add', 'origin', 'https://github.com/o/r.git'], { cwd: dir });
+  });
+  afterEach(() => new Promise<void>(r => server.close(() => r())));
+
+  // The stub server lives in this process, so the CLI must be spawned async: a spawnSync
+  // would freeze the event loop and deadlock the very server the CLI is waiting on.
+  const runApi = (...args: string[]) => runAsync(args, { PROCTOR_GITHUB_API_BASE: apiBase, GITHUB_TOKEN: '', GH_TOKEN: '' });
+
+  const runAsync = (args: string[], extraEnv: Record<string, string>) => new Promise<{ status: number | null; stdout: string }>((resolvePromise, rejectPromise) => {
+    const child = spawn(process.execPath, [CLI, ...args], {
+      cwd: dir,
+      env: { ...process.env, NO_COLOR: '1', FORCE_COLOR: '0', ...extraEnv },
+    });
+    let stdout = '';
+    child.stdout.on('data', d => { stdout += d; });
+    child.on('error', rejectPromise);
+    child.on('close', status => resolvePromise({ status, stdout }));
+  });
+
+  it('reports server-verified rules from the owning source and discloses the network access', async () => {
+    const result = await runApi('doctor');
+    expect(result.stdout).toMatch(/SERVER-OK\s+Required status checks \(server\)/);
+    expect(result.stdout).toContain('proctor');
+    expect(result.stdout).toMatch(/SERVER-OK\s+Review requirement \(server\)/);
+    expect(result.stdout).toContain('agent-authored');
+    expect(result.stdout).toMatch(/SERVER-OK\s+Branch history protection \(server\)/);
+    expect(result.stdout).toContain('Server-verified configuration');
+    expect(result.stdout).toContain('not proof of agent-independent enforcement');
+    expect(result.stdout).toMatch(/INFO\s+Network access/);
+    expect(result.stdout).toContain('read-only request');
+    expect(result.stdout).not.toContain('Bearer');
+  });
+
+  it('sends an existing GITHUB_TOKEN and never prints it', async () => {
+    const result = await runAsync(['doctor'], { PROCTOR_GITHUB_API_BASE: apiBase, GITHUB_TOKEN: 'secret-token-value' });
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits[0]!.auth).toBe('Bearer secret-token-value');
+    expect(result.stdout).not.toContain('secret-token-value');
+    // classic protection endpoint also queried when a token exists
+    expect(hits.some(h => h.url.includes('/branches/main/protection'))).toBe(true);
+  });
+
+  it('reports API failure as unverified, never as missing protection', async () => {
+    handler = () => ({ status: 403, body: {} });
+    const result = await runApi('doctor');
+    expect(result.stdout).toMatch(/UNVERIFIED\s+Branch protection/);
+    expect(result.stdout).toContain('403');
+    expect(result.stdout).toContain('unknown, not absence');
+    expect(result.stdout).not.toMatch(/MISSING\s+Required status checks/);
+  });
+
+  it('reports an unreachable API as unverified', async () => {
+    apiBase = 'http://127.0.0.1:1';
+    const result = await runApi('doctor');
+    expect(result.stdout).toMatch(/UNVERIFIED\s+Branch protection/);
+    expect(result.stdout).not.toMatch(/MISSING\s+Required status checks/);
+  });
+
+  it('reports a server-confirmed absence of rules as missing', async () => {
+    handler = (url: string) => {
+      if (url.endsWith('/repos/o/r')) return { status: 200, body: { default_branch: 'main' } };
+      if (url.includes('/rules/branches/main')) return { status: 200, body: [] };
+      return { status: 404, body: {} };
+    };
+    const result = await runApi('doctor');
+    expect(result.stdout).toMatch(/MISSING\s+Required status checks \(server\)/);
+    expect(result.stdout).toMatch(/MISSING\s+Review requirement \(server\)/);
+    expect(result.stdout).toMatch(/MISSING\s+Branch history protection \(server\)/);
+  });
+
+  it('downgrades evaluate-mode rulesets to not-enforced', async () => {
+    handler = (url: string) => {
+      if (url.endsWith('/repos/o/r')) return { status: 200, body: { default_branch: 'main' } };
+      if (url.includes('/rules/branches/main')) return { status: 200, body: RULES };
+      if (url.endsWith('/rulesets/7')) return { status: 200, body: { enforcement: 'evaluate', bypass_actors: [{ actor_type: 'RepositoryRole', actor_id: 5 }] } };
+      return { status: 404, body: {} };
+    };
+    const result = await runApi('doctor');
+    expect(result.stdout).toContain('evaluate mode (logged, NOT enforced)');
+    expect(result.stdout).toMatch(/CONFIGURED\s+Review requirement \(server\)/);
+    expect(result.stdout).toContain('Bypass actors');
+    expect(result.stdout).toContain('repository role Admin');
+  });
+
+  it('--offline skips all network access and reports unverified', async () => {
+    const result = await runApi('doctor', '--offline');
+    expect(result.stdout).toMatch(/UNVERIFIED\s+Branch protection/);
+    expect(result.stdout).toContain('--offline');
+    expect(hits).toHaveLength(0);
+  });
+
+  it('uses only github.com remotes', async () => {
+    spawnSync('git', ['remote', 'set-url', 'origin', 'https://evil.example.com/o/r.git'], { cwd: dir });
+    const result = await runApi('doctor');
+    expect(result.stdout).toMatch(/UNVERIFIED\s+Branch protection/);
+    expect(hits).toHaveLength(0);
   });
 });

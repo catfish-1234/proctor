@@ -273,9 +273,20 @@ drifted, `0` otherwise. Handy as a CI check so a stale copy gets caught.
 Audits the enforcement chain: ruleset deployed and undrifted, pre-commit hook and unresolved
 gate installed, agent Stop hooks, CI workflow, and CODEOWNERS coverage of `.github/`. Each layer
 is reported MISSING, CONFIGURED, or UNVERIFIED. CONFIGURED means the local file or setting
-exists; proctor never reports a local file as an independently verified gate, because branch
-protection, required review, and credential separation can only be checked at the repository
-host. Exits `1` when any layer is missing.
+exists; proctor never reports a local file as an independently verified gate. Exits `1` when any
+layer is missing.
+
+When the origin remote is a github.com URL, doctor also verifies server-side rules at the owning
+source with read-only GitHub API GET requests (repository metadata, branch rules, ruleset
+configuration and enforcement mode). Rules from rulesets in evaluate mode are reported as
+logged-not-enforced, bypass actors are named by role, and any API failure is reported UNVERIFIED
+rather than as absent protection. SERVER-OK means the server confirmed the configuration at that
+moment; it is not proof of agent-independent enforcement, because doctor cannot check whether the
+agent's credentials hold admin or settings write access. An existing `GITHUB_TOKEN`/`GH_TOKEN`
+environment variable is sent as the Authorization header so private repositories can be read;
+its value is never printed. Only the repository owner and name appear in request URLs - no file
+contents, block records, or other data leave the machine - and each run prints how many requests
+it made. Use `--offline` to skip all network access; server-side layers then report UNVERIFIED.
 
 For shared files, only the managed block is compared. Your surrounding notes are ignored,
 but deleting a previously deployed block counts as drift.

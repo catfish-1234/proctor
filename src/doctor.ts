@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { detectAgents } from './adapters/detect.js';
 import { checkAdapterDrift } from './adapters/drift-check.js';
 import { commitGateInstalled } from './hooks/unresolved.js';
+import { fetchBranchProtection, originRemoteUrl, parseGitHubRemote } from './github-rules.js';
+import type { BranchProtection, FetchLike } from './github-rules.js';
 
 /**
  * `proctor doctor` audits the enforcement chain. Every verdict is one of three states, because
@@ -17,9 +19,13 @@ import { commitGateInstalled } from './hooks/unresolved.js';
  *                required status checks, who has admin). It is reported as unknown, never as
  *                healthy, with the place a human can verify it at the owning source.
  *
- * Nothing local is ever reported as an independently verified gate.
+ * Nothing local is ever reported as an independently verified gate. When the repository has a
+ * GitHub remote, the doctor can ask the owning source (read-only GET requests for branch rules
+ * and ruleset configuration) and report server-verified configuration - still not proof of
+ * agent-independent enforcement, because an agent with admin or settings write access could
+ * change or bypass server-side rules, and the doctor cannot check the agent's credentials.
  */
-export type DoctorState = 'missing' | 'configured' | 'unverified' | 'info';
+export type DoctorState = 'missing' | 'configured' | 'unverified' | 'info' | 'server';
 
 export interface DoctorItem {
   name: string;
@@ -122,7 +128,126 @@ function workflowRunsProctor(cwd: string): WorkflowHit | undefined {
   return disabledHit;
 }
 
-export async function runDoctor(cwd: string): Promise<DoctorItem[]> {
+export interface DoctorOptions {
+  /** Skip all network access; server-side layers report unverified instead. */
+  offline?: boolean;
+  /** Test seam: fetch implementation. Defaults to global fetch. */
+  fetchImpl?: FetchLike;
+  /** Test seam: environment for token lookup and the API base override. Defaults to process.env. */
+  env?: NodeJS.ProcessEnv;
+  /** Test seam: origin remote URL. Defaults to `git remote get-url origin` in cwd. */
+  originUrl?: string | undefined;
+}
+
+/** Job keys from every workflow file (top-level entries under jobs:), for context-name matching. */
+function workflowJobNames(cwd: string): Set<string> {
+  const names = new Set<string>();
+  const dir = join(cwd, '.github', 'workflows');
+  let files: string[];
+  try {
+    files = readdirSync(dir).filter(f => /\.(yml|yaml)$/.test(f));
+  } catch {
+    return names;
+  }
+  for (const f of files) {
+    let lines: string[];
+    try {
+      lines = readFileSync(join(dir, f), 'utf8').split('\n');
+    } catch {
+      continue;
+    }
+    const jobsIdx = lines.findIndex(l => l.trim() === 'jobs:');
+    if (jobsIdx < 0) continue;
+    for (let i = jobsIdx + 1; i < lines.length; i++) {
+      const l = lines[i]!.replace(/\s+#.*$/, '');
+      if (!l.trim()) continue;
+      const indent = l.length - l.trimStart().length;
+      if (indent === 0) break;
+      if (indent === 2 && !l.trim().startsWith('-') && l.trim().endsWith(':')) {
+        names.add(l.trim().slice(0, -1));
+      }
+    }
+  }
+  return names;
+}
+
+function serverItems(p: BranchProtection, caveats: string[]): DoctorItem[] {
+  const items: DoctorItem[] = [];
+  const caveat = caveats.join(' ');
+  if (p.requiredContexts.length > 0) {
+    const proctorCtx = p.requiredContexts.filter(c => /proctor/i.test(c));
+    items.push({
+      name: 'Required status checks (server)',
+      state: 'server',
+      detail:
+        `GitHub requires status checks on ${p.defaultBranch}: ${p.requiredContexts.join(', ')}. ` +
+        (proctorCtx.length > 0
+          ? `A proctor-identifiable gate is among them (${proctorCtx.join(', ')}). `
+          : 'None of these names is identifiable as the proctor gate. Context names are chosen by each workflow - including reusable workflows and external apps proctor cannot enumerate - so that is not proof the gate is unrequired; compare with the workflow job that runs proctor. ') +
+        (p.evaluateOnlyContexts.length > 0
+          ? `Required only in evaluate mode (logged, NOT enforced): ${p.evaluateOnlyContexts.join(', ')}. `
+          : '') +
+        caveat,
+    });
+  } else if (p.evaluateOnlyContexts.length > 0) {
+    items.push({
+      name: 'Required status checks (server)',
+      state: 'configured',
+      detail: `GitHub lists required status checks on ${p.defaultBranch} only in evaluate mode (logged, NOT enforced): ${p.evaluateOnlyContexts.join(', ')}. A failing proctor run blocks nothing until the ruleset is set to Active. ` + caveat,
+      fix: 'repo Settings > Rules: set the ruleset enforcement to Active',
+    });
+  } else {
+    items.push({
+      name: 'Required status checks (server)',
+      state: 'missing',
+      detail: `GitHub confirms no status checks are required on ${p.defaultBranch} (server-verified). A failing proctor run blocks nothing until a check is required. ` + caveat,
+      fix: 'repo Settings > Rules: require the proctor check context on the default branch',
+    });
+  }
+  if (p.reviewRule && p.reviewRuleEnforced) {
+    const r = p.reviewRule;
+    items.push({
+      name: 'Review requirement (server)',
+      state: 'server',
+      detail:
+        `GitHub requires review before merge on ${p.defaultBranch}: ` +
+        `${r.requiredApprovals} approval(s)${r.requiresCodeOwnerReview ? ', code-owner review' : ''}` +
+        `${r.requiresApprovalForUnattributedChanges ? ', approval for unattributed (agent-authored) changes' : ''}. ` +
+        caveat,
+    });
+  } else if (p.reviewRule) {
+    items.push({
+      name: 'Review requirement (server)',
+      state: 'configured',
+      detail: `a review rule exists on ${p.defaultBranch} but its ruleset is not in active enforcement (evaluate mode logs without blocking). ` + caveat,
+      fix: 'repo Settings > Rules: set the ruleset enforcement to Active',
+    });
+  } else {
+    items.push({
+      name: 'Review requirement (server)',
+      state: 'missing',
+      detail: `GitHub confirms no review is required before merge on ${p.defaultBranch} (server-verified): any credential with push access can land code unreviewed. ` + caveat,
+      fix: 'repo Settings > Rules: require pull request review on the default branch',
+    });
+  }
+  items.push(
+    p.deletionProtected && p.forcePushProtected
+      ? {
+          name: 'Branch history protection (server)',
+          state: 'server',
+          detail: `GitHub blocks deletion and force-push of ${p.defaultBranch}, so pushed history cannot be silently rewritten. ` + caveat,
+        }
+      : {
+          name: 'Branch history protection (server)',
+          state: 'missing',
+          detail: `GitHub confirms ${p.defaultBranch} can be ${!p.deletionProtected && !p.forcePushProtected ? 'deleted or force-pushed' : !p.deletionProtected ? 'deleted' : 'force-pushed'} (server-verified), so a passing gate's history is not stable. ` + caveat,
+          fix: 'repo Settings > Rules: block deletions and non-fast-forward pushes on the default branch',
+        },
+  );
+  return items;
+}
+
+export async function runDoctor(cwd: string, opts: DoctorOptions = {}): Promise<DoctorItem[]> {
   const items: DoctorItem[] = [];
   const agents = await detectAgents(cwd);
   const deployed = agents.filter(a => existsSync(join(cwd, a.relativePath)));
@@ -181,11 +306,88 @@ export async function runDoctor(cwd: string): Promise<DoctorItem[]> {
     ? { name: 'CODEOWNERS over .github', state: 'configured', detail: 'a CODEOWNERS rule covers .github. Configured, not verified: a CODEOWNERS file does not prove required review is enabled - that is a repository setting.' }
     : { name: 'CODEOWNERS over .github', state: 'missing', detail: 'nothing in CODEOWNERS covers .github, so a workflow-weakening PR needs no specific reviewer', fix: 'add "/.github/ @<owner>" to CODEOWNERS AND require review from code owners in repo settings' });
 
-  items.push({
-    name: 'Branch protection',
-    state: 'unverified',
-    detail: 'cannot be checked from the working tree. Verify at the owning source (repo Settings > Branches) that the proctor check is a required status check and that the agent\'s credentials cannot edit repo settings or bypass the rule. Until then the gate is configured at best, not independent.',
-  });
+  // Server-side verification at the owning source. Read-only GET requests for repository
+  // metadata and branch rules only; nothing about the working tree leaves the machine.
+  const env = opts.env ?? process.env;
+  const origin = opts.originUrl !== undefined ? opts.originUrl : originRemoteUrl(cwd);
+  const gh = origin !== undefined ? parseGitHubRemote(origin) : undefined;
+  const manualVerify =
+    'Verify at the owning source (repo Settings > Rules / Branches) that the proctor check is a required status check and that the agent\'s credentials cannot edit repo settings or bypass the rule. Until then the gate is configured at best, not independent.';
+  if (opts.offline) {
+    items.push({
+      name: 'Branch protection',
+      state: 'unverified',
+      detail: `--offline: skipped the read-only GitHub lookup. ${manualVerify}`,
+    });
+  } else if (!gh) {
+    items.push({
+      name: 'Branch protection',
+      state: 'unverified',
+      detail: `no GitHub origin remote to verify against. ${manualVerify}`,
+    });
+  } else {
+    let requests = 0;
+    let apiHost = 'api.github.com';
+    const result = await fetchBranchProtection({
+      ...gh,
+      token: env.GITHUB_TOKEN || env.GH_TOKEN || undefined,
+      fetchImpl: opts.fetchImpl ?? (globalThis.fetch as unknown as FetchLike),
+      apiBase: env.PROCTOR_GITHUB_API_BASE || undefined,
+      onRequest: url => {
+        requests++;
+        try {
+          apiHost = new URL(url).host;
+        } catch { /* keep default */ }
+      },
+    });
+    if (requests > 0) {
+      items.push({
+        name: 'Network access',
+        state: 'info',
+        detail: `doctor made ${requests} read-only request(s) to ${apiHost} for repository metadata and branch rules only. No file contents, block records, or secrets were sent. Re-run with --offline to skip.`,
+      });
+    }
+    if (result.kind === 'unavailable') {
+      items.push({
+        name: 'Branch protection',
+        state: 'unverified',
+        detail: `could not verify at GitHub: ${result.reason}. This is unknown, not absence. ${manualVerify}`,
+      });
+    } else {
+      const p = result.protection;
+      const verifiedAt = new Date().toISOString();
+      const caveats = [
+        `Server-verified configuration at ${verifiedAt}, not proof of agent-independent enforcement: an agent whose credentials have admin or settings write access could change or bypass these rules, and proctor cannot see the agent's credentials.`,
+      ];
+      if (p.enforcementIncomplete) caveats.push('Enforcement status of at least one ruleset could not be fetched; affected rules may be less enforced than shown.');
+      if (p.classicProtectionUnreadable) caveats.push('Classic branch protection, if any, was not readable (no usable token); rulesets alone are shown.');
+      const bypass = p.rulesets.flatMap(rs => rs.bypassRoles.map(role => `${role} (ruleset ${rs.id})`));
+      if (bypass.length > 0) caveats.push(`Bypass actors who can ignore these rules: ${bypass.join(', ')}.`);
+      items.push(...serverItems(p, caveats));
+      // Cross-check the local invocation detection against server requirements.
+      if (p.requiredContexts.length > 0) {
+        const localJobs = workflowJobNames(cwd);
+        const matched = p.requiredContexts.filter(c => localJobs.has(c));
+        const unmatched = p.requiredContexts.filter(c => !localJobs.has(c));
+        if (matched.length > 0) {
+          items.push({
+            name: 'Required-context match',
+            state: 'info',
+            detail: `required context(s) ${matched.join(', ')} match a job name in a local workflow file.` +
+              (unmatched.length > 0
+                ? ` ${unmatched.join(', ')} have no matching local job name; they may come from reusable workflows, dynamic matrix names, or external apps, which proctor cannot enumerate - not proof they are unconfigured.`
+                : ''),
+          });
+        } else if (unmatched.length > 0) {
+          items.push({
+            name: 'Required-context match',
+            state: 'info',
+            detail: `no local workflow job name matches required context(s) ${unmatched.join(', ')}. They may come from reusable workflows, dynamic matrix names, or external apps proctor cannot enumerate; if none do, the required check never reports and the merge gate hangs open or closed depending on repo settings. Verify the producing workflow by hand.`,
+          });
+        }
+      }
+    }
+  }
 
   return items;
 }

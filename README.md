@@ -157,10 +157,16 @@ If you use **Codex CLI**, two trust steps are required before the hook runs:
 
 The Codex hook runs `proctor stop-hook --format codex`, which emits a JSON block decision with
 finding feedback and exits `0`. It stays silent on clean checks, internal errors, and a follow-up
-Stop with `stop_hook_active: true`, preventing a loop. The [Stop hook contract](https://learn.chatgpt.com/docs/hooks.md)
-was verified end-to-end against codex-cli 0.164.0 on November 8, 2026: input shape, block decision,
-reason feedback, loop guard, and project-trust requirement. That contract verification was separate
-from testing this proctor integration.
+Stop with `stop_hook_active: true`, preventing a loop.
+
+Verified end-to-end against codex-cli 0.164.0 on November 8, 2026: in `codex exec`, a change that
+deleted a failing test was blocked at Stop with an RH001 finding, and Codex continued and acted on
+the block reason; an honest fix completed with no block. Hook trust is one-time: Codex asks to
+review new or changed hooks (the interactive prompt or `/hooks`), records trust against the hook
+definition, and after that the hook runs in both interactive sessions and `codex exec`. The
+`--dangerously-bypass-hook-trust` flag exists for one-off automation that vets hook sources outside
+Codex; it is not part of standard setup. Contract source:
+[Codex hooks](https://learn.chatgpt.com/docs/hooks.md).
 
 The hooks run checks automatically. A config file is optional.
 

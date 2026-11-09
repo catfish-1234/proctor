@@ -604,16 +604,19 @@ program
 
 program
   .command('doctor')
-  .description('Audit the enforcement chain: ruleset, hooks, unresolved gate, CI gate, CODEOWNERS. Reports missing / configured / unverified - never a misleading all-clear')
-  .action(async () => {
+  .description('Audit the enforcement chain: ruleset, hooks, unresolved gate, CI gate, CODEOWNERS, and (read-only) GitHub branch rules. Reports missing / configured / unverified - never a misleading all-clear')
+  .option('--github', 'opt in to read-only requests to api.github.com for this origin repository; existing GITHUB_TOKEN/GH_TOKEN is used only there')
+  .option('--offline', 'skip all network access, even when --github is present')
+  .action(async (cmdOpts: { offline?: boolean; github?: boolean }) => {
     const { runDoctor } = await import('./doctor.js');
-    const items = await runDoctor(process.cwd());
+    const items = await runDoctor(process.cwd(), { offline: cmdOpts.offline === true, github: cmdOpts.github === true });
     let missing = 0;
     for (const item of items) {
       if (item.state === 'missing') missing++;
       const label = item.state === 'missing' ? pc.red('MISSING   ')
         : item.state === 'configured' ? pc.yellow('CONFIGURED')
         : item.state === 'unverified' ? pc.yellow('UNVERIFIED')
+        : item.state === 'server' ? pc.green('SERVER-OK ')
         : pc.dim('INFO      ');
       process.stdout.write(`${label}  ${item.name}: ${item.detail}\n`);
       if (item.fix) process.stdout.write(pc.dim(`           fix: ${item.fix}\n`));

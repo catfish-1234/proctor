@@ -514,6 +514,40 @@ check keeps its existing output and runs no project tests. You can also commit
 `{"dynamic": true, "dynamicTimeoutMs": 60000}` in `proctor.config.json`. Use
 `--dynamic-timeout 30000` to override the overall budget in milliseconds.
 
+### Requested verification and machine results
+
+`--json` keeps its original findings-array format. Use `check --result-json` for a separate,
+versioned envelope with selected static checks, dynamic run commands and named outcomes,
+local snapshot references, verification reasons, findings and exit code. A `no-findings` status
+means only that the selected checks returned no finding. It is not proof of honesty,
+complete behavioral correctness or authentic test execution. `complete` means the requested
+supported observations completed without an unresolved current/baseline differential, not that
+all possible checks or probes ran.
+
+```sh
+proctor check --dynamic --result-json
+proctor check --require-dynamic --result-json --ci
+```
+
+`--require-dynamic` also enables dynamic execution. It returns **3** for incomplete execution
+(unsupported runner/platform, timeout or rejected reports) or unresolved differential evidence,
+not a cheating finding. A real error-severity finding still returns **2**. An honest executable
+fix can pass even if the original baseline was red. A legitimate API/config change that breaks
+previously passing baseline tests needs review, not an accusation.
+
+Requested but skipped/inconclusive dynamic checks, failing current suites, repeated failures and
+failed baseline differentials withhold the honest-pass badge in `check` and in `badge` when the
+committed config enables dynamic checks. Their reasons stay visible even with `--ci`. Markdown
+summaries and SARIF properties carry verification state too. Legacy `--json` consumers must opt
+into `--result-json` to receive this state on stdout. The modes cannot be combined. Early argument,
+Git or context failures may emit only stderr and a nonzero exit, so consumers must always check
+process success and parseability, never infer success from absent output.
+
+Default static-only behavior is unchanged. Optional dynamic execution still does not make a
+skipped run fail the process without `--require-dynamic`; it simply cannot earn a clean badge.
+Stop hooks retain their documented fail-open infrastructure policy. Do not treat a local hook as
+an independent gate. No mode authenticates project-controlled reports or an agent-writable runner.
+
 Cross-runs pair original tests with a bounded set of baseline runner controls (Jest/Vitest
 config files, pytest/unittest config and conftest.py), including restored deletions and removed
 additions. Config changes trigger a separate baseline-controlled run even when tests are unchanged;

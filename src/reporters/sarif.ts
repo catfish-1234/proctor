@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { DYNAMIC_METADATA } from '../dynamic/metadata.js';
+import type { VerificationEvidence } from '../verification.js';
 import type { Finding } from '../types.js';
 import { APPROVAL_GUIDANCE, RULE_METADATA } from '../rules.js';
 import pkg from '../../package.json' with { type: 'json' };
@@ -14,7 +15,7 @@ function fingerprint(verifierId: string, file: string, line: number): string {
   return createHash('sha256').update(`${verifierId}:${file}:${line}`).digest('hex');
 }
 
-export function sarifReport(findings: Finding[]): string {
+export function sarifReport(findings: Finding[], verification?: VerificationEvidence): string {
   const rules = Object.entries({ ...RULE_METADATA, ...Object.fromEntries(Object.entries(DYNAMIC_METADATA).filter(([id]) => findings.some(f => f.verifierId === id))) }).map(([id, meta]) => ({
     id,
     name: meta.name,
@@ -59,6 +60,7 @@ export function sarifReport(findings: Finding[]): string {
     version: '2.1.0',
     runs: [
       {
+        ...(verification ? { properties: { verification } } : {}),
         tool: {
           driver: {
             name: 'proctor',

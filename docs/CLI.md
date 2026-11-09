@@ -77,6 +77,23 @@ directory instead of the current one, which is useful when proctor is driving an
 | `--fix` | with `--explain`, print what an honest fix for that check looks like |
 | `--markdown <file>` | also append a Markdown summary to this file, e.g. `--markdown "$GITHUB_STEP_SUMMARY"` |
 
+`check --result-json` is the explicit schema-version-1 result envelope. `--json` remains a
+findings array; the modes cannot combine. The envelope includes selected static checks,
+requested dynamic runs/commands/named outcomes, local snapshot refs, verification reasons,
+findings and exit code. Verification states are `not-requested`, `complete`, `incomplete` and
+`review-required`. `complete` covers the supported requested observations, not all possible
+checks, optional probes, execution authenticity or full correctness. `no-findings` is not an
+honesty verdict. Always check exit status and parseability: early argument/Git/context failures
+can emit only stderr and nonzero exit.
+
+`--require-dynamic` enables dynamic checks and returns3 when observations are incomplete or a
+current/baseline differential needs review, including a legitimate API/config change. Error
+findings still return2. No incomplete run creates a cheating finding. Without this option,
+optional skips keep existing exit behavior, but no requested incomplete/differential run earns
+an honest-pass badge. Reasons remain visible under `--ci`. `badge` honors committed dynamic
+opt-in too. Markdown summaries and SARIF `runs[].properties.verification` include the state.
+Static-only defaults and Stop-hook infrastructure fail-open behavior are unchanged.
+
 Cross-runs pair original tests with a bounded set of baseline runner controls (Jest/Vitest
 config files, pytest/unittest config and conftest.py), including restored deletions and removed
 additions. Config changes trigger a separate baseline-controlled run even when tests are unchanged;

@@ -27,6 +27,8 @@ import { installGeminiAfterAgentHook } from './hooks/gemini-hooks.js';
 import { parseStopHookInput, runStopHookCheck, formatStopHookResult, decideBlockBudget, readBudget, writeBudget, stopHookPolicy, type StopHookFormat } from './hooks/stop-hook.js';
 import { APPROVAL_GUIDANCE, RULE_METADATA } from './rules.js';
 import { buildReceipt } from './receipt.js';
+import { verificationEvidence, checkExitCode, resultReport } from './verification.js';
+import type { DynamicResult } from './dynamic/runner.js';
 import { badgeLine, badgeUrl, badgeMarkdown } from './badge/index.js';
 import { DYNAMIC_METADATA } from './dynamic/metadata.js';
 import type { ProctorConfig } from './types.js';
@@ -77,6 +79,8 @@ program
   .option('--base <ref>', 'analyze changes against a base ref (e.g. origin/main or a commit SHA) instead of staged/working-tree changes, for CI, where nothing is staged in a fresh checkout')
   .option('--ci', 'show only errors in the text report; warnings do not affect the exit code')
   .option('--json', 'output findings as JSON to stdout')
+  .option('--result-json', 'output a versioned result envelope including requested verification evidence')
+  .option('--require-dynamic', 'require complete dynamic verification; incomplete or unresolved differential evidence exits 3, not a cheating finding')
   .option('--sarif', 'output SARIF 2.1.0 JSON to stdout')
   .option('--dynamic', 'run isolated extra checks using the project tests (opt-in)')
   .option('--dynamic-timeout <ms>', 'overall dynamic budget in milliseconds (default 60000)')
@@ -87,7 +91,11 @@ program
   .option('--explain <id>', 'print the full explanation for a verifier ID and exit, no diff analysis')
   .option('--fix', 'with --explain, print what an honest fix looks like instead of the rule description')
   .option('--markdown <file>', 'also write a Markdown summary to this file, e.g. --markdown "$GITHUB_STEP_SUMMARY"')
-  .action(async (pathArg: string | undefined, options: { dynamic?: boolean; dynamicTimeout?: string; staged?: boolean; uncommitted?: boolean; base?: string; ci?: boolean; json?: boolean; ai?: boolean; sarif?: boolean; rules?: string; wi?: boolean; allChecks?: boolean; explain?: string; fix?: boolean; markdown?: string }) => {
+  .action(async (pathArg: string | undefined, options: { resultJson?: boolean; requireDynamic?: boolean; dynamic?: boolean; dynamicTimeout?: string; staged?: boolean; uncommitted?: boolean; base?: string; ci?: boolean; json?: boolean; ai?: boolean; sarif?: boolean; rules?: string; wi?: boolean; allChecks?: boolean; explain?: string; fix?: boolean; markdown?: string }) => {
+    if ((options.resultJson && (options.json || options.sarif || options.explain)) || (options.requireDynamic && options.explain)) {
+      process.stderr.write('proctor: --result-json cannot combine with --json, --sarif or --explain; --require-dynamic cannot combine with --explain\n');
+      process.exitCode = 3; return;
+    }
     if (options.fix && !options.explain) {
       process.stderr.write('proctor: --fix only applies with --explain, e.g. proctor check --explain RH001 --fix\n');
       process.exit(2);
@@ -223,30 +231,43 @@ program
       findings = await runChecks(ctx);
     } catch (err) {
       process.stderr.write('proctor: check failed: ' + String(err) + '\n');
+      if (options.resultJson) {
+        const reason = `Static checks did not complete: ${String(err)}`;
+        const evidence = { ...verificationEvidence(), status: 'incomplete' as const, reasons: [reason] };
+        process.stdout.write(resultReport([], ctx.enabled, evidence, options.requireDynamic === true, 3, reason) + '\n');
+      }
       // Distinct from a finding (2) and a warning (1). The pre-commit hook propagates this and
       // therefore fails closed; the Claude Stop hook deliberately blocks only on 2 and retains
       // its documented fail-open policy for infrastructure failures.
       process.exitCode = 3;
       return;
     }
-    if (options.dynamic || ctx.dynamic === true) {
+    let dynamicResult: DynamicResult | undefined;
+    if (options.dynamic || options.requireDynamic || ctx.dynamic === true) {
       const { runDynamic } = await import('./dynamic/runner.js');
       const dynamic = await runDynamic({
         cwd, workerPath: fileURLToPath(new URL('./dynamic-worker.js', import.meta.url)),
         base: options.base, staged: options.staged, files, testPathGlobs: ctx.testPathGlobs,
         timeoutMs: options.dynamicTimeout !== undefined ? Number(options.dynamicTimeout) : ctx.dynamicTimeoutMs,
       });
+      dynamicResult = dynamic;
       findings.push(...dynamic.findings);
       process.stderr.write(dynamic.status === 'skipped'
         ? `dynamic: skipped, ${dynamic.reason}\n`
         : `dynamic: completed, ${dynamic.runs.length} runs, ${dynamic.findings.length} findings, ${dynamic.elapsedMs}ms\n`);
       for (const note of dynamic.notes) process.stderr.write(`dynamic: ${note}\n`);
     }
+    const verification = verificationEvidence(dynamicResult);
+    const exitCode = checkExitCode(findings, options.ci === true, options.requireDynamic === true, verification);
+    const receipt = buildReceipt(findings, new Date(), verification);
+    if (verification.status === 'incomplete' || verification.status === 'review-required') {
+      process.stderr.write(`verification: ${verification.status}: ${verification.reasons.join('; ')}. No verified-clean or honesty claim.\n`);
+    }
     if (options.markdown) {
       // Appended, not overwritten: $GITHUB_STEP_SUMMARY is shared by every step in the job, so
       // truncating it would erase whatever ran before proctor.
       try {
-        await appendFile(options.markdown, markdownReport(findings) + '\n', 'utf8');
+        await appendFile(options.markdown, markdownReport(findings).replace('No test tampering found.', verification.status === 'incomplete' || verification.status === 'review-required' ? 'No findings from completed checks; requested verification is not clear.' : 'No test tampering found.') + (dynamicResult ? `\nVerification: ${verification.status}. ${verification.reasons.join('; ')}\n${verification.limits}\n` : '') + '\n', 'utf8');
       } catch (err) {
         // Reported, not swallowed. A summary that silently fails to write looks identical to a
         // clean run, which is the exact confusion this option exists to remove. It does not
@@ -255,20 +276,21 @@ program
       }
     }
     if (options.sarif) {
-      const sarif = sarifReport(findings);
-      const hasError = findings.some(f => f.severity === 'error');
-      const hasWarn = findings.some(f => f.severity === 'warn' && !['DY002', 'DY004'].includes(f.verifierId));
+      const sarif = sarifReport(findings, dynamicResult ? verification : undefined);
       await new Promise<void>((resolve) => {
         process.stdout.write(sarif + '\n', () => {
           // Same --ci contract as the non-SARIF path below: warnings only affect the exit
           // code when --ci is not set.
-          process.exitCode = hasError ? 2 : hasWarn && !options.ci ? 1 : 0;
+          process.exitCode = exitCode;
           resolve();
         });
       });
       return;
     }
-    const receipt = buildReceipt(findings);
+    if (options.resultJson) {
+      process.stdout.write(resultReport(findings, ctx.enabled, verification, options.requireDynamic === true, exitCode) + '\n');
+      process.exitCode = exitCode; return;
+    }
     if (options.json) {
       process.stdout.write(jsonReport(findings) + '\n');
       prettyReport(findings, { stream: process.stderr, ci: options.ci });
@@ -277,13 +299,10 @@ program
       prettyReport(findings, { stream: process.stdout, ci: options.ci });
       if (receipt.status === 'honest-pass' && receipt.approvedCount === 0 && !options.ci) process.stdout.write(badgeLine(receipt) + '\n');
     }
-    const hasError = findings.some(f => f.severity === 'error');
-    // Probe and mutation warnings are advisory, including outside CI. Other exit behavior is unchanged.
-    const hasWarn = findings.some(f => f.severity === 'warn' && !['DY002', 'DY004'].includes(f.verifierId));
     // Set exitCode and return (rather than process.exit) so pending stdout pipe writes drain
     // before the process ends, same hazard the SARIF branch above guards against.
     // Under --ci, warnings do not affect the exit code ("exit nonzero on error only").
-    process.exitCode = hasError ? 2 : hasWarn && !options.ci ? 1 : 0;
+    process.exitCode = exitCode;
   });
 
 program
@@ -571,7 +590,14 @@ program
     }
     const ctx = await buildContext(cwd, files, { configRef: 'HEAD' });
     ctx.files = classifyDiff(raw, files, ctx.isTestFile).accepted;
-    const receipt = buildReceipt(await runChecks(ctx));
+    const findings = await runChecks(ctx);
+    let dynamicResult: DynamicResult | undefined;
+    if (ctx.dynamic === true) {
+      const { runDynamic } = await import('./dynamic/runner.js');
+      dynamicResult = await runDynamic({ cwd, workerPath: fileURLToPath(new URL('./dynamic-worker.js', import.meta.url)), staged: options.staged, files: ctx.files, testPathGlobs: ctx.testPathGlobs, timeoutMs: ctx.dynamicTimeoutMs });
+      findings.push(...dynamicResult.findings);
+    }
+    const receipt = buildReceipt(findings, new Date(), verificationEvidence(dynamicResult));
     process.stdout.write((options.url ? badgeUrl(receipt) : badgeMarkdown(receipt)) + '\n');
   });
 

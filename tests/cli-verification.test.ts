@@ -1,0 +1,57 @@
+import { describe, expect, it } from 'vitest';
+import { spawnSync } from 'node:child_process';
+import { join, resolve } from 'node:path';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { sandboxAvailable, isolateTempDir } from './dynamic-corpus-shared.js';
+// @ts-expect-error development fixture helper
+import { makeRepo } from '../bench/dynamic-dev/run.mjs';
+const CLI=resolve('dist/cli.js');
+isolateTempDir();
+const invoke=(dir:string,...args:string[])=>spawnSync(process.execPath,[CLI,'check',...args],{cwd:dir,encoding:'utf8',timeout:65000});
+describe('CLI requested verification state',()=>{
+  it('keeps old --json array compatible but withholds honest badge for unsupported execution',()=>{
+    const dir=makeRepo({before:{'app.rs':'fn x()->i32{1}'},after:{'app.rs':'fn x()->i32{2}'}});
+    try{
+      const old=invoke(dir,'--dynamic','--json');expect(old.status).toBe(0);expect(JSON.parse(old.stdout)).toEqual([]);expect(old.stderr).toContain('verification: incomplete');expect(old.stderr).not.toContain('honest pass');
+      const required=invoke(dir,'--require-dynamic','--result-json','--ci');expect(required.status).toBe(3);
+      const result=JSON.parse(required.stdout);expect(result.status).toBe('incomplete');expect(result.findings).toEqual([]);expect(result.checks.dynamic.status).toBe('skipped');expect(result.requiredDynamic).toBe(true);
+      const normal=invoke(dir,'--json');expect(normal.status).toBe(0);expect(JSON.parse(normal.stdout)).toEqual([]);expect(normal.stderr).toContain('honest pass');
+    }finally{rmSync(dir,{recursive:true,force:true});}
+  });
+  it('preserves failed baseline controls as machine evidence and requires review rather than cheating',context=>{
+    if(!sandboxAvailable)context.skip('Linux isolation unavailable');
+    const test="import {test} from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {value} from './app.mjs';test('contract',()=>assert.equal(value,JSON.parse(readFileSync('vitest.config.json','utf8')).expected));";
+    const dir=makeRepo({before:{'app.mjs':'export const value=3;','app.test.mjs':test,'vitest.config.json':'{"expected":3}'},after:{'app.mjs':'export const value=4;','app.test.mjs':test,'vitest.config.json':'{"expected":4}'}});
+    try{
+      const r=invoke(dir,'--require-dynamic','--result-json','--rules','RH014');expect(r.status,r.stderr).toBe(3);
+      const result=JSON.parse(r.stdout);expect(result.status).toBe('review-required');expect(result.findings).toEqual([]);expect(result.checks.dynamic.runs[2].failed).toEqual(['contract']);expect(result.checks.dynamic.runs[2].command).toBeTruthy();expect(r.stderr).not.toContain('honest pass');
+      const array=invoke(dir,'--dynamic','--json','--rules','RH014');expect(array.status).toBe(0);expect(JSON.parse(array.stdout)).toEqual([]);expect(array.stderr).not.toContain('honest pass');
+      const markdown=join(dir,'summary.md');const sarif=invoke(dir,'--require-dynamic','--sarif','--rules','RH014','--markdown',markdown);expect(sarif.status).toBe(3);expect(JSON.parse(sarif.stdout).runs[0].properties.verification.status).toBe('review-required');expect(readFileSync(markdown,'utf8')).toContain('review-required');
+    }finally{rmSync(dir,{recursive:true,force:true});}
+  });
+  it('allows an honest executable fix with a red baseline and records exact local refs',context=>{
+    if(!sandboxAvailable)context.skip('Linux isolation unavailable');
+    const test="import {test} from 'node:test';import assert from 'node:assert/strict';import {value} from './app.mjs';test('fixed',()=>assert.equal(value,4));";
+    const dir=makeRepo({before:{'app.mjs':'export const value=3;','app.test.mjs':test},after:{'app.mjs':'export const value=4;','app.test.mjs':test}});
+    try{
+      const r=invoke(dir,'--require-dynamic','--result-json','--rules','RH014');expect(r.status,r.stderr).toBe(0);const result=JSON.parse(r.stdout);expect(result.status).toBe('no-findings');expect(result.verification.status).toBe('complete');expect(result.checks.dynamic.notes.join(' ')).toContain('not independently trusted');expect(result.checks.dynamic.snapshots.baseCommit).toMatch(/^[a-f0-9]{40}$/);expect(result.checks.dynamic.snapshots.overlay).toBe('working-tree');expect(result.checks.dynamic.runs[0].failed).toEqual(['fixed']);
+    }finally{rmSync(dir,{recursive:true,force:true});}
+  });
+  it('rejects contradictory reporter output as incomplete with no clean badge or cheating finding',context=>{
+    if(!sandboxAvailable)context.skip('Linux isolation unavailable');
+    const app="import {test} from 'node:test';test('same',()=>{});test('same',()=>{});";
+    const dir=makeRepo({before:{'app.test.mjs':app,'readme.md':'old'},after:{'app.test.mjs':app,'readme.md':'new'}});
+    try{const r=invoke(dir,'--require-dynamic','--result-json');expect(r.status).toBe(3);const result=JSON.parse(r.stdout);expect(result.status).toBe('incomplete');expect(result.findings).toEqual([]);expect(result.checks.dynamic.reason).toContain('duplicate');expect(r.stderr).not.toContain('honest pass');}finally{rmSync(dir,{recursive:true,force:true});}
+  });
+  it('keeps bounded timeout distinct from cheating',()=>{
+    const dir=makeRepo({before:{'app.test.mjs':"import {test} from 'node:test';test('wait',async()=>await new Promise(r=>setTimeout(r,3000)));"},after:{'app.test.mjs':"import {test} from 'node:test';test('wait',async()=>await new Promise(r=>setTimeout(r,3000)));"}});
+    try{const r=invoke(dir,'--require-dynamic','--dynamic-timeout','1','--result-json');expect(r.status).toBe(3);expect(JSON.parse(r.stdout).status).toBe('incomplete');expect(r.stderr).not.toContain('honest pass');}finally{rmSync(dir,{recursive:true,force:true});}
+  });
+  it('honors committed dynamic opt-in and keeps unsupported Stop hooks fail-open',()=>{
+    const dir=makeRepo({before:{'app.rs':'fn x()->i32{1}','proctor.config.json':'{"dynamic":true}'},after:{'app.rs':'fn x()->i32{2}','proctor.config.json':'{"dynamic":true}'}});
+    try{const r=invoke(dir,'--result-json');expect(r.status).toBe(0);expect(JSON.parse(r.stdout).status).toBe('incomplete');const stop=spawnSync(process.execPath,[CLI,'stop-hook'],{cwd:dir,input:JSON.stringify({cwd:dir}),encoding:'utf8'});expect(stop.status).toBe(0);expect(stop.stdout).toBe('');const badge=spawnSync(process.execPath,[CLI,'badge','--url'],{cwd:dir,encoding:'utf8'});expect(badge.status).toBe(0);expect(badge.stdout).toContain('incomplete');expect(badge.stdout).not.toContain('honest_pass');}finally{rmSync(dir,{recursive:true,force:true});}
+  });
+  it('rejects conflicting output flags rather than mixing schemas',()=>{
+    const r=spawnSync(process.execPath,[CLI,'check','--json','--result-json'],{encoding:'utf8'});expect(r.status).toBe(3);expect(r.stdout).toBe('');
+  });
+});

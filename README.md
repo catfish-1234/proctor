@@ -514,6 +514,13 @@ check keeps its existing output and runs no project tests. You can also commit
 `{"dynamic": true, "dynamicTimeoutMs": 60000}` in `proctor.config.json`. Use
 `--dynamic-timeout 30000` to override the overall budget in milliseconds.
 
+Cross-runs pair original tests with a bounded set of baseline runner controls (Jest/Vitest
+config files, pytest/unittest config and conftest.py), including restored deletions and removed
+additions. Config changes trigger a separate baseline-controlled run even when tests are unchanged;
+its failures are diagnostic evidence, not a cheating finding. Snapshot notes identify resolved
+Git commit hashes, not trusted sources. Custom setup modules, installed dependencies and the runner
+itself are not authenticated by these snapshots. Legitimate API/config changes can change results.
+
 Dynamic test reports are project-controlled evidence, not authenticated proof that a test ran.
 Duplicate identities, contradictory counts or streams, truncated reports and unsafe/missing JUnit
 artifacts make the run inconclusive (`dynamic: skipped`, with a reason), not a cheating finding.

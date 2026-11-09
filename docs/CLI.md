@@ -164,6 +164,33 @@ the [Gemini hooks contract](https://geminicli.com/docs/hooks/reference/#afterage
 It reads staged, unstaged, and untracked changes. It allows the turn outside a git repository,
 during a merge, rebase, cherry-pick, or revert, or if proctor errors or takes longer than 60 seconds.
 
+#### `--format antigravity`
+
+For the Antigravity CLI Stop hook (`antigravity-plugin/`). Takes the repo from `workspacePaths[0]`
+and returns `{"decision":"block","reason":"..."}`. It never skips on `executionNum`: every Stop
+re-checks and re-blocks while a finding remains, up to a per-conversation budget (default 5).
+
+| Environment variable | What it does |
+|------|--------------|
+| `PROCTOR_STOP_HOOK_BLOCK_BUDGET` | consecutive blocks per conversation, integer 1-50 (default 5) |
+| `PROCTOR_STOP_HOOK_MODE` | `enforce` (default) records unresolved findings when the budget runs out; `advisory` opts out of the record |
+
+### `proctor unresolved`
+
+Shows findings an agent left unresolved after the Stop-hook budget ran out (stored in
+`proctor/unresolved.json` inside the worktree's git directory). Exits 0 when none, 2 when
+unresolved, 3 when the record is unreadable.
+
+| Flag | What it does |
+|------|--------------|
+| `--verify` | run a fresh complete check (working tree against HEAD, and commits since the finding's baseline) and clear the record only if both pass |
+| `--gate` | quiet `--verify` for the pre-commit hook: 0 clean or none, 2 findings remain, 3 could not verify |
+
+`proctor unresolved` also reports whether this worktree's pre-commit hook has the gate; hooks written by older versions do not, so rerun `proctor install-hook` (a foreign hook is backed up to `pre-commit.bak`). Findings are redacted for credential-looking literals before storage. If another process records a finding while `--verify` runs, that record is kept. Only `--verify` and `--gate` clear the record. A check that errors, or a baseline commit that no
+longer exists, is reported as unverified and keeps the record. It is local feedback: anyone with
+write access to the git directory can remove it, and `git commit --no-verify` skips the gate. Use
+`proctor check --base <ref>` in CI, outside the agent's control, as the independent check.
+
 ### `proctor install-claude-hook`
 
 Wires the Stop hook into a project's `.claude/settings.json`.

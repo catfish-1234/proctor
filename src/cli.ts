@@ -20,10 +20,11 @@ import { deploySkill, uninstallProctor } from './adapters/deploy.js';
 import { loadTaskPool } from './bench/tasks.js';
 import { runBench } from './bench/index.js';
 import { installPreCommitHook } from './hooks/pre-commit.js';
+import { readUnresolved, recordUnresolved, verifyUnresolved, cliCheckRunner, commitGateInstalled } from './hooks/unresolved.js';
 import { installStopHook } from './hooks/claude-settings.js';
 import { installCodexStopHook } from './hooks/codex-hooks.js';
 import { installGeminiAfterAgentHook } from './hooks/gemini-hooks.js';
-import { parseStopHookInput, runStopHookCheck, formatStopHookResult, type StopHookFormat } from './hooks/stop-hook.js';
+import { parseStopHookInput, runStopHookCheck, formatStopHookResult, decideBlockBudget, readBudget, writeBudget, stopHookPolicy, type StopHookFormat } from './hooks/stop-hook.js';
 import { APPROVAL_GUIDANCE, RULE_METADATA } from './rules.js';
 import { buildReceipt } from './receipt.js';
 import { badgeLine, badgeUrl, badgeMarkdown } from './badge/index.js';
@@ -294,17 +295,70 @@ program
   });
 
 program
+  .command('unresolved')
+  .description('Show or verify findings an agent left unresolved after its Stop-hook block budget ran out')
+  .option('--verify', 'run a fresh complete check (working tree and commits since the finding) and clear the record only if it passes')
+  .option('--gate', 'like --verify, quiet; exit 0 when clean or absent, 2 when findings remain, 3 when it could not be verified (used by the pre-commit hook)')
+  .action((options: { verify?: boolean; gate?: boolean }) => {
+    const cwd = process.cwd();
+    if (!options.verify && !options.gate) {
+      const state = readUnresolved(cwd);
+      if (state.state === 'none') { process.stdout.write('No unresolved findings recorded for this worktree.\n'); return; }
+      if (state.state === 'corrupt') {
+        process.stdout.write(`UNVERIFIED: ${state.path} is ${state.reason}. Review it; proctor will not treat it as clean.\n`);
+        process.exitCode = 3;
+        return;
+      }
+      const r = state.record;
+      const gate = commitGateInstalled(cwd)
+        ? 'Commit gate: installed.'
+        : "Commit gate: NOT installed in this worktree's pre-commit hook. Run 'proctor install-hook' to add it (an existing hook from another tool is backed up to pre-commit.bak, not silently overwritten; merge it by hand). Hooks installed by older proctor versions do not have it.";
+      process.stdout.write(`${gate}\n`);
+      process.stdout.write(`UNRESOLVED since ${r.firstSeenAt} (${r.occurrences} exhausted stop(s), last ${r.lastSeenAt}, source ${r.source}).\nBaseline: ${r.baseHead ?? 'none (no commits)'}\nOriginal finding:\n${r.originalFindings}\nRun 'proctor unresolved --verify' after fixing. This record is local feedback and can be removed by anyone with write access to the git directory; CI on the pushed diff is the independent check.\n`);
+      process.exitCode = 2;
+      return;
+    }
+    const result = verifyUnresolved(cwd, cliCheckRunner(process.argv[1] ?? ''));
+    if (result.status === 'none') { if (!options.gate) process.stdout.write('No unresolved findings recorded.\n'); return; }
+    if (result.status === 'cleared') { if (!options.gate) process.stdout.write('Fresh complete check passed; unresolved record cleared.\n'); return; }
+    process.stderr.write(`proctor: ${result.status === 'unresolved' ? 'UNRESOLVED findings from an earlier agent turn remain' : 'could NOT verify the unresolved record'}: ${result.detail}. Run 'proctor unresolved' for details.\n`);
+    process.exitCode = result.status === 'unresolved' ? 2 : 3;
+  });
+
+program
   .command('stop-hook')
   .description('Stop/AfterAgent hook: reads stdin JSON and blocks on error findings')
-  .addOption(new Option('--format <format>', 'Stop hook protocol').choices(['claude', 'codex', 'gemini']).default('claude'))
+  .addOption(new Option('--format <format>', 'Stop hook protocol').choices(['claude', 'codex', 'gemini', 'antigravity']).default('claude'))
   .action(async (options: { format: StopHookFormat }) => {
     try {
       const raw = await readStdin();
-      const { cwd, skip } = parseStopHookInput(raw, process.cwd(), options.format);
+      const { cwd, skip, conversationId, executionNum } = parseStopHookInput(raw, process.cwd(), options.format);
       if (skip) return;
-      const { exitCode, output } = formatStopHookResult(
-        runStopHookCheck(cwd, process.argv[1] ?? ''), options.format
-      );
+      const check = runStopHookCheck(cwd, process.argv[1] ?? '');
+      if (options.format === 'antigravity' && conversationId !== undefined) {
+        // No stop_hook_active here: every Stop re-checks, and a bounded counter (not the retry
+        // count itself) decides when an unresolvable finding stops blocking.
+        if (check.exitCode !== 2) { writeBudget(conversationId, undefined); return; }
+        const policy = stopHookPolicy(process.env);
+        const budget = decideBlockBudget(readBudget(conversationId), executionNum, policy.budget);
+        writeBudget(conversationId, budget.next);
+        if (!budget.block) {
+          if (policy.mode === 'advisory') {
+            process.stderr.write('proctor: block budget exhausted (advisory mode); findings remain unresolved and nothing was recorded\n');
+            return;
+          }
+          const written = recordUnresolved({ cwd, source: 'antigravity-stop-hook', conversationId, findings: check.output, blockBudget: policy.budget });
+          if (written) {
+            process.stderr.write(`proctor: block budget exhausted; findings remain UNRESOLVED and are recorded at ${written}. Run 'proctor unresolved' to review. This is local feedback, not a tamper-proof gate; pre-commit hooks from older proctor versions lack the commit gate until 'proctor install-hook' is rerun.\n`);
+          } else {
+            // Never a silent drop: a finding that could not be persisted is unverified, not clear.
+            process.stderr.write('proctor: block budget exhausted; findings remain UNRESOLVED and could NOT be recorded (lock contention or unwritable git directory). Treat the finding as UNVERIFIED: re-run proctor check and review with proctor unresolved.\n');
+            process.exitCode = 1;
+          }
+          return;
+        }
+      }
+      const { exitCode, output } = formatStopHookResult(check, options.format);
       if (options.format !== 'claude') {
         if (output) process.stdout.write(output + '\n');
         // Let stdout drain: truncating the JSON would make the harness reject the response.

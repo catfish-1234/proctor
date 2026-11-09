@@ -7,6 +7,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Add Antigravity CLI Stop-hook enforcement via `proctor stop-hook --format antigravity` and an
+  installable `antigravity-plugin/`. The Stop payload has no `stop_hook_active`, so every Stop
+  re-checks the diff and re-blocks, up to a per-conversation budget (default 5, set with
+  `PROCTOR_STOP_HOOK_BLOCK_BUDGET`). When the budget runs out the finding is recorded as
+  unresolved in the worktree's git directory; `proctor unresolved` shows it and
+  `proctor unresolved --verify` clears it only after a fresh complete check (working tree plus
+  commits since the finding). The pre-commit hook gates on it. `PROCTOR_STOP_HOOK_MODE=advisory`
+  is an explicit opt-in that skips the record. This is bounded local feedback, not tamper-proof:
+  keep `proctor check --base` in CI, run outside the agent's control. Verified live on agy 1.5.3.
 - Add Gemini CLI AfterAgent enforcement via `proctor stop-hook --format gemini`, reusing the
   Codex check pipeline. Blocking findings return exit-0 deny JSON with correction feedback;
   clean checks, loop-guard skips, malformed input, and internal failures silently allow.

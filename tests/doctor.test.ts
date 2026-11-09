@@ -220,7 +220,7 @@ describe('proctor doctor server verification', () => {
     expect(result.stdout).toContain('evaluate mode (logged, NOT enforced)');
     expect(result.stdout).toMatch(/CONFIGURED\s+Review requirement \(server\)/);
     expect(result.stdout).toContain('Bypass actors');
-    expect(result.stdout).toContain('repository role Admin');
+    expect(result.stdout).toContain('repository role id 5');
   });
 
   it('--offline skips all network access and reports unverified', async () => {

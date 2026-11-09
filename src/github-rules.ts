@@ -91,8 +91,6 @@ export type ProtectionResult =
   | { kind: 'ok'; protection: BranchProtection }
   | { kind: 'unavailable'; reason: string };
 
-const REPOSITORY_ROLE_NAMES: Record<number, string> = { 2: 'Maintain', 4: 'Write', 5: 'Admin' };
-
 interface RawRule {
   type?: string;
   parameters?: Record<string, unknown>;
@@ -107,7 +105,7 @@ interface RawBypassActor {
 function describeBypassActor(actor: RawBypassActor): string {
   if (!actor || typeof actor !== 'object') return 'unknown actor type';
   if (actor.actor_type === 'RepositoryRole') {
-    return `repository role ${REPOSITORY_ROLE_NAMES[actor.actor_id ?? -1] ?? `id ${actor.actor_id}`}`;
+    return `repository role id ${actor.actor_id ?? "unknown"}`;
   }
   return actor.actor_type ?? 'unknown actor type';
 }
@@ -319,8 +317,8 @@ export async function fetchBranchProtection(opts: FetchProtectionOptions): Promi
       };
       const contexts = Array.isArray(body.required_status_checks?.contexts) ? body.required_status_checks!.contexts! : [];
       for (const c of contexts) if (typeof c === 'string' && c && !requiredContexts.includes(c)) requiredContexts.push(c);
-      if (body.required_pull_request_reviews && !reviewRule) {
-        reviewRule = {
+      if (body.required_pull_request_reviews) {
+        const classicReview: ReviewRule = {
           requiredApprovals:
             typeof body.required_pull_request_reviews.required_approving_review_count === 'number'
               ? body.required_pull_request_reviews.required_approving_review_count
@@ -328,7 +326,17 @@ export async function fetchBranchProtection(opts: FetchProtectionOptions): Promi
           requiresCodeOwnerReview: body.required_pull_request_reviews.require_code_owner_reviews === true,
           requiresApprovalForUnattributedChanges: false,
         };
+        reviewRule = {
+          requiredApprovals: Math.max(reviewRuleEnforced ? (reviewRule as ReviewRule | null)?.requiredApprovals ?? 0 : 0, classicReview.requiredApprovals),
+          requiresCodeOwnerReview: (reviewRuleEnforced && (reviewRule as ReviewRule | null)?.requiresCodeOwnerReview === true) || classicReview.requiresCodeOwnerReview,
+          requiresApprovalForUnattributedChanges: reviewRuleEnforced && (reviewRule as ReviewRule | null)?.requiresApprovalForUnattributedChanges === true,
+        };
         reviewRuleEnforced = true;
+      }
+      // Partial/malformed bodies can establish positive observations, never complete absence.
+      if (!Object.hasOwn(body, 'required_status_checks') || !Object.hasOwn(body, 'required_pull_request_reviews') ||
+          typeof body.allow_deletions?.enabled !== 'boolean' || typeof body.allow_force_pushes?.enabled !== 'boolean') {
+        classicProtectionUnreadable = true;
       }
       if (body.allow_deletions?.enabled === false) deletionProtected = true;
       if (body.allow_force_pushes?.enabled === false) forcePushProtected = true;

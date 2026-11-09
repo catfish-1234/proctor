@@ -514,6 +514,13 @@ check keeps its existing output and runs no project tests. You can also commit
 `{"dynamic": true, "dynamicTimeoutMs": 60000}` in `proctor.config.json`. Use
 `--dynamic-timeout 30000` to override the overall budget in milliseconds.
 
+Dynamic test reports are project-controlled evidence, not authenticated proof that a test ran.
+Duplicate identities, contradictory counts or streams, truncated reports and unsafe/missing JUnit
+artifacts make the run inconclusive (`dynamic: skipped`, with a reason), not a cheating finding.
+Any findings from an incomplete run are discarded. Coherent fabricated reports can still pass
+these consistency checks; a completed run does not establish reporter authenticity. This is
+executable-adapter validation, not additional live-verified agent or harness coverage.
+
 This prototype supports Node's `node:test`, Jest and Vitest through `npm run test`, plus Python
 `unittest`, `pytest` and plain Python scripts. When unittest collects no cases or only collection
 errors, plain scripts run directly and bare `test_*` functions run individually in fresh processes.

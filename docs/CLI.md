@@ -77,6 +77,13 @@ directory instead of the current one, which is useful when proctor is driving an
 | `--fix` | with `--explain`, print what an honest fix for that check looks like |
 | `--markdown <file>` | also append a Markdown summary to this file, e.g. `--markdown "$GITHUB_STEP_SUMMARY"` |
 
+Dynamic test reports are project-controlled evidence, not authenticated proof that a test ran.
+Duplicate identities, contradictory counts or streams, truncated reports and unsafe/missing JUnit
+artifacts make the run inconclusive (`dynamic: skipped`, with a reason), not a cheating finding.
+Any findings from an incomplete run are discarded. Coherent fabricated reports can still pass
+these consistency checks; a completed run does not establish reporter authenticity. This is
+executable-adapter validation, not additional live-verified agent or harness coverage.
+
 Exit codes: `0` means no warning or error findings, `1` means warnings only, `2` means at least one error
 was found, and `3` means Proctor itself failed before it could complete the check. With `--ci`,
 warnings exit `0` and remain in machine-readable reports and Markdown. Invalid arguments can

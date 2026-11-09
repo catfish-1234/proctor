@@ -25,8 +25,8 @@ const tree = (files: Record<string, string>): Snapshot => new Map(Object.entries
 isolateTempDir();
 
 describe('dynamic result parsing and conservative signals', () => {
-  it('keeps named TAP results and drops skipped, TODO and ambiguous names', () => {
-    expect(parseResults('tap', 'ok 1 - good\nnot ok 2 - bad\nok 3 - omitted # SKIP no service\nnot ok 4 - planned # TODO soon\nok 5 - duplicate\nok 6 - duplicate\n', '')).toEqual({ passed: ['good'], failed: ['bad'] });
+  it('keeps named TAP results and drops skipped and TODO outcomes', () => {
+    expect(parseResults('tap', 'ok 1 - good\nnot ok 2 - bad\nok 3 - omitted # SKIP no service\nnot ok 4 - planned # TODO soon\n', '')).toEqual({ passed: ['good'], failed: ['bad'] });
   });
   it.each(['jest', 'vitest'] as const)('parses %s JSON with script preamble', kind => {
     const data = { testResults: [{ assertionResults: [{ fullName: 'suite works', status: 'passed' }, { fullName: 'suite fails', status: 'failed' }, { fullName: 'skip', status: 'pending' }] }] };
@@ -142,6 +142,16 @@ describe('dynamic probe and mutation extensions', () => {
       const r = await dynamic(dir);
       expect(r.status).toBe('skipped'); expect(r.findings).toEqual([]);
       if (sandboxAvailable) expect(r.reason).toContain('duplicate Python function names');
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+  it('returns incomplete reporter evidence as skipped/inconclusive with no cheating finding', async () => {
+    const before = { 'app.test.mjs': "import {test} from 'node:test';\ntest('same',()=>{});\ntest('same',()=>{});\n" };
+    const dir = makeRepo({ before, after: before });
+    try {
+      const r = await dynamic(dir);
+      expect(r.status).toBe('skipped');
+      expect(r.findings).toEqual([]);
+      if (sandboxAvailable) expect(r.reason).toContain('inconclusive: duplicate');
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
   it('distinguishes the same bare function name in different Python files', async context => {

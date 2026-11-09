@@ -13,15 +13,18 @@ export interface ParsedStopHookInput {
   skip: boolean;
 }
 
-/** Pure: parses the Claude Code or Codex Stop hook's stdin JSON. No I/O. */
-export function parseStopHookInput(raw: string, fallbackCwd: string): ParsedStopHookInput {
+/** Pure: parses Stop/AfterAgent stdin JSON. Gemini allows malformed input without checking. */
+export function parseStopHookInput(raw: string, fallbackCwd: string, format: StopHookFormat = 'claude'): ParsedStopHookInput {
   try {
     const input = JSON.parse(raw) as StopHookInput;
+    if (format === 'gemini' && (typeof input !== 'object' || input === null || Array.isArray(input))) {
+      return { cwd: fallbackCwd, skip: true };
+    }
     if (input.stop_hook_active === true) return { cwd: fallbackCwd, skip: true };
     const cwd = typeof input.cwd === 'string' && input.cwd.length > 0 ? input.cwd : fallbackCwd;
     return { cwd, skip: false };
   } catch {
-    return { cwd: fallbackCwd, skip: false };
+    return { cwd: fallbackCwd, skip: format === 'gemini' };
   }
 }
 
@@ -30,14 +33,14 @@ export interface StopHookResult {
   output: string;
 }
 
-export type StopHookFormat = 'claude' | 'codex';
+export type StopHookFormat = 'claude' | 'codex' | 'gemini';
 
-/** Codex blocks via JSON on stdout with exit 0, and requires silence for an allowed turn. */
+/** Codex and Gemini block via JSON on stdout with exit 0, and require silence to allow. */
 export function formatStopHookResult(result: StopHookResult, format: StopHookFormat): StopHookResult {
   if (format === 'claude') return result;
   return {
     exitCode: 0,
-    output: result.exitCode === 2 ? JSON.stringify({ decision: 'block', reason: result.output }) : '',
+    output: result.exitCode === 2 ? JSON.stringify({ decision: format === 'gemini' ? 'deny' : 'block', reason: result.output }) : '',
   };
 }
 

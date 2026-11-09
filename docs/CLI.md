@@ -7,7 +7,8 @@ You can also run `proctor --help` or `proctor <command> --help`.
 
 Detects the agents in this repository, writes their rulesets, and installs the git pre-commit
 hook. If Claude Code or Codex CLI is among the selected agents, it also installs that agent's
-Stop hook in `.claude/settings.json` or `.codex/hooks.json`, respectively.
+Stop hook in `.claude/settings.json` or `.codex/hooks.json`, respectively. For Gemini CLI, it
+installs an AfterAgent hook in `.gemini/settings.json`.
 
 ```bash
 proctor setup
@@ -23,11 +24,15 @@ Codex requires both project trust (the interactive prompt, or `trust_level = "tr
 hooks (the prompt or `/hooks` in the CLI). Project-local hooks are silently ignored until the
 project is trusted, and require hook approval before they run.
 
+Gemini CLI hooks are enabled by default since v0.26.0. Gemini fingerprints project hooks and
+warns before running new or changed hooks. Review the one-time trust prompt and manage hooks
+with the `/hooks` panel command.
+
 **How detection works.** An agent counts as in use when its own config file or directory is already
 in the repository: `.cursor/` for Cursor, `.claude/` or `CLAUDE.md` for Claude Code, `WARP.md` for
-Warp, and so on. Run `proctor agents` to see the full list and what was detected. A repository with
-no agent config at all gets `AGENTS.md`, the cross-vendor standard, so whatever you pick up later
-still reads the ruleset.
+Warp, `.gemini/` or `GEMINI.md` for Gemini CLI, and so on. Run `proctor agents` to see the full
+list and what was detected. A repository with no agent config at all gets `AGENTS.md`, the
+cross-vendor standard, so whatever you pick up later still reads the ruleset.
 
 By default, setup writes rulesets only for detected agents. Use `--all` for the full roster.
 
@@ -36,7 +41,7 @@ By default, setup writes rulesets only for detected agents. Use `--all` for the 
 | `--all` | write to all 30 supported agents, not only the detected ones |
 | `--agents <ids>` | install to exactly these agent ids, e.g. `claude-code,cursor` |
 
-Running it again is safe. Shared instruction files are merged rather than overwritten, and a Stop
+Running it again is safe. Shared instruction files are merged rather than overwritten, and an agent
 hook that is already present is left alone. If one part cannot proceed (no git repository, a
 settings file that is not valid JSON, an unwritable path) it says so, still completes the others,
 and exits nonzero.
@@ -107,11 +112,11 @@ Reads the hook payload from stdin and runs `check --uncommitted --ci`.
 
 | Flag | What it does |
 |------|--------------|
-| `--format <format>` | `claude` (default) keeps the Claude Code protocol: findings on stderr and exit `2` to block, never `1`. `codex` writes one JSON block decision on stdout and always exits `0` |
+| `--format <format>` | `claude` (default) keeps the Claude Code protocol: findings on stderr and exit `2` to block, never `1`. `codex` writes one JSON block decision on stdout and always exits `0`. `gemini` writes one JSON deny decision on stdout and always exits `0` |
 
 In Codex format, a blocking finding prints exactly `{"decision":"block","reason":"<finding output>"}`,
 with the complete finding output encoded as one string. A clean check or skip prints nothing.
-Both formats skip when the input has `stop_hook_active: true`, preventing a Stop loop, and use
+All formats skip when the input has `stop_hook_active: true`, preventing a retry loop, and use
 the session working directory when the payload omits `cwd`.
 
 ```bash
@@ -122,6 +127,39 @@ proctor stop-hook --format codex
 `.codex/hooks.json` with a 60-second timeout. Codex must trust the project and the new or changed
 hook must be reviewed via the prompt or `/hooks` before it runs. See the
 [Codex hooks contract](https://learn.chatgpt.com/docs/hooks.md).
+
+In Gemini format, AfterAgent receives one JSON object on stdin, including `prompt` (the original
+request), `prompt_response` (the final text), and `stop_hook_active` (the retry guard). The hook
+checks the diff rather than those text fields. A blocking finding prints exactly
+`{"decision":"deny","reason":"<finding output>"}` with exit `0`, so Gemini sends the finding
+feedback to the agent as a new correction prompt. It never uses `continue: false`, which would
+stop the session without retrying. Stdout contains only the final JSON object; plain text would
+break Gemini's parsing and allow the turn. Clean checks, loop-guard skips, malformed input, and
+internal failures produce no stdout or stderr and exit `0`.
+
+```bash
+proctor stop-hook --format gemini
+proctor setup --agents gemini-cli
+```
+
+Setup registers `npx @kavishdua/proctor stop-hook --format gemini` under `hooks.AfterAgent` in
+`.gemini/settings.json`, matching the scoped npm command convention used for Codex. The group
+uses `matcher: "*"`; its command has `name: "proctor"`, `type: "command"`, `timeout: 60000`
+(milliseconds), and `description: "Block AI test tampering before the turn ends"`. It preserves
+existing settings and hooks and leaves an already installed entry alone. Detected Gemini CLI
+targets, explicit `--agents gemini-cli`, and `--all` all install the hook. Setup prints the hook
+fingerprint/trust guidance and `/hooks` management command.
+
+The Gemini extension bundles the same protocol in `hooks/hooks.json`, as required by the
+[extension reference](https://geminicli.com/docs/extensions/reference/#hooks); hooks are not an
+inline manifest field. It invokes `node "${extensionPath}/dist/cli.js" stop-hook --format gemini`
+to use the shipped build without requiring a separate npm install. `gemini-extension.json`
+continues to load `PROCTOR.md` as context.
+
+Local verification covers deny feedback for a deleted test, silent clean/skip/malformed/error
+outcomes, setup/uninstall round-trips, and execution of the bundled extension command. Live
+Gemini CLI sessions were not exercised. AfterAgent timing and correction/retry semantics follow
+the [Gemini hooks contract](https://geminicli.com/docs/hooks/reference/#afteragent).
 
 It reads staged, unstaged, and untracked changes. It allows the turn outside a git repository,
 during a merge, rebase, cherry-pick, or revert, or if proctor errors or takes longer than 60 seconds.
@@ -163,8 +201,10 @@ detected  cursor                 .cursor/rules/proctor.mdc
 ### `proctor uninstall`
 
 Removes everything proctor installed in this repository: the ruleset files, the managed block in
-each shared file, the adapter manifest, the pre-commit hook, and the Claude Code and Codex Stop
-hook entries. Unrelated hooks and settings stay in place.
+each shared file, the adapter manifest, the pre-commit hook, the Claude Code and Codex Stop
+hook entries, and proctor's Gemini AfterAgent command. Unrelated hooks and settings stay in place,
+including commands in the same AfterAgent group. To remove the separately installed Gemini
+extension and its bundled hook, use `gemini extensions uninstall proctor`.
 
 | Flag | What it does |
 |------|--------------|

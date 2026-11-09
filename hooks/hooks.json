@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "AfterAgent": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "name": "proctor",
+            "type": "command",
+            "command": "node \"${extensionPath}/dist/cli.js\" stop-hook --format gemini",
+            "timeout": 60000,
+            "description": "Block AI test tampering before the turn ends"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -213,7 +213,9 @@ first, because this hook is local feedback, not a gate:
   `proctor unresolved --gate`, which blocks commits until a fresh complete check (working tree
   against HEAD plus every commit since the baseline) passes. Only that check clears it; a
   `--staged` or `--uncommitted` check alone never does, and an error or a missing baseline is
-  reported as "unverified", not as clean. The record is a file anyone with access to the git
+  reported as "unverified", not as clean. Credential-looking literals (tokens, keys, `password=`
+  values) are redacted from stored findings on a best-effort basis, and the harness-supplied
+  conversation id is sanitized and never used as a path. The record is a file anyone with access to the git
   directory can delete, and `git commit --no-verify` skips the hook, so this is not tamper-proof.
 - `PROCTOR_STOP_HOOK_MODE=advisory` is an explicit opt-in that allows the Stop after the budget
   without recording anything. The default is `enforce`.
@@ -237,6 +239,9 @@ The plugin's `Stop` hook runs `proctor stop-hook --format antigravity` and retur
 `{"decision":"block","reason":"<finding output>"}` when the uncommitted diff games the tests.
 `proctor setup` does not edit Antigravity settings; `agy plugin uninstall proctor` removes the
 plugin. Install the git hook with `proctor install-hook` to get the unresolved-findings gate.
+A pre-commit hook installed by an older proctor version does not have the gate: rerun
+`proctor install-hook` (a hook from another tool is backed up to `pre-commit.bak`, never silently
+overwritten, and you merge it by hand). `proctor unresolved` tells you whether the gate is installed.
 
 The hooks run checks automatically. A config file is optional.
 

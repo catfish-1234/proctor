@@ -20,7 +20,7 @@ import { deploySkill, uninstallProctor } from './adapters/deploy.js';
 import { loadTaskPool } from './bench/tasks.js';
 import { runBench } from './bench/index.js';
 import { installPreCommitHook } from './hooks/pre-commit.js';
-import { readUnresolved, recordUnresolved, verifyUnresolved, cliCheckRunner } from './hooks/unresolved.js';
+import { readUnresolved, recordUnresolved, verifyUnresolved, cliCheckRunner, commitGateInstalled } from './hooks/unresolved.js';
 import { installStopHook } from './hooks/claude-settings.js';
 import { installCodexStopHook } from './hooks/codex-hooks.js';
 import { installGeminiAfterAgentHook } from './hooks/gemini-hooks.js';
@@ -310,6 +310,10 @@ program
         return;
       }
       const r = state.record;
+      const gate = commitGateInstalled(cwd)
+        ? 'Commit gate: installed.'
+        : "Commit gate: NOT installed in this worktree's pre-commit hook. Run 'proctor install-hook' to add it (an existing hook from another tool is backed up to pre-commit.bak, not silently overwritten; merge it by hand). Hooks installed by older proctor versions do not have it.";
+      process.stdout.write(`${gate}\n`);
       process.stdout.write(`UNRESOLVED since ${r.firstSeenAt} (${r.occurrences} exhausted stop(s), last ${r.lastSeenAt}, source ${r.source}).\nBaseline: ${r.baseHead ?? 'none (no commits)'}\nOriginal finding:\n${r.originalFindings}\nRun 'proctor unresolved --verify' after fixing. This record is local feedback and can be removed by anyone with write access to the git directory; CI on the pushed diff is the independent check.\n`);
       process.exitCode = 2;
       return;
@@ -345,7 +349,7 @@ program
           }
           const written = recordUnresolved({ cwd, source: 'antigravity-stop-hook', conversationId, findings: check.output, blockBudget: policy.budget });
           process.stderr.write(written
-            ? `proctor: block budget exhausted; findings remain UNRESOLVED and are recorded at ${written}. Run 'proctor unresolved' to review. This is local feedback, not a tamper-proof gate.\n`
+            ? `proctor: block budget exhausted; findings remain UNRESOLVED and are recorded at ${written}. Run 'proctor unresolved' to review. This is local feedback, not a tamper-proof gate; pre-commit hooks from older proctor versions lack the commit gate until 'proctor install-hook' is rerun.\n`
             : 'proctor: block budget exhausted; findings remain UNRESOLVED and could NOT be recorded (no writable git directory)\n');
           return;
         }

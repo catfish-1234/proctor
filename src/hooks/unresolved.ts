@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { closeSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 /**
  * Durable "unresolved findings" state for harnesses whose Stop hook cannot be terminal.
@@ -61,7 +61,30 @@ export function currentHead(cwd: string): string | null {
   return head.ok && head.out ? head.out : null;
 }
 
+/**
+ * Best-effort removal of credential-looking literals before findings are written to disk. Findings
+ * can quote source lines, and the record outlives the session. Patterns are conservative and will
+ * miss unusual secrets: the record is local, mode 0600, and inside the git directory.
+ */
+export function redactSecrets(text: string): string {
+  return text
+    .replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(-----END [A-Z ]*PRIVATE KEY-----|$)/g, '[REDACTED private key]')
+    .replace(/\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{20,}\b|\bgithub_pat_[A-Za-z0-9_]{20,}\b/g, '[REDACTED token]')
+    .replace(/\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g, '[REDACTED aws key]')
+    .replace(/\bsk-[A-Za-z0-9_-]{20,}\b|\bnpm_[A-Za-z0-9]{30,}\b|\bxox[abprs]-[A-Za-z0-9-]{10,}\b/g, '[REDACTED token]')
+    .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]{16,}/gi, 'Bearer [REDACTED]')
+    .replace(/\b(password|passwd|secret|token|api[_-]?key|auth)(["']?\s*[:=]\s*["']?)[^\s"',;]{6,}/gi, '$1$2[REDACTED]');
+}
+
+/** Opaque ids from a harness are untrusted input: keep printable, short, never path-like. */
+export function sanitizeConversationId(id: string | undefined): string | undefined {
+  if (id === undefined) return undefined;
+  const clean = id.replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 128);
+  return clean.length > 0 ? clean : undefined;
+}
+
 function cap(text: string): string {
+  text = redactSecrets(text);
   return text.length > MAX_FINDING_CHARS ? text.slice(0, MAX_FINDING_CHARS) + '\n[truncated]\n' : text;
 }
 
@@ -136,7 +159,7 @@ export function recordUnresolved(input: RecordInput): string | undefined {
     const record: UnresolvedRecord = {
       schema: UNRESOLVED_SCHEMA,
       source: prior?.source ?? input.source,
-      conversationId: prior?.conversationId ?? input.conversationId,
+      conversationId: prior?.conversationId ?? sanitizeConversationId(input.conversationId),
       baseHead: prior ? prior.baseHead : currentHead(input.cwd),
       firstSeenAt: prior?.firstSeenAt ?? now,
       lastSeenAt: now,
@@ -192,6 +215,25 @@ export function verifyUnresolved(cwd: string, run: CheckRunner): VerifyStatus {
     if (code === 2) return { status: 'unresolved', detail: `${label}: findings remain` };
     if (code !== 0 && code !== 1) return { status: 'unverified', detail: `${label}: proctor check did not complete (exit ${code ?? 'timeout'})` };
   }
-  withLock(path + '.lock', () => rmSync(path, { force: true }));
+  // Clear only the record this check actually covered. If another hook recorded a new exhausted
+  // stop while the check ran, that finding was not checked: keep it.
+  const cleared = withLock(path + '.lock', () => {
+    const now = readUnresolved(cwd);
+    if (now.state !== 'unresolved' || now.record.occurrences !== record.occurrences || now.record.lastSeenAt !== record.lastSeenAt) return false;
+    rmSync(path, { force: true });
+    return true;
+  });
+  if (cleared === undefined) return { status: 'unverified', detail: 'could not take the record lock to clear it' };
+  if (!cleared) return { status: 'unresolved', detail: 'the record was updated while the check ran; re-run the check' };
   return { status: 'cleared' };
+}
+
+/** True when this worktree's pre-commit hook (git hooks dir or .husky) already runs the unresolved gate. */
+export function commitGateInstalled(cwd: string): boolean {
+  const hooks = git(cwd, ['rev-parse', '--git-path', 'hooks']);
+  const candidates = [join(cwd, '.husky', 'pre-commit')];
+  if (hooks.ok && hooks.out) candidates.push(join(resolve(cwd, hooks.out), 'pre-commit'));
+  return candidates.some(file => {
+    try { return readFileSync(file, 'utf8').includes('unresolved --gate'); } catch { return false; }
+  });
 }

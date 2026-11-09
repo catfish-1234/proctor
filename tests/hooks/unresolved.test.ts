@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import {
-  cliCheckRunner, currentHead, readUnresolved, recordUnresolved, unresolvedPath, verifyUnresolved, type CheckRunner,
+  cliCheckRunner, commitGateInstalled, currentHead, readUnresolved, recordUnresolved, redactSecrets, sanitizeConversationId, unresolvedPath, verifyUnresolved, type CheckRunner,
 } from '../../src/hooks/unresolved.js';
-import { ANTIGRAVITY_MAX_CONSECUTIVE_BLOCKS, stopHookPolicy } from '../../src/hooks/stop-hook.js';
+import { ANTIGRAVITY_MAX_CONSECUTIVE_BLOCKS, budgetPath, stopHookPolicy } from '../../src/hooks/stop-hook.js';
 import { preCommitHookContent } from '../../src/hooks/pre-commit.js';
 
 const CLI = resolve(process.cwd(), 'dist/cli.js');
@@ -232,4 +232,97 @@ describe('stopHookPolicy', () => {
   it('accepts 1-50', () => {
     expect(stopHookPolicy({ PROCTOR_STOP_HOOK_BLOCK_BUDGET: '12' }).budget).toBe(12);
   });
+});
+
+describe('concurrency, untrusted input and secrets', () => {
+  const runHook = (env: NodeJS.ProcessEnv, conversationId: string, executionNum: number) => new Promise<{ code: number | null }>(resolveRun => {
+    const child = spawn(process.execPath, [CLI, 'stop-hook', '--format', 'antigravity'], { cwd: dir, env, stdio: ['pipe', 'ignore', 'ignore'] });
+    child.stdin.end(JSON.stringify({ executionNum, conversationId, workspacePaths: [dir] }));
+    child.on('close', code => resolveRun({ code }));
+  });
+
+  it('16 real processes recording at once lose no finding and leave no temp or lock files', async () => {
+    writeFileSync(join(dir, 'a.test.ts'), cheated);
+    const env = { ...process.env, TMPDIR: tmp, TEMP: tmp, TMP: tmp, PROCTOR_STOP_HOOK_BLOCK_BUDGET: '1' };
+    const N = 16;
+    await Promise.all(Array.from({ length: N }, async (_, i) => {
+      await runHook(env, `race-${i}`, 0); // blocks, uses the budget
+      await runHook(env, `race-${i}`, 1); // budget spent: records unresolved
+    }));
+    const r = readUnresolved(dir);
+    if (r.state !== 'unresolved') throw new Error('expected unresolved');
+    expect(r.record.occurrences).toBe(N);
+    expect(readdirSync(dirname(unresolvedPath(dir)!)).sort()).toEqual(['unresolved.json']);
+  }, 60_000);
+
+  it('a finding recorded while a verify is running is not cleared by it', () => {
+    rec('first');
+    let fired = false;
+    const racing: CheckRunner = () => { if (!fired) { fired = true; rec('arrived during the check'); } return 0; };
+    const v = verifyUnresolved(dir, racing);
+    expect(v.status).toBe('unresolved');
+    const r = readUnresolved(dir);
+    if (r.state !== 'unresolved') throw new Error('record was lost');
+    expect(r.record.occurrences).toBe(2);
+    expect(r.record.latestFindings).toBe('arrived during the check');
+  });
+
+  it('never lets a harness-supplied conversation id shape a path', () => {
+    for (const evil of ['../../../etc/passwd', '..\\..\\x', 'a/b', '\u0000nul', 'x'.repeat(5000)]) {
+      const p = budgetPath(evil);
+      expect(dirname(p)).toBe(join(tmpdir(), 'proctor-stop-hook'));
+      expect(p.split(/[\\/]/).pop()!.length).toBeLessThan(120);
+    }
+    expect(sanitizeConversationId('../../x\n')).toBe('.._.._x_');
+    expect(sanitizeConversationId('')).toBeUndefined();
+    expect(sanitizeConversationId('y'.repeat(500))!.length).toBe(128);
+    rec('f', { conversationId: '../../../tmp/pwn' });
+    const r = readUnresolved(dir);
+    if (r.state !== 'unresolved') throw new Error('expected unresolved');
+    expect(r.record.conversationId).toBe('.._.._.._tmp_pwn');
+    expect(existsSync('/tmp/pwn')).toBe(false);
+  });
+
+  it('redacts credential-looking literals from stored findings', () => {
+    const secrets = [
+      'ghp_' + 'a'.repeat(36), 'github_pat_' + 'B'.repeat(40), 'AKIA' + 'A1B2C3D4E5F6G7H8', 'sk-' + 'z'.repeat(30),
+      'xoxb-1234567890-abcdef', 'Bearer abcdefghijklmnopqrstuvwxyz0123',
+    ];
+    const text = secrets.map(x => `const k = "${x}";`).join('\n') + '\npassword = "hunter2hunter2"\napi_key: abcdef123456\n-----BEGIN RSA PRIVATE KEY-----\nMIIBOg\n-----END RSA PRIVATE KEY-----\n[RH001] Test deleted';
+    const out = redactSecrets(text);
+    for (const x of secrets) expect(out).not.toContain(x);
+    expect(out).not.toContain('hunter2hunter2');
+    expect(out).not.toContain('abcdef123456');
+    expect(out).not.toContain('MIIBOg');
+    expect(out).toContain('[RH001] Test deleted');
+    rec(text);
+    const r = readUnresolved(dir);
+    if (r.state !== 'unresolved') throw new Error('expected unresolved');
+    expect(r.record.originalFindings + r.record.latestFindings).not.toContain('hunter2hunter2');
+  });
+
+  it('reports whether the commit gate is installed, and status says how to add it', () => {
+    expect(commitGateInstalled(dir)).toBe(false);
+    rec();
+    const status = spawnSync(process.execPath, [CLI, 'unresolved'], { cwd: dir, encoding: 'utf8' });
+    expect(status.stdout).toContain('Commit gate: NOT installed');
+    expect(status.stdout).toContain('proctor install-hook');
+    expect(status.stdout).toContain('backed up');
+    const hooks = join(dir, '.git', 'hooks');
+    mkdirSync(hooks, { recursive: true });
+    writeFileSync(join(hooks, 'pre-commit'), '#!/bin/sh\n# someone else\nexit 0\n');
+    expect(commitGateInstalled(dir)).toBe(false); // a foreign hook is not the gate
+    spawnSync(process.execPath, [CLI, 'install-hook'], { cwd: dir, encoding: 'utf8' });
+    expect(readFileSync(join(hooks, 'pre-commit.bak'), 'utf8')).toContain('someone else'); // never silently lost
+    expect(commitGateInstalled(dir)).toBe(true);
+    expect(spawnSync(process.execPath, [CLI, 'unresolved'], { cwd: dir, encoding: 'utf8' }).stdout).toContain('Commit gate: installed');
+  });
+
+  it('a historical base with many commits verifies within the runner timeout without unbounded work', () => {
+    rec();
+    for (let n = 0; n < 40; n++) { writeFileSync(join(dir, `f${n}.txt`), String(n)); git(dir, 'add', '.'); git(dir, 'commit', '-qm', `c${n}`); }
+    const start = Date.now();
+    expect(verifyUnresolved(dir, cliCheckRunner(CLI))).toEqual({ status: 'cleared' });
+    expect(Date.now() - start).toBeLessThan(60_000);
+  }, 90_000);
 });

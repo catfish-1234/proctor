@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -178,7 +179,11 @@ export function decideBlockBudget(
 
 /** Per-conversation counter file; lives in the OS temp dir so enforcement never writes into the user's repo. */
 export function budgetPath(conversationId: string): string {
-  return join(tmpdir(), 'proctor-stop-hook', `${conversationId.replace(/[^A-Za-z0-9-]/g, '_')}.json`);
+  // The id comes from the harness payload: never let it shape a path. Characters outside
+  // [A-Za-z0-9-] become '_', and over-long ids are replaced by a hash so the name stays valid.
+  const safe = conversationId.replace(/[^A-Za-z0-9-]/g, '_');
+  const name = safe.length > 100 ? createHash('sha256').update(conversationId).digest('hex') : safe;
+  return join(tmpdir(), 'proctor-stop-hook', `${name}.json`);
 }
 
 export function readBudget(conversationId: string): BlockBudgetState | undefined {

@@ -186,7 +186,7 @@ unresolved, 3 when the record is unreadable.
 | `--verify` | run a fresh complete check (working tree against HEAD, and commits since the finding's baseline) and clear the record only if both pass |
 | `--gate` | quiet `--verify` for the pre-commit hook: 0 clean or none, 2 findings remain, 3 could not verify |
 
-Only `--verify` and `--gate` clear the record. A check that errors, or a baseline commit that no
+`proctor unresolved` also reports whether this worktree's pre-commit hook has the gate; hooks written by older versions do not, so rerun `proctor install-hook` (a foreign hook is backed up to `pre-commit.bak`). Findings are redacted for credential-looking literals before storage. If another process records a finding while `--verify` runs, that record is kept. Only `--verify` and `--gate` clear the record. A check that errors, or a baseline commit that no
 longer exists, is reported as unverified and keeps the record. It is local feedback: anyone with
 write access to the git directory can remove it, and `git commit --no-verify` skips the gate. Use
 `proctor check --base <ref>` in CI, outside the agent's control, as the independent check.

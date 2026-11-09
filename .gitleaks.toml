@@ -9,11 +9,8 @@
 useDefault = true
 
 [allowlist]
-description = "Intentional sample content in planted-cheat benchmark fixtures and redaction tests"
+description = "Intentional sample content in planted-cheat benchmark fixtures"
 paths = [
   '''fixtures/''',
   '''src/bench/''',
-  # tests/hooks/unresolved.test.ts plants credential-shaped literals to verify
-  # redactSecrets strips them from stored findings; they are synthetic.
-  '''tests/hooks/unresolved\.test\.ts''',
 ]

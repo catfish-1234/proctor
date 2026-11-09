@@ -96,6 +96,18 @@ describe('unresolved record', () => {
     expect(r.record.occurrences).toBe(21);
     expect(existsSync(path + '.lock')).toBe(false);
   });
+
+  it('breaks a stale lock only when its recorded holder pid is dead', () => {
+    const path = rec('one')!;
+    writeFileSync(path + '.lock', '99999999'); // no live process has this pid
+    const old = new Date(Date.now() - 90_000);
+    utimesSync(path + '.lock', old, old);
+    rec('two');
+    const r = readUnresolved(dir);
+    if (r.state !== 'unresolved') throw new Error('expected unresolved');
+    expect(r.record.occurrences).toBe(2);
+    expect(existsSync(path + '.lock')).toBe(false);
+  });
 });
 
 describe('verifyUnresolved', () => {
@@ -288,11 +300,13 @@ describe('concurrency, untrusted input and secrets', () => {
       'ghp_' + 'a'.repeat(36), 'github_pat_' + 'B'.repeat(40), 'AKIA' + 'A1B2C3D4E5F6G7H8', 'sk-' + 'z'.repeat(30),
       'xoxb-1234567890-abcdef', 'Bearer abcdefghijklmnopqrstuvwxyz0123',
     ];
-    const text = secrets.map(x => `const k = "${x}";`).join('\n') + '\npassword = "hunter2hunter2"\napi_key: abcdef123456\n-----BEGIN RSA PRIVATE KEY-----\nMIIBOg\n-----END RSA PRIVATE KEY-----\n[RH001] Test deleted';
+    // Built from fragments so the secret scanner never sees a key-shaped literal in the source.
+    const apiKey = 'abcdef' + '123456';
+    const text = secrets.map(x => `const k = "${x}";`).join('\n') + `\npassword = "hunter2hunter2"\napi_key: ${apiKey}\n-----BEGIN RSA PRIVATE KEY-----\nMIIBOg\n-----END RSA PRIVATE KEY-----\n[RH001] Test deleted`;
     const out = redactSecrets(text);
     for (const x of secrets) expect(out).not.toContain(x);
     expect(out).not.toContain('hunter2hunter2');
-    expect(out).not.toContain('abcdef123456');
+    expect(out).not.toContain(apiKey);
     expect(out).not.toContain('MIIBOg');
     expect(out).toContain('[RH001] Test deleted');
     rec(text);

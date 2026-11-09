@@ -121,19 +121,35 @@ function withLock<T>(lockFile: string, fn: () => T): T | undefined {
   const deadline = Date.now() + 30_000;
   for (;;) {
     try {
-      closeSync(openSync(lockFile, 'wx'));
+      writeFileSync(lockFile, String(process.pid), { flag: 'wx' });
       break;
     } catch (err: unknown) {
       if ((err as NodeJS.ErrnoException).code !== 'EEXIST') return undefined;
-      // Only break a lock old enough that its holder is almost certainly dead; a live holder's
-      // critical section must never be entered twice.
-      try { if (Date.now() - statSync(lockFile).mtimeMs > 60_000) rmSync(lockFile, { force: true }); } catch { /* raced */ }
+      // Only break a lock old enough that its holder is almost certainly dead, and only when the
+      // recorded holder pid is gone: a live process doing slow work is never evicted.
+      try { if (Date.now() - statSync(lockFile).mtimeMs > 60_000 && !lockHolderAlive(lockFile)) rmSync(lockFile, { force: true }); } catch { /* raced */ }
       if (Date.now() > deadline) return undefined;
       const wait = Date.now() + 10 + Math.floor(Math.random() * 40);
       while (Date.now() < wait) { /* brief spin: hook processes are short-lived */ }
     }
   }
   try { return fn(); } finally { rmSync(lockFile, { force: true }); }
+}
+
+/** True when the pid recorded in the lock file still runs (EPERM means alive, owned by another user). */
+function lockHolderAlive(lockFile: string): boolean {
+  try {
+    const pid = Number(readFileSync(lockFile, 'utf8').trim());
+    if (!Number.isInteger(pid) || pid <= 0) return false;
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch (err: unknown) {
+      return (err as NodeJS.ErrnoException).code === 'EPERM';
+    }
+  } catch {
+    return false; // unreadable or legacy empty lock: no live holder can be proven
+  }
 }
 
 /** Windows transiently refuses a replace-rename (EPERM/EBUSY) while a reader has the file open. */

@@ -348,9 +348,13 @@ program
             return;
           }
           const written = recordUnresolved({ cwd, source: 'antigravity-stop-hook', conversationId, findings: check.output, blockBudget: policy.budget });
-          process.stderr.write(written
-            ? `proctor: block budget exhausted; findings remain UNRESOLVED and are recorded at ${written}. Run 'proctor unresolved' to review. This is local feedback, not a tamper-proof gate; pre-commit hooks from older proctor versions lack the commit gate until 'proctor install-hook' is rerun.\n`
-            : 'proctor: block budget exhausted; findings remain UNRESOLVED and could NOT be recorded (no writable git directory)\n');
+          if (written) {
+            process.stderr.write(`proctor: block budget exhausted; findings remain UNRESOLVED and are recorded at ${written}. Run 'proctor unresolved' to review. This is local feedback, not a tamper-proof gate; pre-commit hooks from older proctor versions lack the commit gate until 'proctor install-hook' is rerun.\n`);
+          } else {
+            // Never a silent drop: a finding that could not be persisted is unverified, not clear.
+            process.stderr.write('proctor: block budget exhausted; findings remain UNRESOLVED and could NOT be recorded (lock contention or unwritable git directory). Treat the finding as UNVERIFIED: re-run proctor check and review with proctor unresolved.\n');
+            process.exitCode = 1;
+          }
           return;
         }
       }

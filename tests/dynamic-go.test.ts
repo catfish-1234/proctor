@@ -153,13 +153,11 @@ function dynamic(dir: string) {
   return runDynamic({ cwd: dir, workerPath, files, testPathGlobs: ['**/*_test.go'] });
 }
 
-function goRunnable(result: Awaited<ReturnType<typeof runDynamic>>, context: TestContext): boolean {
-  if (!sandboxAvailable || !goAvailable) {
-    context.skip(`Go dynamic isolation unavailable (bwrap: ${sandboxAvailable}, go: ${goAvailable})`);
-    return false;
-  }
+// No conditional early return: context.skip aborts the test, so a skipped environment never
+// bypasses the assertions (RH003's own rule for this repository's tests).
+function goRunnable(result: Awaited<ReturnType<typeof runDynamic>>, context: TestContext): void {
+  if (!sandboxAvailable || !goAvailable) context.skip(`Go dynamic isolation unavailable (bwrap: ${sandboxAvailable}, go: ${goAvailable})`);
   expect(result.status, result.reason).toBe('completed');
-  return true;
 }
 
 describe('go test JSON parsing', () => {
@@ -205,7 +203,7 @@ describe('go dynamic runs (Linux, bubblewrap and go toolchain)', () => {
     const dir = makeRepo(guardRemoved);
     try {
       const result = await dynamic(dir);
-      if (!goRunnable(result, context)) return;
+      goRunnable(result, context);
       const finding = result.findings.find(f => f.verifierId === 'DY001');
       expect(finding, JSON.stringify(result.notes)).toBeTruthy();
       expect(finding!.file).toBe('age_test.go');
@@ -218,7 +216,7 @@ describe('go dynamic runs (Linux, bubblewrap and go toolchain)', () => {
     const dir = makeRepo(honestFix);
     try {
       const result = await dynamic(dir);
-      if (!goRunnable(result, context)) return;
+      goRunnable(result, context);
       expect(result.findings, JSON.stringify(result.notes)).toEqual([]);
       expect(result.runs.some(r => r.exitCode !== 0)).toBe(true); // the red baseline really ran
     } finally { rmSync(dir, { recursive: true, force: true }); }
@@ -227,7 +225,7 @@ describe('go dynamic runs (Linux, bubblewrap and go toolchain)', () => {
     const dir = makeRepo(buildFailure);
     try {
       const result = await dynamic(dir);
-      if (!sandboxAvailable || !goAvailable) { context.skip('Go dynamic isolation unavailable'); return; }
+      if (!sandboxAvailable || !goAvailable) context.skip('Go dynamic isolation unavailable');
       expect(result.status).toBe('skipped');
       expect(result.reason).toBeTruthy();
       expect(result.findings).toEqual([]);
@@ -237,7 +235,7 @@ describe('go dynamic runs (Linux, bubblewrap and go toolchain)', () => {
     const dir = makeRepo(sleepyFlake);
     try {
       const result = await dynamic(dir);
-      if (!goRunnable(result, context)) return;
+      goRunnable(result, context);
       const finding = result.findings.find(f => f.verifierId === 'DY005');
       expect(finding, JSON.stringify(result.notes)).toBeTruthy();
       expect(finding!.file).toBe('toggle_test.go');
@@ -248,7 +246,7 @@ describe('go dynamic runs (Linux, bubblewrap and go toolchain)', () => {
     const dir = makeRepo(guardRemoved);
     try {
       const result = await dynamic(dir);
-      if (!goRunnable(result, context)) return;
+      goRunnable(result, context);
       for (const [path, text] of Object.entries(guardRemoved.after)) expect(readFileSync(join(dir, path), 'utf8')).toBe(text);
       expect(spawnSync('git', ['diff', '--cached', '--exit-code'], { cwd: dir }).status).toBe(0);
     } finally { rmSync(dir, { recursive: true, force: true }); }

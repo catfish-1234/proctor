@@ -149,7 +149,7 @@ describe('stop-hook --format antigravity CLI', () => {
     cheat();
     for (let n = 0; n < ANTIGRAVITY_MAX_CONSECUTIVE_BLOCKS; n++) hook(n, 'conv-a');
     expect(hook(ANTIGRAVITY_MAX_CONSECUTIVE_BLOCKS, 'conv-a').stdout).toBe('');
-    expect(JSON.parse(hook(1, 'conv-b').stdout).decision).toBe('block');
+    expect(JSON.parse(hook(0, 'conv-b').stdout).decision).toBe('block');
     expect(existsSync(join(dir, '.proctor'))).toBe(false);
   });
 });

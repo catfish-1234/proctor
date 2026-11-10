@@ -144,7 +144,8 @@ proctor stop-hook --format codex
 `proctor setup --agents codex` registers `npx @kavishdua/proctor stop-hook --format codex` in
 `.codex/hooks.json` with a 60-second timeout. Codex must trust the project and the new or changed
 hook must be reviewed via the prompt or `/hooks` before it runs. See the
-[Codex hooks contract](https://learn.chatgpt.com/docs/hooks.md).
+[Codex hooks contract](https://learn.chatgpt.com/docs/hooks.md). Internal failures produce no
+stdout, bounded UNVERIFIED stderr, and documented nonblocking exit `1` (not blocking exit `2`).
 
 In Gemini format, AfterAgent receives one JSON object on stdin, including `prompt` (the original
 request), `prompt_response` (the final text), and `stop_hook_active` (the retry guard). The hook
@@ -152,8 +153,10 @@ checks the diff rather than those text fields. A blocking finding prints exactly
 `{"decision":"deny","reason":"<finding output>"}` with exit `0`, so Gemini sends the finding
 feedback to the agent as a new correction prompt. It never uses `continue: false`, which would
 stop the session without retrying. Stdout contains only the final JSON object; plain text would
-break Gemini's parsing and allow the turn. Clean checks, loop-guard skips, malformed input, and
-internal failures produce no stdout or stderr and exit `0`.
+break Gemini's parsing and allow the turn. Clean checks, loop-guard skips and malformed input
+produce no stdout or stderr and exit `0`.
+Internal failures allow with bounded UNVERIFIED stderr diagnostics, no stdout, and exit `1`
+(a nonblocking warning, not the blocking exit `2`).
 
 ```bash
 proctor stop-hook --format gemini
@@ -174,8 +177,8 @@ inline manifest field. It invokes `node "${extensionPath}/dist/cli.js" stop-hook
 to use the shipped build without requiring a separate npm install. `gemini-extension.json`
 continues to load `PROCTOR.md` as context.
 
-Local verification covers deny feedback for a deleted test, silent clean/skip/malformed/error
-outcomes, setup/uninstall round-trips, and execution of the bundled extension command. Live
+Local verification covers deny feedback for a deleted test, silent clean/skip/malformed
+outcomes and nonblocking UNVERIFIED error diagnostics, setup/uninstall round-trips, and execution of the bundled extension command. Live
 Gemini CLI sessions were not exercised. AfterAgent timing and correction/retry semantics follow
 the [Gemini hooks contract](https://geminicli.com/docs/hooks/reference/#afteragent).
 
@@ -187,6 +190,15 @@ during a merge, rebase, cherry-pick, or revert, or if proctor errors or takes lo
 For the Antigravity CLI Stop hook (`antigravity-plugin/`). Takes the repo from `workspacePaths[0]`
 and returns `{"decision":"block","reason":"..."}`. It never skips on `executionNum`: every Stop
 re-checks and re-blocks while a finding remains, up to a per-conversation budget (default 5).
+Unknown check or persistence results allow with
+empty stdout, bounded UNVERIFIED stderr and exit `0`. Unlike Codex/Gemini, a nonblocking
+warning exit is not established for this adapter, so exit status alone does not establish
+that a check or record succeeded. A known count survives a missing optional `executionNum`;
+only explicit zero establishes a new turn. Missing/corrupt/unwritable state is not invented
+as count zero. In enforce mode a verified finding is recorded for review when the budget
+cannot be verified, without asserting exhaustion. Advisory mode records nothing. A failed
+record write stays UNVERIFIED, not a durable gate. Clean checks reset the budget only after
+successful atomic persistence; skipped or failed checks do not reset it.
 
 | Environment variable | What it does |
 |------|--------------|
@@ -195,7 +207,7 @@ re-checks and re-blocks while a finding remains, up to a per-conversation budget
 
 ### `proctor unresolved`
 
-Shows findings an agent left unresolved after the Stop-hook budget ran out (stored in
+Shows findings left unresolved after budget exhaustion or failed budget verification (stored in
 `proctor/unresolved.json` inside the worktree's git directory). Exits 0 when none, 2 when
 unresolved, 3 when the record is unreadable.
 

@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { recordCaught } from '../session.js';
@@ -41,7 +41,7 @@ export function parseStopHookInput(raw: string, fallbackCwd: string, format: Sto
         cwd: first ?? fallbackCwd,
         skip: false,
         conversationId: typeof input.conversationId === 'string' ? input.conversationId : undefined,
-        executionNum: typeof input.executionNum === 'number' && Number.isInteger(input.executionNum) && input.executionNum >= 0 ? input.executionNum : undefined,
+        executionNum: typeof input.executionNum === 'number' && Number.isSafeInteger(input.executionNum) && input.executionNum >= 0 ? input.executionNum : undefined,
       };
     }
     if (input.stop_hook_active === true) return { cwd: fallbackCwd, skip: true };
@@ -53,6 +53,7 @@ export function parseStopHookInput(raw: string, fallbackCwd: string, format: Sto
 }
 
 export interface StopHookResult {
+  state?: 'clean' | 'blocked' | 'unverified' | 'not-checked';
   exitCode: 0 | 2;
   output: string;
 }
@@ -83,14 +84,15 @@ export function runStopHookCheck(cwd: string, cliPath: string): StopHookResult {
   // `check` exits 2 with "not a git repository", an infra failure, not a finding. Blocking
   // every turn there would make the global install unusable, so allow instead.
   const inRepo = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd, stdio: 'ignore' });
-  if (inRepo.error || inRepo.status !== 0) return { exitCode: 0, output: '' };
+  if (inRepo.error || inRepo.status === null) return { exitCode: 0, output: '', state: 'unverified' };
+  if (inRepo.status !== 0) return { exitCode: 0, output: '', state: 'not-checked' };
 
   // Mid-merge, `git diff HEAD` reports the conflicted working tree, which carries the incoming
   // branch's lines as additions. A test the other branch deleted would read as this turn deleting
   // it, and blocking the turn would be blaming the agent for someone else's commit. The
   // pre-commit hook still guards the resolution, which is the point where it becomes this
   // repository's change.
-  if (isMidMerge(cwd)) return { exitCode: 0, output: '' };
+  if (isMidMerge(cwd)) return { exitCode: 0, output: '', state: 'not-checked' };
 
   // 60s timeout so a pathological check can never wedge the agent's turn forever. On timeout
   // spawnSync sets status=null and error, which the fail-open below maps to "allow".
@@ -100,14 +102,14 @@ export function runStopHookCheck(cwd: string, cliPath: string): StopHookResult {
     encoding: 'utf8',
     timeout: 60_000,
   });
-  if (result.error || result.status === null) return { exitCode: 0, output: '' }; // fail open: never block a turn because proctor itself errored or timed out
+  if (result.error || result.status === null) return { exitCode: 0, output: '', state: 'unverified' }; // fail open: never block a turn because proctor itself errored or timed out
   const output = (result.stdout ?? '') + (result.stderr ?? '');
   const code = result.status ?? 0;
   const blocked = code === 2;
   // Tally the block for the statusline. This runs after the decision is already made, and
   // recordCaught swallows its own errors, so counting can never change whether a turn is blocked.
   if (blocked) recordCaught(cwd, rulesIn(output));
-  return { exitCode: blocked ? 2 : 0, output };
+  return { exitCode: blocked ? 2 : 0, output, state: blocked ? 'blocked' : code === 0 || code === 1 ? 'clean' : 'unverified' };
 }
 
 /**
@@ -172,7 +174,7 @@ export interface BlockBudgetState {
 export function decideBlockBudget(
   state: BlockBudgetState | undefined, executionNum: number | undefined, max: number = ANTIGRAVITY_MAX_CONSECUTIVE_BLOCKS,
 ): { block: boolean; exhausted: boolean; next: BlockBudgetState } {
-  const prior = executionNum === 0 || executionNum === undefined || !state ? 0 : state.blocks;
+  const prior = executionNum === 0 || !state ? 0 : state.blocks;
   if (prior >= max) return { block: false, exhausted: true, next: { blocks: prior } };
   return { block: true, exhausted: false, next: { blocks: prior + 1 } };
 }
@@ -186,22 +188,32 @@ export function budgetPath(conversationId: string): string {
   return join(tmpdir(), 'proctor-stop-hook', `${name}.json`);
 }
 
-export function readBudget(conversationId: string): BlockBudgetState | undefined {
+export type BudgetRead = { state: 'known'; value: BlockBudgetState } | { state: 'missing' } | { state: 'unverified' };
+export function readBudget(conversationId: string): BudgetRead {
   try {
     const parsed: unknown = JSON.parse(readFileSync(budgetPath(conversationId), 'utf8'));
     const blocks = (parsed as { blocks?: unknown })?.blocks;
-    return typeof blocks === 'number' && Number.isInteger(blocks) && blocks >= 0 ? { blocks } : undefined;
-  } catch {
-    return undefined;
+    return typeof blocks === 'number' && Number.isSafeInteger(blocks) && blocks >= 0
+      ? { state: 'known', value: { blocks } } : { state: 'unverified' };
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'ENOENT' ? { state: 'missing' } : { state: 'unverified' };
   }
 }
 
-/** Best-effort: a failed write must never change the decision or wedge the turn. */
-export function writeBudget(conversationId: string, state: BlockBudgetState | undefined): void {
+/** Atomic, observed persistence. A failed replace leaves prior bytes intact, not a reset count. */
+export function writeBudget(conversationId: string, state: BlockBudgetState | undefined): boolean {
+  const file = budgetPath(conversationId);
+  const temporary = `${file}.${process.pid}.tmp`;
+  let owned = false;
   try {
-    const file = budgetPath(conversationId);
-    if (state === undefined) { rmSync(file, { force: true }); return; }
+    if (state === undefined) { rmSync(file, { force: true }); return true; }
     mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(file, JSON.stringify(state));
-  } catch { /* ignore */ }
+    const fd = openSync(temporary, 'wx', 0o600);
+    owned = true;
+    try { writeFileSync(fd, JSON.stringify(state)); } finally { closeSync(fd); }
+    renameSync(temporary, file);
+    owned = false;
+    return true;
+  } catch { return false; }
+  finally { if (owned) { try { rmSync(temporary, { force: true }); } catch { /* owned file only */ } } }
 }

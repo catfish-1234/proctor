@@ -168,8 +168,9 @@ If you use **Codex CLI**, two trust steps are required before the hook runs:
 2. Review and approve the new or changed hook when Codex prompts, or via `/hooks` in the CLI.
 
 The Codex hook runs `proctor stop-hook --format codex`, which emits a JSON block decision with
-finding feedback and exits `0`. It stays silent on clean checks, internal errors, and a follow-up
-Stop with `stop_hook_active: true`, preventing a loop.
+finding feedback and exits `0`. It stays silent on clean checks and a follow-up
+Stop with `stop_hook_active: true`, preventing a loop. Internal failures allow the turn with
+bounded UNVERIFIED stderr diagnostics and no stdout (exit `1`, a nonblocking hook failure).
 
 Verified end-to-end against codex-cli 0.164.0 on November 8, 2026: in `codex exec`, a change that
 deleted a failing test was blocked at Stop with an RH001 finding, and Codex continued and acted on
@@ -188,12 +189,13 @@ Gemini's AfterAgent fires once per turn after the final response. It runs
 `proctor stop-hook --format gemini`, which checks the same uncommitted diff as the Codex hook.
 A blocking finding emits only `{"decision":"deny","reason":"<finding output>"}` and exits `0`;
 Gemini sends the reason to the agent as a new prompt requesting correction. Clean checks,
-`stop_hook_active: true`, malformed input, and internal failures silently allow the turn.
+`stop_hook_active: true` and malformed input silently allow the turn. Internal failures allow the
+turn with bounded UNVERIFIED diagnostics on stderr and no stdout (exit `1`, a nonblocking warning).
 Ordinary blocks request a retry; they do not set `continue: false` to end the session.
 
 Verified locally with documented AfterAgent payloads: a deleted test returns deny feedback with
-RH001, a clean working tree is silent, and loop-guard, malformed-input, and internal-error cases
-silently allow. Tests also cover settings merge/uninstall round-trips and execution of the bundled
+RH001, a clean working tree is silent, and loop-guard/malformed-input skips silently allow.
+Internal-error cases allow with UNVERIFIED diagnostics, not a block or clean claim. Tests also cover settings merge/uninstall round-trips and execution of the bundled
 extension command without a separate npm install. This verifies the hook contract and local
 integration; live Gemini CLI sessions were not exercised. Contract source:
 [Gemini hooks reference](https://geminicli.com/docs/hooks/reference/#afteragent).

@@ -157,7 +157,7 @@ Reads the hook payload from stdin and runs `check --uncommitted --ci`.
 
 | Flag | What it does |
 |------|--------------|
-| `--format <format>` | `claude` (default) keeps the Claude Code protocol: findings on stderr and exit `2` to block, never `1`. `codex` writes one JSON block decision on stdout and always exits `0`. `gemini` writes one JSON deny decision on stdout and always exits `0` |
+| `--format <format>` | `claude` (default) keeps the Claude Code protocol: findings on stderr and exit `2` to block, never `1`. `codex` writes one JSON block decision on stdout and always exits `0`. `gemini` writes one JSON deny decision on stdout and always exits `0`. `copilot` (experimental) writes one JSON block decision on stdout and always exits `0` |
 
 In Codex format, a blocking finding prints exactly `{"decision":"block","reason":"<finding output>"}`,
 with the complete finding output encoded as one string. A clean check or skip prints nothing.
@@ -248,6 +248,27 @@ longer exists, is reported as unverified and keeps the record. It is local feedb
 write access to the git directory can remove it, and `git commit --no-verify` skips the gate. Use
 `proctor check --base <ref>` in CI, outside the agent's control, as the independent check.
 
+#### `--format copilot` (experimental, contract-verified only)
+
+In Copilot format, a blocking finding prints exactly `{"decision":"block","reason":"<finding output>"}`
+and exits `0`; per the [Copilot hooks reference](https://docs.github.com/en/copilot/reference/hooks-reference),
+a block forces another agent turn with the reason as the prompt. Clean checks,
+`stop_hook_active: true` and malformed input print nothing, so proctor blocks at most once per
+turn and never approaches the documented 8-block runaway guard. Both documented input dialects
+(camelCase and the VS Code compatible snake_case shape) are accepted; the output field names are
+identical in both.
+
+```bash
+proctor stop-hook --format copilot
+```
+
+`proctor setup --agents github-copilot` (or `proctor install-copilot-hook`) registers
+`npx @kavishdua/proctor stop-hook --format copilot` in `.github/hooks/proctor.json` with
+`bash`, `powershell` and `command` fields (90-second timeout), so the Copilot CLI and the cloud
+agent run the same handler. Other files in `.github/hooks/` are never touched. This format is
+contract-verified against GitHub's documentation only; it has never been live-verified against a
+real Copilot CLI or cloud agent session.
+
 ### `proctor install-claude-hook`
 
 Wires the Stop hook into a project's `.claude/settings.json`.
@@ -257,6 +278,13 @@ Wires the Stop hook into a project's `.claude/settings.json`.
 | `--global` | write to `~/.claude/settings.json` instead of the project's local settings |
 
 Safe to run more than once; it won't add a duplicate entry.
+
+### `proctor install-copilot-hook` (experimental)
+
+Writes proctor's `agentStop` entry into `.github/hooks/proctor.json`, merging into the file if it
+exists and preserving every other event, entry and field. Idempotent; exits `2` without writing
+when an existing file is unparseable or has an unexpected shape. Contract-verified only, not
+live-verified; the same opt-in is available as `proctor setup --agents github-copilot`.
 
 ### `proctor install-skill`
 

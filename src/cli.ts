@@ -24,6 +24,7 @@ import { readUnresolved, recordUnresolved, verifyUnresolved, cliCheckRunner, com
 import { installStopHook } from './hooks/claude-settings.js';
 import { installCodexStopHook } from './hooks/codex-hooks.js';
 import { installGeminiAfterAgentHook } from './hooks/gemini-hooks.js';
+import { installCopilotStopHook } from './hooks/copilot-hooks.js';
 import { parseStopHookInput, runStopHookCheck, formatStopHookResult, decideBlockBudget, readBudget, writeBudget, stopHookPolicy, type StopHookFormat } from './hooks/stop-hook.js';
 import { APPROVAL_GUIDANCE, RULE_METADATA } from './rules.js';
 import { buildReceipt } from './receipt.js';
@@ -356,7 +357,7 @@ program
 program
   .command('stop-hook')
   .description('Stop/AfterAgent hook: reads stdin JSON and blocks on error findings')
-  .addOption(new Option('--format <format>', 'Stop hook protocol').choices(['claude', 'codex', 'gemini', 'antigravity']).default('claude'))
+  .addOption(new Option('--format <format>', 'Stop hook protocol').choices(['claude', 'codex', 'gemini', 'antigravity', 'copilot']).default('claude'))
   .action(async (options: { format: StopHookFormat }) => {
     try {
       const raw = await readStdin();
@@ -421,6 +422,18 @@ program
       process.stderr.write('proctor: UNVERIFIED Stop processing failed; protocol fail-open, no clean or persistence claim.\n');
       process.exitCode = options.format === 'codex' || options.format === 'gemini' ? 1 : 0;
     }
+  });
+
+program
+  .command('install-copilot-hook')
+  .description('Install the experimental GitHub Copilot agentStop hook (contract-verified only, not live-verified)')
+  .action(async () => {
+    const result = await installCopilotStopHook(join(process.cwd(), '.github', 'hooks'));
+    if (result.status === 'invalid-json') {
+      process.stderr.write(`proctor: ${result.path} exists but is not valid JSON or has an unexpected shape; fix it manually and re-run\n`);
+      process.exit(2);
+    }
+    process.stdout.write(result.status === 'already' ? 'Already installed\n' : 'Installed: ' + result.path + '\n');
   });
 
 program
@@ -528,6 +541,35 @@ program
       } catch (err: unknown) {
         const msg = String(err).replace(/^Error:\s*/, '');
         process.stderr.write(`proctor: could not install the Gemini AfterAgent hook (${msg})\n`);
+        process.exitCode = 1;
+      }
+      }
+    }
+
+    // Same opt-in rule as Gemini: the Copilot agentStop hook is experimental (contract-verified
+    // against GitHub's documentation only, never live-verified), so detection alone never
+    // installs it. The ruleset in .github/instructions/proctor.instructions.md deploys either way.
+    const copilotTarget = targets.find(a => a.id === 'github-copilot');
+    if (copilotTarget) {
+      const copilotOptIn = options.all === true || (options.agents ?? '').split(',').map(s => s.trim()).includes('github-copilot');
+      if (copilotTarget.experimental && !copilotOptIn) {
+        process.stdout.write(`GitHub Copilot enforcement hook NOT installed (experimental, opt-in only: ${copilotTarget.experimental}). The ruleset in .github/instructions/proctor.instructions.md still applies. Opt in: proctor setup --agents github-copilot\n`);
+      } else {
+      if (copilotTarget.experimental) process.stdout.write(`Note: GitHub Copilot hook support is experimental: ${copilotTarget.experimental}.\n`);
+      try {
+        const stop = await installCopilotStopHook(join(cwd, '.github', 'hooks'));
+        if (stop.status === 'invalid-json') {
+          process.stderr.write(`proctor: ${stop.path} exists but is not valid JSON or has an unexpected shape, so the Copilot agentStop hook was not installed; fix it manually and re-run\n`);
+          process.exitCode = 1;
+        } else {
+          process.stdout.write(
+            stop.status === 'already' ? 'Copilot agentStop hook already installed.\n' : `Copilot agentStop hook installed: ${stop.path}\n`
+          );
+          process.stdout.write('This hook is contract-verified against GitHub\'s Copilot hooks documentation only; it has not been live-verified against a real Copilot CLI or cloud agent session.\n');
+        }
+      } catch (err: unknown) {
+        const msg = String(err).replace(/^Error:\s*/, '');
+        process.stderr.write(`proctor: could not install the Copilot agentStop hook (${msg})\n`);
         process.exitCode = 1;
       }
       }

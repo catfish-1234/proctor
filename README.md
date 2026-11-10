@@ -136,6 +136,7 @@ which may be outside the working tree when you use worktrees or `core.hooksPath`
 | `.claude/settings.json` | The Claude Code Stop hook, written only if this repo uses Claude Code | Merged into the existing JSON; nothing else in the file changes |
 | `.codex/hooks.json` | The Codex CLI Stop hook, written only if Codex is a selected or detected agent | Merged into the existing JSON, preserving other hooks and top-level fields |
 | `.gemini/settings.json` | The Gemini CLI AfterAgent hook (experimental), written only when Gemini CLI is explicitly selected (`--agents gemini-cli` or `--all`), never on detection alone | Merged into the existing JSON, preserving other hooks and settings |
+| `.github/hooks/proctor.json` | The GitHub Copilot agentStop hook (experimental), written only when GitHub Copilot is explicitly selected (`--agents github-copilot` or `--all`), never on detection alone | proctor's own file; merged preserving other events and entries, and other files in `.github/hooks/` are never touched |
 | `.proctor-adapter-manifest.json` | Records what was written, so `uninstall` can take exactly that back out | Rewritten |
 
 proctor detects agents from their config files, such as `.cursor/`, `.claude/`, `.codex/`, `.gemini/`, or `WARP.md`,
@@ -250,6 +251,24 @@ A pre-commit hook installed by an older proctor version does not have the gate: 
 `proctor install-hook` (a hook from another tool is backed up to `pre-commit.bak`, never silently
 overwritten, and you merge it by hand). `proctor unresolved` tells you whether the gate is installed.
 
+If you use **GitHub Copilot** (experimental, opt-in), `proctor setup --agents github-copilot`
+writes `.github/hooks/proctor.json`, registering an `agentStop` hook that runs
+`proctor stop-hook --format copilot`. A blocking finding emits only
+`{"decision":"block","reason":"<finding output>"}` and exits `0`; per GitHub's hooks
+reference, a block forces another agent turn with the reason as the prompt. Clean checks,
+`stop_hook_active: true` and malformed input silently allow the turn, so proctor blocks at most
+once per turn and never approaches the documented 8-block runaway guard. The entry carries
+`bash`, `powershell` and `command` fields so both the Copilot CLI and the cloud agent (Linux
+sandbox, `bash` with `command` fallback) run the same handler. Other files in `.github/hooks/`
+load independently, so proctor's file cannot disable a hook you already have.
+
+**Contract-verified only, never live-verified.** Verified locally with documented `agentStop`
+payloads: a deleted test returns block feedback with RH001, a clean working tree is silent, and
+`stop_hook_active`/malformed-input cases silently allow. Tests also cover hook-file
+merge/uninstall round-trips and foreign-hook preservation. No real Copilot CLI or cloud agent
+session was exercised; treat this hook as unproven until someone runs it live. Contract source:
+[Copilot hooks reference](https://docs.github.com/en/copilot/reference/hooks-reference).
+
 The hooks run checks automatically. A config file is optional.
 
 ### Checking it worked
@@ -270,8 +289,8 @@ proctor uninstall
 
 It removes only what it installed. Your own content in a shared file like `AGENTS.md` stays, a
 pre-commit hook that isn't proctor's is left alone, and `proctor.config.json` is left for you to
-keep or delete. Only proctor's Gemini AfterAgent command is removed from project settings;
-unrelated hooks remain. To remove the separately installed Gemini extension and its bundled hook,
+keep or delete. Only proctor's Gemini AfterAgent command is removed from project settings, and
+only proctor's agentStop entry from `.github/hooks/proctor.json`; unrelated hooks remain. To remove the separately installed Gemini extension and its bundled hook,
 run `gemini extensions uninstall proctor`. To skip the git hook once without uninstalling:
 `git commit --no-verify`.
 
@@ -610,8 +629,8 @@ See the [scope, dropped ideas and tuned dev-set measurements](bench/dynamic-dev/
 
 proctor combines a **ruleset** with a **guard**. The ruleset tells the agent how to complete work
 and report results. The deterministic, diff-level guard checks for known tampering patterns at
-commit time and at the end of a turn through the Claude Code, Codex CLI, or Cursor Stop hooks
-or the Gemini CLI AfterAgent hook. It works below the agent's own reasoning by checking the
+commit time and at the end of a turn through the Claude Code, Codex CLI or GitHub Copilot
+(experimental) Stop hooks, or the Gemini CLI AfterAgent hook. It works below the agent's own reasoning by checking the
 changed code rather than the agent's explanation.
 
 ## Can the agent get around it?

@@ -420,6 +420,12 @@ export async function runDoctor(cwd: string, opts: DoctorOptions = {}): Promise<
         ? { name: 'Stop hook (Codex CLI)', state: 'configured', detail: `${p} runs the Stop hook` }
         : { name: 'Stop hook (Codex CLI)', state: 'missing', detail: 'Codex CLI detected but no Stop hook installed', fix: 'proctor setup' });
     }
+    if (agent.id === 'github-copilot') {
+      const p = join(cwd, '.github', 'hooks', 'proctor.json');
+      items.push(fileContains(p, /proctor/)
+        ? { name: 'agentStop hook (GitHub Copilot)', state: 'configured', detail: `${p} runs the experimental agentStop hook (contract-verified only, not live-verified)` }
+        : { name: 'agentStop hook (GitHub Copilot)', state: 'info', detail: 'experimental, opt-in only; not installed', fix: 'proctor setup --agents github-copilot' });
+    }
     if (agent.id === 'gemini-cli') {
       const p = join(cwd, '.gemini', 'settings.json');
       items.push(fileContains(p, /proctor/)

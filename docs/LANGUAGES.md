@@ -147,7 +147,7 @@ the commit.
 | Continue.dev | `.continue/rules/proctor.md` | | ✅ |
 | Cline | `.clinerules/proctor.md` | | ✅ |
 | Amazon Q Developer | `.amazonq/rules/proctor.md` | | ❌ |
-| GitHub Copilot¹ | `.github/instructions/proctor.instructions.md` | | ❌ |
+| GitHub Copilot¹ | `.github/instructions/proctor.instructions.md` | | ❌³ |
 | Zed | `.rules` | ✅ | ❌ |
 | AGENTS.md (universal) | `AGENTS.md` | ✅ | ❌ |
 | OpenHands | `.openhands/microagents/repo.md` | ✅ | ✅ |
@@ -175,6 +175,11 @@ instructions file gains `applyTo: '**'` so it actually activates. Claude Code an
 the Agent Skills format and gain `name`/`description` frontmatter, which Codex requires outright:
 without it the skill is not recognized at all. Every transform only prepends static frontmatter;
 the canonical ruleset body passes through byte-for-byte.
+
+³ GitHub Copilot also has an experimental, opt-in `agentStop` enforcement hook
+(`proctor setup --agents github-copilot`, writes `.github/hooks/proctor.json`). It is
+contract-verified against GitHub's Copilot hooks reference only and has never been live-verified
+against a real Copilot CLI or cloud agent session.
 
 ² Some agents read a single instructions file that you also write your own content into
 (`AGENTS.md`, `GEMINI.md`, `WARP.md`, `.goosehints`, and so on). For those, `install-skill` does

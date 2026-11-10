@@ -7,6 +7,7 @@ import { removePreCommitHook } from '../hooks/pre-commit.js';
 import { removeStopHook } from '../hooks/claude-settings.js';
 import { removeCodexStopHook } from '../hooks/codex-hooks.js';
 import { removeGeminiAfterAgentHook } from '../hooks/gemini-hooks.js';
+import { removeCopilotStopHook } from '../hooks/copilot-hooks.js';
 
 /**
  * Writing the canonical ruleset out to agent paths, and taking it back off again.
@@ -200,6 +201,13 @@ export async function uninstallProctor(cwd: string, dryRun: boolean): Promise<Un
     if (afterAgent) done.push(`Removed the proctor Gemini AfterAgent hook from: ${rel(afterAgent)}`);
   } catch (err: unknown) {
     failed.push(`the Gemini AfterAgent hook entry (${(err as NodeJS.ErrnoException).code ?? 'unknown error'})`);
+  }
+
+  try {
+    const agentStop = await removeCopilotStopHook(join(cwd, '.github', 'hooks'), dryRun);
+    if (agentStop) done.push(`Removed the proctor Copilot agentStop hook from: ${rel(agentStop)}`);
+  } catch (err: unknown) {
+    failed.push(`the Copilot agentStop hook entry (${(err as NodeJS.ErrnoException).code ?? 'unknown error'})`);
   }
 
   return { done, failed, note };

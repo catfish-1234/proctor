@@ -60,7 +60,7 @@ export function loadSnapshots(options: DynamicOptions): { old: Snapshot; next: S
   for (const tree of [old, next]) {
     if ([...tree.values()].reduce((sum, f) => sum + f.data.length, 0) > MAX_BYTES) throw Error('snapshot size limit');
   }
-  for (const path of ['package.json', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'requirements.txt', 'poetry.lock', 'uv.lock']) {
+  for (const path of ['package.json', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'requirements.txt', 'poetry.lock', 'uv.lock', 'go.mod', 'go.sum']) {
     if (old.get(path)?.data.toString() !== next.get(path)?.data.toString()) throw Error(`not run: dependency manifest changed (${path})`);
   }
   return { old, next, baseCommit: ref, headCommit };

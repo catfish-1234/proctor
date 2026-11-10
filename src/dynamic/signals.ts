@@ -46,14 +46,23 @@ function definesPythonFunction(text: string, name: string): boolean {
   }
   return false;
 }
+/** Go test ids are `<package>::<TestName>`; subtests append `/Sub`. Match the declaring func literally. */
+function definesGoTest(text: string, name: string): boolean {
+  for (const match of text.matchAll(/^func (Test\w+)\s*\(\s*\w+ \*testing\.T\s*\)/gm)) {
+    if (match[1] === name) return true;
+  }
+  return false;
+}
 export function locateTest(id: string, tree: Snapshot, tests: string[]): string | undefined {
   if (tests.includes(id) && tree.has(id)) return id;
   const [plainFile, plainFunction] = id.split('::');
   if (plainFunction && plainFile && tests.includes(plainFile) && tree.has(plainFile)) return plainFile;
   const python = (/^(test\w+) \(/.exec(id)?.[1] ?? id.split('::').at(-1))?.replace(/\[.*$/, '');
+  const go = id.split('::').at(-1)?.split('/')[0];
   const exact = tests.filter(p => {
     const text = tree.get(p)?.data.toString() ?? '';
-    return text.includes(`'${id}'`) || text.includes(`"${id}"`) || (p.endsWith('.py') && !!python && definesPythonFunction(text, python));
+    return text.includes(`'${id}'`) || text.includes(`"${id}"`) || (p.endsWith('.py') && !!python && definesPythonFunction(text, python)) ||
+      (p.endsWith('_test.go') && !!go && definesGoTest(text, go));
   });
   if (exact.length) return exact.length === 1 ? exact[0] : undefined;
   const nested = tests.filter(p => [...(tree.get(p)?.data.toString() ?? '').matchAll(/\b(?:test|it)\s*\(\s*(['"])([^'"\n]+)\1/g)]

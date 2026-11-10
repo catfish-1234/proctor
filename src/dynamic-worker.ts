@@ -157,8 +157,11 @@ try {
       } else result.notes.push('not run: mutation-lite coverage control did not reproduce the green suite');
     } catch (error) { result.notes.push(`not run: mutation-lite could not establish reliable evidence: ${String(error)}`); }
   }
-  const raceFiles = testChanges.filter(p => /(?:sleep\s*\(|setTimeout\s*\(|\bretry\b|\bretries\b)/.test(next.get(p)?.data.toString() ?? '') &&
-    (next.get(p)?.data.toString().match(/sleep\s*\(|setTimeout\s*\(|\bretry\b|\bretries\b/g)?.length ?? 0) > (old.get(p)?.data.toString().match(/sleep\s*\(|setTimeout\s*\(|\bretry\b|\bretries\b/g)?.length ?? 0));
+  // Go's time.Sleep is the same race-masking shape as sleep(/setTimeout( in other languages.
+  const sleepPattern = /(?:sleep\s*\(|setTimeout\s*\(|time\.Sleep\s*\(|\bretry\b|\bretries\b)/;
+  const sleepPatternGlobal = /sleep\s*\(|setTimeout\s*\(|time\.Sleep\s*\(|\bretry\b|\bretries\b/g;
+  const raceFiles = testChanges.filter(p => sleepPattern.test(next.get(p)?.data.toString() ?? '') &&
+    (next.get(p)?.data.toString().match(sleepPatternGlobal)?.length ?? 0) > (old.get(p)?.data.toString().match(sleepPatternGlobal)?.length ?? 0));
   if (raceFiles.length && current.run.exitCode === 0) {
     const repeats = [current.run];
     for (let i = 1; i <= 3; i++) {

@@ -559,7 +559,9 @@ an agent-writable runner.
 
 Cross-runs pair original tests with a bounded set of baseline runner controls (Jest/Vitest
 config files, pytest/unittest config and conftest.py), including restored deletions and removed
-additions. Config changes trigger a separate baseline-controlled run even when tests are unchanged;
+additions. A changed dependency manifest (`package.json`, lockfiles, Python requirements/lock
+files, `go.mod` or `go.sum`) stops the run as inconclusive rather than executing against
+unpinned dependencies. Config changes trigger a separate baseline-controlled run even when tests are unchanged;
 its failures are diagnostic evidence, not a cheating finding. Snapshot notes identify resolved
 Git commit hashes, not trusted sources. Custom setup modules, installed dependencies and the runner
 itself are not authenticated by these snapshots. Legitimate API/config changes can change results.
@@ -574,6 +576,13 @@ executable-adapter validation, not additional live-verified agent or harness cov
 This prototype supports Node's `node:test`, Jest and Vitest through `npm run test`, plus Python
 `unittest`, `pytest` and plain Python scripts. When unittest collects no cases or only collection
 errors, plain scripts run directly and bare `test_*` functions run individually in fresh processes.
+Go modules with `*_test.go` files run through `go test -json` with result caching disabled. Go runs
+never touch the network (`GOPROXY=off`, `GOTOOLCHAIN=local`), so a module whose dependencies are
+not already in the local module cache fails honestly instead of fetching. Go coverage is narrower
+than Node/Python: DY001 (baseline test regression) and DY005 (inconsistent repeated test after an
+added sleep, including `time.Sleep`) run; DY002 probes and DY004 mutation-lite stay Node/Python-only
+(their probe runners and mutators were not ported); DY003's expectation-literal recognition is
+JS/Python-shaped, so it does not fire for Go tests.
 It needs Linux and bubblewrap with working user, mount, network and PID
 namespaces. Windows, macOS, unsupported languages and unavailable isolation report
 `dynamic: skipped, reason`; a skip never adds a failing finding. Tests run in temporary copies,

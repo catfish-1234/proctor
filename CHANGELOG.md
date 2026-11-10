@@ -7,6 +7,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.6.3] - 2026-11-09
+
+- Preserve unresolved finding history when a record read fails or existing JSON is malformed.
+  Read the already resolved record path under the writer lock, avoiding a second Git lookup
+  that could misclassify existing history as absent. Refuse an unverified overwrite instead
+  of resetting the count, original finding and baseline while claiming a successful write.
+- Retain per-process concurrent Stop diagnostics. Three deterministic regressions cover failed
+  redundant Git lookup, EBUSY record-read failure and malformed history. This does not establish
+  the cause of the observed Windows 15-of-16 occurrence count or fix all record-loss paths.
+  Best-effort budget state and documented Stop fail-open behavior remain unchanged.
+
 ## [1.6.2] - 2026-11-09
 
 - Pair dynamic cross-runs with a bounded set of baseline Jest/Vitest and Python test

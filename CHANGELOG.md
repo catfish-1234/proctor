@@ -7,6 +7,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.6.4] - 2026-11-09
+
+- Surface unknown Stop checks and budget/record persistence failures with bounded UNVERIFIED
+  diagnostics, without treating infrastructure errors as cheating or silently clearing prior
+  blocked continuity. Intentional skips remain silent and preserve the count.
+- Preserve known counts when an optional attempt sequence is absent. Unknown budget state fails
+  open; enforce mode records only the established finding, explicitly not verified exhaustion.
+  Advisory mode still records nothing. Clean count clearing requires a successful atomic update.
+- Preserve existing record bytes, provenance and history on failed replacement. Clean only owned
+  temporary artifacts after partial-write/rename failures. Twenty deterministic fault and
+  ownership regressions check these paths and stdout/stderr separately across hook protocols.
+- Claude/Antigravity retain exit0 for uncertainty; Codex/Gemini use documented nonblocking exit1.
+  Exit status alone does not establish clean checking or persistence. No new live semantic
+  coverage is claimed; the original Windows15/16 cause remains unresolved and PR94 stays held.
+
 ## [1.6.3] - 2026-11-09
 
 - Preserve unresolved finding history when a record read fails or existing JSON is malformed.

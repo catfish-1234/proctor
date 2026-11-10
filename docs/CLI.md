@@ -69,7 +69,7 @@ directory instead of the current one, which is useful when proctor is driving an
 | `--sarif` | print SARIF 2.1.0 JSON, for tools that consume that format |
 | `--ai` | turn on the optional AI judge for ambiguous cases (needs `ANTHROPIC_API_KEY`). Everything else is offline: no network, no account |
 | `--rules <ids>` | narrow the enabled checks, e.g. `RH001,RH003`; use `--wi` to enable WI checks first |
-| `--dynamic` | run isolated project tests for additional runtime evidence; requires Linux and bubblewrap, otherwise reports a skip |
+| `--dynamic` | run isolated project tests for additional runtime evidence; requires Linux and bubblewrap, otherwise reports a skip. Node (`node:test`/Jest/Vitest), Python (`unittest`/`pytest`) and Go (`go test -json`) suites; Go coverage is limited to DY001 and DY005 |
 | `--dynamic-timeout <ms>` | override the overall dynamic budget in milliseconds (default 60000, also `dynamicTimeoutMs` in committed config) |
 | `--wi` | add the entire work-integrity family (WI101 to WI113), including the seven checks that remain opt-in |
 | `--all-checks` | alias for `--wi`: add the beta WI family to the configured checks |

@@ -7,6 +7,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-11-09
+
+- Add Go support to the opt-in dynamic checks: Go modules with `*_test.go` files run through
+  `go test -count=1 -json ./...` under the existing bubblewrap write/network isolation, with
+  `GOPROXY=off` and `GOTOOLCHAIN=local` so a run never fetches modules or toolchains and an
+  uncached dependency fails honestly. Named results are package-qualified and parsed from the
+  JSON event stream with the same contradiction and discordance discipline as the other runners.
+- Go check coverage is narrower and says so: DY001 (previously passing baseline test fails on
+  new code) and DY005 (inconsistent repeated test, now also recognizing an added `time.Sleep`)
+  execute for Go. DY002 probes and DY004 mutation-lite remain Node/Python-only, and DY003's
+  expectation-literal recognition is JS/Python-shaped, so none of them fire for Go.
+- A changed `go.mod` or `go.sum` now stops a dynamic run as inconclusive, matching the existing
+  dependency-manifest pinning for Node and Python.
+- Authored Go development cases cover a removed guard pinned by a baseline test, an honest
+  red-to-green fix, a build failure reported as skipped, and a sleep-masked inconsistent test.
+  Go dynamic evidence is validated through the same sandboxed worker contract as the other
+  runners; this release makes no live-harness or catch-rate claims.
+
 ## [1.7.0] - 2026-11-09
 
 - Add the explicit result contract: `check --result-json` emits a versioned envelope (schema 1)

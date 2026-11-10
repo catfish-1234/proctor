@@ -168,7 +168,11 @@ and branch scanning at 128 conditions per hunk. These caps favor silence on larg
   functions requiring fixtures or custom arguments are unsupported. Mixed suites with real unittest
   cases do not add separate outcomes for plain files; collection errors beside real cases still skip.
   Python plugin autoload is disabled. Custom discovery,
-  delegated scripts and monorepos can skip.
+  delegated scripts and monorepos can skip. Go modules with `*_test.go` files run through
+  `go test -count=1 -json ./...` with `GOPROXY=off` and `GOTOOLCHAIN=local`: modules whose
+  dependencies are not already cached skip, and DY002/DY003/DY004 do not fire for Go
+  (probes and mutation-lite remain Node/Python-only; expectation-literal recognition is
+  JS/Python-shaped).
 - Tests must be runnable without network or credentials; an old named failure is evidence, not
   a reason to skip the whole case. Dependencies must
   already be installed. Changed dependency manifests, unreadable reporters, duplicate test

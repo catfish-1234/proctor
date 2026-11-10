@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import type { Snapshot } from './snapshots.js';
 import type { TestRun } from './runner.js';
 
-export interface Adapter { command: string; args: string[]; kind: 'tap' | 'jest' | 'vitest' | 'unittest' | 'pytest'; testFiles?: string[] }
+export interface Adapter { command: string; args: string[]; kind: 'tap' | 'jest' | 'vitest' | 'unittest' | 'pytest' | 'go'; testFiles?: string[] }
 export function detectAdapter(tree: Snapshot, tests: string[]): Adapter {
   const pkgText = tree.get('package.json')?.data.toString();
   if (pkgText) {
@@ -29,7 +29,12 @@ export function detectAdapter(tree: Snapshot, tests: string[]): Adapter {
       ? { command: 'python3', args: ['-m', 'pytest', '-q', '--tb=short', '--junitxml=.proctor-junit.xml'], kind: 'pytest' }
       : { command: 'python3', args: ['-m', 'unittest', 'discover', '-v'], kind: 'unittest', testFiles: py };
   }
-  throw Error('not run: no supported Node or Python tests found');
+  const go = tests.filter(p => p.endsWith('_test.go'));
+  if (go.length && tree.has('go.mod')) {
+    // -count=1 disables result caching: cross-runs, repeats and mutation runs must re-execute.
+    return { command: 'go', args: ['test', '-count=1', '-json', './...'], kind: 'go' };
+  }
+  throw Error('not run: no supported Node, Python or Go tests found');
 }
 function uniqueOutcomes(rows: [string, boolean][]): { passed: string[]; failed: string[] } {
   const counts = new Map<string, number>();
@@ -78,6 +83,25 @@ export function parseResults(kind: Adapter['kind'], stdout: string, stderr: stri
       const value = new RegExp(`\\b${key}="([^"]*)"`).exec(root?.[1] ?? '')?.[1];
       if (value !== undefined && (!/^\d+$/.test(value) || Number(value) !== count)) throw Error(`inconclusive: JUnit ${key} disagrees with testcase outcomes`);
     }
+  } else if (kind === 'go') {
+    // `go test -json` emits one JSON event per line on stdout. Named results are the pass/fail
+    // events that carry a Test field; package-level pass/fail lines have none. Build failures,
+    // missing modules and packages without tests produce no named results, which runTests turns
+    // into an honest cannot-run rather than a synthetic pass or a named failure.
+    let sawEvent = false;
+    for (const line of stdout.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      if (!trimmed.startsWith('{')) throw Error('inconclusive: non-JSON line in go test event stream');
+      let event: { Action?: unknown; Package?: unknown; Test?: unknown };
+      try { event = JSON.parse(trimmed); } catch { throw Error('inconclusive: malformed go test JSON event'); }
+      if (typeof event.Action !== 'string' || typeof event.Package !== 'string' || !event.Package) throw Error('inconclusive: go test event without an action or package');
+      sawEvent = true;
+      if (typeof event.Test !== 'string' || !event.Test) continue;
+      if (event.Action === 'skip') continue;
+      if (event.Action === 'pass' || event.Action === 'fail') rows.push([`${event.Package}::${event.Test}`, event.Action === 'pass']);
+    }
+    if (!sawEvent) throw Error('inconclusive: go test produced no JSON events');
   } else {
     // npm and lifecycle scripts can print text before the runner's JSON object.
     let result;
@@ -155,7 +179,11 @@ function runPythonFiles(adapter: Adapter, dir: string, label: string, discovery:
 export function runTests(adapter: Adapter, dir: string, label: string, extraEnv: NodeJS.ProcessEnv = {}): TestRun {
   const artifact = join(dir, '.proctor-junit.xml');
   if (adapter.kind === 'pytest') rmSync(artifact, { force: true });
-  const env = { ...process.env, ...extraEnv, PWD: dir, ...(adapter.kind === 'tap' && adapter.command === 'npm' ? { NODE_OPTIONS: '--test-reporter=tap' } : {}) };
+  const env = { ...process.env, ...extraEnv, PWD: dir, ...(adapter.kind === 'tap' && adapter.command === 'npm' ? { NODE_OPTIONS: '--test-reporter=tap' } : {}),
+    // Go: never reach the network from a test run. Missing modules or a newer required toolchain
+    // fail the run honestly instead of fetching; the sandbox already blocks the network, these make
+    // the failure immediate and explicit rather than an attempted connection.
+    ...(adapter.kind === 'go' ? { GOPROXY: 'off', GOTOOLCHAIN: 'local' } : {}) };
   const r = spawnSync(adapter.command, adapter.args, { cwd: dir, encoding: 'utf8', maxBuffer: 2 * 1024 * 1024, env });
   if (r.error || r.signal) throw Error(`cannot run ${label}: ${r.error?.message ?? r.signal}`);
   const stdout = r.stdout ?? '', stderr = r.stderr ?? '';

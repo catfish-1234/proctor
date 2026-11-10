@@ -96,7 +96,11 @@ export function runStopHookCheck(cwd: string, cliPath: string): StopHookResult {
 
   // 60s timeout so a pathological check can never wedge the agent's turn forever. On timeout
   // spawnSync sets status=null and error, which the fail-open below maps to "allow".
-  const result = spawnSync(process.execPath, [cliPath, 'check', '--uncommitted', '--ci'], {
+  // --require-requested-dynamic: when the project requested dynamic evidence (config) but it did
+  // not complete, the check exits 3 and lands in the fail-open "unverified" path below, retaining
+  // the budget, instead of a false clean silently clearing it. The flag does not enable dynamic on
+  // its own, so static-only projects run exactly as before.
+  const result = spawnSync(process.execPath, [cliPath, 'check', '--uncommitted', '--ci', '--require-requested-dynamic'], {
     cwd,
     stdio: ['ignore', 'pipe', 'pipe'],
     encoding: 'utf8',
@@ -110,6 +114,8 @@ export function runStopHookCheck(cwd: string, cliPath: string): StopHookResult {
   // recordCaught swallows its own errors, so counting can never change whether a turn is blocked.
   if (blocked) recordCaught(cwd, rulesIn(output));
   return { exitCode: blocked ? 2 : 0, output, state: blocked ? 'blocked' : code === 0 || code === 1 ? 'clean' : 'unverified' };
+  // Exit 3 (check incomplete, e.g. requested dynamic evidence unavailable) is 'unverified', never
+  // 'clean': the Stop fails open but keeps prior blocked-state continuity.
 }
 
 /**

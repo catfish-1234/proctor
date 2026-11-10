@@ -25,6 +25,7 @@ export interface TestRun {
 }
 export interface DynamicResult {
   status: 'completed' | 'skipped';
+  snapshots?: { baseCommit: string; headCommit: string; overlay: 'index' | 'working-tree' | 'none'; baselineControls: string[] };
   reason?: string;
   findings: Finding[];
   runs: TestRun[];

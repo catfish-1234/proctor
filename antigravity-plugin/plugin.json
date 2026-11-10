@@ -2,7 +2,7 @@
   "name": "proctor",
   "displayName": "Proctor",
   "description": "Stop hook that blocks an agent turn from ending when the working tree games its tests: deleted or skipped tests, weakened assertions, hardcoded outputs.",
-  "version": "1.6.4",
+  "version": "1.7.0",
   "logo": "assets/logo.svg",
   "suggestedPrompts": ["Make the failing test pass"],
   "author": { "name": "Kavish Dua", "url": "https://github.com/catfish-1234" },

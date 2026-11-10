@@ -101,7 +101,8 @@ export const AGENT_ADAPTERS: AgentAdapter[] = [
   // GitHub Copilot gets `applyTo: '**'` frontmatter via copilotApplyToTransform so the scoped
   // instructions file actually activates.
   // Detection deliberately does not treat a bare `.github/` as Copilot: nearly every repo has one.
-  { id: 'github-copilot', displayName: 'GitHub Copilot', relativePath: '.github/instructions/proctor.instructions.md', scriptable: false, transform: copilotApplyToTransform, detect: ['.github/instructions', '.github/copilot-instructions.md'] },
+  { id: 'github-copilot', displayName: 'GitHub Copilot', relativePath: '.github/instructions/proctor.instructions.md', scriptable: false, transform: copilotApplyToTransform, detect: ['.github/instructions', '.github/copilot-instructions.md'],
+    experimental: 'its agentStop hook is contract-verified against GitHub\'s Copilot hooks documentation only, never live-verified against a real Copilot CLI or cloud agent session' },
   { id: 'zed', displayName: 'Zed', relativePath: '.rules', scriptable: false, shared: true, detect: ['.zed'] },
   // Universal cross-vendor AGENTS.md standard (Linux Foundation-stewarded). Also covers Codex
   // CLI's actual documented convention (developers.openai.com/codex/guides/agents-md) for free,

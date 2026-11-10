@@ -58,9 +58,21 @@ export interface StopHookResult {
   output: string;
 }
 
-export type StopHookFormat = 'claude' | 'codex' | 'gemini' | 'antigravity';
+export type StopHookFormat = 'claude' | 'codex' | 'gemini' | 'antigravity' | 'copilot';
 
-/** Codex, Gemini and Antigravity block via JSON on stdout with exit 0 (Antigravity uses `block`, verified live on agy 1.5.3), and require silence to allow. */
+/**
+ * Codex, Gemini, Antigravity and Copilot block via JSON on stdout with exit 0 (Antigravity uses
+ * `block`, verified live on agy 1.5.3), and require silence to allow.
+ *
+ * Copilot's agentStop contract (docs.github.com/en/copilot/reference/hooks-reference, verified
+ * 2026-11-10): `{"decision":"block","reason":...}` forces another turn with reason as the
+ * prompt; silence allows; output field names are identical in the camelCase and VS Code
+ * compatible config dialects. Contract-verified against documentation only, never live-verified.
+ * Its input payload carries the same `cwd` and `stop_hook_active` fields as Claude's (in both
+ * dialects), so parsing deliberately shares the Claude path: one block per turn, then the
+ * documented stop_hook_active re-entry skips rather than re-blocking toward Copilot's 8-block
+ * runaway guard.
+ */
 export function formatStopHookResult(result: StopHookResult, format: StopHookFormat): StopHookResult {
   if (format === 'claude') return result;
   return {

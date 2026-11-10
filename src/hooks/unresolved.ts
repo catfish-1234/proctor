@@ -26,7 +26,7 @@ export interface UnresolvedRecord {
   baseHead: string | null;
   firstSeenAt: string;
   lastSeenAt: string;
-  /** How many exhausted stops were recorded for this worktree. */
+  /** How many Stop findings were recorded for this worktree. */
   occurrences: number;
   blockBudget: number;
   /** The first finding output, as proctor printed it (capped). */
@@ -190,33 +190,42 @@ export function recordUnresolved(input: RecordInput): string | undefined {
   } catch {
     return undefined;
   }
-  const written = withLock(path + '.lock', () => {
-    const existing = readRecord(path);
-    // Unreadable or malformed history is not a missing record. Never replace it with a
-    // new occurrence counter/baseline and report a successful durable write. The caller
-    // surfaces UNVERIFIED and keeps the old bytes for recovery.
-    if (existing.state === 'corrupt') return undefined;
-    // The first record's provenance and baseline are kept: a later exhausted stop must not move
-    // the baseline forward and so shrink the range a clearing check has to cover.
-    const prior = existing.state === 'unresolved' ? existing.record : undefined;
-    const record: UnresolvedRecord = {
-      schema: UNRESOLVED_SCHEMA,
-      source: prior?.source ?? input.source,
-      conversationId: prior?.conversationId ?? sanitizeConversationId(input.conversationId),
-      baseHead: prior ? prior.baseHead : currentHead(input.cwd),
-      firstSeenAt: prior?.firstSeenAt ?? now,
-      lastSeenAt: now,
-      occurrences: (prior?.occurrences ?? 0) + 1,
-      blockBudget: input.blockBudget,
-      originalFindings: prior?.originalFindings ?? cap(input.findings),
-      latestFindings: cap(input.findings),
-    };
-    const tmp = `${path}.${process.pid}.tmp`;
-    writeFileSync(tmp, JSON.stringify(record, null, 2) + '\n', { mode: 0o600 });
-    renameWithRetry(tmp, path); // atomic replace: readers see the old or the new record, never a partial one
-    return path;
-  });
-  return written;
+  let temporary: string | undefined;
+  let owned = false;
+  try {
+    const written = withLock(path + '.lock', () => {
+      const existing = readRecord(path);
+      // Unreadable or malformed history is not a missing record. Never replace it with a
+      // new occurrence counter/baseline and report a successful durable write. The caller
+      // surfaces UNVERIFIED and keeps the old bytes for recovery.
+      if (existing.state === 'corrupt') return undefined;
+      // The first record's provenance and baseline are kept: a later recorded Stop must not move
+      // the baseline forward and so shrink the range a clearing check has to cover.
+      const prior = existing.state === 'unresolved' ? existing.record : undefined;
+      const record: UnresolvedRecord = {
+        schema: UNRESOLVED_SCHEMA,
+        source: prior?.source ?? input.source,
+        conversationId: prior?.conversationId ?? sanitizeConversationId(input.conversationId),
+        baseHead: prior ? prior.baseHead : currentHead(input.cwd),
+        firstSeenAt: prior?.firstSeenAt ?? now,
+        lastSeenAt: now,
+        occurrences: (prior?.occurrences ?? 0) + 1,
+        blockBudget: input.blockBudget,
+        originalFindings: prior?.originalFindings ?? cap(input.findings),
+        latestFindings: cap(input.findings),
+      };
+      const tmp = `${path}.${process.pid}.tmp`;
+      temporary = tmp;
+      const fd = openSync(tmp, 'wx', 0o600);
+      owned = true;
+      try { writeFileSync(fd, JSON.stringify(record, null, 2) + '\n'); } finally { closeSync(fd); }
+      renameWithRetry(tmp, path);
+      owned = false; // atomic replace: readers see the old or the new record, never a partial one
+      return path;
+    });
+    return written;
+  } catch { return undefined; }
+  finally { if (owned && temporary) { try { rmSync(temporary, { force: true }); } catch { /* only our owned file */ } } }
 }
 
 export type VerifyStatus =

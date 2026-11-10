@@ -64,3 +64,29 @@ Budget state remains best-effort local feedback, and Stop infrastructure errors 
 fail-open policy. A failed budget write/read can change whether an exhausted record is
 attempted; this is a separate potential path, not proven by the old missing trace. These
 records and hooks are agent-writable and are not independent enforcement.
+
+## Bounded Stop-state follow-up
+
+Further deterministic tests against published 1.6.3 reproduced three separate silent paths:
+
+- A budget path that is a directory loses both read and write results and restarts blocking.
+- Persistent record rename failure escapes reporting and leaves an owned temporary file.
+- A check infrastructure exit after a block silently clears the budget; the next block resets.
+
+These paths justify a separate reporting/persistence fix. They do not establish the cause of
+the original Windows 15/16 event. The follow-up distinguishes clean, blocked, unverified and
+intentional skipped checks. Infrastructure failures retain prior budget bytes. Clean checks
+clear the count only after an observed successful atomic update. Missing optional execution
+sequence numbers use known persisted counts, not an assumed new turn. An explicit zero can
+start a new budget only when stored state is readable or absent, never when it is corrupt.
+
+Unknown or unwritable budget state fails open with bounded UNVERIFIED diagnostics. In enforce
+mode it attempts to record only the established finding, with a reason explicitly denying any
+claim of verified exhaustion or count. Failure to record stays visible without claiming a gate.
+Advisory mode still opts out of recording. Existing original provenance/history is preserved.
+Both atomic writers clean only temporary files they successfully created; failed replacement
+preserves original bytes. Local records and hooks remain agent-writable feedback, not an
+independent check. The deterministic tests inspect stdout separately from stderr and forbid
+block-shaped output on uncertainty. Claude and Antigravity use exit `0` for these diagnostics;
+Codex and Gemini use documented nonblocking exit `1`. Exit status alone is not a clean or
+persistence claim. No new model calls or live semantic coverage are claimed.

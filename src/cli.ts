@@ -314,7 +314,7 @@ program
         ? 'Commit gate: installed.'
         : "Commit gate: NOT installed in this worktree's pre-commit hook. Run 'proctor install-hook' to add it (an existing hook from another tool is backed up to pre-commit.bak, not silently overwritten; merge it by hand). Hooks installed by older proctor versions do not have it.";
       process.stdout.write(`${gate}\n`);
-      process.stdout.write(`UNRESOLVED since ${r.firstSeenAt} (${r.occurrences} exhausted stop(s), last ${r.lastSeenAt}, source ${r.source}).\nBaseline: ${r.baseHead ?? 'none (no commits)'}\nOriginal finding:\n${r.originalFindings}\nRun 'proctor unresolved --verify' after fixing. This record is local feedback and can be removed by anyone with write access to the git directory; CI on the pushed diff is the independent check.\n`);
+      process.stdout.write(`UNRESOLVED since ${r.firstSeenAt} (${r.occurrences} recorded Stop finding(s), last ${r.lastSeenAt}, source ${r.source}).\nBaseline: ${r.baseHead ?? 'none (no commits)'}\nOriginal finding:\n${r.originalFindings}\nRun 'proctor unresolved --verify' after fixing. This record is local feedback and can be removed by anyone with write access to the git directory; CI on the pushed diff is the independent check.\n`);
       process.exitCode = 2;
       return;
     }
@@ -335,13 +335,36 @@ program
       const { cwd, skip, conversationId, executionNum } = parseStopHookInput(raw, process.cwd(), options.format);
       if (skip) return;
       const check = runStopHookCheck(cwd, process.argv[1] ?? '');
+      const unverified = (reason: string) => {
+        // Fixed bounded diagnostics only: never echo source, exception text or credentials.
+        process.stderr.write(`proctor: UNVERIFIED ${reason}. Protocol fail-open; no clean or durable-gate claim.\n`);
+        process.exitCode = options.format === 'codex' || options.format === 'gemini' ? 1 : 0;
+      };
+      if (check.state === 'not-checked') return;
+      if (check.state === 'unverified') { unverified('Stop check did not establish a clean or blocked outcome; prior budget retained'); return; }
       if (options.format === 'antigravity' && conversationId !== undefined) {
-        // No stop_hook_active here: every Stop re-checks, and a bounded counter (not the retry
-        // count itself) decides when an unresolvable finding stops blocking.
-        if (check.exitCode !== 2) { writeBudget(conversationId, undefined); return; }
+        if (check.state === 'clean') {
+          if (!writeBudget(conversationId, { blocks: 0 })) unverified('clean check completed but budget clearing failed');
+          return;
+        }
         const policy = stopHookPolicy(process.env);
-        const budget = decideBlockBudget(readBudget(conversationId), executionNum, policy.budget);
-        writeBudget(conversationId, budget.next);
+        const prior = readBudget(conversationId);
+        // Only an explicit sequence zero establishes a fresh turn. An absent optional
+        // sequence neither proves freshness nor corruption; use known persisted state.
+        const unknown = prior.state === 'unverified' || (prior.state === 'missing' && executionNum !== 0);
+        const budget = decideBlockBudget(prior.state === 'known' ? prior.value : undefined,
+          executionNum, policy.budget);
+        const saved = !unknown && writeBudget(conversationId, budget.next);
+        if (!saved) {
+          if (policy.mode === 'advisory') {
+            unverified('budget state could not be verified; established finding remains unresolved, advisory mode records nothing');
+            return;
+          }
+          const written = recordUnresolved({ cwd, source: 'antigravity-budget-unverified', conversationId,
+            findings: 'Budget verification failed; a blocking finding was established, but no exhaustion or count is asserted.\n' + check.output, blockBudget: policy.budget });
+          unverified(written ? 'budget state could not be verified; established finding recorded for review, not verified exhaustion' : 'budget state could not be verified and established finding could NOT be recorded');
+          return;
+        }
         if (!budget.block) {
           if (policy.mode === 'advisory') {
             process.stderr.write('proctor: block budget exhausted (advisory mode); findings remain unresolved and nothing was recorded\n');
@@ -351,9 +374,7 @@ program
           if (written) {
             process.stderr.write(`proctor: block budget exhausted; findings remain UNRESOLVED and are recorded at ${written}. Run 'proctor unresolved' to review. This is local feedback, not a tamper-proof gate; pre-commit hooks from older proctor versions lack the commit gate until 'proctor install-hook' is rerun.\n`);
           } else {
-            // Never a silent drop: a finding that could not be persisted is unverified, not clear.
-            process.stderr.write('proctor: block budget exhausted; findings remain UNRESOLVED and could NOT be recorded (lock contention or unwritable git directory). Treat the finding as UNVERIFIED: re-run proctor check and review with proctor unresolved.\n');
-            process.exitCode = 1;
+            unverified('block budget exhausted; findings remain UNRESOLVED and could NOT be recorded');
           }
           return;
         }
@@ -367,9 +388,10 @@ program
       }
       if (output) process.stderr.write(output);
       process.exit(exitCode);
-    } catch (err: unknown) {
+    } catch {
       // A JSON hook must never wedge a turn because reading stdin or running proctor failed.
-      if (options.format === 'claude') throw err;
+      process.stderr.write('proctor: UNVERIFIED Stop processing failed; protocol fail-open, no clean or persistence claim.\n');
+      process.exitCode = options.format === 'codex' || options.format === 'gemini' ? 1 : 0;
     }
   });
 

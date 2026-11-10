@@ -130,11 +130,11 @@ describe('stop-hook --format gemini CLI', () => {
     expect(result.stderr).toBe('');
   });
 
-  it('discards internal check errors and allows the turn', () => {
+  it('reports unverified internal checks without a blocking response', () => {
     writeFileSync(join(dir, '.git', 'index'), 'not an index');
     const result = hook();
-    expect(result.status).toBe(0);
+    expect(result.status).toBe(1);
     expect(result.stdout).toBe('');
-    expect(result.stderr).toBe('');
+    expect(result.stderr).toBe('proctor: UNVERIFIED Stop check did not establish a clean or blocked outcome; prior budget retained. Protocol fail-open; no clean or durable-gate claim.\n');
   });
 });

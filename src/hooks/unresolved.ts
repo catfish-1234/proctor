@@ -98,7 +98,11 @@ function isRecord(value: unknown): value is UnresolvedRecord {
 
 export function readUnresolved(cwd: string): UnresolvedRead {
   const path = unresolvedPath(cwd);
-  if (!path) return { state: 'none' };
+  return path ? readRecord(path) : { state: 'none' };
+}
+
+/** Reuse the already resolved path under the writer lock; a second Git failure is not absence. */
+function readRecord(path: string): UnresolvedRead {
   let raw: string;
   try {
     raw = readFileSync(path, 'utf8');
@@ -187,7 +191,11 @@ export function recordUnresolved(input: RecordInput): string | undefined {
     return undefined;
   }
   const written = withLock(path + '.lock', () => {
-    const existing = readUnresolved(input.cwd);
+    const existing = readRecord(path);
+    // Unreadable or malformed history is not a missing record. Never replace it with a
+    // new occurrence counter/baseline and report a successful durable write. The caller
+    // surfaces UNVERIFIED and keeps the old bytes for recovery.
+    if (existing.state === 'corrupt') return undefined;
     // The first record's provenance and baseline are kept: a later exhausted stop must not move
     // the baseline forward and so shrink the range a clearing check has to cover.
     const prior = existing.state === 'unresolved' ? existing.record : undefined;

@@ -7,6 +7,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-11-09
+
+- Add the explicit result contract: `check --result-json` emits a versioned envelope (schema 1)
+  with selected checks, requested dynamic runs and outcomes, local snapshot references,
+  verification state and reasons. `--require-dynamic` exits 3 on incomplete or review-required
+  requested dynamic evidence, never a cheating finding. Receipts, badges, Markdown summaries and
+  SARIF carry verification state; requested incomplete or differential evidence no longer earns
+  an honest-pass badge. Legacy `--json` output is unchanged.
+- Close the composition gap between that contract and the exit-only state consumers: the Stop
+  hook and `unresolved --verify` now pass `--require-requested-dynamic`, so requested dynamic
+  evidence that is incomplete or review-required is unverified there instead of a false clean.
+  The block budget and the unresolved record are retained until a complete check with an
+  observed successful state update. Static-only projects and empty diffs are unaffected and the
+  public optional-dynamic exit contract is unchanged.
+- Deterministic regressions cover skip/timeout/invalid-report/differential retention with
+  UNVERIFIED surfacing and honest red-baseline fixes clearing only on complete verification.
+  The original Windows 15/16 count-loss incident remains an unresolved historical event with
+  unknown cause; this release does not claim to explain it.
+
 ## [1.6.4] - 2026-11-09
 
 - Surface unknown Stop checks and budget/record persistence failures with bounded UNVERIFIED

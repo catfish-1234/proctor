@@ -247,23 +247,37 @@ describe('stopHookPolicy', () => {
 });
 
 describe('concurrency, untrusted input and secrets', () => {
-  const runHook = (env: NodeJS.ProcessEnv, conversationId: string, executionNum: number) => new Promise<{ code: number | null }>(resolveRun => {
-    const child = spawn(process.execPath, [CLI, 'stop-hook', '--format', 'antigravity'], { cwd: dir, env, stdio: ['pipe', 'ignore', 'ignore'] });
+  const runHook = (env: NodeJS.ProcessEnv, conversationId: string, executionNum: number) => new Promise<{ code: number | null; stdout: string; stderr: string; elapsedMs: number }>((resolveRun, reject) => {
+    const started = Date.now();
+    const child = spawn(process.execPath, [CLI, 'stop-hook', '--format', 'antigravity'], { cwd: dir, env, stdio: ['pipe', 'pipe', 'pipe'] });
+    let stdout = '', stderr = '';
+    child.stdout.on('data', data => { stdout += data.toString(); });
+    child.stderr.on('data', data => { stderr += data.toString(); });
+    child.on('error', reject);
     child.stdin.end(JSON.stringify({ executionNum, conversationId, workspacePaths: [dir] }));
-    child.on('close', code => resolveRun({ code }));
+    child.on('close', code => resolveRun({ code, stdout, stderr, elapsedMs: Date.now() - started }));
   });
 
   it('16 real processes recording at once lose no finding and leave no temp or lock files', async () => {
     writeFileSync(join(dir, 'a.test.ts'), cheated);
     const env = { ...process.env, TMPDIR: tmp, TEMP: tmp, TMP: tmp, PROCTOR_STOP_HOOK_BLOCK_BUDGET: '1' };
     const N = 16;
-    await Promise.all(Array.from({ length: N }, async (_, i) => {
-      await runHook(env, `race-${i}`, 0); // blocks, uses the budget
-      await runHook(env, `race-${i}`, 1); // budget spent: records unresolved
+    const observations = await Promise.all(Array.from({ length: N }, async (_, i) => {
+      const first = await runHook(env, `race-${i}`, 0); // blocks, uses the budget
+      const second = await runHook(env, `race-${i}`, 1); // budget spent: records unresolved
+      return { conversationId: `race-${i}`, first, second };
     }));
+    const diagnostic = JSON.stringify(observations, null, 2);
+    for (const observation of observations) {
+      expect(observation.first.code, diagnostic).toBe(0);
+      expect(observation.first.stdout, diagnostic).toContain('"decision":"block"');
+      expect(observation.second.code, diagnostic).toBe(0);
+      expect(observation.second.stdout, diagnostic).toBe('');
+      expect(observation.second.stderr, diagnostic).toContain('are recorded at');
+    }
     const r = readUnresolved(dir);
     if (r.state !== 'unresolved') throw new Error('expected unresolved');
-    expect(r.record.occurrences).toBe(N);
+    expect(r.record.occurrences, diagnostic).toBe(N);
     expect(readdirSync(dirname(unresolvedPath(dir)!)).sort()).toEqual(['unresolved.json']);
   }, 60_000);
 

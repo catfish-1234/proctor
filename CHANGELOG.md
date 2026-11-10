@@ -7,6 +7,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-10
+
+- Add an experimental, opt-in GitHub Copilot `agentStop` enforcement hook
+  (`proctor setup --agents github-copilot` or `proctor install-copilot-hook`): writes
+  `.github/hooks/proctor.json` running `proctor stop-hook --format copilot`. A blocking finding
+  emits the documented `{"decision":"block","reason":...}` contract with exit 0; clean checks,
+  `stop_hook_active: true` and malformed input are silent, so proctor blocks at most once per
+  turn and never approaches Copilot's documented 8-block runaway guard. Both documented input
+  dialects (camelCase and VS Code compatible snake_case) are accepted, and the entry carries
+  `bash`, `powershell` and `command` fields so the Copilot CLI and the cloud agent run the same
+  handler. The installer merges into an existing `proctor.json` preserving foreign events,
+  entries and fields, never touches sibling files in `.github/hooks/`, and `proctor uninstall`
+  removes only proctor's entry. The hook installs only on explicit opt-in, never on detection
+  alone. **Contract-verified against GitHub's Copilot hooks reference only; never live-verified
+  against a real Copilot CLI or cloud agent session.**
+- `proctor doctor` reports the Copilot hook as experimental/opt-in (configured when present).
+- Fix a README error that credited Cursor with a Stop hook integration it does not have.
+
 ## [1.8.0] - 2026-11-09
 
 - Add Go support to the opt-in dynamic checks: Go modules with `*_test.go` files run through

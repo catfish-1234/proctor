@@ -238,16 +238,23 @@ export type VerifyStatus =
 
 export type CheckRunner = (cwd: string, args: string[]) => number | null;
 
-/** Default runner: this same proctor CLI, in the worktree, with its output kept off the user's terminal. */
+/**
+ * Default runner: this same proctor CLI, in the worktree, with its output kept off the user's
+ * terminal. --require-requested-dynamic makes a project that requested dynamic evidence (config)
+ * exit 3 when that evidence is incomplete or needs review, so the record is kept as unverified
+ * instead of being cleared by a check whose requested observations did not complete. The flag
+ * does not enable dynamic on its own; static-only projects are unaffected.
+ */
 export function cliCheckRunner(cliPath: string): CheckRunner {
-  return (cwd, args) => spawnSync(process.execPath, [cliPath, 'check', '--ci', ...args], { cwd, stdio: 'ignore', timeout: 120_000 }).status;
+  return (cwd, args) => spawnSync(process.execPath, [cliPath, 'check', '--ci', '--require-requested-dynamic', ...args], { cwd, stdio: 'ignore', timeout: 120_000 }).status;
 }
 
 /**
  * Clears the record only after a fresh, COMPLETE check: the working tree against HEAD, and, when
  * the record has a baseline, everything committed since that baseline. A pre-commit `--staged`
  * check, a Stop hook `--uncommitted` check, or a commit that moved the cheat out of the working
- * tree are each a partial view and never clear it. Exit 0 and 1 (warnings only) count as clean;
+ * tree are each a partial view and never clear it. Exit 0 and 1 (warnings only) count as clean,
+ * and only with any requested dynamic verification complete; exit 3 keeps the record unverified;
  * 2 is a finding; anything else, or a baseline that no longer resolves, leaves the record and
  * reports `unverified` so uncertainty is never shown as clean.
  */

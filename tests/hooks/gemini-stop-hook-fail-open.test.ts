@@ -21,7 +21,7 @@ describe('Gemini AfterAgent hook subprocess failures', () => {
     });
     expect(formatStopHookResult(runStopHookCheck(process.cwd(), '/cli.js'), 'gemini'))
       .toEqual({ exitCode: 0, output: '' });
-    expect(spawnSync).toHaveBeenLastCalledWith(process.execPath, ['/cli.js', 'check', '--uncommitted', '--ci'],
+    expect(spawnSync).toHaveBeenLastCalledWith(process.execPath, ['/cli.js', 'check', '--uncommitted', '--ci', '--require-requested-dynamic'],
       expect.objectContaining({ timeout: 60_000 }));
   });
 });

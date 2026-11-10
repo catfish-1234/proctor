@@ -22,6 +22,7 @@ try {
   const { old, next, baseCommit, headCommit } = loadSnapshots(options);
   result.notes.push(`Snapshot references: baseline ${baseCommit}; head ${headCommit}${options.staged ? ' plus index' : options.base ? '' : ' plus working-tree changes'}. These identify local inputs, not independently trusted revisions or runner/dependency identity.`);
   const controlChanges = [...new Set([...old.keys(), ...next.keys()])].filter(p => isTestControl(p) && old.get(p)?.data.toString() !== next.get(p)?.data.toString());
+  result.snapshots = { baseCommit, headCommit, overlay: options.staged ? 'index' : options.base ? 'none' : 'working-tree', baselineControls: controlChanges };
   if (controlChanges.length) result.notes.push(`Cross-runs restore selected baseline test controls: ${controlChanges.join(', ')}. Custom setup imports, installed dependencies and other runner controls may still affect execution; this is bounded coverage, not authenticated execution.`);
   const isTest = picomatch(options.testPathGlobs, { dot: true });
   const oldTests = [...old.keys()].filter(p => isTest(p)), nextTests = [...next.keys()].filter(p => isTest(p));

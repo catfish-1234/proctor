@@ -7,6 +7,39 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-17
+
+### Added
+
+- **RH015 AssertionNeutralized**, on by default: an assertion the change leaves in place but
+  makes unable to fail. Two shapes: a `try` with an empty `catch` (or a Python `except` that only
+  passes) wrapped around the assertion, so a failing assertion is caught and discarded; and an
+  unconditional `return` added ahead of the assertion in the same test body, so it never runs.
+  Both passed every earlier check, because the assertion survives untouched and the test still
+  runs. JS/TS and Python. RH015 fires only when the change itself adds the `try`, the handler or
+  the `return`. A `catch` that asserts on the error, `try`/`finally` cleanup, returns inside
+  nested callbacks or conditions, and a returned assertion promise stay quiet. The real-commit
+  precision corpora report nothing new.
+
+### Fixed
+
+- RH001 missed a deleted test when another test in the same diff hunk kept its title but changed,
+  for example by weakening its assertion. Any added declaration excused every deletion in its
+  hunk. Additions now pair first with deletions of the same title (the same test edited in
+  place); only additions left over stand for a rename or a consolidation.
+- The `--ai` judge read only the first content block, with a 64-token cap. Current Claude models
+  think before answering, so with any of them configured as `aiModel` every call fell through to
+  "not a cheat". The verdict now comes from the first text block, with room for thinking, and a
+  refusal stays the fail-safe.
+- The GitHub Action pasted the pull request's base branch name into `run:` scripts as a
+  `${{ }}` expression. A branch name can legally contain `$(...)` or backticks, which bash would
+  execute. The value now reaches the scripts through environment variables.
+- The Stop hook trusted a block-budget directory in the shared temp dir even when another account
+  had created it or made it world-writable, which let a planted counter read as exhausted. Only a
+  directory owned by the current user and closed to group and other writes is trusted; anything
+  else reads as unverified and is recorded for review.
+- RH009 said "1 real assertion were removed".
+
 ## [1.9.0] - 2026-11-10
 
 - Add an experimental, opt-in GitHub Copilot `agentStop` enforcement hook

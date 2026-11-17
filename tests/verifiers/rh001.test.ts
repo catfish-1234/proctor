@@ -369,3 +369,58 @@ describe('RH001, a test declaration inside a template is a payload', () => {
     expect(rh001.run({ ...baseCtx, files })).toEqual([]);
   });
 });
+
+describe('rh001, a test edited in place does not excuse a deleted neighbour', () => {
+  const diff = (body: string) => parseDiff(`diff --git a/math.test.ts b/math.test.ts
+--- a/math.test.ts
++++ b/math.test.ts
+@@ -1,6 +1,5 @@
+${body}`);
+
+  it('reports the deleted test when its neighbour keeps its title but changes', () => {
+    const files = diff(` describe('math', () => {
+-  it('adds', () => { expect(add(2, 3)).toBe(5); });
++  it('adds', () => { expect(add(2, 3)).toBeDefined(); });
+   it('multiplies', () => { expect(mul(2, 3)).toBe(6); });
+-  it('adds negatives', () => { expect(add(-2, -3)).toBe(-5); });
+ });
+`);
+    const findings = rh001.run({ ...baseCtx, files });
+    expect(findings.map(f => f.message)).toEqual(["Test function 'adds negatives' was deleted in this change."]);
+  });
+
+  it('still treats a renamed test as modified, not deleted', () => {
+    const files = diff(` describe('math', () => {
+-  it('adds', () => { expect(add(2, 3)).toBe(5); });
++  it('adds two numbers', () => { expect(add(2, 3)).toBe(5); });
+   it('multiplies', () => { expect(mul(2, 3)).toBe(6); });
+ });
+`);
+    expect(rh001.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('still treats a consolidation into one parameterized test as modified', () => {
+    const files = diff(` describe('math', () => {
+-  it('adds', () => { expect(add(2, 3)).toBe(5); });
+-  it('adds negatives', () => { expect(add(-2, -3)).toBe(-5); });
++  it.each([[2, 3, 5], [-2, -3, -5]])('adds %i and %i', (a, b, c) => { expect(add(a, b)).toBe(c); });
+ });
+`);
+    expect(rh001.run({ ...baseCtx, files })).toEqual([]);
+  });
+
+  it('pairs Python tests edited in place the same way', () => {
+    const files = parseDiff(`diff --git a/test_math.py b/test_math.py
+--- a/test_math.py
++++ b/test_math.py
+@@ -1,6 +1,4 @@
+-def test_add():
++def test_add():  # noqa
+     assert add(2, 3) == 5
+-def test_add_negatives():
+-    assert add(-2, -3) == -5
+`);
+    const findings = rh001.run({ ...baseCtx, files, isTestFile: (p: string) => /test_/.test(p) });
+    expect(findings.map(f => f.message)).toEqual(["Test function 'test_add_negatives' was deleted in this change."]);
+  });
+});

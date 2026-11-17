@@ -236,9 +236,6 @@ function run(context: Context): Finding[] {
     if (!ctx.isTestFile(from)) continue;
 
     for (const chunk of file.chunks) {
-      const hasReconcilingAdd = chunk.changes.some(
-        c => c.type === 'add' && (JS_TS_ADD.test(c.content) || PY_ADD.test(c.content)),
-      );
       // A test declaration inside a multi-line template is a payload, not a test: a codemod, a
       // linter or a migration guide embeds test source as data, and those files are themselves
       // test files, so the isTestFile gate above does not exclude them. Same rule the WI family
@@ -246,10 +243,41 @@ function run(context: Context): Finding[] {
       const templateLines = insideTemplateLiteral(
         chunk.changes.map(c => ({ text: c.content.replace(/^[+-]/, ''), line: 0, added: c.type === 'add' })),
       );
+      // Pair each added declaration with a deleted one of the same title first: that is the same
+      // test edited in place (a weakened assertion, a reformat, a `.skip` wrap), and it says
+      // nothing about any other test in the chunk. Only additions left over after that can stand
+      // for a renamed test or a consolidation into one parameterized test. Before this pairing,
+      // any added declaration excused every deletion in its chunk, so editing one test in place
+      // hid the deletion of the test next to it.
+      const pending = new Map<string, number>();
+      let unpairedAdds = 0;
+      const declTitle = (content: string): string | undefined =>
+        JS_TS_ADD.test(content) || JS_TS_DEL.test(content) ? extractTestName(content)
+          : PY_ADD.test(content) || PY_DEL.test(content) ? content.replace(/^[+-]\s*(?:async\s+)?def /, '').replace(/\s*\(.*/, '')
+            : undefined;
+      const deletedTitles = new Map<string, number>();
+      for (const [index, change] of chunk.changes.entries()) {
+        if (change.type !== 'del' || templateLines.has(index)) continue;
+        const title = declTitle(change.content);
+        if (title !== undefined) deletedTitles.set(title, (deletedTitles.get(title) ?? 0) + 1);
+      }
+      for (const [index, change] of chunk.changes.entries()) {
+        if (change.type !== 'add' || templateLines.has(index)) continue;
+        if (!JS_TS_ADD.test(change.content) && !PY_ADD.test(change.content)) continue;
+        const title = declTitle(change.content)!;
+        const available = (deletedTitles.get(title) ?? 0) - (pending.get(title) ?? 0);
+        if (available > 0) pending.set(title, (pending.get(title) ?? 0) + 1);
+        else unpairedAdds++;
+      }
       for (const [changeIndex, change] of chunk.changes.entries()) {
         if (change.type !== 'del') continue;
         if (templateLines.has(changeIndex)) continue;
-        if (hasReconcilingAdd) continue; // modified (renamed/reformatted/skip-wrapped/consolidated), not deleted
+        const title = declTitle(change.content);
+        if (title !== undefined && (pending.get(title) ?? 0) > 0) {
+          pending.set(title, pending.get(title)! - 1);
+          continue; // the same test, edited in place
+        }
+        if (unpairedAdds > 0) continue; // renamed, reformatted, or consolidated into a new declaration
         const before = sourceView(chunk,'before',from.endsWith('.py'));
         const start = before.offsetAtLine(change.ln);
         if (start !== undefined) {

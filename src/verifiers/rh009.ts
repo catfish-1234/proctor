@@ -75,7 +75,7 @@ function run(context: Context): Finding[] {
         severity: 'warn',
         file: filePath,
         line,
-        message: `Trivial test added with no specific-value assertion while ${assertionsRemoved} real assertion${assertionsRemoved === 1 ? '' : 's'} were removed from this file.`,
+        message: `Trivial test added with no specific-value assertion while ${assertionsRemoved} real assertion${assertionsRemoved === 1 ? ' was' : 's were'} removed from this file.`,
         suggestion: 'Restore the removed assertions, or make the new test assert a specific expected value.',
       });
     }

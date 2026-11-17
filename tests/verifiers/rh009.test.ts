@@ -137,3 +137,25 @@ describe('rh009, coverage gaming detection', () => {
     });
   });
 });
+
+describe('rh009 message grammar', () => {
+  it('uses the singular verb for one removed assertion', async () => {
+    const { default: parseDiff } = await import('parse-diff');
+    const { rh009 } = await import('../../src/verifiers/rh009.js');
+    const files = parseDiff(`diff --git a/math.test.ts b/math.test.ts
+--- a/math.test.ts
++++ b/math.test.ts
+@@ -1,3 +1,3 @@
+ describe('math', () => {
+-  it('multiplies', () => { expect(mul(2, 3)).toBe(6); });
++  it('multiplies', () => { expect(mul(2, 3)).toBeGreaterThan(0); });
+ });
+`);
+    const findings = rh009.run({
+      cwd: '', files, testPathGlobs: ['**/*.test.ts'], testFiles: [], enabled: ['RH009'],
+      isTestFile: (p: string) => p.includes('.test.'), getLanguage: () => 'ts' as const,
+    });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain('1 real assertion was removed');
+  });
+});

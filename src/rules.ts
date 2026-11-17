@@ -258,6 +258,19 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'If the sampling strategy genuinely changed, explain how equivalent coverage is retained rather than silently shrinking the workload.',
     helpUri: 'https://github.com/catfish-1234/proctor#rh014',
   },
+  RH015: {
+    name: 'AssertionNeutralized',
+    shortDescription: 'An assertion wrapped in a handler that discards its failure, or placed after an added early return',
+    fullDescription:
+      'Detects an assertion this change makes unable to fail its test, while the assertion itself survives untouched: a try whose catch block is empty (or a Python except clause that only passes) wrapped around it, so a failing assertion is caught and discarded, or an unconditional return added ahead of it in the same test body, so it never runs. Assertion counting and skip detection see nothing missing in either case. Fires only when the change adds the try, the handler, or the return.',
+    defaultLevel: 'error',
+    fix:
+      'Let the assertion fail the test again. Remove the try/catch, or assert on the caught error instead of ' +
+      'discarding it; an expected exception belongs in expect(...).toThrow(), rejects, pytest.raises or ' +
+      'assertRaises. Remove an early return that skips the checks after it. If those checks are genuinely ' +
+      'obsolete, delete them in the open and say why, rather than leaving them in place where they read as coverage.',
+    helpUri: 'https://github.com/catfish-1234/proctor#rh015',
+  },
 
   // WI1xx, the work-integrity family. RH00x ask whether the tests were tampered with. These ask
   // whether the work behind them was actually done, reading shipped code rather than the suite.

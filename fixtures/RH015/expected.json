@@ -1,0 +1,18 @@
+[
+  {
+    "verifierId": "RH015",
+    "severity": "error",
+    "file": "cart.test.ts",
+    "line": 8,
+    "message": "Assertion wrapped in a try whose catch block is empty: a failing assertion throws, the catch discards it, and the test passes anyway.",
+    "suggestion": "Remove the try/catch so a failing assertion fails the test. To test an expected error, use expect(...).toThrow() / rejects, or assert on the caught error."
+  },
+  {
+    "verifierId": "RH015",
+    "severity": "error",
+    "file": "cart.test.ts",
+    "line": 13,
+    "message": "Unconditional return added in test 'applies a percentage discount' ahead of its assertions: the assertions after it never run, so the test passes without checking anything.",
+    "suggestion": "Remove the early return. If the remaining assertions are obsolete, delete them deliberately and say why in the change."
+  }
+]

@@ -399,12 +399,13 @@ families.
 | RH012 | A test step removed from CI, or neutered so failures stop counting |
 | RH013 | A coverage threshold lowered or removed |
 | RH014 | A surviving test changed to exercise fewer generated, looped, or table-driven cases |
+| RH015 | An assertion wrapped in an empty catch, or placed after an added early return, so it cannot fail |
 
 **WI1xx checks "the work is done."** These look for incomplete or disabled behavior in source,
 config, and tests, including discarded errors, removed validation, and altered expected values.
 
 > **Six WI checks run by default:** WI101, WI102, WI105, WI108, WI109, and WI110.
-> Alongside RH001 to RH014, they close error-handling, unfinished-body, canned-output,
+> Alongside RH001 to RH015, they close error-handling, unfinished-body, canned-output,
 > source-hiding, expectation-edit, and script-verification gaps. The remaining seven WI checks
 > stay opt-in because their human-commit findings still include legitimate maintenance.
 > Run `proctor check --wi` (or `--all-checks`) to add the entire family, or name checks in

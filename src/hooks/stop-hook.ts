@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { recordCaught } from '../session.js';
@@ -206,8 +206,28 @@ export function budgetPath(conversationId: string): string {
   return join(tmpdir(), 'proctor-stop-hook', `${name}.json`);
 }
 
+/**
+ * The budget directory sits in the shared temp dir. On a multi-user machine another account can
+ * create `proctor-stop-hook` first and plant a counter that reads as exhausted. Only a real
+ * directory owned by this user, writable by nobody else, is trusted; anything else reads as
+ * unverified, which the caller records for review instead of treating as a clean count.
+ */
+function budgetDirTrusted(dir: string, create: boolean): boolean {
+  try {
+    if (create) mkdirSync(dir, { recursive: true, mode: 0o700 });
+    const info = lstatSync(dir);
+    if (!info.isDirectory()) return false;
+    if (typeof process.getuid !== 'function') return true;
+    return info.uid === process.getuid() && (info.mode & 0o022) === 0;
+  } catch {
+    return false;
+  }
+}
+
 export type BudgetRead = { state: 'known'; value: BlockBudgetState } | { state: 'missing' } | { state: 'unverified' };
 export function readBudget(conversationId: string): BudgetRead {
+  const dir = dirname(budgetPath(conversationId));
+  if (existsSync(dir) && !budgetDirTrusted(dir, false)) return { state: 'unverified' };
   try {
     const parsed: unknown = JSON.parse(readFileSync(budgetPath(conversationId), 'utf8'));
     const blocks = (parsed as { blocks?: unknown })?.blocks;
@@ -224,8 +244,8 @@ export function writeBudget(conversationId: string, state: BlockBudgetState | un
   const temporary = `${file}.${process.pid}.tmp`;
   let owned = false;
   try {
+    if (!budgetDirTrusted(dirname(file), state !== undefined)) return state === undefined && !existsSync(dirname(file));
     if (state === undefined) { rmSync(file, { force: true }); return true; }
-    mkdirSync(dirname(file), { recursive: true });
     const fd = openSync(temporary, 'wx', 0o600);
     owned = true;
     try { writeFileSync(fd, JSON.stringify(state)); } finally { closeSync(fd); }

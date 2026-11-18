@@ -7,6 +7,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-11-18
+
+### Added
+
+- RH002 reports an exact assertion replaced by a negated one on the same subject
+  (`toBe(5)` to `not.toBe(4)`, which passes for every wrong answer but one), and by
+  `toMatchObject({})`, which matches any object. The negated call still contains `.toBe(`,
+  so it had read as a strong assertion. `toEqual({})` is unchanged: it pins an empty object.
+- RH007 reports tests removed in conftest.py code: a `pytest_collection_modifyitems` hook that
+  drops collected items (`items[:] = ...`, `items.remove`, `del items[...]`,
+  `pytest_deselected`) is an error, and a new `pytest_ignore_collect` hook is a warning. Config
+  keys such as `collect_ignore` were already covered; a hook removing tests in code was not.
+
+Both were found by planting fifteen more cheat shapes against 1.10.0. The real-commit precision
+corpora report nothing new.
+
 ## [1.10.0] - 2026-11-18
 
 ### Added

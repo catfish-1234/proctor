@@ -41,7 +41,7 @@ src/
   brand.ts                 # name and color tokens shared by CLI output and badges
   receipt.ts               # builds the "honest pass" / "caught" Receipt from findings
   context/                 # builds Context: discovers the diff, test globs, config, etc.
-  verifiers/                # one file per check, RH001 through RH015, pure functions
+  verifiers/                # one file per check, RH001 through RH016, pure functions
   reporters/                # pretty.ts, json.ts, sarif.ts, markdown.ts, score.ts output formats
   hooks/                    # git pre-commit hook and Claude Code Stop hook
   skill/SKILL.md            # the canonical honest-completion ruleset agents follow
@@ -65,5 +65,5 @@ tests/                      # mirrors src/, one test file per module
 - The Claude Code Stop hook exits `2` to block a turn. It never exits `1`, since that's
   non-blocking in Claude Code.
 - On Windows, `chmod +x` doesn't work. Use `git add --chmod=+x` instead.
-- Check IDs (`RH001` through `RH015`, `WI101` through `WI113`) are stable identifiers, referenced in SARIF output, config,
+- Check IDs (`RH001` through `RH016`, `WI101` through `WI113`) are stable identifiers, referenced in SARIF output, config,
   and fixtures. Don't rename or renumber one without checking everywhere it's used.

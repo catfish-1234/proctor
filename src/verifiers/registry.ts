@@ -14,6 +14,7 @@ import { rh012 } from './rh012.js';
 import { rh013 } from './rh013.js';
 import { rh014 } from './rh014.js';
 import { rh015 } from './rh015.js';
+import { rh016 } from './rh016.js';
 import { wi101 } from './wi101.js';
 import { wi102 } from './wi102.js';
 import { wi103 } from './wi103.js';
@@ -39,6 +40,6 @@ import { wi113 } from './wi113.js';
  * building the Verifier interface this way.
  */
 export const VERIFIERS: Verifier[] = [
-  rh001, rh002, rh003, rh004, rh005, rh006, rh007, rh008, rh009, rh010, rh011, rh012, rh013, rh014, rh015,
+  rh001, rh002, rh003, rh004, rh005, rh006, rh007, rh008, rh009, rh010, rh011, rh012, rh013, rh014, rh015, rh016,
   wi101, wi102, wi103, wi104, wi105, wi106, wi107, wi108, wi109, wi110, wi111, wi112, wi113,
 ];

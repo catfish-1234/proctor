@@ -1,0 +1,10 @@
+[
+  {
+    "verifierId": "RH016",
+    "severity": "error",
+    "file": "cart.test.ts",
+    "line": 6,
+    "message": "Test harness code calls process.exit() with a success status, so the run reports success however many tests fail.",
+    "suggestion": "Remove it and let the test results set the exit status. Fix the failing tests, or skip a specific test with a stated reason."
+  }
+]

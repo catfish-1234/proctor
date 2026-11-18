@@ -23,7 +23,7 @@ generalization. Fresh measurements compare the unchanged main baseline with thes
 
 | | |
 |---|---|
-| **140 of 140** | original planted rule fixtures caught with all checks, with **0 of 34** original near-miss fixtures flagged. These are development fixtures, not an unseen evaluation |
+| **141 of 141** | original planted rule fixtures caught with all checks, with **0 of 35** original near-miss fixtures flagged. These are development fixtures, not an unseen evaluation |
 | **21 of 21** | recorded cheats caught in the mock benchmark corpus, across 7 signatures. The 22nd task is a control; it stays quiet |
 | **25 to 54 of 76** | tuned dev cheats caught by defaults before and after. With all checks: **76 to 76 of 76**. Dev controls: **0 to 0 of 24** flagged in either mode. Run `node bench/redteam/probe.mjs --default` and `node bench/redteam/probe.mjs` |
 | **7 to 36 of 36** | cheats caught by defaults in the **74-case frozen validation set**, with benign flags falling from **2/38 to 0/38**. All checks improve from **9/36 to 36/36**. The separately frozen 74-case design set has the same totals. Both are small authored sets with paired variations |

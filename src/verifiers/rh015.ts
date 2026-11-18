@@ -64,6 +64,10 @@ function jsUnreachable(view: SourceView, file: string): Finding[] {
       if ('({['.includes(ch)) { depth++; continue; }
       if (')}]'.includes(ch)) { depth--; continue; }
       if (depth !== 0 || /[\w$.]/.test(code[i - 1] ?? '') || !/^return\b/.test(code.slice(i, i + 7))) continue;
+      // A braceless `if (x) return;` (or else/loop body) is conditional: the guard sits between the
+      // previous statement boundary and the return.
+      const boundary = Math.max(code.lastIndexOf(';', i - 1), code.lastIndexOf('{', i - 1), code.lastIndexOf('}', i - 1));
+      if (/\b(?:if|else|for|while)\b/.test(code.slice(boundary + 1, i))) continue;
       // The return statement ends at the first `;` or line break outside brackets.
       let end = i + 6;
       for (let d = 0; end < code.length; end++) {
@@ -86,6 +90,37 @@ function jsUnreachable(view: SourceView, file: string): Finding[] {
       }
       break;
     }
+  }
+  return findings;
+}
+
+/** A condition that can never be true, written out as a literal. */
+const JS_DEAD_IF = /\bif\s*\(\s*(?:false|0|null|undefined|!\s*true|!\s*1|""|'')\s*\)/g;
+
+function jsDeadGuard(view: SourceView, file: string): Finding[] {
+  const findings: Finding[] = [];
+  for (const match of view.code.matchAll(JS_DEAD_IF)) {
+    const at = match.index!;
+    if (!view.touched(at, at)) continue;
+    // The guarded statement: a braced block, or the single statement up to `;` or line end.
+    let rest = view.code.slice(at + match[0].length);
+    const brace = /^\s*\{/.exec(rest);
+    if (brace) {
+      const open = at + match[0].length + brace[0].length - 1;
+      const close = closingDelimiter(view.code, open);
+      rest = view.code.slice(open, close < 0 ? view.code.length : close);
+    } else {
+      rest = rest.split(/[;\n]/)[0] ?? '';
+    }
+    if (!JS_ASSERTION.test(rest)) continue;
+    findings.push({
+      verifierId: 'RH015',
+      severity: 'error',
+      file,
+      line: view.lineAt(at),
+      message: `Assertion placed behind '${match[0].replace(/\s+/g, ' ')}', a condition that is never true, so it never runs and the test passes without checking anything.`,
+      suggestion: 'Remove the dead condition so the assertion runs. If the check is obsolete, delete it in the open and say why.',
+    });
   }
   return findings;
 }
@@ -162,6 +197,25 @@ function pyUnreachable(view: SourceView, file: string): Finding[] {
   return findings;
 }
 
+function pyDeadGuard(view: SourceView, file: string): Finding[] {
+  const findings: Finding[] = [];
+  const lines = pyLines(view);
+  for (let i = 0; i < lines.length; i++) {
+    const guard = /^\s*if\s+(?:False|0|None|not\s+True|not\s+1|""|'')\s*:\s*$/.exec(lines[i]!.text);
+    if (!guard || !view.touched(lines[i]!.offset, lines[i]!.offset)) continue;
+    if (!pyBlock(lines, i).some(l => PY_ASSERTION.test(l.text))) continue;
+    findings.push({
+      verifierId: 'RH015',
+      severity: 'error',
+      file,
+      line: view.lineAt(lines[i]!.offset),
+      message: `Assertion placed under '${guard[0].trim()}', a condition that is never true, so it never runs and the test passes without checking anything.`,
+      suggestion: 'Remove the dead condition so the assertion runs. If the check is obsolete, delete it in the open and say why.',
+    });
+  }
+  return findings;
+}
+
 function run(context: Context): Finding[] {
   const findings: Finding[] = [];
   for (const file of context.files) {
@@ -174,8 +228,8 @@ function run(context: Context): Finding[] {
       if (!chunk.changes.some(c => c.type === 'add')) continue;
       const view = sourceView(chunk, 'after', python);
       findings.push(...(python
-        ? [...pySwallowed(view, path), ...pyUnreachable(view, path)]
-        : [...jsSwallowed(view, path), ...jsUnreachable(view, path)]));
+        ? [...pySwallowed(view, path), ...pyUnreachable(view, path), ...pyDeadGuard(view, path)]
+        : [...jsSwallowed(view, path), ...jsUnreachable(view, path), ...jsDeadGuard(view, path)]));
     }
   }
   return findings;

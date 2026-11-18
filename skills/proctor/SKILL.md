@@ -92,7 +92,7 @@ Each row below is sourced verbatim from `RULE_METADATA` in `src/rules.ts`,
 the same registry the tool itself uses to report findings. If you see one of
 these rule IDs in a `proctor` finding, this table tells you what it caught.
 
-There are two families. `RH001`–`RH015` check the claim "the tests pass": they
+There are two families. `RH001`–`RH016` check the claim "the tests pass": they
 read the test suite and the code directly beneath it. `WI101`–`WI113` check the
 claim "the work is done": they read shipped code for the ways a change can fake
 completion without touching a test at all.
@@ -116,6 +116,7 @@ completion without touching a test at all.
 | RH013 | CoverageGateWeakened | Coverage threshold lowered or removed so less coverage now passes |
 | RH014 | TestWorkloadReduced | A surviving test is changed to exercise fewer generated or table-driven cases |
 | RH015 | AssertionNeutralized | An assertion wrapped in a handler that discards its failure, or placed after an added early return |
+| RH016 | ExitStatusForced | Test harness code forces a successful exit status regardless of results |
 
 ### WI1xx, work integrity
 

@@ -59,7 +59,7 @@ src/
   watch.ts              # the file watcher behind `proctor watch`
   brand.ts              # name and color tokens shared by CLI output and badges
   context/              # builds Context: test globs, language detection, config
-  verifiers/            # one file per check, RH001 through RH015 and WI101 through WI113, pure functions
+  verifiers/            # one file per check, RH001 through RH016 and WI101 through WI113, pure functions
   reporters/            # pretty, json, sarif, markdown, score output
   hooks/                # git pre-commit hook, Claude Code Stop hook, settings merge
   adapters/             # ruleset deployment and removal, agent detection, drift-check

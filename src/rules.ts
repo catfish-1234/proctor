@@ -264,7 +264,7 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     name: 'AssertionNeutralized',
     shortDescription: 'An assertion wrapped in a handler that discards its failure, or placed after an added early return',
     fullDescription:
-      'Detects an assertion this change makes unable to fail its test, while the assertion itself survives untouched: a try whose catch block is empty (or a Python except clause that only passes) wrapped around it, so a failing assertion is caught and discarded, or an unconditional return added ahead of it in the same test body, so it never runs. Assertion counting and skip detection see nothing missing in either case. Fires only when the change adds the try, the handler, or the return.',
+      'Detects an assertion this change makes unable to fail its test, while the assertion itself survives untouched: a try whose catch block is empty (or a Python except clause that only passes) wrapped around it, so a failing assertion is caught and discarded, an unconditional return added ahead of it in the same test body, so it never runs, or a condition that is never true (if (false), if (0), Python if False:) added around it. Assertion counting and skip detection see nothing missing in either case. Fires only when the change adds the try, the handler, or the return.',
     defaultLevel: 'error',
     fix:
       'Let the assertion fail the test again. Remove the try/catch, or assert on the caught error instead of ' +
@@ -272,6 +272,18 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
       'assertRaises. Remove an early return that skips the checks after it. If those checks are genuinely ' +
       'obsolete, delete them in the open and say why, rather than leaving them in place where they read as coverage.',
     helpUri: 'https://github.com/catfish-1234/proctor#rh015',
+  },
+  RH016: {
+    name: 'ExitStatusForced',
+    shortDescription: 'Test harness code forces a successful exit status regardless of results',
+    fullDescription:
+      'Detects test harness code that overrides the run\'s exit status: a pytest hook or conftest.py that sets session.exitstatus to 0, calls os._exit(), pytest.exit(returncode=0) or sys.exit(0), and a Jest/Vitest/Mocha test or lifecycle hook that calls process.exit(0) or sets process.exitCode to 0. Every test still runs and still fails in the log, so skip, deletion and assertion checks see nothing; only the final status reports success. Fires only on lines the change adds. os._exit in a forked child, and sys.exit in an ordinary test file, are left alone.',
+    defaultLevel: 'error',
+    fix:
+      'Remove the override and let the test results set the exit status. A run that exits 0 with failing ' +
+      'tests is worse than a red build: CI, the pre-commit hook and the person reading the result all ' +
+      'believe it. Fix the failing tests, or skip a specific test with a stated reason so the skip is visible.',
+    helpUri: 'https://github.com/catfish-1234/proctor#rh016',
   },
 
   // WI1xx, the work-integrity family. RH00x ask whether the tests were tampered with. These ask

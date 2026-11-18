@@ -115,7 +115,7 @@ const DEFAULT_GLOBS = [
  * a false-positive sweep over 689 human commits from 20 maintained repositories.
  */
 export const RH_CHECKS = [
-  'RH001', 'RH002', 'RH003', 'RH004', 'RH005', 'RH006', 'RH007', 'RH008', 'RH009', 'RH010', 'RH011', 'RH012', 'RH013', 'RH014', 'RH015',
+  'RH001', 'RH002', 'RH003', 'RH004', 'RH005', 'RH006', 'RH007', 'RH008', 'RH009', 'RH010', 'RH011', 'RH012', 'RH013', 'RH014', 'RH015', 'RH016',
 ];
 
 /** Work-integrity IDs. Some are included in DEFAULT_CHECKS; --wi adds the entire family. */

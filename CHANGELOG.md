@@ -39,6 +39,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   directory owned by the current user and closed to group and other writes is trusted; anything
   else reads as unverified and is recorded for review.
 - RH009 said "1 real assertion were removed".
+- The opt-in dynamic checks reported every project on Vitest 5 as inconclusive. Vitest 5 writes
+  its JSON reporter to `.vitest/json/output.json` and prints only the path, where earlier
+  versions printed the report. When no report reaches stdout, the runner now reads that file,
+  after clearing any copy left from an earlier run, with the same bounded, no-symlink read
+  used for pytest's JUnit file.
 
 ### Security
 

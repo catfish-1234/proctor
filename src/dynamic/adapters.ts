@@ -1,6 +1,6 @@
 import { stripVTControlCharacters } from 'node:util';
 import { spawnSync } from 'node:child_process';
-import { readFileSync, rmSync, writeFileSync, lstatSync, openSync, fstatSync, closeSync, constants } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync, lstatSync, openSync, fstatSync, closeSync, constants } from 'node:fs';
 import { join } from 'node:path';
 import type { Snapshot } from './snapshots.js';
 import type { TestRun } from './runner.js';
@@ -46,6 +46,13 @@ function uniqueOutcomes(rows: [string, boolean][]): { passed: string[]; failed: 
     failed: rows.filter(([, pass]) => !pass).map(([id]) => id),
   };
 }
+/** Whether a stream carries a JSON object with a testResults array, as Jest and Vitest 4 print. */
+function hasJsonReport(stream: string): boolean {
+  const start = stream.indexOf('{'), end = stream.lastIndexOf('}');
+  if (start < 0 || end < start) return false;
+  try { return Array.isArray(JSON.parse(stream.slice(start, end + 1)).testResults); } catch { return false; }
+}
+
 export function parseResults(kind: Adapter['kind'], stdout: string, stderr: string, junit = ''): { passed: string[]; failed: string[] } {
   const rows: [string, boolean][] = [];
   if (kind === 'tap') {
@@ -176,9 +183,30 @@ function runPythonFiles(adapter: Adapter, dir: string, label: string, discovery:
   return { label, command: `${adapter.command} -m unittest discover -v, then direct Python files`, exitCode: failed.length ? 1 : 0,
     passed, failed, fileRuns, detail: stripVTControlCharacters(`${discovery}\n${details.join('\n')}`).slice(-1200) };
 }
+/**
+ * Where Vitest 5 writes its JSON reporter when no output file is configured. Vitest 4 and earlier
+ * print the report to stdout; 5 writes it here and prints only its path, so a run that leaves no
+ * JSON on either stream is read from this file instead.
+ */
+export const VITEST5_REPORT = join('.vitest', 'json', 'output.json');
+
+/** A reporter file the run wrote: a regular file, not a link, at most 2 MiB. */
+function readArtifact(path: string): string {
+  if (!lstatSync(path).isFile()) throw Error('unsafe reporter artifact');
+  const fd = openSync(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
+  try {
+    const stat = fstatSync(fd);
+    if (!stat.isFile() || stat.size > 2 * 1024 * 1024) throw Error('unsafe reporter artifact');
+    return readFileSync(fd, 'utf8');
+  } finally { closeSync(fd); }
+}
+
 export function runTests(adapter: Adapter, dir: string, label: string, extraEnv: NodeJS.ProcessEnv = {}): TestRun {
   const artifact = join(dir, '.proctor-junit.xml');
+  const vitestReport = join(dir, VITEST5_REPORT);
   if (adapter.kind === 'pytest') rmSync(artifact, { force: true });
+  // A report left from an earlier run, or committed with the snapshot, must not stand in for this one.
+  if (adapter.kind === 'vitest') rmSync(vitestReport, { force: true });
   const env = { ...process.env, ...extraEnv, PWD: dir, ...(adapter.kind === 'tap' && adapter.command === 'npm' ? { NODE_OPTIONS: '--test-reporter=tap' } : {}),
     // Go: never reach the network from a test run. Missing modules or a newer required toolchain
     // fail the run honestly instead of fetching; the sandbox already blocks the network, these make
@@ -189,17 +217,15 @@ export function runTests(adapter: Adapter, dir: string, label: string, extraEnv:
   const stdout = r.stdout ?? '', stderr = r.stderr ?? '';
   let junit = '';
   if (adapter.kind === 'pytest') {
-    try {
-      if (!lstatSync(artifact).isFile()) throw Error('unsafe reporter artifact');
-      const fd = openSync(artifact, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
-      try {
-        const stat = fstatSync(fd);
-        if (!stat.isFile() || stat.size > 2 * 1024 * 1024) throw Error('unsafe reporter artifact');
-        junit = readFileSync(fd, 'utf8');
-      } finally { closeSync(fd); }
-    } catch { throw Error(`inconclusive: ${label} did not produce a bounded regular JUnit artifact`); }
+    try { junit = readArtifact(artifact); }
+    catch { throw Error(`inconclusive: ${label} did not produce a bounded regular JUnit artifact`); }
   }
-  const outcomes = parseResults(adapter.kind, stdout, stderr, junit);
+  let reportStdout = stdout, reportStderr = stderr;
+  if (adapter.kind === 'vitest' && !hasJsonReport(stdout) && !hasJsonReport(stderr) && existsSync(vitestReport)) {
+    try { reportStdout = readArtifact(vitestReport); reportStderr = ''; }
+    catch { throw Error(`inconclusive: ${label} wrote an unreadable Vitest JSON report`); }
+  }
+  const outcomes = parseResults(adapter.kind, reportStdout, reportStderr, junit);
   if (adapter.kind === 'unittest') {
     const real = [...outcomes.passed, ...outcomes.failed].filter(id => !id.includes('unittest.loader._FailedTest'));
     const discovered = Number(/^Ran (\d+) tests? in /m.exec(stderr)?.[1] ?? 0);

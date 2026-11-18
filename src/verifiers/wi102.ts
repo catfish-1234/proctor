@@ -95,7 +95,7 @@ function isAbstractContext(lines: { text: string }[], index: number): boolean {
  * method among real ones is a gap, several together are an interface.
  */
 function isDuckTypedBase(lines: { text: string }[], index: number): boolean {
-  const indentOf = (t: string): number => /^[ 	]*/.exec(t)![0].length;
+  const indentOf = (t: string): number => /^[ \t]*/.exec(t)![0].length;
   const sentinelIndent = indentOf(lines[index]!.text);
   let classHeader = -1;
   for (let i = index; i >= 0; i--) {

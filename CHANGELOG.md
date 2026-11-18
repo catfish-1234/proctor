@@ -7,6 +7,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-11-18
+
+### Added
+
+- **RH016 ExitStatusForced**, on by default: test harness code that makes the run report success
+  however many tests fail. A conftest.py or pytest hook that sets `session.exitstatus = 0`, calls
+  `os._exit()`, `pytest.exit(returncode=0)` or `sys.exit(0)`, and a Jest/Vitest/Mocha test or
+  lifecycle hook that calls `process.exit(0)` or sets `process.exitCode = 0`. Every test still
+  runs and still fails in the log, so no earlier check saw it. `os._exit` in a forked child,
+  `sys.exit` in an ordinary test file, and a mocked `process.exit` stay quiet.
+- RH015 also reports an assertion placed behind a condition that is never true (`if (false)`,
+  `if (0)`, Python `if False:`).
+
+### Fixed
+
+- RH015 read a braceless guarded return (`if (isWindows) return;`) as unconditional and reported
+  the assertions after it. A return that is the body of an `if`, `else` or loop is conditional.
+
 ## [1.11.0] - 2026-11-18
 
 ### Added

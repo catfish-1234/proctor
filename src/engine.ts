@@ -1,7 +1,7 @@
 import type { ParsedFile } from './diff.js';
 import type { ApprovedTestChange, Context, Finding, Severity } from './types.js';
 import { VERIFIERS } from './verifiers/registry.js';
-import picomatch from 'picomatch';
+import { safeMatcher } from './glob.js';
 
 const norm = (p: string) => p.replace(/\\/g, '/');
 
@@ -98,7 +98,7 @@ const GLOB_OPTIONS = { dot: true } as const;
 
 function applyIgnorePatterns(findings: Finding[], patterns: string[]): Finding[] {
   if (patterns.length === 0 || findings.length === 0) return findings;
-  const matchesIgnoredPath = picomatch(patterns, GLOB_OPTIONS);
+  const matchesIgnoredPath = safeMatcher(patterns, GLOB_OPTIONS);
   return findings.filter(f => !matchesIgnoredPath(norm(f.file)));
 }
 
@@ -120,7 +120,7 @@ function applyApprovals(findings: Finding[], approvals: ApprovedTestChange[]): F
   return findings.map(f => {
     const path = norm(f.file);
     const match = approvals.find(
-      a => a.rule === f.verifierId && (norm(a.file) === path || picomatch(norm(a.file), GLOB_OPTIONS)(path)),
+      a => a.rule === f.verifierId && (norm(a.file) === path || safeMatcher(norm(a.file), GLOB_OPTIONS)(path)),
     );
     if (!match) return f;
     return { ...f, severity: 'info' as Severity, approved: true as const, approvalReason: match.reason };

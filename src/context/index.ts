@@ -2,8 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import picomatch from 'picomatch';
-import { discoverTestFiles } from '../glob.js';
+import { discoverTestFiles, globComplexityError, safeMatcher } from '../glob.js';
 
 const execFileAsync = promisify(execFile);
 import type { Context, Language, ProctorConfig } from '../types.js';
@@ -154,6 +153,20 @@ function normalizeConfig(config: ProctorConfig): ProctorConfig {
   stringArray('ignorePatterns');
   stringArray('snapshotGlobs');
 
+  // A glob compiles to a regular expression, and some shapes backtrack for minutes (see
+  // GLOB_LIMITS). Drop those with a warning rather than let a config entry hang every check.
+  for (const key of ['testPathGlobs', 'ignorePatterns', 'snapshotGlobs'] as const) {
+    const list = out[key];
+    if (!Array.isArray(list)) continue;
+    const kept = list.filter(pattern => {
+      const problem = globComplexityError(pattern);
+      if (problem) warn(`config '${key}' entry '${pattern.slice(0, 80)}' is too complex to match safely (${problem}); ignoring it`);
+      return !problem;
+    });
+    if (kept.length === 0 && list.length > 0) delete out[key];
+    else out[key] = kept;
+  }
+
   // Every approval needs a rule, a file, and a stated reason. An entry missing any of the three
   // is dropped rather than partially honored: a blanket "mute RH001 everywhere" is exactly what
   // this field must not become, and an approval nobody can explain is not an approval.
@@ -166,7 +179,7 @@ function normalizeConfig(config: ProctorConfig): ProctorConfig {
         const ok =
           typeof entry === 'object' && entry !== null &&
           typeof entry.rule === 'string' && entry.rule in RULE_METADATA &&
-          typeof entry.file === 'string' && entry.file.trim() !== '' &&
+          typeof entry.file === 'string' && entry.file.trim() !== '' && globComplexityError(entry.file) === undefined &&
           typeof entry.reason === 'string' && entry.reason.trim() !== '';
         if (!ok) {
           warn(`config 'approvedTestChanges[${i}]' needs a known rule ID, a file, and a non-empty reason; ignoring that entry`);
@@ -292,7 +305,7 @@ export async function buildContext(cwd: string, files: ParsedFile[], opts?: { co
   const enabled = config.enabled ?? DEFAULT_ENABLED;
 
   const testFiles = await discoverTestFiles(cwd, testPathGlobs);
-  const matchesTestPath = picomatch(testPathGlobs);
+  const matchesTestPath = safeMatcher(testPathGlobs);
 
   // Pure closure, no I/O. Normalize backslashes so this works the same on Windows and POSIX.
   const isTestFile = (path: string): boolean =>

@@ -1,4 +1,4 @@
-import picomatch from 'picomatch';
+import { safeMatcher } from '../glob.js';
 import type { Context, Finding, Verifier } from '../types.js';
 
 // Default snapshot/golden file globs. This file owns these defaults, not context/index.ts.
@@ -30,7 +30,7 @@ function run(context: Context): Finding[] {
   // `proctor-ignore: RH006 reason: ...` comment (applied by the engine for every verifier).
   const hasReason = ctx.committedDiff && ctx.commitMessage ? REASON_KEYWORDS.test(ctx.commitMessage) : false;
   if (hasReason || files.length === 0) return [];
-  const matchesSnapshot = picomatch(globs);
+  const matchesSnapshot = safeMatcher(globs);
 
   for (const file of files) {
     // Normalize path separators for cross-platform glob matching (Windows uses backslash).

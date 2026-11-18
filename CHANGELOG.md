@@ -7,7 +7,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [1.10.0] - 2026-11-17
+## [1.10.0] - 2026-11-18
 
 ### Added
 
@@ -39,6 +39,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   directory owned by the current user and closed to group and other writes is trusted; anything
   else reads as unverified and is recorded for review.
 - RH009 said "1 real assertion were removed".
+
+### Security
+
+- Globs are checked for complexity before picomatch compiles them. Every picomatch release
+  through 4.0.7, the latest, backtracks exponentially on some patterns (GHSA-fc5q-39xc-vjpf):
+  `*a` repeated ten times took 18 seconds against one 43-character file name. RH007 compiles
+  `testMatch` globs taken from the diff under review, so an agent could stall the check past the
+  Stop hook's timeout, which fails open. Patterns over the limits (6 extglob groups, 8 brace
+  groups, 4 unbounded wildcards in one path segment, 1024 characters) are never compiled and never
+  match, so RH007 reports the selection as narrowed. Config entries over the limits are ignored
+  with a warning. Jest's default `testMatch` and proctor's own defaults are well inside them.
+- Update `@anthropic-ai/sdk` to 1.4.0 and `github/codeql-action/upload-sarif` to 4.39.3, plus
+  `@types/node` and `oxlint` in the toolchain.
 
 ## [1.9.0] - 2026-11-10
 

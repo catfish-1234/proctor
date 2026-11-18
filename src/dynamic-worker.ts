@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import picomatch from 'picomatch';
+import { safeMatcher } from './glob.js';
 import { loadSnapshots, materialize, isTestControl, withBaselineControls, type Snapshot } from './dynamic/snapshots.js';
 import { detectAdapter, runTests } from './dynamic/adapters.js';
 import { documentedIntent, expectedEdits, expectationChanges, expectationOnlyEdit, findProbes, locateTest, probeInputs, type ProbeValue } from './dynamic/signals.js';
@@ -24,7 +24,7 @@ try {
   const controlChanges = [...new Set([...old.keys(), ...next.keys()])].filter(p => isTestControl(p) && old.get(p)?.data.toString() !== next.get(p)?.data.toString());
   result.snapshots = { baseCommit, headCommit, overlay: options.staged ? 'index' : options.base ? 'none' : 'working-tree', baselineControls: controlChanges };
   if (controlChanges.length) result.notes.push(`Cross-runs restore selected baseline test controls: ${controlChanges.join(', ')}. Custom setup imports, installed dependencies and other runner controls may still affect execution; this is bounded coverage, not authenticated execution.`);
-  const isTest = picomatch(options.testPathGlobs, { dot: true });
+  const isTest = safeMatcher(options.testPathGlobs, { dot: true });
   const oldTests = [...old.keys()].filter(p => isTest(p)), nextTests = [...next.keys()].filter(p => isTest(p));
   const adapter = detectAdapter(old, oldTests);
   const nextAdapter = detectAdapter(next, nextTests);

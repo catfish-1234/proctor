@@ -1,7 +1,7 @@
 // This check runs unconditionally on any config file change; it doesn't try to correlate the
 // change with anything else in the diff. That's a deliberate simplification, not an oversight.
 import path from 'node:path';
-import picomatch from 'picomatch';
+import { safeMatcher } from '../glob.js';
 import type { Context, Finding, Severity, Verifier } from '../types.js';
 import type { ParsedFile } from '../diff.js';
 
@@ -198,8 +198,8 @@ function narrowsSelection(
   return patternsIn(prior.content).some(p => !kept.some(next => next === p
     // A concrete old path covered by a new glob is a widening. Regex selections need
     // their own semantics, so only glob keys use this test.
-    || (key === 'testMatch' && !/[?*{[]/.test(p) && picomatch(next)(p))
-    || (key === 'testMatch' && next.startsWith('**/') && picomatch(next.slice(3))(p.split('/').pop() ?? p))));
+    || (key === 'testMatch' && !/[?*{[]/.test(p) && safeMatcher(next)(p))
+    || (key === 'testMatch' && next.startsWith('**/') && safeMatcher(next.slice(3))(p.split('/').pop() ?? p))));
 }
 
 const EXCLUSION_PATTERNS: ExclusionPattern[] = [

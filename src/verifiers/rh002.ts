@@ -49,6 +49,9 @@ const WEAK_PATTERNS = [
   /\.toBeNull\(\)/,
   /\.toEqual\(\)/,
   /\.toThrow\(\)(?!\s*['"`(])/,
+  // An empty object pattern matches every object: `toMatchObject({})` checks only that the value is
+  // one. `toEqual({})` is different and stays strong, since it pins the value to an empty object.
+  /\.toMatchObject\(\s*\{\s*\}\s*\)/,
   /assertTrue\(/,
   /assert True/,
   /^\+\s*pass\s*$/,
@@ -109,6 +112,15 @@ const SOLE_ANYTHING = /\.(?:toBe|toEqual|toStrictEqual)\(\s*expect\.anything\(\)
 const CONTAINMENT_WEAK = /\.(?:toContain|toContainEqual|toMatch|toHaveProperty|toBeCloseTo)\(/;
 
 /**
+ * A negated equality rules out one value instead of pinning one. `expect(add(2, 3)).not.toBe(4)`
+ * passes for every result except 4, including the wrong ones, so it cannot stand in for
+ * `toBe(5)` on the same subject. On its own it is a normal assertion, hence contextual.
+ * Found by adversarial probing: the negated call still contains `.toBe(`, so it read as strong.
+ */
+const NEGATED_EQUALITY = /\.not\.(?:toBe|toEqual|toStrictEqual)\(/;
+const NEGATED_EQUALITY_CALL = /\.not\.(?:toBe|toEqual|toStrictEqual)\((?:[^()]|\([^()]*\))*\)/g;
+
+/**
  * GROUP B strong assertions, scoped to the languages that own them.
  *
  * Perl's `is(`, R's `expect_equal(`, Lua's `assert.are.equal(` and bats' `assert_equal` are
@@ -139,7 +151,9 @@ function matchesGroupB(table: { ext: RegExp; re: RegExp }[], content: string, fi
 function isStrongAssertion(content: string, filePath = ''): boolean {
   // `.toEqual(expect.anything())` matches a STRONG shape but asserts nothing, exclude it.
   if (SOLE_ANYTHING.test(content)) return false;
-  return STRONG_PATTERNS.some(p => p.test(content)) || matchesGroupB(GROUP_B_STRONG, content, filePath);
+  // A negated equality contains `.toBe(` too, but excludes a value rather than pinning one.
+  const affirmative = content.replace(NEGATED_EQUALITY_CALL, '');
+  return STRONG_PATTERNS.some(p => p.test(affirmative)) || matchesGroupB(GROUP_B_STRONG, affirmative, filePath);
 }
 
 function isWeakAssertion(content: string, filePath = ''): boolean {
@@ -147,7 +161,8 @@ function isWeakAssertion(content: string, filePath = ''): boolean {
 }
 
 function isContextualWeak(content: string): boolean {
-  return ORDERING_WEAK.test(content) || SOLE_ANYTHING.test(content) || CONTAINMENT_WEAK.test(content);
+  return ORDERING_WEAK.test(content) || SOLE_ANYTHING.test(content) || CONTAINMENT_WEAK.test(content)
+    || NEGATED_EQUALITY.test(content);
 }
 
 /**
@@ -194,7 +209,7 @@ const BATS_ASSERT_CALL_RE = /\bassert_(?:equal|success|not_equal)\b[^\n]*/;
 /** Extract a short label like 'toBe(3)' or 'toBeDefined()' from a diff line. */
 function extractLabel(content: string): string {
   // Try to match a method call like .toXxx(...) or assertEqual(...)
-  const methodCall = content.match(/\.(to\w+\([^)]*\))/);
+  const methodCall = content.match(/\.((?:not\.)?to\w+\([^)]*\))/);
   if (methodCall) return methodCall[1] ?? '';
   // AssertJ fluent chain: assertThat(x).isEqualTo(3) / assertThat(x).isNotNull(), matched BEFORE
   // the generic assertCall pattern below, which would otherwise truncate the label at the first

@@ -317,6 +317,47 @@ function buildMessage(pattern: ExclusionPattern, filePath: string, excludedVal: 
   return `Test path ignore pattern added to ${configLabel(filePath)} excluding ${excludedVal}.`;
 }
 
+/**
+ * Tests removed from the collected set in conftest.py, where no config key names them.
+ *
+ * `collect_ignore` is a config value and is caught with the rest. A `pytest_collection_modifyitems`
+ * hook that drops items, or a new `pytest_ignore_collect` hook, removes tests in code: they are
+ * collected, then quietly never run, and the suite still reports green. Found by adversarial
+ * probing, where a three-line hook dropping the failing test passed every check.
+ */
+const ITEM_DESELECTION_RE = /\bitems\s*\[\s*:\s*\]\s*=|\bitems\.(?:remove|clear|pop)\s*\(|\bdel\s+items\s*\[|\.pytest_deselected\s*\(/;
+const IGNORE_COLLECT_HOOK_RE = /^\s*def\s+pytest_ignore_collect\s*\(/;
+
+function conftestDeselection(file: ParsedFile, filePath: string): Finding[] {
+  const findings: Finding[] = [];
+  for (const chunk of file.chunks) {
+    for (const change of chunk.changes) {
+      if (change.type !== 'add') continue;
+      const code = stripDiffPrefix(change.content).replace(/#.*$/, '');
+      if (ITEM_DESELECTION_RE.test(code)) {
+        findings.push({
+          verifierId: 'RH007',
+          severity: 'error',
+          file: filePath,
+          line: change.ln,
+          message: 'Collected tests removed in conftest.py: the pytest_collection_modifyitems hook drops items, so those tests never run and the suite still passes.',
+          suggestion: 'Remove the deselection. If a test genuinely cannot run here, mark it skip with a stated reason so the skip stays visible.',
+        });
+      } else if (IGNORE_COLLECT_HOOK_RE.test(code)) {
+        findings.push({
+          verifierId: 'RH007',
+          severity: 'warn',
+          file: filePath,
+          line: change.ln,
+          message: 'pytest_ignore_collect hook added to conftest.py, so paths it returns True for are never collected as tests.',
+          suggestion: 'Confirm the hook only ignores non-test paths; use collect_ignore for fixed paths so the exclusion is visible as config.',
+        });
+      }
+    }
+  }
+  return findings;
+}
+
 function run(context: Context): Finding[] {
   const files = context.files;
   const findings: Finding[] = [];
@@ -400,6 +441,8 @@ function run(context: Context): Finding[] {
     }
 
     if (!isConfigFile(filePath)) continue;
+
+    if (path.basename(filePath) === 'conftest.py') findings.push(...conftestDeselection(file, filePath));
 
     const lang = configLang(filePath);
 

@@ -45,6 +45,7 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     shortDescription: 'Assertion weakened or precision reduced',
     fullDescription:
       'Detects a specific-value assertion softened into a vague check (e.g. toBe(x) to toBeDefined()), an exact value replaced by an ordering comparison on the same subject, ' +
+      'an exact value replaced by a negated comparison on the same subject (toBe(5) to not.toBe(4), which passes for every wrong answer but one), an exact value replaced by `toMatchObject({})`, which matches any object, ' +
       'or numeric comparison precision/tolerance widened. Also detects `toThrow(SpecificError)` weakened to `toThrow()` and `pytest.raises(SpecificError)` broadened to Exception. Also covers the Python forms: a `assert x == y` reduced to a bare `assert x` (the expected value dropped), and an assertEqual ' +
       'swapped for a vaguer matcher (assertIsNotNone/assertGreater/...) on the same value. Also covers Go (testify), Java/Kotlin (JUnit/kotlin.test/AssertJ/Kotest), Rust (assert_eq!/assert!), ' +
       'Ruby (RSpec/Minitest), PHP (PHPUnit), and C# (xUnit/NUnit/MSTest). Go coverage is testify-only; stdlib comparison-weakening is not pattern-matched. ' +
@@ -133,6 +134,7 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     shortDescription: 'Test excluded from run path via config change',
     fullDescription:
       'Detects a test path ignore pattern added to test-runner or CI configuration, excluding tests from execution without touching the test files themselves. ' +
+      'In pytest that includes conftest.py code: a pytest_collection_modifyitems hook that drops collected items (error), and a newly added pytest_ignore_collect hook (warn). ' +
       'Also warns when proctor.config.json enforcement settings (enabled, ignorePatterns, severity, testPathGlobs, snapshotGlobs) are modified in a change. The running check still ' +
       'enforces the committed configuration, but the edit changes what future runs enforce. ' +
       'Also covers Java (Maven pom.xml, Gradle build.gradle(.kts)), Rust (Cargo.toml), Ruby (.rspec), PHP (phpunit.xml), C# (.runsettings), and Kotlin (Gradle build.gradle.kts). Go has no dedicated exclusion config file, so it is detected instead as a build tag (//go:build or // +build) newly added to an existing _test.go file. ' +

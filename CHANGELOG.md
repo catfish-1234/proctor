@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- The `--ai` judge now defaults to Claude Haiku 5.5 (`claude-haiku-5-5`), run at low effort: a
+  YES/NO verdict on one diff excerpt needs little reasoning. A model you name with `aiModel` is
+  sent without an effort setting, since older models reject one. A declined request still reads
+  as "not a cheat", so the judge can only confirm a finding, never invent one.
+- Update `@anthropic-ai/sdk` to 1.10.0.
+
 ## [1.13.0] - 2026-11-19
 
 ### Added

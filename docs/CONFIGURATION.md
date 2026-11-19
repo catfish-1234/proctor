@@ -23,7 +23,7 @@ change, add `proctor.config.json` at the repo root (the schema is
 | `testPathGlobs` | `string[]` | glob patterns that identify your test files |
 | `ignorePatterns` | `string[]` | glob patterns for files to ignore entirely |
 | `approvedTestChanges` | `object[]` | genuine test changes you've approved, see [Approving a genuine test change](#approving-a-genuine-test-change) |
-| `aiModel` | `string` | which model the optional `--ai` judge uses. Defaults to `claude-haiku-4-5-20251001` |
+| `aiModel` | `string` | which model the optional `--ai` judge uses. Defaults to `claude-haiku-5-5`, run at low effort |
 | `dynamic` | `boolean` | opt in to isolated project-test execution, default false; see [dynamic checks](../README.md#dynamic-checks) |
 | `dynamicTimeoutMs` | `integer` | overall dynamic budget in milliseconds, default 60000; includes snapshot preparation |
 | `snapshotGlobs` | `string[]` | glob patterns that identify snapshot and golden files for `RH006` |

@@ -21,6 +21,9 @@ function neutralizeFence(diffExcerpt: string): string {
   return diffExcerpt.replace(/<(\/?)untrusted-diff>/gi, '&lt;$1untrusted-diff&gt;');
 }
 
+/** The model `--ai` uses unless the config names another with `aiModel`. */
+export const DEFAULT_JUDGE_MODEL = 'claude-haiku-5-5';
+
 export function createAnthropicJudge(apiKey: string, model: string): AIJudge {
   const client = new Anthropic({ apiKey });
   return {
@@ -34,6 +37,9 @@ export function createAnthropicJudge(apiKey: string, model: string): AIJudge {
         // 64-token cap left no room for the verdict on those models, so every call came back
         // without a text block and read as "not a cheat".
         max_tokens: 2048,
+        // A YES/NO verdict on one excerpt needs little reasoning, so the default model runs at low
+        // effort. A model named in the config keeps its own default: older models reject effort.
+        ...(model === DEFAULT_JUDGE_MODEL ? { output_config: { effort: 'low' as const } } : {}),
         messages: [{
           role: 'user',
           content: `You are a code review assistant. Answer YES or NO only.\n\n` +

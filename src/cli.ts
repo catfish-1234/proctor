@@ -223,8 +223,8 @@ program
         process.stderr.write('proctor: --ai requires ANTHROPIC_API_KEY env var. Set it or run without --ai.\n');
         process.exit(1);
       }
-      const { createAnthropicJudge } = await import('./ai/judge.js');
-      const model = ctx.aiModel ?? 'claude-haiku-4-5-20251001';
+      const { createAnthropicJudge, DEFAULT_JUDGE_MODEL } = await import('./ai/judge.js');
+      const model = ctx.aiModel ?? DEFAULT_JUDGE_MODEL;
       ctx.aiEnabled = true;
       ctx.judge = createAnthropicJudge(apiKey, model);
     }

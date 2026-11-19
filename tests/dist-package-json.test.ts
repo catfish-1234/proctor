@@ -25,8 +25,8 @@ describe('package.json (publishable metadata)', () => {
     expect(pkg.files).toContain('src/skill/SKILL.md');
   });
 
-  it('engines.node is >=20.0.0', () => {
-    expect(pkg.engines.node).toBe('>=20.0.0');
+  it('engines.node is >=22.12.0', () => {
+    expect(pkg.engines.node).toBe('>=22.12.0');
   });
 
   it('repository is a well-formed git object pointing at github.com/catfish-1234/proctor', () => {

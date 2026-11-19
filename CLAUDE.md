@@ -23,7 +23,7 @@ These are the same rules proctor itself enforces on AI agents (see
 
 ## Tech stack
 
-- TypeScript, Node 20+, ESM
+- TypeScript, Node 22.12+, ESM
 - tsup for the build, vitest for tests, commander for the CLI, picocolors for terminal output
 - `parse-diff` for git diff parsing
 - The deterministic core needs zero network. `--ai` is an opt-in extra, never a requirement.

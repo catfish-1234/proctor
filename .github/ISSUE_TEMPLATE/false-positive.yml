@@ -52,6 +52,6 @@ body:
     id: platform
     attributes:
       label: OS and Node version
-      placeholder: "Windows 11, Node 20.11.0"
+      placeholder: "Windows 11, Node 24.11.0"
     validations:
       required: true

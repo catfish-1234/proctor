@@ -24,8 +24,8 @@ assertions, or hardcoding outputs to fake a green build.
   change.
 - **`/proctor:check`.** Runs a check on demand and walks through what it found.
 
-The hook shells out to `npx @kavishdua/proctor`, so the first run fetches the package. Node 20 or
-newer is the only requirement.
+The hook shells out to `npx @kavishdua/proctor`, so the first run fetches the package. Node 22.12
+or newer is the only requirement.
 
 ## When a test change is genuine
 

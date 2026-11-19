@@ -16,8 +16,8 @@ proctor checks your git diff for deleted tests, weakened assertions, hardcoded a
 swallowed errors, and disabled checks. Its hooks block changes that trigger an error finding.
 
 The default check runs offline: no account or API key. The optional `--ai` judge sends candidates
-to Anthropic and needs `ANTHROPIC_API_KEY`. You need Node 20 or newer; building and testing from
-source needs Node 20.19+ or 22.12+.
+to Anthropic and needs `ANTHROPIC_API_KEY`. You need Node 22.12 or newer; building from source needs
+Node 22.18+, 24.11+, or 26.
 
 ## Contents
 

@@ -14,7 +14,7 @@ access performs as well, report that negative result and narrow the paper.
 
 ## 1. Reproduce what exists and create a private research workspace
 
-Prerequisites: Git, Node 20+, Python 3.10+, isolated checkout, network for dependency
+Prerequisites: Git, Node 22.12+, Python 3.10+, isolated checkout, network for dependency
 and source acquisition. Commands run from the repository root. Use `work/` for
 private artifacts; keep oracle data outside any future agent mount. `work/` is
 not assumed ignored: never stage it or upload it with a trial artifact.

@@ -16,10 +16,14 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        node: [20, 22]
+        node: [22, 24, 26]
+        # Windows runs the active LTS only: each Windows leg takes the better part of the job's
+        # time budget, and the Node-version spread is covered on Linux and macOS.
         exclude:
           - os: windows-latest
-            node: 20
+            node: 22
+          - os: windows-latest
+            node: 26
     runs-on: ${{ matrix.os }}
     # The suite runs in about two minutes locally and under five on the Linux and macOS runners.
     # Windows needs far longer: the bench tests junction in node_modules and spawn a vitest per
@@ -58,8 +62,8 @@ jobs:
   # matrix job above only reports its expanded legs ("test (<os>, <node>)"), so this job reports
   # that context. It is not a rubber stamp: it runs after the whole matrix finishes and fails on
   # any result other than success, so a failed, cancelled, or skipped leg fails this job. The
-  # matrix is static (5 legs, defined above) and legs have no skip conditions, so a passing
-  # aggregate means all 5 legs ran and passed.
+  # matrix is static (7 legs, defined above) and legs have no skip conditions, so a passing
+  # aggregate means all 7 legs ran and passed.
   checks:
     name: checks
     needs: [test]
@@ -76,4 +80,4 @@ jobs:
             echo "A matrix leg failed, was cancelled, or was skipped; the aggregate gate fails."
             exit 1
           fi
-          echo "All 5 CI matrix legs completed successfully."
+          echo "All 7 CI matrix legs completed successfully."

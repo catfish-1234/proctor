@@ -4,7 +4,7 @@ import pkg from './package.json' with { type: 'json' };
 export default defineConfig({
   entry: ['src/dynamic-worker.ts', 'src/cli.ts', 'src/ai/judge.ts', 'src/scripts/sync-plugin.ts', 'src/scripts/postinstall.ts'],  // judge is a dynamic import of dist/ai/judge.js; sync-plugin is a maintainer script
   format: ['esm'],
-  target: 'node20',
+  target: 'node22',
   bundle: true,
   // Keep shipped bundles compact and omit third-party prose comments.
   minifyWhitespace: true,

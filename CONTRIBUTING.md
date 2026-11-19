@@ -18,7 +18,7 @@ check your changes.
 
 ## Getting set up
 
-Use Node 20.19+ or 22.12+ for development (the packaged CLI supports Node 20+).
+Use Node 22.18+, 24.11+, or 26 for development (the packaged CLI supports Node 22.12+).
 
 ```bash
 git clone https://github.com/catfish-1234/proctor && cd proctor

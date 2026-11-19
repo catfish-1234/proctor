@@ -7,13 +7,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Removed
+
+- Node 20, which reached end of life on 2026-04-30, is no longer supported. proctor now needs
+  Node 22.12 or newer (`engines.node` is `>=22.12.0`), and CI tests Node 22, 24 and 26. The
+  GitHub Action runs on Node 24.
+
 ### Changed
 
 - The `--ai` judge now defaults to Claude Haiku 5.5 (`claude-haiku-5-5`), run at low effort: a
   YES/NO verdict on one diff excerpt needs little reasoning. A model you name with `aiModel` is
   sent without an effort setting, since older models reject one. A declined request still reads
   as "not a cheat", so the judge can only confirm a finding, never invent one.
-- Update `@anthropic-ai/sdk` to 1.10.0.
+- Update `@anthropic-ai/sdk` to 1.10.0 and commander to 15, which needs Node 22.12. The build
+  moves to tsup 9 and targets Node 22, and the tests run on Vitest 5.
 
 ## [1.13.0] - 2026-11-19
 

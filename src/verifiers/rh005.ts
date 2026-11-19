@@ -98,6 +98,37 @@ function isPySelfMock(target: string, testedModule: string): boolean {
   return segments.includes(testedModule);
 }
 
+/**
+ * Two more ways to replace the unit under test, found by adversarial probing:
+ *
+ * - `vi.spyOn(ns, 'add').mockReturnValue(5)`, where `ns` is `import * as ns from './math'` in
+ *   math.test.ts. A spy that only watches calls is ordinary; one handed a fake result or
+ *   implementation means the test asserts on the fake.
+ * - `sys.modules['calc'] = stub` (or `setdefault`, or `monkeypatch.setitem(sys.modules, ...)`)
+ *   in test_calc.py, or in conftest.py when a test file for `calc` exists. Every later
+ *   `import calc` gets the stub. Stubbing an optional dependency in conftest is common and
+ *   stays quiet: only a module some test file is named for counts there.
+ */
+const JS_SPY_FAKE_RE = /\b(?:jest|vi)\.spyOn\(\s*([A-Za-z_$][\w$]*)\s*,\s*['"`]([\w$]+)['"`]\s*\)\s*\.mock(?:ReturnValue|ResolvedValue|RejectedValue|Implementation)(?:Once)?\(/;
+const JS_NAMESPACE_IMPORT_RE = /\bimport\s+\*\s+as\s+([A-Za-z_$][\w$]*)\s+from\s+['"`]([^'"`\n]+)['"`]|\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:await\s+import|require)\(\s*['"`]([^'"`\n]+)['"`]\s*\)/g;
+const PY_SYS_MODULES_STUB_RE = /\bsys\.modules\s*\[\s*['"]([\w.]+)['"]\s*\]\s*=(?!=)|\bsys\.modules\.setdefault\(\s*['"]([\w.]+)['"]|\bmonkeypatch\.setitem\(\s*sys\.modules\s*,\s*['"]([\w.]+)['"]/;
+
+/** Namespace bindings visible in this file's diff: `import * as ns from 'spec'` and friends. */
+function namespaceImports(file: { chunks: Array<{ changes: Array<{ type: string; content: string }> }> }): Map<string, string> {
+  const bindings = new Map<string, string>();
+  for (const chunk of file.chunks) {
+    for (const change of chunk.changes) {
+      if (change.type === 'del') continue;
+      for (const m of change.content.matchAll(JS_NAMESPACE_IMPORT_RE)) {
+        const name = m[1] ?? m[3];
+        const spec = m[2] ?? m[4];
+        if (name && spec) bindings.set(name, spec);
+      }
+    }
+  }
+  return bindings;
+}
+
 function baseName(p: string): string {
   const file = p.split('/').pop() ?? p;
   return file
@@ -185,12 +216,48 @@ async function run(context: Context): Promise<Finding[]> {
         // match a JS HTTP-client call like `client.patch('users')` in users.test.ts and be misread
         // as a Python self-mock. JS mock forms (jest/vi.mock) likewise don't apply to Python.
         const isPy = filePath.endsWith('.py');
+        const testedModule = baseName(filePath);
+        const namespaces = isPy ? new Map<string, string>() : namespaceImports(file);
+        // conftest.py is not named for a module, so the modules it may not stub are the ones the
+        // project's test files are named for.
+        const conftestTargets = /(?:^|\/)conftest\.py$/.test(filePath)
+          ? new Set([...ctx.testFiles, ...files.map(f => f.to ?? '')].filter(f => f.endsWith('.py') && !/conftest\.py$/.test(f)).map(baseName))
+          : undefined;
         for (const add of adds) {
+          const spy = !isPy ? JS_SPY_FAKE_RE.exec(add.content) : null;
+          const spec = spy ? namespaces.get(spy[1]!) : undefined;
+          if (spy && spec && isJsSelfMock(spec, testedModule)) {
+            findings.push({
+              verifierId: 'RH005',
+              severity: 'error',
+              file: filePath,
+              line: (add as { ln: number }).ln,
+              message: `Test replaces ${spy[2]!} in the module under test (${spec}) with a fake result instead of exercising the real implementation.`,
+              suggestion: 'Remove the fake and call the real function; stub only its external dependencies.',
+            });
+            continue;
+          }
+          const stub = isPy ? PY_SYS_MODULES_STUB_RE.exec(add.content) : null;
+          const stubbed = stub ? (stub[1] ?? stub[2] ?? stub[3])! : undefined;
+          if (stubbed) {
+            const targets = conftestTargets ?? new Set([testedModule]);
+            const hit = [...targets].find(module => isPySelfMock(stubbed, module));
+            if (hit) {
+              findings.push({
+                verifierId: 'RH005',
+                severity: 'error',
+                file: filePath,
+                line: (add as { ln: number }).ln,
+                message: `sys.modules entry for ${stubbed} replaced with a stub, so every import of the module under test (${hit}) gets the stub instead of the real implementation.`,
+                suggestion: 'Remove the stub and import the real module; stub only optional external dependencies.',
+              });
+            }
+            continue;
+          }
           const jsMatch = !isPy ? add.content.match(JS_SELF_MOCK_RE) : null;
           const pyMatch = isPy ? add.content.match(PY_MOCK_PATCH_RE) : null;
           const mockedTarget = jsMatch?.[1] ?? pyMatch?.[1];
           if (!mockedTarget) continue;
-          const testedModule = baseName(filePath);
           const isSelfMock = jsMatch
             ? isJsSelfMock(mockedTarget, testedModule)
             : isPySelfMock(mockedTarget, testedModule);

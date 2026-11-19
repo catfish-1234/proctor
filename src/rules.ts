@@ -105,7 +105,7 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     shortDescription: 'Function body replaced with a stub',
     fullDescription:
       'Detects a function body replaced with return null/undefined/pass or an empty body while the test still asserts richer behavior, or a test file mocking the exact module/unit ' +
-      'it claims to test. Deterministic core: the gutted-return signal only fires when the diff shows a real prior computation being replaced (not a brand-new stub function); ambiguous ' +
+      'it claims to test, including a jest/vi.spyOn handed a fake result on a namespace import of that module, and the module replaced in sys.modules (in its own test file, or in conftest.py when a test file is named for it). Deterministic core: the gutted-return signal only fires when the diff shows a real prior computation being replaced (not a brand-new stub function); ambiguous ' +
       'gutting with no clear prior computation is only flagged with --ai.',
     defaultLevel: 'error',
     fix:

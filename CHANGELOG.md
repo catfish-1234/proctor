@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-19
+
 ### Added
 
 - RH016 reports a harness that rewrites each test's result to passed, found by adversarial
@@ -15,11 +17,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   or `addError` replaced, and Jest's `testFailureExitCode` set to 0 in its config, package.json
   or a CI command. `force_result` in other hooks (collection ordering, report headers) and a
   non-zero failure exit code stay quiet.
-
-## [2.1.0] - 2026-11-19
-
-### Added
-
 - RH003 reports a JS/TS test disabled on CI only, `it.skipIf(process.env.CI)` or
   `test.runIf(!process.env.CI)`: the JS form of the pytest `skipif` RH003 already reports. A
   platform condition (`skipIf(process.platform === 'win32')`) and a test that runs only on CI stay

@@ -1,5 +1,5 @@
 import type { Context, Finding, Verifier } from '../types.js';
-import { closingDelimiter, sourceView, type SourceView } from './structure.js';
+import { closingDelimiter, isJsHarnessFile, isPythonHarness, sourceView, type SourceView } from './structure.js';
 
 /**
  * RH016: test code that forces the run's exit status instead of letting the tests decide it.
@@ -41,15 +41,6 @@ function harnessRanges(view: SourceView): Array<[number, number]> {
     ranges.push([open, close < 0 ? view.code.length : close]);
   }
   return ranges;
-}
-
-function isPythonHarness(path: string, context: Context): boolean {
-  return /(?:^|\/)conftest\.py$/.test(path) || (path.endsWith('.py') && context.isTestFile(path));
-}
-
-function isJsHarnessFile(path: string, context: Context): boolean {
-  return /\.(?:[cm]?[jt]sx?)$/.test(path) && (context.isTestFile(path)
-    || /(?:^|\/)(?:(?:jest|vitest|mocha)\.setup|setup[-_.]?tests?|test[-_.]?setup|global[-_.]?(?:setup|teardown))\.[cm]?[jt]sx?$/i.test(path));
 }
 
 function run(context: Context): Finding[] {

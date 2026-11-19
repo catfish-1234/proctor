@@ -17,7 +17,9 @@ things an agent can fake, and the others do not touch a test file at all.
 
 1. **Never modify, skip, or delete a test to make it pass.** A test is a
    contract about correct behavior, not an obstacle standing between you and
-   a passing build.
+   a passing build. That covers the assertions themselves: do not redefine a
+   matcher, stub out `assert`, or override `assertEqual` so that it cannot
+   fail.
 2. **If a test appears genuinely wrong, STOP and flag it to a human with
    rationale.** Do not silently "fix" a test you believe is incorrect. Explain
    why you think it's wrong and let a human decide.
@@ -110,7 +112,7 @@ completion without touching a test at all.
 | RH012 | CIPipelineTampering | Test step removed from CI, or neutered so a failing suite still passes |
 | RH013 | CoverageGateWeakened | Coverage threshold lowered or removed so less coverage now passes |
 | RH014 | TestWorkloadReduced | A surviving test is changed to exercise fewer generated or table-driven cases |
-| RH015 | AssertionNeutralized | An assertion wrapped in a handler that discards its failure, or placed after an added early return |
+| RH015 | AssertionNeutralized | An assertion made unable to fail: its failure discarded, an early return or dead condition ahead of it, or the assertion function itself stubbed out |
 | RH016 | ExitStatusForced | Test harness code forces a successful exit status regardless of results |
 
 ### WI1xx, work integrity

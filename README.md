@@ -399,7 +399,7 @@ families.
 | RH012 | A test step removed from CI, or neutered so failures stop counting |
 | RH013 | A coverage threshold lowered or removed |
 | RH014 | A surviving test changed to exercise fewer generated, looped, or table-driven cases |
-| RH015 | An assertion wrapped in an empty catch, placed after an added early return, or behind a condition that is never true, so it cannot fail |
+| RH015 | An assertion wrapped in an empty catch, placed after an added early return, or behind a condition that is never true, or the assertion function itself stubbed out (a matcher redefined to always pass, `assert.strictEqual` or `assertEqual` replaced with a no-op), so it cannot fail |
 | RH016 | Test harness code that forces a successful exit status (`session.exitstatus = 0`, `os._exit`, `process.exit(0)` in a hook) |
 
 **WI1xx checks "the work is done."** These look for incomplete or disabled behavior in source,

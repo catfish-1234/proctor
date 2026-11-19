@@ -1,4 +1,5 @@
 import type { ParsedFile } from '../diff.js';
+import type { Context } from '../types.js';
 import { body } from './wi-common.js';
 
 type Chunk = ParsedFile['chunks'][number];
@@ -145,4 +146,15 @@ export function testBodies(view: SourceView): Array<{key:string;open:number;end:
     if (end >= 0) result.push({key:title[2]!,open,end,body:view.code.slice(open + 1,end)});
   }
   return result;
+}
+
+/** Python test harness code: conftest.py, which is pure harness, and Python test files. */
+export function isPythonHarness(path: string, context: Context): boolean {
+  return /(?:^|\/)conftest\.py$/.test(path) || (path.endsWith('.py') && context.isTestFile(path));
+}
+
+/** JS/TS test harness code: test files and the runner setup files they load before every test. */
+export function isJsHarnessFile(path: string, context: Context): boolean {
+  return /\.(?:[cm]?[jt]sx?)$/.test(path) && (context.isTestFile(path)
+    || /(?:^|\/)(?:(?:jest|vitest|mocha)\.setup|setup[-_.]?tests?|test[-_.]?setup|global[-_.]?(?:setup|teardown))\.[cm]?[jt]sx?$/i.test(path));
 }

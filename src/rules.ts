@@ -262,15 +262,17 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
   },
   RH015: {
     name: 'AssertionNeutralized',
-    shortDescription: 'An assertion wrapped in a handler that discards its failure, or placed after an added early return',
+    shortDescription: 'An assertion made unable to fail: its failure discarded, an early return or dead condition ahead of it, or the assertion function itself stubbed out',
     fullDescription:
-      'Detects an assertion this change makes unable to fail its test, while the assertion itself survives untouched: a try whose catch block is empty (or a Python except clause that only passes) wrapped around it, so a failing assertion is caught and discarded, an unconditional return added ahead of it in the same test body, so it never runs, or a condition that is never true (if (false), if (0), Python if False:) added around it. Assertion counting and skip detection see nothing missing in either case. Fires only when the change adds the try, the handler, or the return.',
+      'Detects an assertion this change makes unable to fail its test, while the assertion itself survives untouched: a try whose catch block is empty (or a Python except clause that only passes) wrapped around it, so a failing assertion is caught and discarded, an unconditional return added ahead of it in the same test body, so it never runs, or a condition that is never true (if (false), if (0), Python if False:) added around it. Also detects the assertion library itself made unable to fail: a built-in matcher redefined through expect.extend so it always passes, assert.strictEqual or unittest.TestCase.assertEqual replaced with a no-op (by assignment, setattr, monkeypatch.setattr or patch), a local expect or assert that never fails shadowing the real one, a test class overriding a built-in assertEqual with an empty body, or the assertion module a test file asserts with mocked out; in test files and in conftest.py and runner setup files. Assertion counting and skip detection see nothing missing in any of these cases. Fires only when the change adds the try, the handler, the return, or the override.',
     defaultLevel: 'error',
     fix:
       'Let the assertion fail the test again. Remove the try/catch, or assert on the caught error instead of ' +
       'discarding it; an expected exception belongs in expect(...).toThrow(), rejects, pytest.raises or ' +
       'assertRaises. Remove an early return that skips the checks after it. If those checks are genuinely ' +
-      'obsolete, delete them in the open and say why, rather than leaving them in place where they read as coverage.',
+      'obsolete, delete them in the open and say why, rather than leaving them in place where they read as coverage. ' +
+      'Remove an override that stops an assertion function from failing; to compare a custom type, register an ' +
+      'equality tester that still fails on a mismatch (expect.addEqualityTesters, addTypeEqualityFunc).',
     helpUri: 'https://github.com/catfish-1234/proctor#rh015',
   },
   RH016: {

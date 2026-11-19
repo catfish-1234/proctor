@@ -7,6 +7,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- RH015 reports the assertion library itself made unable to fail, found by adversarial probing,
+  where all seven shapes passed every default check: a built-in matcher redefined through
+  `expect.extend` so it always passes (including `pass: !this.isNot`, which also passes under
+  `.not`), `assert.strictEqual` or `unittest.TestCase.assertEqual` replaced with a no-op (by
+  assignment, `setattr`, `monkeypatch.setattr`, `patch` or `patch.object`), a local `expect` or
+  `assert` that never fails shadowing the real one, a spy that gives an assertion a fake
+  implementation, a test class that overrides a built-in `assertEqual` with an empty body, and the
+  assertion module a test file asserts with mocked out (`vi.mock('node:assert')`). Every assertion
+  survives and still runs, so assertion counting and skip detection saw nothing. Checked in test
+  files and in conftest.py and runner setup files, on lines the change adds. A new, separately
+  named matcher, an override that still computes `pass` or still raises, a production helper such
+  as `app.auth.assert_permission` patched out of a unit test, and a spy that only watches stay
+  quiet.
+
 ### Removed
 
 - Node 20, which reached end of life on 2026-04-30, is no longer supported. proctor now needs

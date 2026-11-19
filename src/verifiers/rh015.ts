@@ -264,6 +264,15 @@ const UNITTEST_ASSERTS = new Set([
 /** Modules whose exports are the assertions a test file makes. */
 const ASSERTION_MODULE = /^(?:node:)?assert(?:\/strict)?$|^(?:chai|expect|should|power-assert|unexpected|@jest\/expect)$/;
 
+/** Every module a JS file imports or requires, by specifier. */
+function importedModules(text: string): Set<string> {
+  const modules = new Set<string>();
+  for (const match of text.matchAll(/\bfrom\s+(['"])([^'"]+)\1|\brequire\s*\(\s*(['"])([^'"]+)\3\s*\)/g)) {
+    modules.add(match[2] ?? match[4]!);
+  }
+  return modules;
+}
+
 /** Calls that build a mock rather than check anything. */
 const MOCK_CALLEE = /^(?:(?:vi|jest)\.fn|sinon\.(?:stub|spy|fake)|mock(?:Return|Resolved|Rejected|Implementation)\w*)$/;
 
@@ -418,9 +427,7 @@ function jsLibraryNeutralized(view: SourceView, file: string, fileText: string):
     // Read the module name from the raw text: the code view blanks string contents.
     const module = /^\s*(['"`])([^'"`]+)\1/.exec(view.text.slice(at + match[0].length))?.[2];
     if (!module || !ASSERTION_MODULE.test(module)) continue;
-    const quoted = module.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
-    const imported = new RegExp(`\\bfrom\\s+['"]${quoted}['"]|\\brequire\\s*\\(\\s*['"]${quoted}['"]\\s*\\)`).test(fileText);
-    if (!imported) continue;
+    if (!importedModules(fileText).has(module)) continue;
     report(at, `The assertion library '${module}' is mocked in a file that asserts with it, so those assertions become mocks that never fail.`);
   }
   return findings;
@@ -521,7 +528,7 @@ function pyLibraryNeutralized(view: SourceView, file: string): Finding[] {
     if (!args) continue;
     const positional = args.filter(a => !/^\w+\s*=/.test(a.code));
     const keyword = (name: string): string | undefined =>
-      args.find(a => new RegExp(`^${name}\\s*=`).test(a.code))?.code.replace(/^\w+\s*=\s*/, '');
+      args.find(a => /^(\w+)\s*=/.exec(a.code)?.[1] === name)?.code.replace(/^\w+\s*=\s*/, '');
     const isPatch = /patch/.test(match[0]);
     // patch('pkg.TestCase.assertEqual') and monkeypatch.setattr('pkg.TestCase.assertEqual', v)
     // name the target in one dotted string; setattr(obj, 'name', v) and patch.object(obj, 'name')

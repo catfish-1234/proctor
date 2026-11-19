@@ -7,6 +7,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-11-19
+
+### Added
+
+- RH005 reports two more ways to replace the unit under test, both found by adversarial probing:
+  `vi.spyOn(ns, 'fn')` or `jest.spyOn(ns, 'fn')` handed a fake result or implementation, where
+  `ns` is a namespace import (or `require`) of the module under test, and `sys.modules['calc']`
+  replaced with a stub (directly, with `setdefault`, or with `monkeypatch.setitem`) in
+  test_calc.py, or in conftest.py when a test file is named for that module. A spy that only
+  watches calls, a fake on a dependency, and a conftest stub of an optional dependency stay
+  quiet.
+
+### Changed
+
+- Update `@anthropic-ai/sdk` to 1.8.0, `brace-expansion` to 5.0.13 and `oxlint` to 1.93.0.
+
 ## [1.12.0] - 2026-11-18
 
 ### Added

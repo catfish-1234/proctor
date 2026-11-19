@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-19
+
 ### Added
 
 - RH003 reports a JS/TS test disabled on CI only, `it.skipIf(process.env.CI)` or

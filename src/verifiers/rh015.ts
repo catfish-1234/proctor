@@ -228,6 +228,83 @@ function pyDeadGuard(view: SourceView, file: string): Finding[] {
 }
 
 // ---------------------------------------------------------------------------------------------
+// An assertion that only runs off CI
+// ---------------------------------------------------------------------------------------------
+
+/** A JS expression reading the CI environment. */
+const JS_CI = /\bprocess\s*\.\s*env\s*(?:\.\s*|\[\s*['"`])(?:CI|GITHUB_ACTIONS|GITLAB_CI|CIRCLECI|BUILDKITE|TRAVIS|JENKINS_URL|TF_BUILD|CONTINUOUS_INTEGRATION)\b|\bisCI\b/;
+/** A Python expression reading the CI environment. */
+const PY_CI = /\bos\s*\.\s*(?:environ\s*\.\s*get|getenv)\s*\(\s*['"](?:CI|GITHUB_ACTIONS|GITLAB_CI|CIRCLECI|BUILDKITE|TRAVIS|JENKINS_URL|TF_BUILD|CONTINUOUS_INTEGRATION)['"]|\bos\s*\.\s*environ\s*\[\s*['"](?:CI|GITHUB_ACTIONS)['"]\s*\]|['"](?:CI|GITHUB_ACTIONS|GITLAB_CI|CIRCLECI|BUILDKITE|TRAVIS|JENKINS_URL|TF_BUILD|CONTINUOUS_INTEGRATION)['"]\s+(?:not\s+)?in\s+os\s*\.\s*environ\b/;
+
+/** True when a JS condition holds only off CI: `!process.env.CI`, `process.env.CI !== 'true'`. */
+function jsOffCi(condition: string): boolean {
+  const trimmed = condition.trim();
+  return /^!\s*\(?\s*(?:process|isCI)/.test(trimmed) || /\b(?:CI|GITHUB_ACTIONS|isCI)\b\s*(?:!==?|===?\s*(?:undefined|null|''|""|'false'|"false"))/.test(trimmed);
+}
+
+/** True when a Python condition holds only off CI: `not os.environ.get("CI")`, `"CI" not in os.environ`. */
+function pyOffCi(condition: string): boolean {
+  const trimmed = condition.trim();
+  return /^not\b/.test(trimmed) || /\bnot\s+in\s+os\s*\.\s*environ\b/.test(trimmed)
+    || /\)\s*(?:!=|is\s+None\b|==\s*(?:''|""|'false'|"false"))/.test(trimmed);
+}
+
+const CI_GUARD_SUGGESTION =
+  'Let the assertion run on CI. If it is flaky there, fix the flakiness or skip the test with a ' +
+  'stated reason so the skip is visible; do not quietly stop checking where the build is judged.';
+
+function jsCiGuard(view: SourceView, file: string): Finding[] {
+  const findings: Finding[] = [];
+  for (const match of view.code.matchAll(/\bif\s*\(/g)) {
+    const at = match.index!;
+    if (!view.touched(at, at)) continue;
+    const open = at + match[0].length - 1;
+    const close = closingDelimiter(view.code, open, '(', ')');
+    if (close < 0) continue;
+    const condition = view.text.slice(open + 1, close);
+    if (!JS_CI.test(condition) || !jsOffCi(condition)) continue;
+    let guarded = view.code.slice(close + 1);
+    const brace = /^\s*\{/.exec(guarded);
+    if (brace) {
+      const blockOpen = close + 1 + brace[0].length - 1;
+      const blockClose = closingDelimiter(view.code, blockOpen);
+      guarded = view.code.slice(blockOpen, blockClose < 0 ? view.code.length : blockClose);
+    } else {
+      guarded = guarded.split(/[;\n]/)[0] ?? '';
+    }
+    if (!JS_ASSERTION.test(guarded)) continue;
+    findings.push({
+      verifierId: 'RH015', severity: 'error', file, line: view.lineAt(at),
+      message: 'Assertion placed behind a check that is false on CI, so it never runs where the build is judged and the test passes there without checking anything.',
+      suggestion: CI_GUARD_SUGGESTION,
+    });
+  }
+  return findings;
+}
+
+function pyCiGuard(view: SourceView, file: string): Finding[] {
+  const findings: Finding[] = [];
+  const lines = pyLines(view);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    if (!view.touched(line.offset, line.offset)) continue;
+    // The condition is read from the raw text: the code view blanks the "CI" string.
+    const raw = view.text.slice(line.offset, line.offset + line.text.length);
+    const guard = /^\s*if\s+(.+?):\s*(.*)$/.exec(raw);
+    if (!guard || !PY_CI.test(guard[1]!) || !pyOffCi(guard[1]!)) continue;
+    const inline = guard[2]!.trim();
+    const asserts = inline !== '' ? PY_ASSERTION.test(inline) : pyBlock(lines, i).some(l => PY_ASSERTION.test(l.text));
+    if (!asserts) continue;
+    findings.push({
+      verifierId: 'RH015', severity: 'error', file, line: view.lineAt(line.offset),
+      message: 'Assertion placed under a check that is false on CI, so it never runs where the build is judged and the test passes there without checking anything.',
+      suggestion: CI_GUARD_SUGGESTION,
+    });
+  }
+  return findings;
+}
+
+// ---------------------------------------------------------------------------------------------
 // The assertion library itself neutralized
 // ---------------------------------------------------------------------------------------------
 
@@ -571,8 +648,8 @@ function run(context: Context): Finding[] {
       const view = sourceView(chunk, 'after', python);
       if (testFile) {
         findings.push(...(python
-          ? [...pySwallowed(view, path), ...pyUnreachable(view, path), ...pyDeadGuard(view, path)]
-          : [...jsSwallowed(view, path), ...jsUnreachable(view, path), ...jsDeadGuard(view, path)]));
+          ? [...pySwallowed(view, path), ...pyUnreachable(view, path), ...pyDeadGuard(view, path), ...pyCiGuard(view, path)]
+          : [...jsSwallowed(view, path), ...jsUnreachable(view, path), ...jsDeadGuard(view, path), ...jsCiGuard(view, path)]));
       }
       findings.push(...(python ? pyLibraryNeutralized(view, path) : jsLibraryNeutralized(view, path, fileText)));
     }

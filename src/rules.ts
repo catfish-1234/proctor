@@ -67,7 +67,7 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     name: 'TestSkippedOrDisabled',
     shortDescription: 'Test disabled, skipped, or commented out',
     fullDescription:
-      'Detects a test removed from the run without deleting its source. JS/TS: .skip/.only, xit/xdescribe, fit/fdescribe/xtest, .todo, runIf(false), skipIf(true), test.fails/test.failing, a bracket-notation skip, or a commented-out test. ' +
+      'Detects a test removed from the run without deleting its source. JS/TS: .skip/.only, xit/xdescribe, fit/fdescribe/xtest, .todo, runIf(false), skipIf(true), skipIf/runIf on the CI environment (skipIf(process.env.CI), runIf(!process.env.CI)), test.fails/test.failing, a bracket-notation skip, or a commented-out test. ' +
       'Python: @pytest.mark.skip/skipif/xfail, a module-level pytestmark, __test__ = False, @unittest.skip, a commented-out test, and imperative runtime skips (pytest.skip/self.skipTest/SkipTest ' +
       'inside a named test module). Also covers Go (t.Skip/b.Skip), Java/Kotlin (@Disabled/@Ignore), Rust (#[ignore]), Ruby (xit/xdescribe, skip/pending), PHP (markTestSkipped/markTestIncomplete), ' +
       'and C# (Fact(Skip=...)/[Ignore]). Kotest\'s `enabled = false` skip form is not covered. ' +
@@ -156,7 +156,8 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     shortDescription: 'Assertion always passes regardless of behavior',
     fullDescription:
       'Detects an assertion that always passes without testing real behavior: a literal `assert True`, a value asserted against itself (`assert x == x`, `expect(f(x)).toBe(f(x))`), ' +
-      'or an assertion made on an empty `expect()` with no value under test. Fully deterministic, every pattern is an exact syntactic tautology with no legitimate use, so no --ai is needed.',
+      'an assertion made on an empty `expect()` or a literal (`expect(true).toBeTruthy()`, `assert.ok(true, msg)`), a condition ORed with true (`assert x == 3 or True`, `assert(ok || true)`), ' +
+      'a Python `assert (condition, "message")` (a two-element tuple, always truthy), or a Jest/Vitest matcher named but never called (`expect(x).toBe;`). Fully deterministic, every pattern is an exact syntactic tautology with no legitimate use, so no --ai is needed.',
     defaultLevel: 'warning',
     fix:
       'Assert the real expected value. An assertion that compares a value to itself, or asserts a literal ' +
@@ -264,7 +265,7 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     name: 'AssertionNeutralized',
     shortDescription: 'An assertion made unable to fail: its failure discarded, an early return or dead condition ahead of it, or the assertion function itself stubbed out',
     fullDescription:
-      'Detects an assertion this change makes unable to fail its test, while the assertion itself survives untouched: a try whose catch block is empty (or a Python except clause that only passes) wrapped around it, so a failing assertion is caught and discarded, an unconditional return added ahead of it in the same test body, so it never runs, or a condition that is never true (if (false), if (0), Python if False:) added around it. Also detects the assertion library itself made unable to fail: a built-in matcher redefined through expect.extend so it always passes, assert.strictEqual or unittest.TestCase.assertEqual replaced with a no-op (by assignment, setattr, monkeypatch.setattr or patch), a local expect or assert that never fails shadowing the real one, a test class overriding a built-in assertEqual with an empty body, or the assertion module a test file asserts with mocked out; in test files and in conftest.py and runner setup files. Assertion counting and skip detection see nothing missing in any of these cases. Fires only when the change adds the try, the handler, the return, or the override.',
+      'Detects an assertion this change makes unable to fail its test, while the assertion itself survives untouched: a try whose catch block is empty (or a Python except clause that only passes) wrapped around it, so a failing assertion is caught and discarded, an unconditional return added ahead of it in the same test body, so it never runs, a condition that is never true (if (false), if (0), Python if False:) added around it, or a check that is false on CI (if (!process.env.CI), Python if not os.environ.get("CI"):) added around it, so the assertion never runs where the build is judged. Also detects the assertion library itself made unable to fail: a built-in matcher redefined through expect.extend so it always passes, assert.strictEqual or unittest.TestCase.assertEqual replaced with a no-op (by assignment, setattr, monkeypatch.setattr or patch), a local expect or assert that never fails shadowing the real one, a test class overriding a built-in assertEqual with an empty body, or the assertion module a test file asserts with mocked out; in test files and in conftest.py and runner setup files. Assertion counting and skip detection see nothing missing in any of these cases. Fires only when the change adds the try, the handler, the return, or the override.',
     defaultLevel: 'error',
     fix:
       'Let the assertion fail the test again. Remove the try/catch, or assert on the caught error instead of ' +

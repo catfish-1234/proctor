@@ -20,6 +20,10 @@ const FOCUS_ALIAS = /(?<![.\w])(?:xtest|fit|fdescribe)\s*\(\s*['"`]/;
 // Bracket notation: it['skip'](...) / test["only"](...) reaches the same modifier past the regex.
 const BRACKET_SKIP = /\b(?:it|test|describe)\s*\[\s*['"`](?:skip|only)['"`]\s*\]/;
 const CONDITIONAL_DISABLE = /\b(?:it|test|describe)\.(?:runIf\(\s*false\s*\)|skipIf\(\s*true\s*\))/;
+// skipIf on the CI environment, or runIf on its negation: the test runs on a laptop and never where
+// the build is judged, which is the JS form of a pytest skipif. A platform condition
+// (`skipIf(process.platform === 'win32')`) is a different question and stays quiet.
+const CI_CONDITIONAL_DISABLE = /\b(?:it|test|describe)(?:\.\w+)*\.(?:skipIf\(\s*(?:!!\s*|Boolean\(\s*)?(?:process\.env\.(?:CI|GITHUB_ACTIONS|GITLAB_CI|CIRCLECI|BUILDKITE|TRAVIS|JENKINS_URL|TF_BUILD|CONTINUOUS_INTEGRATION)|isCI)\b(?!\s*!=)|runIf\(\s*!\s*(?:process\.env\.(?:CI|GITHUB_ACTIONS|GITLAB_CI|CIRCLECI|BUILDKITE|TRAVIS|JENKINS_URL|TF_BUILD|CONTINUOUS_INTEGRATION)|isCI)\b)/;
 const EXPECTED_FAILURE = /\b(?:it|test)\.(?:fails|failing)\b/;
 const PYTEST_SKIP = /@pytest\.mark\.skip/;
 const PYTEST_SKIPIF = /@pytest\.mark\.skipif\b/;
@@ -253,6 +257,7 @@ function buildSkipMessage(content: string, ext?: string): string {
   if (FOCUS_ALIAS.test(content)) return 'Test was disabled or focused with xtest/fit/fdescribe.';
   if (BRACKET_SKIP.test(content)) return 'Test was disabled with a bracket-notation skip/only.';
   if (CONDITIONAL_DISABLE.test(content)) return 'Test was disabled with a constant runIf(false)/skipIf(true) condition.';
+  if (CI_CONDITIONAL_DISABLE.test(content)) return 'Test was disabled on CI with skipIf/runIf on the CI environment, so it never runs where the build is judged.';
   if (EXPECTED_FAILURE.test(content)) return 'Test was marked as an expected failure, so its current failure now passes the suite.';
   if (PYTEST_SKIP.test(content)) return 'Test was disabled with @pytest.mark.skip.';
   if (PYTEST_SKIPIF.test(content)) return 'Test was conditionally disabled with @pytest.mark.skipif.';
@@ -319,7 +324,7 @@ function buildSuggestion(content: string): string {
 
 // Language-scoped so JS constructs (fit/xtest/it.skip) never run against Python code and Python
 // constructs (pytest.skip/SkipTest) never run against JS, cross-language matches were pure noise.
-const JS_PATTERNS = [SKIP_ONLY, TODO_RE, XIT, XDESCRIBE, FOCUS_ALIAS, BRACKET_SKIP, CONDITIONAL_DISABLE, EXPECTED_FAILURE, COMMENTED_JS_TEST];
+const JS_PATTERNS = [SKIP_ONLY, TODO_RE, XIT, XDESCRIBE, FOCUS_ALIAS, BRACKET_SKIP, CONDITIONAL_DISABLE, CI_CONDITIONAL_DISABLE, EXPECTED_FAILURE, COMMENTED_JS_TEST];
 // Decorator/module-level Python disables: unambiguous and safe to flag on any changed .py file.
 const PY_DECORATOR_PATTERNS = [PYTEST_SKIP, PYTEST_SKIPIF, PYTEST_XFAIL, PYTESTMARK, DUNDER_TEST_FALSE, UNITTEST_SKIP, BARE_SKIP, COMMENTED_PY_TEST];
 // Imperative runtime skips (`pytest.skip(...)`, `self.skipTest(...)`) are legitimate in fixtures

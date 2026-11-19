@@ -7,6 +7,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- RH003 reports a JS/TS test disabled on CI only, `it.skipIf(process.env.CI)` or
+  `test.runIf(!process.env.CI)`: the JS form of the pytest `skipif` RH003 already reports. A
+  platform condition (`skipIf(process.platform === 'win32')`) and a test that runs only on CI stay
+  quiet.
+- RH015 reports an assertion that only runs off CI: `if (!process.env.CI) expect(...)`,
+  `if (process.env.CI !== 'true') { ... }`, Python `if not os.environ.get("CI"):` and
+  `if "CI" not in os.environ:`. The test passes on CI without checking anything.
+- RH008 reports four more exact tautologies: a Python `assert (condition, "message")`, which
+  asserts a two-element tuple and is always true; a condition ending in `or True`; a JS assertion
+  on a literal or ORed with `true` (`assert.ok(true, msg)`, `expect(true).toBeTruthy()`,
+  `assert(ok || true)`); and a Jest/Vitest matcher named but never called (`expect(x).toBe;`).
+
 ## [2.0.0] - 2026-11-19
 
 ### Added

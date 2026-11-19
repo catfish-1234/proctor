@@ -43,6 +43,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   on a literal or ORed with `true` (`assert.ok(true, msg)`, `expect(true).toBeTruthy()`,
   `assert(ok || true)`); and a Jest/Vitest matcher named but never called (`expect(x).toBe;`).
 
+### Changed
+
+- Update `@anthropic-ai/sdk` to 1.11.0.
+
 ## [2.0.0] - 2026-11-19
 
 ### Added

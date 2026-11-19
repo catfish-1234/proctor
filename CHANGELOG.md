@@ -7,6 +7,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- RH016 reports a harness that rewrites each test's result to passed, found by adversarial
+  probing: a conftest.py that sets `report.outcome = "passed"`, `outcome.force_result(...)` inside
+  a `pytest_runtest_call`/`makereport`/`protocol` hook wrapper, `unittest.TestResult.addFailure`
+  or `addError` replaced, and Jest's `testFailureExitCode` set to 0 in its config, package.json
+  or a CI command. `force_result` in other hooks (collection ordering, report headers) and a
+  non-zero failure exit code stay quiet.
+
 ## [2.1.0] - 2026-11-19
 
 ### Added

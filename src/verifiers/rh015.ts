@@ -1,6 +1,6 @@
 import type { Context, Finding, Verifier } from '../types.js';
 import {
-  callables, closingDelimiter, isJsHarnessFile, isPythonHarness, sourceView, testBodies, type SourceView,
+  callables, closingDelimiter, compact, isJsHarnessFile, isPythonHarness, sourceView, testBodies, type SourceView,
 } from './structure.js';
 
 /**
@@ -222,6 +222,67 @@ function pyDeadGuard(view: SourceView, file: string): Finding[] {
       line: view.lineAt(lines[i]!.offset),
       message: `Assertion placed under '${guard[0].trim()}', a condition that is never true, so it never runs and the test passes without checking anything.`,
       suggestion: 'Remove the dead condition so the assertion runs. If the check is obsolete, delete it in the open and say why.',
+    });
+  }
+  return findings;
+}
+
+// ---------------------------------------------------------------------------------------------
+// An existing assertion wrapped so that the test expects it to fail
+// ---------------------------------------------------------------------------------------------
+
+const INVERTED_SUGGESTION =
+  'Unwrap the assertion so it checks the result again, and fix the code it fails on. To test that ' +
+  'code raises, wrap the call that raises, not an assertion.';
+
+/**
+ * True when an assertion statement in `inner` already existed before this change. A brand-new
+ * test that checks an assertion helper fails on bad input (how matcher libraries test themselves)
+ * adds both the wrapper and the assertion; an inversion wraps one that was already there.
+ */
+function wrapsExisting(inner: string, before: string, assertion: RegExp): boolean {
+  return inner.split(/[;\n]/).some(piece => {
+    const code = compact(piece);
+    return code.length > 8 && assertion.test(piece) && before.includes(code);
+  });
+}
+
+function jsInverted(view: SourceView, file: string, before: string): Finding[] {
+  const findings: Finding[] = [];
+  const wrappers = /\bexpect\s*\(\s*(?:async\s*)?(?:\(\s*\)|[A-Za-z_$][\w$]*)\s*=>|(?<![\w$.])assert\s*\.\s*(?:throws|rejects)\s*\(\s*(?:async\s*)?(?:\(\s*\)|[A-Za-z_$][\w$]*)\s*=>/g;
+  for (const match of view.code.matchAll(wrappers)) {
+    const at = match.index!;
+    if (!view.touched(at, at)) continue;
+    const open = view.code.indexOf('(', at);
+    const close = closingDelimiter(view.code, open, '(', ')');
+    if (close < 0) continue;
+    const isExpect = /^expect/.test(match[0]);
+    if (isExpect && !/^\s*\.\s*(?:rejects\s*\.\s*)?(?:toThrow|toThrowError)\s*\(/.test(view.code.slice(close + 1))) continue;
+    const inner = view.text.slice(at + match[0].length, close);
+    if (!wrapsExisting(inner, before, JS_ASSERTION)) continue;
+    findings.push({
+      verifierId: 'RH015', severity: 'error', file, line: view.lineAt(at),
+      message: `An existing assertion is wrapped in ${isExpect ? 'expect(() => ...).toThrow()' : 'assert.throws()'}, so the test now passes only when that assertion fails: it passes for the wrong result and fails for the right one.`,
+      suggestion: INVERTED_SUGGESTION,
+    });
+  }
+  return findings;
+}
+
+const PY_EXPECTS_ASSERTION_ERROR = /^\s*with\s+(?:pytest\s*\.\s*raises|self\s*\.\s*assertRaises)\s*\(\s*\(?\s*(?:AssertionError|Exception|BaseException)\b/;
+
+function pyInverted(view: SourceView, file: string, before: string): Finding[] {
+  const findings: Finding[] = [];
+  const lines = pyLines(view);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    if (!PY_EXPECTS_ASSERTION_ERROR.test(line.text) || !view.touched(line.offset, line.offset)) continue;
+    const block = pyBlock(lines, i).map(l => view.text.slice(l.offset, l.offset + l.text.length)).join('\n');
+    if (!wrapsExisting(block, before, PY_ASSERTION)) continue;
+    findings.push({
+      verifierId: 'RH015', severity: 'error', file, line: view.lineAt(line.offset),
+      message: 'An existing assertion is wrapped in a block that expects AssertionError, so the test now passes only when that assertion fails: it passes for the wrong result and fails for the right one.',
+      suggestion: INVERTED_SUGGESTION,
     });
   }
   return findings;
@@ -647,9 +708,10 @@ function run(context: Context): Finding[] {
       if (!chunk.changes.some(c => c.type === 'add')) continue;
       const view = sourceView(chunk, 'after', python);
       if (testFile) {
+        const before = compact(sourceView(chunk, 'before', python).text);
         findings.push(...(python
-          ? [...pySwallowed(view, path), ...pyUnreachable(view, path), ...pyDeadGuard(view, path), ...pyCiGuard(view, path)]
-          : [...jsSwallowed(view, path), ...jsUnreachable(view, path), ...jsDeadGuard(view, path), ...jsCiGuard(view, path)]));
+          ? [...pySwallowed(view, path), ...pyUnreachable(view, path), ...pyDeadGuard(view, path), ...pyCiGuard(view, path), ...pyInverted(view, path, before)]
+          : [...jsSwallowed(view, path), ...jsUnreachable(view, path), ...jsDeadGuard(view, path), ...jsCiGuard(view, path), ...jsInverted(view, path, before)]));
       }
       findings.push(...(python ? pyLibraryNeutralized(view, path) : jsLibraryNeutralized(view, path, fileText)));
     }

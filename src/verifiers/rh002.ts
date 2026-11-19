@@ -1,6 +1,6 @@
 import type { Context, Finding, Verifier } from '../types.js';
 import { body, hasExplanation } from './wi-common.js';
-import { compact, sourceView, testBodies } from './structure.js';
+import { compact, maskCode, sourceView, testBodies } from './structure.js';
 
 // Strong assertion patterns (specific value assertions)
 const STRONG_PATTERNS = [
@@ -719,6 +719,154 @@ function extractClojureIsLabel(content: string): string | null {
   return null;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Inverted assertions, type-only checks, and widened expected values. Each was found by
+// adversarial probing, where it passed every check above: the replacement is still an assertion
+// of the "strong" shape, so the strength model saw nothing weaker.
+// ---------------------------------------------------------------------------------------------
+
+interface PyComparison { left: string; op: string; right: string }
+
+/** `assert <left> <op> <right>[, message]`, split at its first top-level comparison operator. */
+function pyComparison(content: string): PyComparison | null {
+  const text = body(content);
+  const start = /^\s*assert\s+/.exec(text);
+  if (!start) return null;
+  let expr = text.slice(start[0].length);
+  let negated = false;
+  const not = /^not\s*\(([\s\S]*)\)\s*$/.exec(expr.replace(/\s*(?:#.*)?$/, ''));
+  if (not) { expr = not[1]!; negated = true; }
+  const code = maskCode(expr, true);
+  let depth = 0;
+  let opAt = -1;
+  let op = '';
+  let end = code.length;
+  for (let i = 0; i < code.length; i++) {
+    const ch = code[i]!;
+    if ('([{'.includes(ch)) depth++;
+    else if (')]}'.includes(ch)) depth--;
+    else if (depth === 0 && ch === ',' && !negated) { end = i; break; }
+    else if (depth === 0 && ch === '#') { end = i; break; }
+    else if (depth === 0 && opAt < 0) {
+      const symbol = /^(?:==|!=)/.exec(code.slice(i));
+      const word = /^\s+(not\s+in|in|is\s+not|is)\s+/.exec(code.slice(i));
+      if (symbol) { opAt = i; op = symbol[0]; i++; }
+      else if (word) { opAt = i; op = word[1]!.replace(/\s+/g, ' '); i += word[0].length - 1; }
+    }
+  }
+  if (opAt < 0) return null;
+  const width = /^(?:==|!=)$/.test(op) ? 2 : (/^\s+(?:not\s+in|in|is\s+not|is)\s+/.exec(code.slice(opAt))![0].length);
+  const inverse: Record<string, string> = { '==': '!=', '!=': '==', 'in': 'not in', 'not in': 'in', 'is': 'is not', 'is not': 'is' };
+  return {
+    left: compact(expr.slice(0, opAt)),
+    op: negated ? inverse[op]! : op,
+    right: compact(expr.slice(opAt + width, end)),
+  };
+}
+
+/** Top-level arguments of the call whose `(` is at `open` in `text`, whitespace-compacted. */
+function callArgs(text: string, open: number): string[] | null {
+  const code = maskCode(text);
+  const args: string[] = [];
+  let depth = 0;
+  let start = open + 1;
+  for (let i = open; i < code.length; i++) {
+    const ch = code[i]!;
+    if ('([{'.includes(ch)) depth++;
+    else if (')]}'.includes(ch)) {
+      if (--depth === 0) { args.push(compact(text.slice(start, i))); return args.filter(Boolean); }
+    } else if (ch === ',' && depth === 1) { args.push(compact(text.slice(start, i))); start = i + 1; }
+  }
+  return null;
+}
+
+/**
+ * unittest and node:assert methods mapped to the negation that is weaker than them: it excludes one
+ * value instead of pinning one. Only that direction counts. assertTrue to assertFalse is a changed
+ * expectation of equal strength, and assertNotEqual to assertEqual is a strengthening.
+ */
+const INVERSE_METHOD: Record<string, string> = {
+  assertEqual: 'assertNotEqual', assertEquals: 'assertNotEquals',
+  assertIn: 'assertNotIn', assertIs: 'assertIsNot', assertIsNone: 'assertIsNotNone',
+  assertIsInstance: 'assertNotIsInstance', assertAlmostEqual: 'assertNotAlmostEqual',
+  assertRegex: 'assertNotRegex',
+  strictEqual: 'notStrictEqual', equal: 'notEqual', deepEqual: 'notDeepEqual',
+  deepStrictEqual: 'notDeepStrictEqual', match: 'doesNotMatch',
+};
+
+/** `self.assertX(args)` or `assert.x(args)`: the method name and its compacted arguments. */
+function methodAssertion(content: string): { method: string; args: string[] } | null {
+  const text = body(content);
+  const match = /(?:\bself\s*\.\s*|(?<![\w$.])assert\s*\.\s*)(\w+)\s*\(/.exec(text);
+  if (!match) return null;
+  const args = callArgs(text, match.index + match[0].length - 1);
+  return args ? { method: match[1]!, args } : null;
+}
+
+function isInversePair(before: string, after: string): boolean {
+  return INVERSE_METHOD[before] === after;
+}
+
+/** The value a strong assertion pins and the subject it pins it on, in any supported shape. */
+function pinnedValue(content: string): { subject: string; value: string } | null {
+  const comparison = pyComparison(content);
+  if (comparison?.op === '==') return { subject: comparison.left, value: comparison.right };
+  const method = methodAssertion(content);
+  if (method && /^(?:assertEqual|assertEquals|strictEqual|equal|deepStrictEqual|deepEqual)$/.test(method.method) && method.args.length >= 2) {
+    return { subject: method.args[0]!, value: method.args[1]! };
+  }
+  const expectCall = /expect\(((?:[^()]|\([^()]*\))*)\)\s*\.\s*(?:toBe|toEqual|toStrictEqual)\(((?:[^()]|\([^()]*\))*)\)/.exec(body(content));
+  if (expectCall) return { subject: compact(expectCall[1]!), value: compact(expectCall[2]!) };
+  return null;
+}
+
+/** The subject of an assertion that only checks a type: isinstance, typeof, toBeTypeOf, toBeInstanceOf. */
+function typeOnlySubject(content: string): string | null {
+  const text = body(content);
+  const isinstance = /\b(?:assert\s+isinstance|self\s*\.\s*assertIsInstance)\s*\(/.exec(text);
+  if (isinstance) return callArgs(text, isinstance.index + isinstance[0].length - 1)?.[0] ?? null;
+  const pyType = /^\s*assert\s+type\s*\(((?:[^()]|\([^()]*\))*)\)\s*(?:is|==)\s/.exec(text);
+  if (pyType) return compact(pyType[1]!);
+  const typeofExpect = /expect\(\s*typeof\s+((?:[^()]|\([^()]*\))*)\)\s*\.\s*(?:toBe|toEqual|toStrictEqual)\(/.exec(text);
+  if (typeofExpect) return compact(typeofExpect[1]!);
+  const typeMatcher = /expect\(((?:[^()]|\([^()]*\))*)\)\s*\.\s*(?:toBeTypeOf|toBeInstanceOf)\(/.exec(text);
+  if (typeMatcher) return compact(typeMatcher[1]!);
+  const typeofAssert = /(?<![\w$.])assert\s*\.\s*(?:strictEqual|equal)\(\s*typeof\s+/.exec(text);
+  if (typeofAssert) {
+    const args = callArgs(text, text.indexOf('(', typeofAssert.index));
+    return args?.[0]?.replace(/^typeof/, '') ?? null;
+  }
+  return null;
+}
+
+/** Elements of a tuple, list or set literal, compacted; null when `text` is not one. */
+function literalElements(text: string): string[] | null {
+  if (!/^[([{][\s\S]*[)\]}]$/.test(text)) return null;
+  const args = callArgs(`f${text.replace(/^[[{]/, '(').replace(/[\]}]$/, ')')}`, 1);
+  return args && args.length >= 2 ? args : null;
+}
+
+/** An expected value widened to a set of accepted values: `assert x in (3, 4, 5)`, `toBeOneOf([...])`. */
+function acceptedValues(content: string): { subject: string; values: string[] } | null {
+  const comparison = pyComparison(content);
+  if (comparison?.op === 'in') {
+    const values = literalElements(comparison.right);
+    return values ? { subject: comparison.left, values } : null;
+  }
+  const text = body(content);
+  const oneOf = /expect\(((?:[^()]|\([^()]*\))*)\)\s*\.\s*toBeOneOf\(\s*(\[[^\]]*\])\s*\)/.exec(text);
+  if (oneOf) {
+    const values = literalElements(compact(oneOf[2]!));
+    return values ? { subject: compact(oneOf[1]!), values } : null;
+  }
+  const contain = /expect\(\s*(\[[^\]]*\])\s*\)\s*\.\s*toContain\(((?:[^()]|\([^()]*\))*)\)/.exec(text);
+  if (contain) {
+    const values = literalElements(compact(contain[1]!));
+    return values ? { subject: compact(contain[2]!), values } : null;
+  }
+  return null;
+}
+
 function run(context: Context): Finding[] {
   const files = context.files;
   const findings: Finding[] = [];
@@ -914,6 +1062,59 @@ function run(context: Context): Finding[] {
                 suggestion: 'Restore assertEqual against the expected value.',
               });
             }
+          }
+        }
+      }
+
+      // Inverted, type-only, and widened assertions, in any test language that spells them this way.
+      if (context.isTestFile(filePath) || filePath.endsWith('.py')) {
+        for (const del of dels) {
+          const report = (added: typeof adds[number], message: string, suggestion: string): void => {
+            reported.add((added as { ln: number }).ln);
+            findings.push({ verifierId: 'RH002', severity: 'error', file: filePath, line: (added as { ln: number }).ln, message, suggestion });
+          };
+          const candidates = adds.filter(a => !reported.has((a as { ln: number }).ln) && nearby(del, a) && !hasExplanation(a.content));
+          const before = pyComparison(del.content);
+          const inverted = before && candidates.find(a => {
+            const after = pyComparison(a.content);
+            if (!after || after.op === before.op) return false;
+            // Only the weakening direction: pinning a value becomes excluding it.
+            const weaker = { '==': '!=', 'in': 'not in', 'is': 'is not' } as Record<string, string>;
+            if (weaker[before.op] !== after.op) return false;
+            return (after.left === before.left && after.right === before.right)
+              || (/^(?:==|!=)$/.test(after.op) && after.left === before.right && after.right === before.left);
+          });
+          if (inverted) {
+            report(inverted, `Assertion inverted from \`${before!.op}\` to \`${pyComparison(inverted.content)!.op}\`: it now passes for every value except the one it used to require.`,
+              'Restore the original comparison and fix the code so it produces the expected value.');
+            continue;
+          }
+          const method = methodAssertion(del.content);
+          const flipped = method && candidates.find(a => {
+            const after = methodAssertion(a.content);
+            return !!after && isInversePair(method.method, after.method) && compact(after.args.join(',')) === compact(method.args.join(','));
+          });
+          if (flipped) {
+            report(flipped, `Assertion inverted from ${method!.method} to ${methodAssertion(flipped.content)!.method}: it now passes for every value except the one it used to require.`,
+              'Restore the original assertion and fix the code so it produces the expected value.');
+            continue;
+          }
+          const pinned = pinnedValue(del.content);
+          if (!pinned) continue;
+          const stillPinned = (subject: string): boolean => adds.some(a => pinnedValue(a.content)?.subject === subject);
+          const typeOnly = candidates.find(a => typeOnlySubject(a.content) === pinned.subject);
+          if (typeOnly && !stillPinned(pinned.subject)) {
+            report(typeOnly, 'Assertion weakened from a value check to a type check: any value of that type now passes, including the wrong one.',
+              'Restore the check against the expected value. A type check can sit beside it, not replace it.');
+            continue;
+          }
+          const widened = candidates.find(a => {
+            const accepted = acceptedValues(a.content);
+            return !!accepted && accepted.subject === pinned.subject && accepted.values.includes(pinned.value);
+          });
+          if (widened && !stillPinned(pinned.subject)) {
+            report(widened, 'Assertion widened from one expected value to a set of accepted values, so results it used to reject now pass.',
+              'Restore the single expected value and fix the code that produces another one.');
           }
         }
       }

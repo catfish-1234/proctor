@@ -653,6 +653,38 @@ function isFocus(text: string): boolean {
   return /\.only\b|\[\s*['"]only['"]\s*\]|\b(?:fit|fdescribe)\s*\(/.test(text);
 }
 
+/**
+ * An expected-failure marker added to a test that already existed: Rust `#[should_panic]`, or a
+ * JUnit 4 `@Test(expected = ...)`. On a failing assertion the test panics or throws, which is now the
+ * pass condition, so a broken implementation turns the test green. Found by adversarial probing.
+ *
+ * A brand-new test that checks a panic or an exception adds the marker and its function together,
+ * and stays quiet: only a marker placed on an unchanged function declaration is reported.
+ */
+function expectedFailureOnExistingTest(file: { chunks: Array<{ changes: Array<{ type: string; content: string; ln?: number }> }> }, filePath: string): Finding[] {
+  const rust = filePath.endsWith('.rs');
+  const java = /\.(?:java|kt)$/.test(filePath);
+  if (!rust && !java) return [];
+  const marker = rust ? /^\+\s*#\[should_panic\b/ : /^\+\s*@Test\s*\(\s*expected\s*=/;
+  const declaration = rust ? /\bfn\s+\w+\s*\(/ : /\b(?:void|fun)\s+\w+\s*\(/;
+  const findings: Finding[] = [];
+  for (const chunk of file.chunks) {
+    chunk.changes.forEach((change, index) => {
+      if (change.type !== 'add' || !marker.test(change.content)) return;
+      const next = chunk.changes.slice(index + 1).find(c => c.type !== 'del' && declaration.test(c.content));
+      if (!next || next.type !== 'normal') return;
+      findings.push({
+        verifierId: 'RH003', severity: 'error', file: filePath, line: change.ln ?? 0,
+        message: rust
+          ? 'An existing test was marked #[should_panic], so a failing assertion inside it now passes the test.'
+          : 'An existing test was given @Test(expected = ...), so an assertion failure that throws now passes the test.',
+        suggestion: 'Remove the expected-failure marker and fix the code the test fails on. To check that code panics or throws, write a new test for that case.',
+      });
+    });
+  }
+  return findings;
+}
+
 function run(context: Context): Finding[] {
   const files = context.files;
   const ctx = context;
@@ -678,6 +710,7 @@ function run(context: Context): Finding[] {
     // Python and the new languages pass through: each handles its own gating internally
     // (named-test-file tiers or ungated-safe attribute anchors) inside isSkipPattern.
     if (!isPython && !isNewLang && !ctx.isTestFile(filePath)) continue;
+    findings.push(...expectedFailureOnExistingTest(file as never, filePath));
     const previousSkips = new Set(file.chunks.flatMap(chunk=>chunk.changes).filter(c=>c.type==='del' && isSkipPattern(c.content,{ext,pyTestModule,goTestFile,rubyTestFile,kotlinTestFile,cTestFile,scalaTestFile,rTestFile,haskellTestFile,luaTestFile,batsFile})).map(c=>skipIdentity(c.content)).filter(Boolean));
     const priorDisabledCount = [...previousSkips].filter(identity=>identity !== undefined && !isFocus(identity)).length;
     for (const chunk of file.chunks) {

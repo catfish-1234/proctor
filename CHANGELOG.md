@@ -16,6 +16,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - RH015 reports an assertion that only runs off CI: `if (!process.env.CI) expect(...)`,
   `if (process.env.CI !== 'true') { ... }`, Python `if not os.environ.get("CI"):` and
   `if "CI" not in os.environ:`. The test passes on CI without checking anything.
+- RH002 reports an assertion turned around so that a wrong result passes: inverted to exclude
+  the value it used to pin (`assert x == 4` to `assert x != 4`, `in` to `not in`, `assertEqual`
+  to `assertNotEqual`, `assert.strictEqual` to `assert.notStrictEqual`), an exact value replaced
+  by a type-only check on the same subject (`isinstance`, `assertIsInstance`, `typeof`,
+  `toBeTypeOf`, `toBeInstanceOf`), and an exact value widened to a literal set that includes it
+  (`assert x in (3, 4, 5)`, `toBeOneOf([...])`, `expect([3, 4]).toContain(x)`). Only the
+  weakening direction counts: `assertTrue` to `assertFalse` is a changed expectation of equal
+  strength, and a type check added beside a kept value check is fine.
+- RH015 reports an existing assertion wrapped so that the test expects it to fail:
+  `pytest.raises(AssertionError)` or `assertRaises(AssertionError)` around an `assert` that was
+  already there, `expect(() => expect(x).toBe(3)).toThrow()`, and `assert.throws(() => ...)`. A
+  new test of an assertion helper, which adds the wrapper and the assertion together, stays quiet.
+- RH003 reports an expected-failure marker added to an existing test: Rust `#[should_panic]` and a
+  JUnit 4 `@Test(expected = ...)`. A new test that checks a panic or an exception stays quiet.
 - RH008 reports four more exact tautologies: a Python `assert (condition, "message")`, which
   asserts a two-element tuple and is always true; a condition ending in `or True`; a JS assertion
   on a literal or ORed with `true` (`assert.ok(true, msg)`, `expect(true).toBeTruthy()`,

@@ -7,8 +7,11 @@ name: Release
 # (Package -> Settings -> Trusted Publisher on npmjs.com).
 on:
   push:
+    # Full versions only. The moving major tag Action users pin (v1, v2) is re-pointed after a
+    # release and must not start a second publish.
     tags:
-      - "v*"
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
   workflow_dispatch:
     inputs:
       otp:
@@ -29,6 +32,9 @@ jobs:
       id-token: write # Required for OIDC trusted publishing + automatic provenance
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # Every tag, so the publish step can tell whether this is the newest version.
+          fetch-depth: 0
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -84,13 +90,27 @@ jobs:
       # --provenance signs the package with a Sigstore attestation tying it to this workflow run
       # and this commit. It needs id-token: write and a supported CI, both of which hold here, so
       # every tag-triggered release carries it. A publish run by hand from a laptop cannot.
+      #
+      # Only the newest version takes npm's `latest` dist-tag. A tag for an older version (a
+      # backfilled release, or a run that finishes after a newer one) publishes under `legacy`,
+      # so `npm install @kavishdua/proctor` can never be moved back to an old release by the
+      # order in which workflow runs happen to finish. A prerelease publishes under `next`.
+      # A version that is already on npm is skipped, so re-running a release is safe.
       - name: Publish to npm
         run: |
-          if [ -n "$NPM_OTP" ]; then
-            npm publish --access public --provenance --otp="$NPM_OTP"
-          else
-            npm publish --access public --provenance
+          NAME="$(node -p "require('./package.json').name")"
+          VERSION="$(node -p "require('./package.json').version")"
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "$NAME@$VERSION is already on npm; nothing to publish."
+            exit 0
           fi
+          HIGHEST="$(git tag -l 'v*' | sed 's/^v//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)"
+          case "$VERSION" in
+            *-*) DIST_TAG=next ;;
+            "$HIGHEST") DIST_TAG=latest ;;
+            *) DIST_TAG=legacy; echo "v$VERSION is older than v$HIGHEST, so it does not take the latest dist-tag." ;;
+          esac
+          npm publish --access public --provenance --tag "$DIST_TAG" ${NPM_OTP:+--otp="$NPM_OTP"}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_OTP: ${{ github.event.inputs.otp }}
@@ -99,13 +119,30 @@ jobs:
       # for this version is only findable by reading the repository. Idempotent, so re-running the
       # workflow for a tag that already has a release does not turn the job red after a good
       # publish.
+      #
+      # The notes are this version's CHANGELOG.md section. Only the newest version is marked as
+      # the repository's latest release, for the same reason as the npm dist-tag above.
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          NOTES: See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for what changed.
         run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          NOTES_FILE="$RUNNER_TEMP/release-notes.md"
+          awk -v version="$VERSION" '
+            /^## \[/ { section = index($0, "## [" version "]") == 1; next }
+            section { print }
+          ' CHANGELOG.md > "$NOTES_FILE"
+          if [ ! -s "$NOTES_FILE" ]; then
+            echo "See [CHANGELOG.md](https://github.com/$GITHUB_REPOSITORY/blob/main/CHANGELOG.md) for what changed." > "$NOTES_FILE"
+          fi
+          HIGHEST="$(git tag -l 'v*' | sed 's/^v//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)"
+          case "$VERSION" in
+            *-*) FLAGS="--prerelease --latest=false" ;;
+            "$HIGHEST") FLAGS="--latest" ;;
+            *) FLAGS="--latest=false" ;;
+          esac
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release edit "$GITHUB_REF_NAME" --notes "$NOTES"
+            gh release edit "$GITHUB_REF_NAME" --notes-file "$NOTES_FILE" $FLAGS
           else
-            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes "$NOTES" --verify-tag
+            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file "$NOTES_FILE" --verify-tag $FLAGS
           fi

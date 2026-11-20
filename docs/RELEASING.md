@@ -12,17 +12,33 @@ Release procedure for maintainers.
    `tests/distribution.test.ts` fails if any of them disagree, so a release cannot ship an npm
    package and an agent plugin claiming different versions.
 3. `npm test` and `npm run verify:pack`.
-4. Commit, then tag and push:
+4. Commit and push to `main`, then release:
 
    ```bash
-   git tag v1.0.0 && git push origin v1.0.0
+   npm run release -- --dry-run   # see what would be tagged
+   npm run release                # tag, push, and move v2 once the release run succeeds
    ```
 
-5. Re-point the `v1` moving tag at the same commit (see below).
+`npm run release` refuses unless `main` is clean and identical to `origin/main`, and, with the
+GitHub CLI signed in, unless CI is green on the commit it tags. It tags the version in
+`package.json` at HEAD, or at the commit that introduced the version when `CHANGELOG.md` still
+has unreleased entries. Pushing the tag starts the release workflow. Once that run succeeds it
+moves the moving major tag (`v2`) for Action users (see below); without the GitHub CLI it prints
+the command to do that by hand.
+
+`npm run release -- --backfill` also tags older `CHANGELOG.md` versions that never got a tag. Each
+tag runs the release workflow of the commit it points at, and an older commit's workflow publishes
+with npm's `latest` dist-tag, so the older tags go first, one push at a time, and the current
+version is pushed only after their runs finish, which keeps the newest version on `latest`.
+Without the GitHub CLI it pushes only the older tags; run `npm run release` again when their
+runs are done.
 
 `.github/workflows/release.yml` takes it from there: it checks the tag against `package.json`,
 builds, runs the full suite, verifies the real tarball installs and runs, publishes to npm with
-`npm publish --access public --provenance`, and creates the GitHub release. The version check runs
+`npm publish --access public --provenance`, and creates the GitHub release with this version's
+`CHANGELOG.md` section as its notes. Only the newest version takes npm's `latest` dist-tag and
+GitHub's "Latest release" mark: an older tag publishes under `legacy`, a prerelease under `next`,
+and a version already on npm is skipped, so a re-run or a late finisher cannot move users back. The version check runs
 unconditionally, so a `workflow_dispatch` from a non-tag ref fails rather than publishing whatever
 `package.json` happens to say.
 
@@ -43,28 +59,27 @@ An attestation cannot be added retroactively to an already published version.
 
 ## The `v1` moving tag
 
-Action consumers pin `catfish-1234/proctor@v1` and expect it to keep working across patch and minor
-releases, the same convention `actions/checkout@v5` uses. `v1` is a mutable tag that always points
-at the newest `v1.x.y` release commit, and re-pointing it is a manual step in the release: nothing
-in `release.yml` moves it.
+Action consumers pin `catfish-1234/proctor@v2` and expect it to keep working across patch and minor
+releases, the same convention `actions/checkout@v5` uses. `v2` is a mutable tag that always points
+at the newest `v2.x.y` release commit. `npm run release` moves it once the release run succeeds;
+the release workflow only runs for full version tags, so moving `v2` does not start a publish.
 
-After the release workflow for `v1.2.3` goes green:
+To move it by hand after the release workflow for `v2.1.0` goes green:
 
 ```bash
-git tag -f v1 v1.2.3          # move the local tag onto the release commit
-git push origin v1 --force    # move it on the remote
+git tag -f v2 v2.1.0^{commit}   # move the local tag onto the release commit
+git push origin v2 --force      # move it on the remote
 ```
 
 Two rules for it:
 
-- Move `v1` only **after** the release workflow succeeds. A `v1` pointing at a commit whose publish
+- Move it only **after** the release workflow succeeds. A `v2` pointing at a commit whose publish
   failed sends every consumer to a half-released version.
-- Never move `v1` across a major boundary. `v2.0.0` gets a new `v2` tag, and `v1` stays where it is
+- Never move a major tag across a major boundary. `v2.0.0` gets a new `v2` tag, and `v1` stays where it is
   so pinned consumers are not upgraded into a breaking change by a tag move.
 
 Pinning to a full commit SHA (`catfish-1234/proctor@93ba04a...`) is also supported and is the
-immutable option: a tag move cannot change the code a consumer runs. The README currently pins
-a source SHA because release tags do not exist yet and describes `@v1` as the post-release option.
+immutable option: a tag move cannot change the code a consumer runs. The README shows `@v2` and how to find a release's SHA.
 
 ## npm authentication, one time only
 

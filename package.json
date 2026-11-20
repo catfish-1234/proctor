@@ -56,6 +56,7 @@
     "typecheck": "tsc --noEmit",
     "drift-check": "node dist/cli.js drift-check",
     "verify:pack": "node scripts/run-bash.mjs scripts/verify-pack.sh",
+    "release": "node scripts/release.mjs",
     "sync-plugin": "node dist/scripts/sync-plugin.js",
     "lint": "oxlint --deny correctness --allow no-unused-vars --allow no-useless-escape --allow prefer-string-starts-ends-with src tests scripts tsup.config.ts vitest.config.ts"
   },

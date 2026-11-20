@@ -54,7 +54,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   version: an older tag publishes under `legacy`, a prerelease under `next`, and a version already
   on npm is skipped. Release notes are the version's CHANGELOG section. Moving `v2` no longer starts
   a publish.
-- The README's GitHub Action example uses `@v2` instead of the v1.0.0 commit.
 
 ## [2.0.0] - 2026-11-19
 

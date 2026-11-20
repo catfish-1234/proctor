@@ -495,13 +495,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with: { fetch-depth: 0 }
-      - uses: catfish-1234/proctor@v2
+      - uses: catfish-1234/proctor@ede7e0ec0d9a91c241af1b181b74b1a6af67df07 # v1.0.0
 ```
 
-`v2` follows the newest 2.x release, so new checks reach your CI without an edit. To pin one
-release exactly, use the commit behind its tag instead (`git ls-remote
-https://github.com/catfish-1234/proctor refs/tags/v2.1.0` prints it): a full commit SHA is
-immutable, so it keeps builds reproducible.
+The example pins the commit behind the `v1.0.0` release. You can use the `v1.0.0` tag instead, but
+a full commit SHA is immutable, so it keeps builds reproducible.
 
 ### Make the gate independent
 

@@ -685,6 +685,55 @@ function expectedFailureOnExistingTest(file: { chunks: Array<{ changes: Array<{ 
   return findings;
 }
 
+/** A preprocessor condition that is never true: the block it opens is never compiled. */
+const NEVER_PREPROCESSOR = /^\+\s*#\s*if\s+(?:0|false|FALSE)\s*(?:\/\/.*|\/\*.*)?$/;
+const PREPROCESSOR_END = /^\s*#\s*(?:endif|else|elif)\b/;
+/** Test declarations in the C-family and Swift frameworks that use a preprocessor. */
+const PREPROCESSOR_TEST = /\b(?:TEST(?:_F|_P)?|TYPED_TEST|TEST_CASE|SCENARIO|BOOST_AUTO_TEST_CASE|BOOST_FIXTURE_TEST_CASE)\s*\(|\[(?:Fact|Theory|Test|TestMethod|TestCase)\b|@Test\b|\bfunc\s+test\w*\s*\(/;
+const PREPROCESSED_EXT = /\.(?:c|h|cc|cpp|cxx|hpp|hxx|cs|swift|m|mm)$/i;
+/** A Rust cfg that is never true: `any()` with no options, `not(all())`, or an unset `FALSE` flag. */
+const RUST_NEVER_CFG = /^\+\s*#\[cfg\(\s*(?:any\(\s*\)|not\(\s*all\(\s*\)\s*\)|FALSE|false)\s*\)\]/;
+const RUST_TEST_ITEM = /#\[(?:test|tokio::test|rstest)\b|\bmod\s+\w*tests?\w*\b|\bfn\s+test_\w*/;
+
+/**
+ * A test compiled out without deleting its source, found by adversarial probing: Rust tests behind
+ * a cfg that is never true, and C, C++, C# and Swift tests inside `#if 0` / `#if false`. The test
+ * stays in the file, so deletion checks see nothing, but the compiler drops it and it never runs.
+ */
+function compiledOutTests(file: { chunks: Array<{ changes: Array<{ type: string; content: string; ln?: number }> }> }, filePath: string): Finding[] {
+  const rust = filePath.endsWith('.rs');
+  if (!rust && !PREPROCESSED_EXT.test(filePath)) return [];
+  const findings: Finding[] = [];
+  for (const chunk of file.chunks) {
+    const after = chunk.changes.filter(c => c.type !== 'del');
+    after.forEach((change, index) => {
+      if (change.type !== 'add') return;
+      const rest = after.slice(index + 1).map(c => c.content.slice(1));
+      let guarded: string[];
+      let how: string;
+      if (rust) {
+        if (!RUST_NEVER_CFG.test(change.content)) return;
+        // The attribute applies to the next item: any further attributes, then its first line.
+        const item = rest.findIndex(line => line.trim() !== '' && !/^\s*(?:#\[|\/\/)/.test(line));
+        guarded = rest.slice(0, item < 0 ? rest.length : item + 1);
+        how = change.content.slice(1).trim();
+      } else {
+        if (!NEVER_PREPROCESSOR.test(change.content)) return;
+        const end = rest.findIndex(line => PREPROCESSOR_END.test(line));
+        guarded = rest.slice(0, end < 0 ? rest.length : end);
+        how = change.content.slice(1).trim().replace(/\s*(?:\/\/|\/\*).*$/, '');
+      }
+      if (!guarded.some(line => (rust ? RUST_TEST_ITEM : PREPROCESSOR_TEST).test(line))) return;
+      findings.push({
+        verifierId: 'RH003', severity: 'error', file: filePath, line: change.ln ?? 0,
+        message: `Test compiled out with \`${how}\`, a condition that is never true: its source stays in the file, but it never builds or runs.`,
+        suggestion: 'Remove the never-true condition so the test builds and runs again. To skip a test, use the framework\'s skip with a stated reason, so the skip is visible.',
+      });
+    });
+  }
+  return findings;
+}
+
 function run(context: Context): Finding[] {
   const files = context.files;
   const ctx = context;
@@ -711,6 +760,7 @@ function run(context: Context): Finding[] {
     // (named-test-file tiers or ungated-safe attribute anchors) inside isSkipPattern.
     if (!isPython && !isNewLang && !ctx.isTestFile(filePath)) continue;
     findings.push(...expectedFailureOnExistingTest(file as never, filePath));
+    findings.push(...compiledOutTests(file as never, filePath));
     const previousSkips = new Set(file.chunks.flatMap(chunk=>chunk.changes).filter(c=>c.type==='del' && isSkipPattern(c.content,{ext,pyTestModule,goTestFile,rubyTestFile,kotlinTestFile,cTestFile,scalaTestFile,rTestFile,haskellTestFile,luaTestFile,batsFile})).map(c=>skipIdentity(c.content)).filter(Boolean));
     const priorDisabledCount = [...previousSkips].filter(identity=>identity !== undefined && !isFocus(identity)).length;
     for (const chunk of file.chunks) {

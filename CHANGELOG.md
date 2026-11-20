@@ -36,6 +36,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `pytest.raises(AssertionError)` or `assertRaises(AssertionError)` around an `assert` that was
   already there, `expect(() => expect(x).toBe(3)).toThrow()`, and `assert.throws(() => ...)`. A
   new test of an assertion helper, which adds the wrapper and the assertion together, stays quiet.
+- RH003 reports a test compiled out by a condition that is never true: Rust `#[cfg(any())]`,
+  `#[cfg(not(all()))]` or `#[cfg(FALSE)]` on a test or test module, and `#if 0` / `#if false`
+  around a C, C++, C# or Swift test. The source stays, so deletion checks saw nothing, but the
+  test never builds. A never-true condition around code that is not a test, and a real condition
+  (`#if defined(HAVE_SIMD)`, a cargo feature), stay quiet.
 - RH003 reports an expected-failure marker added to an existing test: Rust `#[should_panic]` and a
   JUnit 4 `@Test(expected = ...)`. A new test that checks a panic or an exception stays quiet.
 - RH008 reports four more exact tautologies: a Python `assert (condition, "message")`, which

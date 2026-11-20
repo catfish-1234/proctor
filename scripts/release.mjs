@@ -189,7 +189,7 @@ async function waitForReleaseRuns(repo, tags, why) {
       throw new Error(`Timed out waiting for ${[...pending].join(", ")}. Run \`npm run release\` again once they finish.`);
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
-    let runs = [];
+    let runs;
     try {
       runs = JSON.parse(gh("run", "list", "-R", repo, "--workflow", WORKFLOW, "--limit", "50",
         "--json", "headBranch,status,conclusion,url"));
@@ -298,7 +298,11 @@ export async function main(argv = process.argv.slice(2)) {
   if (plan.current && useGh) {
     const failing = failingChecks(repo, plan.current.commit);
     if (failing === null) console.log("Could not read CI results for that commit; the release workflow runs the tests before publishing.");
-    else if (failing.length > 0) throw new Error(`CI is not green on ${plan.current.commit.slice(0, 7)}: ${failing.join(", ")}.`);
+    else if (failing.length > 0) {
+      const message = `CI is not green on ${plan.current.commit.slice(0, 7)}: ${failing.join(", ")}.`;
+      if (!options.dryRun) throw new Error(`${message} Wait for it, or fix it, before releasing.`);
+      console.log(`Warning: ${message} A real run would stop here.`);
+    }
     else console.log(`CI is green on ${plan.current.commit.slice(0, 7)}.`);
   } else if (plan.current) {
     console.log("GitHub CLI not available or not signed in: CI status not checked (the release workflow runs the tests before publishing).");

@@ -780,20 +780,6 @@ function callArgs(text: string, open: number): string[] | null {
   return null;
 }
 
-/**
- * unittest and node:assert methods mapped to the negation that is weaker than them: it excludes one
- * value instead of pinning one. Only that direction counts. assertTrue to assertFalse is a changed
- * expectation of equal strength, and assertNotEqual to assertEqual is a strengthening.
- */
-const INVERSE_METHOD: Record<string, string> = {
-  assertEqual: 'assertNotEqual', assertEquals: 'assertNotEquals',
-  assertIn: 'assertNotIn', assertIs: 'assertIsNot', assertIsNone: 'assertIsNotNone',
-  assertIsInstance: 'assertNotIsInstance', assertAlmostEqual: 'assertNotAlmostEqual',
-  assertRegex: 'assertNotRegex',
-  strictEqual: 'notStrictEqual', equal: 'notEqual', deepEqual: 'notDeepEqual',
-  deepStrictEqual: 'notDeepStrictEqual', match: 'doesNotMatch',
-};
-
 /** `self.assertX(args)` or `assert.x(args)`: the method name and its compacted arguments. */
 function methodAssertion(content: string): { method: string; args: string[] } | null {
   const text = body(content);
@@ -801,10 +787,6 @@ function methodAssertion(content: string): { method: string; args: string[] } | 
   if (!match) return null;
   const args = callArgs(text, match.index + match[0].length - 1);
   return args ? { method: match[1]!, args } : null;
-}
-
-function isInversePair(before: string, after: string): boolean {
-  return INVERSE_METHOD[before] === after;
 }
 
 /** The value a strong assertion pins and the subject it pins it on, in any supported shape. */
@@ -863,6 +845,91 @@ function acceptedValues(content: string): { subject: string; values: string[] } 
   if (contain) {
     const values = literalElements(compact(contain[1]!));
     return values ? { subject: compact(contain[2]!), values } : null;
+  }
+  return null;
+}
+
+/**
+ * Assertions rewritten into their negation, across frameworks. Each entry turns the original into
+ * the weaker form that excludes one value instead of pinning it, and a removed line counts as
+ * inverted when that rewrite of it is the added line. Only the weakening direction is listed:
+ * assertTrue to assertFalse changes an expectation without weakening it.
+ */
+const INVERSIONS: Array<{ from: RegExp; to: string; ext?: RegExp }> = [
+  // unittest; assertEquals and assertSame are also JUnit, Kotlin and PHPUnit.
+  { from: /\bassertEqual\s*\(/, to: 'assertNotEqual(' },
+  { from: /\bassertEquals\s*\(/, to: 'assertNotEquals(' },
+  { from: /\bassertIn\s*\(/, to: 'assertNotIn(' },
+  { from: /\bassertRegex\s*\(/, to: 'assertNotRegex(' },
+  { from: /\bassertAlmostEqual\s*\(/, to: 'assertNotAlmostEqual(' },
+  { from: /\bassertSame\s*\(/, to: 'assertNotSame(' },
+  { from: /\bassertContains\s*\(/, to: 'assertNotContains(' },
+  { from: /\bassertIs\s*\(/, to: 'assertIsNot(' },
+  { from: /\bassertIsNone\s*\(/, to: 'assertIsNotNone(' },
+  { from: /\bassertIsInstance\s*\(/, to: 'assertNotIsInstance(' },
+  // node:assert and chai's assert interface.
+  { from: /\bassert\s*\.\s*strictEqual\s*\(/, to: 'assert.notStrictEqual(' },
+  { from: /\bassert\s*\.\s*equal\s*\(/, to: 'assert.notEqual(' },
+  { from: /\bassert\s*\.\s*deepEqual\s*\(/, to: 'assert.notDeepEqual(' },
+  { from: /\bassert\s*\.\s*deepStrictEqual\s*\(/, to: 'assert.notDeepStrictEqual(' },
+  { from: /\bassert\s*\.\s*match\s*\(/, to: 'assert.doesNotMatch(' },
+  // Go testify, through assert or require.
+  { from: /\b(assert|require)\s*\.\s*Equal\s*\(/, to: '$1.NotEqual(' },
+  { from: /\b(assert|require)\s*\.\s*EqualValues\s*\(/, to: '$1.NotEqualValues(' },
+  { from: /\b(assert|require)\s*\.\s*Same\s*\(/, to: '$1.NotSame(' },
+  { from: /\b(assert|require)\s*\.\s*Contains\s*\(/, to: '$1.NotContains(' },
+  { from: /\b(assert|require)\s*\.\s*ElementsMatch\s*\(/, to: '$1.NotElementsMatch(' },
+  { from: /\b(assert|require)\s*\.\s*Subset\s*\(/, to: '$1.NotSubset(' },
+  { from: /\b(assert|require)\s*\.\s*Regexp\s*\(/, to: '$1.NotRegexp(' },
+  { from: /\b(assert|require)\s*\.\s*ErrorIs\s*\(/, to: '$1.NotErrorIs(' },
+  // xUnit, NUnit, MSTest.
+  { from: /\bAssert\s*\.\s*Equal\s*\(/, to: 'Assert.NotEqual(' },
+  { from: /\bAssert\s*\.\s*StrictEqual\s*\(/, to: 'Assert.NotStrictEqual(' },
+  { from: /\bAssert\s*\.\s*Same\s*\(/, to: 'Assert.NotSame(' },
+  { from: /\bAssert\s*\.\s*Contains\s*\(/, to: 'Assert.DoesNotContain(' },
+  { from: /\bAssert\s*\.\s*Matches\s*\(/, to: 'Assert.DoesNotMatch(' },
+  { from: /\b(Assert|CollectionAssert)\s*\.\s*AreEqual\s*\(/, to: '$1.AreNotEqual(' },
+  { from: /\bAssert\s*\.\s*AreSame\s*\(/, to: 'Assert.AreNotSame(' },
+  // Rust and GoogleTest macros.
+  { from: /\b(debug_)?assert_eq!\s*\(/, to: '$1assert_ne!(' },
+  { from: /\b(EXPECT|ASSERT)_EQ\s*\(/, to: '$1_NE(' },
+  { from: /\b(EXPECT|ASSERT)_STREQ\s*\(/, to: '$1_STRNE(' },
+  // Swift XCTest.
+  { from: /\bXCTAssertEqual\s*\(/, to: 'XCTAssertNotEqual(' },
+  { from: /\bXCTAssertIdentical\s*\(/, to: 'XCTAssertNotIdentical(' },
+  // Ruby: Minitest and RSpec.
+  { from: /\bassert_equal\b/, to: 'refute_equal', ext: /\.rb$/ },
+  { from: /\bassert_includes\b/, to: 'refute_includes', ext: /\.rb$/ },
+  { from: /\bassert_same\b/, to: 'refute_same', ext: /\.rb$/ },
+  { from: /\bassert_match\b/, to: 'refute_match', ext: /\.rb$/ },
+  { from: /\bassert_nil\b/, to: 'refute_nil', ext: /\.rb$/ },
+  { from: /\.to\s+(?=(?:eq|eql|equal|be|match|include|contain_exactly|match_array)\b)/, to: '.not_to ', ext: /\.rb$/ },
+  // Kotest infix matchers.
+  { from: /\bshouldBe\b/, to: 'shouldNotBe', ext: /\.kts?$/ },
+  { from: /\bshouldContain\b/, to: 'shouldNotContain', ext: /\.kts?$/ },
+  // Elixir ExUnit: refute is assert-not.
+  { from: /^(\s*)assert\b/, to: '$1refute', ext: /\.exs?$/ },
+];
+
+/** The assertion name a matched INVERSIONS fragment refers to, for the finding message. */
+function inversionLabel(fragment: string): string {
+  const names = fragment.match(/[A-Za-z_][\w]*!?/g) ?? [fragment.trim()];
+  return names.at(-1)!;
+}
+
+/** When `added` is `removed` rewritten into its negation: the two assertion names. */
+function invertedAssertion(removed: string, added: string, filePath: string): { from: string; to: string } | null {
+  const before = body(removed);
+  const after = compact(body(added));
+  for (const { from, to, ext } of INVERSIONS) {
+    if (ext && !ext.test(filePath)) continue;
+    const match = from.exec(before);
+    if (!match) continue;
+    const rewritten = before.replace(from, to);
+    if (compact(rewritten) === after) {
+      const replacement = to.replace(/\$(\d)/g, (_, group: string) => match[Number(group)] ?? '');
+      return { from: inversionLabel(match[0]), to: inversionLabel(replacement) };
+    }
   }
   return null;
 }
@@ -1067,7 +1134,8 @@ function run(context: Context): Finding[] {
       }
 
       // Inverted, type-only, and widened assertions, in any test language that spells them this way.
-      if (context.isTestFile(filePath) || filePath.endsWith('.py')) {
+      // Rust tests usually live inline in source files, so .rs is read whatever the test globs say.
+      if (context.isTestFile(filePath) || filePath.endsWith('.py') || filePath.endsWith('.rs')) {
         for (const del of dels) {
           const report = (added: typeof adds[number], message: string, suggestion: string): void => {
             reported.add((added as { ln: number }).ln);
@@ -1089,13 +1157,11 @@ function run(context: Context): Finding[] {
               'Restore the original comparison and fix the code so it produces the expected value.');
             continue;
           }
-          const method = methodAssertion(del.content);
-          const flipped = method && candidates.find(a => {
-            const after = methodAssertion(a.content);
-            return !!after && isInversePair(method.method, after.method) && compact(after.args.join(',')) === compact(method.args.join(','));
-          });
-          if (flipped) {
-            report(flipped, `Assertion inverted from ${method!.method} to ${methodAssertion(flipped.content)!.method}: it now passes for every value except the one it used to require.`,
+          let names: { from: string; to: string } | null = null;
+          const flipped = candidates.find(a => (names = invertedAssertion(del.content, a.content, filePath)) !== null);
+          if (flipped && names) {
+            const { from, to } = names as { from: string; to: string };
+            report(flipped, `Assertion inverted from ${from} to ${to}: it now passes for every value except the one it used to require.`,
               'Restore the original assertion and fix the code so it produces the expected value.');
             continue;
           }

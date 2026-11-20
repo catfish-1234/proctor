@@ -32,6 +32,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (`assert x in (3, 4, 5)`, `toBeOneOf([...])`, `expect([3, 4]).toContain(x)`). Only the
   weakening direction counts: `assertTrue` to `assertFalse` is a changed expectation of equal
   strength, and a type check added beside a kept value check is fine.
+  The inversion check covers every framework proctor reads: Go testify, JUnit, PHPUnit, xUnit,
+  NUnit and MSTest, Rust `assert_eq!`, GoogleTest `EXPECT_EQ`, XCTest, Minitest, RSpec
+  (`to` to `not_to`), Kotest (`shouldBe` to `shouldNotBe`) and ExUnit (`assert` to `refute`).
 - RH015 reports an existing assertion wrapped so that the test expects it to fail:
   `pytest.raises(AssertionError)` or `assertRaises(AssertionError)` around an `assert` that was
   already there, `expect(() => expect(x).toBe(3)).toThrow()`, and `assert.throws(() => ...)`. A

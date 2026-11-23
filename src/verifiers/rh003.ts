@@ -762,6 +762,23 @@ function run(context: Context): Finding[] {
     findings.push(...expectedFailureOnExistingTest(file as never, filePath));
     findings.push(...compiledOutTests(file as never, filePath));
     const previousSkips = new Set(file.chunks.flatMap(chunk=>chunk.changes).filter(c=>c.type==='del' && isSkipPattern(c.content,{ext,pyTestModule,goTestFile,rubyTestFile,kotlinTestFile,cTestFile,scalaTestFile,rTestFile,haskellTestFile,luaTestFile,batsFile})).map(c=>skipIdentity(c.content)).filter(Boolean));
+    // Tests that existed before this change, anywhere in the file: their titles (JS) and function
+    // names (Python). An expected-failure marker on a test that is not among them records a known
+    // bug in a new test; it does not flip an existing check.
+    // Deletions count from every file: a test deleted in one file and re-added as an expected
+    // failure in another is the same test, moved and flipped.
+    const priorNames = new Set<string>();
+    const priorLines = [
+      ...file.chunks.flatMap(chunk => chunk.changes).filter(change => change.type === 'normal'),
+      ...files.flatMap(other => other.chunks.flatMap(chunk => chunk.changes)).filter(change => change.type === 'del'),
+    ];
+    for (const change of priorLines) {
+      const line = body(change.content);
+      const declared = skipIdentity(line);
+      if (declared) priorNames.add(declared.slice(declared.indexOf(':') + 1));
+      const def = /^\s*(?:async\s+)?def\s+(test\w*)\s*\(/.exec(line);
+      if (def) priorNames.add(def[1]!);
+    }
     const priorDisabledCount = [...previousSkips].filter(identity=>identity !== undefined && !isFocus(identity)).length;
     for (const chunk of file.chunks) {
       const lines = afterLines(chunk);
@@ -858,13 +875,23 @@ function run(context: Context): Finding[] {
         const title = identity?.slice(identity.indexOf(':') + 1);
         const retainedSkip = !isFocus(text) && (owner !== undefined && priorPythonSkips.has(owner)
           || renamedSkip && title !== undefined && !priorTests.some(test=>test.key===title));
+        // Found on a real commit (got: four new `test.failing` tests recording known bugs). A new
+        // test marked as an expected failure stays visible but does not block; converting an
+        // existing test still does, since that is what turns its failure into a pass.
+        const expectsFailure = EXPECTED_FAILURE.test(text) || (isPython && PYTEST_XFAIL.test(text));
+        const subject = isPython ? owner : title;
+        const newExpectedFailure = !retainedSkip && expectsFailure && subject !== undefined && !priorNames.has(subject);
         findings.push({
           verifierId: 'RH003',
-          severity: retainedSkip ? 'warn' : 'error',
+          severity: retainedSkip || newExpectedFailure ? 'warn' : 'error',
           file: filePath,
           line: change.ln,
-          message: retainedSkip ? 'A previously disabled test was rewritten or renamed; the diff does not establish a newly disabled test.' : buildSkipMessage(change.content, ext),
-          suggestion: buildSuggestion(change.content),
+          message: retainedSkip ? 'A previously disabled test was rewritten or renamed; the diff does not establish a newly disabled test.'
+            : newExpectedFailure ? 'A new test is marked as an expected failure: it records a known bug, and it checks nothing until the bug is fixed and the marker is removed.'
+            : buildSkipMessage(change.content, ext),
+          suggestion: newExpectedFailure
+            ? 'Fine for recording a known bug: link the issue in the test or a comment, and remove the marker when the bug is fixed.'
+            : buildSuggestion(change.content),
         });
       }
     }

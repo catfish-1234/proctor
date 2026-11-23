@@ -51,6 +51,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   on a literal or ORed with `true` (`assert.ok(true, msg)`, `expect(true).toBeTruthy()`,
   `assert(ok || true)`); and a Jest/Vitest matcher named but never called (`expect(x).toBe;`).
 
+### Fixed
+
+Running the default checks over 700 human-written commits from 20 popular repositories (the
+`bench/detection` sample) found three kinds of honest change that blocked. Blocking on that sample
+falls from 14 commits to 11; every planted cheat in the design and validation sets is still caught
+(36 of 36), and none of their 38 benign cases is flagged. The checks added in this release add no
+findings at all on those 700 commits.
+
+- RH001 no longer reports a test as deleted when the same test, with at least as many assertions,
+  is added to another test file in the same change (httpx moved its utility tests with the code).
+  A title cloned into an emptier body elsewhere still counts as a deletion.
+- RH003 reports an expected-failure marker (`test.failing`, `it.fails`, `@pytest.mark.xfail`) on a
+  brand-new test as a warning, since it records a known bug (got added four). Marking a test that
+  already existed, in place or moved from another file, still blocks.
+- RH012 reports a test command whose arguments changed, with the same runner still invoked by a
+  single command, as a warning instead of a removed suite (flask simplified
+  `tox run -e ${{ ... }}` to `tox run`). A removed suite, and a suite dropped from an `&&` chain,
+  still block.
+
 ### Changed
 
 - Update `@anthropic-ai/sdk` to 1.11.0.

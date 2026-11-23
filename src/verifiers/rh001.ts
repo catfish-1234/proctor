@@ -177,11 +177,61 @@ function removedFeature(context: Context, testPath: string, testCode: string): b
   return false;
 }
 
+const ASSERTIONS_G = new RegExp(ASSERTION_RE.source, 'g');
+const countAssertions = (code: string): number => [...code.matchAll(ASSERTIONS_G)].length;
+
+/** The body of the test declared at `start` in `code`: by indentation in Python, else its call parens. */
+function testBody(code: string, start: number, python: boolean, declaration: string): string {
+  let end = code.length;
+  if (python) {
+    const indent = /^\s*/.exec(declaration.slice(1))![0].length;
+    const nextLine = code.indexOf('\n', start);
+    const rest = code.slice(nextLine + 1);
+    for (const match of rest.matchAll(/^( *)(\S)/gm)) if (match[1]!.length <= indent) { end = nextLine + 1 + match.index!; break; }
+  } else {
+    const open = code.indexOf('(', start);
+    if (open >= 0) { const close = closingDelimiter(code, open, '(', ')'); if (close >= 0) end = close + 1; }
+  }
+  return code.slice(start, end);
+}
+
+/**
+ * Tests this diff adds to each test file, by title, with how many assertions each body carries.
+ * A test deleted from one file and added under the same title in another moved; it was not
+ * dropped. Found on real commits ("move utility functions and their tests"), where the move was
+ * reported as five deletions.
+ */
+function addedTestsByTitle(files: ParsedFile[], ctx: Context): Map<string, Array<{ file: ParsedFile; assertions: number }>> {
+  const added = new Map<string, Array<{ file: ParsedFile; assertions: number }>>();
+  for (const file of files) {
+    const to = file.to ?? '';
+    if (!to || file.deleted || !ctx.isTestFile(to)) continue;
+    const python = to.endsWith('.py');
+    for (const chunk of file.chunks) {
+      const after = sourceView(chunk, 'after', python);
+      for (const change of chunk.changes) {
+        if (change.type !== 'add') continue;
+        const js = JS_TS_ADD.test(change.content);
+        if (!js && !PY_ADD.test(change.content)) continue;
+        const title = js ? extractTestName(change.content)
+          : change.content.replace(/^\+\s*(?:async\s+)?def /, '').replace(/\s*\(.*/, '');
+        const start = after.offsetAtLine(change.ln);
+        const assertions = start === undefined ? 0 : countAssertions(testBody(after.code, start, python, change.content));
+        added.set(title, [...(added.get(title) ?? []), { file, assertions }]);
+      }
+    }
+  }
+  return added;
+}
+
 function run(context: Context): Finding[] {
   const files = context.files;
   const ctx = context;
   const findings: Finding[] = [];
   const claimedMoves = new Set<ParsedFile>();
+  // Built on first use: most diffs delete no test, and those never pay for the scan.
+  let addedCache: ReturnType<typeof addedTestsByTitle> | undefined;
+  const addedTests = (): ReturnType<typeof addedTestsByTitle> => (addedCache ??= addedTestsByTitle(files, ctx));
 
   for (const file of files) {
     const from = file.from ?? '';
@@ -281,18 +331,12 @@ function run(context: Context): Finding[] {
         const before = sourceView(chunk,'before',from.endsWith('.py'));
         const start = before.offsetAtLine(change.ln);
         if (start !== undefined) {
-          let end = before.code.length;
-          if (from.endsWith('.py')) {
-            const indent = /^\s*/.exec(change.content.slice(1))![0].length;
-            const nextLine = before.code.indexOf('\n',start);
-            const rest = before.code.slice(nextLine + 1);
-            const boundary = /^( *)(\S)/gm;
-            for (const match of rest.matchAll(boundary)) if (match[1]!.length <= indent) { end = nextLine + 1 + match.index!; break; }
-          } else {
-            const open = before.code.indexOf('(',start);
-            if (open >= 0) { const close = closingDelimiter(before.code,open,'(',')'); if (close >= 0) end = close + 1; }
-          }
-          if (removedFeature(ctx,from,before.code.slice(start,end))) continue;
+          const body = testBody(before.code, start, from.endsWith('.py'), change.content);
+          if (removedFeature(ctx,from,body)) continue;
+          // The same test added to another test file, still checking at least as much, moved.
+          const moved = title === undefined ? undefined : addedTests().get(title)
+            ?.find(entry => entry.file !== file && entry.assertions >= countAssertions(body));
+          if (moved) continue;
         }
         if (JS_TS_DEL.test(change.content)) {
           const name = extractTestName(change.content);

@@ -386,21 +386,21 @@ families.
 | | Catches |
 |---|---|
 | RH001 | A test deleted or renamed away |
-| RH002 | An assertion weakened into a vaguer one |
-| RH003 | A test skipped, disabled, or commented out |
+| RH002 | An assertion weakened into a vaguer one, inverted to exclude the value it pinned (`==` to `!=`, `assertEqual` to `assertNotEqual`, `assert_eq!` to `assert_ne!`), reduced to a type check, or widened to a set of accepted values |
+| RH003 | A test skipped, disabled, or commented out, skipped only on CI, marked as an expected failure (`#[should_panic]`, `@Test(expected = ...)`), or compiled out (`#if 0`, `#[cfg(any())]`) |
 | RH004 | An implementation hardcoded to match a fixture |
 | RH005 | A function body replaced with a stub |
 | RH006 | A snapshot rewritten with no reason given |
 | RH007 | A test excluded via a config change |
-| RH008 | An assertion that always passes |
+| RH008 | An assertion that always passes, including `assert (cond, "msg")`, `or True`, and a matcher never called (`expect(x).toBe;`) |
 | RH009 | A trivial test swapped in for a real one |
 | RH010 | An async test detached, or timeouts/retries used to mask a failure |
 | RH011 | Type and lint errors silenced instead of fixed |
 | RH012 | A test step removed from CI, or neutered so failures stop counting |
 | RH013 | A coverage threshold lowered or removed |
 | RH014 | A surviving test changed to exercise fewer generated, looped, or table-driven cases |
-| RH015 | An assertion wrapped in an empty catch, placed after an added early return, or behind a condition that is never true, or the assertion function itself stubbed out (a matcher redefined to always pass, `assert.strictEqual` or `assertEqual` replaced with a no-op), so it cannot fail |
-| RH016 | Test harness code that forces a successful exit status (`session.exitstatus = 0`, `os._exit`, `process.exit(0)` in a hook) |
+| RH015 | An assertion that cannot fail: wrapped in an empty catch, placed after an added early return, behind a condition that is never true or false on CI, wrapped so the test expects it to fail, or the assertion function itself stubbed out (a matcher redefined to always pass, `assert.strictEqual` or `assertEqual` replaced with a no-op) |
+| RH016 | Test harness code that forces success: the exit status (`session.exitstatus = 0`, `os._exit`, `process.exit(0)` in a hook, Jest `testFailureExitCode: 0`) or each test's result (`report.outcome = "passed"`, `force_result` in a per-test hook) |
 
 **WI1xx checks "the work is done."** These look for incomplete or disabled behavior in source,
 config, and tests, including discarded errors, removed validation, and altered expected values.

@@ -171,6 +171,23 @@ function isCommandLine(text: string): boolean {
  * dropping the fallback strengthens the pipeline instead of removing the suite. `&&` chains
  * stay exact: every segment is a suite of its own, and losing one is a real removal.
  */
+/**
+ * The test runner a command line invokes (`tox`, `pnpm test`, `go test`), normalized. A removed
+ * command whose runner is still invoked by an added command line changed its arguments; it did
+ * not stop the suite. Found on a real commit (flask: `tox run -e ${{ matrix.tox || ... }}` became
+ * `tox run`), which was reported as a removed suite.
+ */
+function testRunner(content: string): string | undefined {
+  const text = stripDiffPrefix(content);
+  if (!isCommandLine(text)) return undefined;
+  // Only a single invocation. A chain runs several suites (`npm test && npm run test:e2e`), and
+  // dropping one of them is a removal even while the runner itself still appears. A GitHub
+  // expression (`${{ a || b }}`) is a value, not a second command.
+  const commands = text.replace(/\$\{\{[\s\S]*?\}\}/g, 'EXPR').split(/&&|\|\||;/);
+  if (commands.filter(part => TEST_COMMAND_RE.test(part)).length !== 1) return undefined;
+  return TEST_COMMAND_RE.exec(text)?.[0].replace(/\s+/g, ' ').toLowerCase();
+}
+
 function baseCommandKey(content: string): string {
   return commandKey(content).split('||')[0]!.trim();
 }
@@ -249,6 +266,7 @@ function run(context: Context): Finding[] {
     // from `script:` to `run:`) is not a removal. Collect every test command the change adds, so
     // a deleted one that reappears anywhere in the same file is recognized as a move.
     const addedCommands = new Set<string>();
+    const addedRunners = new Set<string>();
     for (const chunk of file.chunks) {
       const addedChunkText = chunk.changes.filter(change => change.type === 'add').map(change => diffBody(change.content)).join('\n');
       if (PATHS_IGNORE_RE.test(addedChunkText) && SOURCE_TRIGGER_GLOB_RE.test(addedChunkText)) {
@@ -265,6 +283,8 @@ function run(context: Context): Finding[] {
         if (TEST_COMMAND_RE.test(change.content)) {
           addedCommands.add(commandKey(change.content));
           addedCommands.add(baseCommandKey(change.content));
+          const runner = testRunner(change.content);
+          if (runner) addedRunners.add(runner);
         }
       }
     }
@@ -331,6 +351,18 @@ function run(context: Context): Finding[] {
             if (!TEST_COMMAND_RE.test(stripped)) continue;
             if (!isCommandLine(stripped)) continue;
             if (addedCommands.has(commandKey(change.content)) || addedCommands.has(baseCommandKey(change.content))) continue;
+            const runner = testRunner(change.content);
+            if (runner && addedRunners.has(runner)) {
+              findings.push({
+                verifierId: 'RH012',
+                severity: 'warn',
+                file: filePath,
+                line: change.ln,
+                message: `Test command '${stripped.slice(0, 80)}' changed in ${path.basename(filePath)}; '${runner}' still runs, but with different arguments. Check that it still covers every suite the old command did.`,
+                suggestion: 'Keep the arguments that select suites or environments, or say in the change why the new invocation covers the same ground.',
+              });
+              continue;
+            }
             findings.push({
               verifierId: 'RH012',
               severity: 'error',

@@ -44,7 +44,7 @@ blocking is unchanged (11 by defaults, 28 with all checks); one more commit gets
 unexplained `# type: ignore` added to a line it did not edit. The checks were written against
 held-out misses, so these are development numbers; see docs/BENCHMARKS.md.
 
-- RH004 reports the one-line special-case branch in Go, Rust, Swift and Kotlin, which write
+- RH004 reports the one-line special-case branch in Go, Rust and Swift, which write
   `if id == "acct-742" { return 6500 }` without the parentheses its pattern needed; Rust may compare
   a byte string and return `Ok(255)`. Both literals must be distinctive, so a base case
   (`if n == 0 { return 1 }`) or a sentinel on an empty string stays quiet, and vendored trees are

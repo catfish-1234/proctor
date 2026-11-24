@@ -145,7 +145,7 @@ const TYPEOF_GUARD_RE = /\btypeof\s+[\w.[\]'"]+\s*[!=]==?\s*['"](?:string|number
 const COMMENT_LINE_RE = /^\+?\s*(?:\/\/|\/\*|\*|#|--|;)/;
 
 /**
- * Signal 2 in the languages that write a condition without parentheses: Go, Rust, Swift, Kotlin.
+ * Signal 2 in the languages that write a condition without parentheses: Go, Rust and Swift.
  * `if id == "acct-742" { return 6500 }` and `if raw.as_bytes() == b"ff" { return Ok(255); }` are
  * the same special case as JS's `if (id === 'acct-742') return 6500;`, which signal 2 has always
  * reported, but its pattern needs the parenthesis, so none of them ever matched. A Rust byte string
@@ -707,12 +707,14 @@ async function run(context: Context): Promise<Finding[]> {
         });
       }
 
-      // Signal 2 without parentheses (Go, Rust, Swift, Kotlin). Both literals have to be
-      // distinctive, so a base case or a sentinel check is not reported.
+      // Signal 2 without parentheses, in the languages whose syntax that is: Go, Rust and Swift.
+      // Scoped by extension, so prose quoting such a line (a changelog, a README) is not read as
+      // code. Both literals have to be distinctive, so a base case or a sentinel is not reported.
       // A vendored copy of someone else's package is nobody's claim of work here (RH011 skips the
       // same trees).
-      const vendored = /(?:^|\/)(?:node_modules|vendor|third_party)\//.test(filePath.replace(/\\/g, '/'));
-      for (const add of vendored ? [] : adds) {
+      const unparenthesised = /\.(?:go|rs|swift)$/.test(filePath)
+        && !/(?:^|\/)(?:node_modules|vendor|third_party)\//.test(filePath.replace(/\\/g, '/'));
+      for (const add of unparenthesised ? adds : []) {
         if (isCommentLine(add.content)) continue;
         const text = add.content.slice(1);
         const single = BRACE_BRANCH_LITERAL_RE.exec(text);

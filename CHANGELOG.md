@@ -60,7 +60,12 @@ held-out misses, so these are development numbers; see docs/BENCHMARKS.md.
 - RH002 reports RSpec `eq` weakened to `include` or to a type-only matcher (`be_a`, `be_kind_of`,
   `be_instance_of`) or `be_present`, and Minitest `assert_equal` weakened to `assert_includes`.
 
-Together: the held-out defaults go from 49 to 55 of 72 and all checks from 56 to 62, with the same
+- WI103 (all checks) reports a validating parse replaced by a type assertion of the same value:
+  `return orderSchema.parse(raw)` becoming `return raw as Order` (or `<Order>raw`), for zod, yup,
+  valibot, io-ts, superstruct and pydantic call shapes. The rest of the line must be unchanged, so
+  validation moved into a helper, a different value cast, or a rewritten line stays quiet.
+
+Together: the held-out defaults go from 49 to 55 of 72 and all checks from 56 to 63, with the same
 benign cases flagged; the 700 human commits are unchanged.
 
 ### Changed

@@ -332,7 +332,7 @@ export const RULE_METADATA: Record<string, RuleMeta> = {
     name: 'ValidationRemoved',
     shortDescription: 'Guard clause or contract enforcement deleted from shipped code',
     fullDescription:
-      'Detects validation deleted from non-test code: a thrown error or raised exception, an assertion, a panic, a Go error return, or a precondition helper such as require/checkNotNull. ' +
+      'Detects validation deleted from non-test code: a thrown error or raised exception, an assertion, a panic, a Go error return, or a precondition helper such as require/checkNotNull; and a validating parse replaced by a type assertion of the same value (`schema.parse(raw)` becoming `raw as Order`, or `<Order>raw`) with the rest of the line unchanged. ' +
       'A guard clause is a test that runs in production, so deleting one to make a failing case pass is the same move as deleting a unit test, minus the record that it happened. Silence is bought ' +
       'cheaply on purpose: if the same change adds any line mentioning validation, verification, a schema, or a throw anywhere in that file, the guard is treated as having moved rather than gone, ' +
       'because a false positive here lands on somebody extracting a validator, which is exactly the work this check should never discourage.',

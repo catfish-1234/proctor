@@ -50,6 +50,18 @@ const EXTRACTED_VALIDATOR_RE =
   /\b(?:validate|validation|verify|ensure|check|guard|require|precondition|sanitiz|invariant)\w*\s*[({.]|\bschema\b|\bzod\b|\bpydantic\b/i;
 
 /**
+ * A schema or validator applied to one value: zod/yup/valibot `schema.parse(raw)`, `.safeParse`,
+ * `.validate`/`.validateSync`, io-ts `.decode`, superstruct `.assert`/`.create`, pydantic
+ * `Model.model_validate(raw)`/`parse_obj`. The receiver has to be a name (the schema), and the
+ * argument a single identifier (the value), which is what the cast that replaces it then names.
+ */
+const SCHEMA_CALL_RE =
+  /\b[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\.(?:parse|safeParse|parseAsync|validate|validateSync|decode|assert|create|model_validate|parse_obj)\(\s*([A-Za-z_$][\w$]*)\s*\)/;
+/** The value then cast instead: `raw as Order`, or the older `<Order>raw`. */
+const CAST_RE = /\b([A-Za-z_$][\w$]*)\s+as\s+[A-Z][\w$.<>[\]]*/;
+const ANGLE_CAST_RE = /<[A-Z][\w$.<>[\]]*>\s*([A-Za-z_$][\w$]*)\b/;
+
+/**
  * A guard rewritten in place.
  *
  * Scoped to the chunk, not the file, and that distinction is the whole point. A throw added in the
@@ -220,6 +232,35 @@ function run(context: Context): Finding[] {
           message: 'Control flow bypassed: an unconditional return was added before a surviving statement in the same scope, so the code below can no longer run.',
           suggestion:
             'Remove the early return and fix the branch it bypasses. If the lower branch is genuinely obsolete, remove it deliberately in a separate, reviewable change rather than leaving dead code behind.',
+        });
+      }
+    }
+
+    // A validating parse replaced by a bare type assertion of the same value:
+    // `return orderSchema.parse(raw)` becoming `return raw as Order`. The type still says Order, so
+    // nothing downstream notices, but nothing checks it is one any more. The rest of the line has to
+    // be unchanged, which is what separates this from a decoder rewritten some other way.
+    for (const chunk of file.chunks) {
+      const removed = deletedLines(chunk);
+      for (const line of addedLines(chunk)) {
+        if (isCommentLine(line.text)) continue;
+        const cast = CAST_RE.exec(line.text) ?? ANGLE_CAST_RE.exec(line.text);
+        if (!cast) continue;
+        const castKey = (line.text.slice(0, cast.index) + '@' + line.text.slice(cast.index + cast[0].length)).replace(/\s+/g, '');
+        const prior = removed.find(d => {
+          const call = SCHEMA_CALL_RE.exec(d.text);
+          if (!call || call[1] !== cast[1]) return false;
+          return (d.text.slice(0, call.index) + '@' + d.text.slice(call.index + call[0].length)).replace(/\s+/g, '') === castKey;
+        });
+        if (!prior) continue;
+        findings.push({
+          verifierId: 'WI103',
+          severity: 'error',
+          file: filePath,
+          line: line.line,
+          message: `Validation removed: \`${SCHEMA_CALL_RE.exec(prior.text)![0]}\` was replaced by a type assertion, so ${cast[1]} is trusted to have the type without being checked.`,
+          suggestion:
+            'Put the validating call back. A cast tells the compiler what the value is; it does not make it so, and the input this used to reject now flows on as if it had been checked.',
         });
       }
     }

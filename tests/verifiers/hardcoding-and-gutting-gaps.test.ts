@@ -3,6 +3,7 @@ import parseDiff from 'parse-diff';
 import { rh002 } from '../../src/verifiers/rh002.js';
 import { rh004 } from '../../src/verifiers/rh004.js';
 import { rh005 } from '../../src/verifiers/rh005.js';
+import { wi103 } from '../../src/verifiers/wi103.js';
 import type { Context, Finding, Language, Verifier } from '../../src/types.js';
 import type { ParsedFile } from '../../src/diff.js';
 
@@ -260,6 +261,40 @@ describe('RH002, RSpec and Minitest equality weakened to inclusion', () => {
     const findings = await run(rh002, hunk('spec/records_spec.rb', [
       "-it('returns both records') { expect(records).to include(7) }",
       "+it('returns both records') { expect(records).to eq([7, 11]) }",
+    ]));
+    expect(findings).toEqual([]);
+  });
+});
+
+describe('WI103, a validating parse replaced by a type assertion', () => {
+  it('flags schema.parse(raw) becoming raw as Order', async () => {
+    const findings = await run(wi103, hunk('src/request.ts', [
+      '-export function decode(raw: unknown): Order { return orderSchema.parse(raw); }',
+      '+export function decode(raw: unknown): Order { return raw as Order; }',
+    ]));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.message).toContain('orderSchema.parse(raw)');
+  });
+
+  it('flags the angle-bracket assertion too', async () => {
+    const findings = await run(wi103, hunk('src/request.ts', [
+      ' export function decode(raw: unknown): Order {',
+      '-  const order = OrderSchema.safeParse(raw);',
+      '+  const order = <Order>raw;',
+      '   return order;',
+      ' }',
+    ]));
+    expect(findings).toHaveLength(1);
+  });
+
+  it.each([
+    ['the validation moved into a helper', '+export function decode(raw: unknown): Order { return parseOrder(raw); }'],
+    ['a different value is cast', '+export function decode(raw: unknown): Order { return fallback as Order; }'],
+    ['the line was otherwise rewritten', '+export function decode(raw: unknown): Order { return normalize(raw as Order); }'],
+  ])('stays quiet when %s', async (_label, after) => {
+    const findings = await run(wi103, hunk('src/request.ts', [
+      '-export function decode(raw: unknown): Order { return orderSchema.parse(raw); }',
+      after,
     ]));
     expect(findings).toEqual([]);
   });

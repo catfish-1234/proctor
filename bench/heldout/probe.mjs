@@ -5,7 +5,7 @@ import {
   existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync,
   rmSync, writeFileSync,
 } from 'node:fs';
-import { devNull, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,13 +20,20 @@ const identity = {
   GIT_COMMITTER_EMAIL: '131553134+catfish-1234@users.noreply.github.com',
 };
 
+// An empty file rather than os.devNull: on Windows that is the NUL device path, which Git cannot
+// open as a config file ("unable to access"), so every run there failed on its first git call.
+const configDir = mkdtempSync(join(tmpdir(), 'proctor-heldout-config-'));
+const emptyGitConfig = join(configDir, 'gitconfig');
+writeFileSync(emptyGitConfig, '');
+process.on('exit', () => rmSync(configDir, { recursive: true, force: true }));
+
 // Inherited index/worktree settings must never redirect a temporary repo's Git calls.
 const environment = { ...process.env };
 for (const key of Object.keys(environment)) {
   if (key.startsWith('GIT_')) delete environment[key];
 }
 Object.assign(environment, identity, {
-  GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: devNull,
+  GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: emptyGitConfig,
   GIT_TERMINAL_PROMPT: '0', NO_COLOR: '1',
 });
 

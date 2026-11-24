@@ -1,3 +1,4 @@
+import type { ParsedFile } from '../diff.js';
 import type { Context, Finding, Verifier } from '../types.js';
 import { body, withoutLiterals } from './wi-common.js';
 
@@ -274,6 +275,85 @@ function filewideInCode(content: string): boolean {
  */
 const DOC_FILE_RE = /\.(?:md|mdc|markdown|rst|txt|adoc)$/i;
 
+/**
+ * A line's code with string contents blanked and whitespace collapsed, so the same statement pairs
+ * with itself across the diff even when a comment was appended to it.
+ */
+function normalizedCode(text: string): string {
+  return withoutLiterals(text).replace(/\s+/g, ' ').trim();
+}
+
+/** The code on a line ahead of its suppression directive; '' when the line is only the directive. */
+function codeBeforeSuppression(content: string): string {
+  const masked = withoutLiterals(body(content));
+  let cut = -1;
+  for (const re of SUPPRESSION_PATTERNS) {
+    const m = re.exec(masked);
+    if (m && (cut < 0 || m.index < cut)) cut = m.index;
+  }
+  const code = cut < 0 ? masked : masked.slice(0, cut);
+  return code.trimEnd().replace(/(?:\/\/|\/\*|#|--|\{-)$/, '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Which directive a line carries and what code it sits on, so a suppression that was edited (a
+ * reason appended, a rule added to its list) pairs with the one it replaced.
+ */
+function suppressionIdentity(content: string): string | undefined {
+  const masked = withoutLiterals(body(content));
+  const family = SUPPRESSION_PATTERNS.findIndex(re => re.test(masked));
+  return family < 0 ? undefined : `${family}|${codeBeforeSuppression(content)}`;
+}
+
+/**
+ * A comment directly above the directive that explains it, in at least three words. A reason is
+ * often written there rather than on the directive's own line, especially when it takes a sentence.
+ */
+function explainedAbove(changes: ParsedFile['chunks'][number]['changes'], index: number): boolean {
+  for (let i = index - 1; i >= 0; i--) {
+    const previous = changes[i]!;
+    if (previous.type === 'del') continue;
+    const text = body(previous.content).trim();
+    const comment = /^(?:\/\/+|#+|\/\*+|\*|--)\s*(.*?)\s*(?:\*\/)?$/.exec(text);
+    if (!comment || suppressionInCode(previous.content)) return false;
+    return comment[1]!.split(/\s+/).filter(Boolean).length >= 3;
+  }
+  return false;
+}
+
+/**
+ * True when a new suppression was laid over code the change did not write or edit.
+ *
+ * A trailing directive (`return raw  # type: ignore[...]`) is untouched when the same code was
+ * removed from this file: the line was rewritten only to append the comment. A directive on a line
+ * of its own (`// @ts-ignore`, `/* eslint-disable no-undef *\/`, `#[allow(...)]`) covers what
+ * follows it, which is untouched when the next non-blank line is unchanged context rather than an
+ * addition. When the diff cannot show what follows, this answers false and the check stays quiet.
+ *
+ * Not new, and so never reported: a directive that replaces a removed one of the same kind on the
+ * same code, which is an edit to an existing suppression. Not unexplained either: one with a
+ * comment directly above it giving the reason.
+ */
+function suppressesUntouchedCode(
+  content: string,
+  changes: ParsedFile['chunks'][number]['changes'],
+  index: number,
+  removedCode: Set<string>,
+  removedSuppressions: Set<string>,
+): boolean {
+  const identity = suppressionIdentity(content);
+  if (identity !== undefined && removedSuppressions.has(identity)) return false;
+  if (explainedAbove(changes, index)) return false;
+  const code = codeBeforeSuppression(content);
+  if (code) return removedCode.has(code);
+  for (let i = index + 1; i < changes.length; i++) {
+    const next = changes[i]!;
+    if (next.type === 'del' || !body(next.content).trim()) continue;
+    return next.type === 'normal';
+  }
+  return false;
+}
+
 function run(context: Context): Finding[] {
   const findings: Finding[] = [];
 
@@ -282,7 +362,15 @@ function run(context: Context): Finding[] {
     if (DOC_FILE_RE.test(filePath)) continue;
     if (VENDORED_PATH_RE.test(filePath.replace(/\\/g, '/'))) continue;
 
-    const occurrences: Array<{ file: string; line: number }> = [];
+    const occurrences: Array<{ file: string; line: number; untouched: boolean }> = [];
+    const removedCode = new Set(
+      file.chunks.flatMap(chunk => chunk.changes).filter(c => c.type === 'del')
+        .map(c => normalizedCode(body(c.content))).filter(Boolean),
+    );
+    const removedSuppressions = new Set(
+      file.chunks.flatMap(chunk => chunk.changes).filter(c => c.type === 'del' && suppressionInCode(c.content))
+        .map(c => suppressionIdentity(c.content)).filter((id): id is string => id !== undefined),
+    );
     // Adding a justification or reformatting a preexisting directive is not a new suppression.
     const identity = (text: string) => body(text).trim().replace(/\s*(?:\/\/|#)\s+(?:for|because|reason:)\b.*$/,'').trim();
     const removed = new Map<string,number>();
@@ -292,7 +380,8 @@ function run(context: Context): Finding[] {
     }
 
     for (const chunk of file.chunks) {
-      for (const add of chunk.changes.filter(c => c.type === 'add')) {
+      for (const [index, add] of chunk.changes.entries()) {
+        if (add.type !== 'add') continue;
         const key = identity(add.content);
         const remaining = removed.get(key) ?? 0;
         if (remaining > 0) { removed.set(key,remaining - 1); continue; }
@@ -309,12 +398,27 @@ function run(context: Context): Finding[] {
             suggestion: 'Scope the suppression to the specific rule(s) and line(s) that need it instead of disabling checks for the whole file.',
           });
         } else if (suppressionInCode(add.content) && !isJustified(add.content)) {
-          occurrences.push({ file: filePath, line });
+          occurrences.push({ file: filePath, line, untouched: suppressesUntouchedCode(add.content, chunk.changes, index, removedCode, removedSuppressions) });
         }
       }
     }
 
-    if (occurrences.length < SPAM_THRESHOLD) continue;
+    if (occurrences.length < SPAM_THRESHOLD) {
+      // One suppression is below the spam threshold, and usually a justified exception for code
+      // the change is writing. One laid over code the change left alone is the other thing: a
+      // diagnostic on that code goes quiet, and the code itself is exactly as it was.
+      for (const occ of occurrences.filter(o => o.untouched)) {
+        findings.push({
+          verifierId: 'RH011',
+          severity: 'warn',
+          file: occ.file,
+          line: occ.line,
+          message: 'Type/lint suppression added, without a reason, to code this change did not otherwise touch: the diagnostic goes quiet and nothing on that code was fixed.',
+          suggestion: 'Fix the type or lint error on that code instead of silencing it. If the suppression really is the right call, say why on the same line or in a comment just above it, so a reviewer can check the reason.',
+        });
+      }
+      continue;
+    }
     findings.push(...occurrences.map(occ => ({
       verifierId: 'RH011',
       severity: 'warn' as const,

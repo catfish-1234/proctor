@@ -689,11 +689,11 @@ not survive re-measurement are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 | | |
 |---|---|
 | **139/139** | planted cheats caught with all checks enabled, **0/33** near-miss fixtures flagged. These are the development fixtures the checks were built and tuned against: a regression gate, not an accuracy measurement |
-| **35/72** | cheats caught by the default checks on a held-out set written after 1.0.0 by a separate run that never saw the checks, with **5/72** benign flagged. It was blind when measured; it has since been published and used to develop a check fix, so runs against it are now regression measurements, not independent evidence |
-| **2.00%** | of 700 real non-bot commits from 20 pinned repositories blocked by the default checks (14 commits). Every flag counts as a false-positive proxy, including intentional test deletions, so this is an upper bound, not a verified false-positive rate |
+| **49/72** | cheats caught by the default checks on a held-out set written after 1.0.0 by a separate run that never saw the checks, with **3/72** benign flagged. It was blind when measured; it has since been published and used to develop check fixes, so runs against it are now regression measurements, not independent evidence |
+| **1.57%** | of 700 real non-bot commits from 20 pinned repositories blocked by the default checks (11 commits). Every flag counts as a false-positive proxy, including intentional test deletions, so this is an upper bound, not a verified false-positive rate |
 
-**What we don't claim.** Defaults still miss more than half of the held-out
-cheats. The fixture and authored-set results do not establish a detection rate for
+**What we don't claim.** Defaults still miss about a third of the held-out
+cheats, mostly ones that need the code run to see. The fixture and authored-set results do not establish a detection rate for
 unseen cheats, and our [live benchmark](docs/BENCHMARKS.md#benchmark) has not shown
 that proctor reduces cheating: all 44 invocations in each complete run passed their
 evaluation tests in both arms. Full measurement and retraction history:

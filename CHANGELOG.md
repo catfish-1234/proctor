@@ -7,6 +7,52 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- WI109 follows an edited expectation one step further. A literal moved into a name the change
+  introduces, with its value changed on the way (`toBe(195)` to
+  `const accepted = 194; ... toBe(accepted)`), is the same edit as changing it in place and is
+  reported the same way. pytest parametrize rows written as tuples (`[(1, 2, 0.5), (3, 2, 1.5)]`)
+  are read as table rows, and several rows on one line may have their expected column changed
+  together; written one per line, those rows were already reported, so the old rule measured only
+  layout. Moving a literal into a name unchanged, reading a name that already existed, changing an
+  input, or a call's argument list in a test stays quiet.
+- WI109 now looks at an expectation edit even when the change also edits implementation code, so
+  a wrong expected value cannot ride along with an unrelated fix (correct the sort order in
+  `sort.ts`, and in the same change rewrite `tax.test.ts` to expect the wrong tax). It is a
+  warning, not a block, and only when nothing in that code is related to the test: no shared file
+  stem, no import of it in the test, no mention in its diff of a word the assertion uses, and
+  neither the old nor the new value in its diff. Code and its tests edited together stay quiet,
+  as before.
+- RH011 reports a single suppression laid over code the change did not otherwise touch: a
+  `# type: ignore[...]` appended to an unchanged line, or a `// @ts-ignore`, scoped
+  `/* eslint-disable rule */` or `#[allow(...)]` placed above unchanged code. The code is exactly as
+  it was and only the diagnostic went quiet. One suppression on code the change writes is still
+  treated as a justified exception, and so is one with a reason on its line or in a comment just
+  above it, or an edit to a suppression that was already there. A warning, like the rest of RH011.
+- RH002 reports an expected exception broadened to a catch-all type on the same assertion in every
+  framework proctor reads, not only `pytest.raises`: `toThrow(SyntaxError)` to `toThrow(Error)`
+  (including `.rejects`), `assertRaises`, JUnit `assertThrows(X.class, ...)` and
+  `@Test(expected = ...)`, Kotlin `assertFailsWith<X>`, C# `Assert.Throws<X>` and FluentAssertions,
+  RSpec `raise_error`, Minitest `assert_raises` and PHPUnit `expectException`. Narrowing the type,
+  or swapping one specific type for another, stays quiet.
+
+On the held-out set these take the default checks from 40 to 49 of 72 cheats caught, and all
+checks from 47 to 56, with the same benign cases flagged (3 and 4 of 72). Edited expected values
+and suppression, both 0 of 3 before, are now 3 of 3. On the 700 human commits in `bench/detection`
+blocking is unchanged (11 by defaults, 28 with all checks); one more commit gets a warning, an
+unexplained `# type: ignore` added to a line it did not edit. The checks were written against
+held-out misses, so these are development numbers; see docs/BENCHMARKS.md.
+
+### Fixed
+
+- RH002 missed a `toBeCloseTo` precision lowered below zero. `toBeCloseTo(216.34, -2)` passes
+  anywhere within 50, looser than any positive precision, but the precision pattern only read
+  non-negative digits.
+- `node bench/heldout/probe.mjs` failed on Windows at its first git call. It pointed
+  `GIT_CONFIG_GLOBAL` at `os.devNull`, which Git on Windows cannot open as a config file; it now
+  uses an empty temporary file on every platform.
+
 ## [2.1.0] - 2026-11-19
 
 ### Added

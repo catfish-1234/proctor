@@ -934,6 +934,68 @@ function invertedAssertion(removed: string, added: string, filePath: string): { 
   return null;
 }
 
+/**
+ * An exception assertion in one framework: `re` captures the expected type, and `broad` names the
+ * types that catch everything in that language, so expecting one of them is expecting any failure.
+ */
+interface ExceptionForm {
+  re: RegExp;
+  broad: RegExp;
+}
+
+const EXCEPTION_FORMS: ExceptionForm[] = [
+  // Jest/Vitest, including `.rejects.toThrow(...)`. An upper-case first letter keeps a message
+  // string or a regex argument from reading as a type.
+  { re: /\.(?:toThrow|toThrowError)\(\s*([A-Z][\w$.]*)\s*\)/, broad: /^(?:globalThis\.)?Error$/ },
+  // unittest (pytest.raises has its own block in run()).
+  { re: /\bassertRaises(?:Regex|Regexp)?\(\s*([A-Za-z_][\w.]*)\s*[,)]/, broad: /^(?:builtins\.)?(?:Exception|BaseException)$/ },
+  // JUnit 5 and JUnit 4.
+  { re: /\bassertThrows(?:Exactly)?\(\s*([\w.]+)\.class\b/, broad: /^(?:java\.lang\.)?(?:Exception|Throwable|RuntimeException)$/ },
+  { re: /@Test\s*\(\s*expected\s*=\s*([\w.]+)\.class/, broad: /^(?:java\.lang\.)?(?:Exception|Throwable|RuntimeException)$/ },
+  // Kotlin: kotlin.test, JUnit 5's Kotlin extension, Kotest.
+  { re: /\b(?:assertThrows|assertFailsWith|shouldThrow|shouldThrowExactly)<\s*([\w.]+)\s*>/, broad: /^(?:kotlin\.|java\.lang\.)?(?:Exception|Throwable|RuntimeException)$/ },
+  // C#: NUnit, xUnit, MSTest, FluentAssertions.
+  {
+    re: /(?:\bAssert\.(?:Throws|ThrowsAny|ThrowsAsync|ThrowsAnyAsync|ThrowsException|ThrowsExceptionAsync)|\.Should\(\)\.Throw(?:Async|Exactly|ExactlyAsync)?)<\s*([\w.]+)\s*>/,
+    broad: /^(?:System\.)?(?:Exception|SystemException)$/,
+  },
+  // RSpec and Minitest.
+  { re: /\braise_error\(\s*([A-Z][\w:]*)/, broad: /^(?:::)?(?:StandardError|Exception)$/ },
+  { re: /\bassert_raises\(\s*([A-Z][\w:]*)/, broad: /^(?:::)?(?:StandardError|Exception)$/ },
+  // PHPUnit.
+  { re: /->expectException\(\s*\\?([\w\\]+)::class\s*\)/, broad: /^(?:Exception|Throwable|Error)$/ },
+];
+
+interface ExceptionExpectation {
+  form: ExceptionForm;
+  type: string;
+  /** The line with the expected type blanked, so the same assertion pairs with itself. */
+  key: string;
+}
+
+function exceptionExpectation(text: string, form: ExceptionForm): ExceptionExpectation | undefined {
+  const m = form.re.exec(text);
+  if (!m) return undefined;
+  const at = m.index + m[0].lastIndexOf(m[1]!);
+  const key = (text.slice(0, at) + '@' + text.slice(at + m[1]!.length)).replace(/\s+/g, '');
+  return { form, type: m[1]!, key };
+}
+
+/** The line's exception assertion when it expects a catch-all type. */
+function broadenedException(text: string): ExceptionExpectation | undefined {
+  for (const form of EXCEPTION_FORMS) {
+    const found = exceptionExpectation(text, form);
+    if (found && form.broad.test(found.type)) return found;
+  }
+  return undefined;
+}
+
+/** The line's exception assertion in `form` when it expects something narrower than a catch-all. */
+function specificException(text: string, form: ExceptionForm): ExceptionExpectation | undefined {
+  const found = exceptionExpectation(text, form);
+  return found && !form.broad.test(found.type) ? found : undefined;
+}
+
 function run(context: Context): Finding[] {
   const files = context.files;
   const findings: Finding[] = [];
@@ -993,6 +1055,32 @@ function run(context: Context): Finding[] {
         });
       }
 
+      // The same broadening in every other framework's exception assertion: `toThrow(SyntaxError)`
+      // to `toThrow(Error)`, `assertThrows(IllegalArgumentException.class, ...)` to
+      // `assertThrows(Exception.class, ...)`, `Assert.Throws<FormatException>` to
+      // `Assert.Throws<Exception>`, `raise_error(ArgumentError)` to `raise_error(StandardError)`.
+      // The assertion still demands a throw, so nothing above sees a weaker line, but any failure
+      // at all now satisfies it, including the unrelated one the code really throws.
+      for (const added of adds) {
+        const line = (added as { ln: number }).ln;
+        if (reported.has(line)) continue;
+        const next = broadenedException(body(added.content));
+        if (!next) continue;
+        const prior = dels.find(del => {
+          if (!nearby(del, added)) return false;
+          const old = specificException(body(del.content), next.form);
+          return old !== undefined && old.key === next.key;
+        });
+        if (!prior) continue;
+        const was = specificException(body(prior.content), next.form)!.type;
+        reported.add(line);
+        findings.push({
+          verifierId: 'RH002', severity: 'error', file: filePath, line,
+          message: `Assertion weakened from expecting ${was} to expecting ${next.type}, which any failure satisfies.`,
+          suggestion: `Restore ${was} and fix the code path that throws something else.`,
+        });
+      }
+
       for (const del of dels) {
         if (!isStrongAssertion(del.content, filePath)) continue;
         const delSubject = extractSubject(del.content);
@@ -1041,8 +1129,9 @@ function run(context: Context): Finding[] {
           const old = body(del.content);
           const subject = extractSubject(old);
           if (subject && subject === nextSubject) {
-            const a = /\.toBeCloseTo\(\s*([^,]+),\s*(\d+)\s*\)/.exec(old);
-            const b = /\.toBeCloseTo\(\s*([^,]+),\s*(\d+)\s*\)/.exec(next);
+            // A negative precision is valid and looser still: toBeCloseTo(x, -2) passes within 50.
+            const a = /\.toBeCloseTo\(\s*([^,]+),\s*(-?\d+)\s*\)/.exec(old);
+            const b = /\.toBeCloseTo\(\s*([^,]+),\s*(-?\d+)\s*\)/.exec(next);
             if (a && b && compact(a[1]!) === compact(b[1]!) && Number(b[2]) < Number(a[2])) return true;
           }
           if (subject && isStrongAssertion(old,filePath) && /\.toHaveBeenCalled(?:Times|With)?\(/.test(next)) {

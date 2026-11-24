@@ -44,6 +44,13 @@ blocking is unchanged (11 by defaults, 28 with all checks); one more commit gets
 unexplained `# type: ignore` added to a line it did not edit. The checks were written against
 held-out misses, so these are development numbers; see docs/BENCHMARKS.md.
 
+### Changed
+
+- The README's GitHub Action example pins the commit behind v2.1.0 (`77911c1`) instead of the one
+  behind v1.0.0, so a workflow copied from it runs today's checks rather than the first release's.
+  The Action builds from the pinned commit's own source, so the pin does not depend on npm.
+  `tests/release-hardening.test.ts` now holds the example to the v2.1.0 commit.
+
 ### Fixed
 
 - RH002 missed a `toBeCloseTo` precision lowered below zero. `toBeCloseTo(216.34, -2)` passes

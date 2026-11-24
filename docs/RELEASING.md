@@ -79,7 +79,7 @@ Two rules for it:
   so pinned consumers are not upgraded into a breaking change by a tag move.
 
 Pinning to a full commit SHA (`catfish-1234/proctor@93ba04a...`) is also supported and is the
-immutable option: a tag move cannot change the code a consumer runs. The README example pins the commit behind `v1.0.0`; `tests/release-hardening.test.ts` holds it to a full SHA.
+immutable option: a tag move cannot change the code a consumer runs. The README example pins the commit behind `v2.1.0`; `tests/release-hardening.test.ts` holds it to a full SHA.
 
 ## npm authentication, one time only
 

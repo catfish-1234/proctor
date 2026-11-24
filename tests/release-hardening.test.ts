@@ -45,12 +45,12 @@ describe('release and supply-chain hardening', () => {
     expect(thirdParty.every(match => /^[0-9a-f]{40}$/.test(match[2]!))).toBe(true);
   });
 
-  it("pins the README workflow to the commit behind the v1.0.0 release", () => {
-    expect(readmeCiSection).toMatch(/uses:\s+catfish-1234\/proctor@[0-9a-f]{40}\s+# v1\.0\.0/);
+  it("pins the README workflow to the commit behind the v2.1.0 release", () => {
+    expect(readmeCiSection).toMatch(/uses:\s+catfish-1234\/proctor@[0-9a-f]{40}\s+# v2\.1\.0/);
   });
 
   it("tells the reader that a full SHA is immutable", () => {
     expect(readmeCiSection).toMatch(/full commit SHA is immutable/i);
-    expect(readmeCiSection).toContain("`v1.0.0` tag");
+    expect(readmeCiSection).toContain("`v2.1.0` tag");
   });
 });

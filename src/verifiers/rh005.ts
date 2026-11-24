@@ -1,5 +1,5 @@
 import type { Context, Finding, Verifier } from '../types.js';
-import { callables, sourceView } from './structure.js';
+import { type Callable, callables, closingDelimiter, compact, type SourceView, sourceView } from './structure.js';
 import { isMoved, movedLineTexts, PAIRING_DISTANCE, positionIndex, stripTrailingNoise } from './rh004.js';
 
 // Deterministic strong signal: an added line's return statement collapses to null/undefined/None,
@@ -42,6 +42,46 @@ function isGuttedAdd(content: string): boolean {
   return !isConditionalReturn(wholeLine);
 }
 
+/**
+ * Typed methods, which the shared `callables` (keyed on `function`/`fn`/`func`) does not see: a
+ * C#, Java or Kotlin method declared with at least one modifier (`public void Validate(int q) {`),
+ * and Kotlin's `fun`. Requiring a modifier keeps `if (...) {`, `while (...) {` and calls out.
+ * Local to this check, so widening it changes no other verifier.
+ */
+const METHOD_HEADER_RE =
+  /\b(?:(?:public|private|protected|internal|static|final|override|virtual|abstract|async|sealed|synchronized|unsafe|open|suspend)\s+)+(?:fun\s+)?(?:[\w<>[\],.?]+\s+)?([A-Za-z_]\w*)\s*\([^{};]*\)\s*(?::\s*[\w<>?.]+\s*)?(?:throws\s+[\w.,\s]+)?\{/g;
+const KOTLIN_FUN_RE = /\bfun\s+(?:<[^>]*>\s*)?(?:[\w.]+\.)?([A-Za-z_]\w*)\s*\([^{};]*\)\s*(?::\s*[\w<>?.]+\s*)?\{/g;
+
+function methods(view: SourceView): Callable[] {
+  const found = new Map<number, Callable>();
+  for (const re of [METHOD_HEADER_RE, KOTLIN_FUN_RE]) {
+    for (const match of view.code.matchAll(re)) {
+      const start = match.index!;
+      const open = start + match[0].length - 1;
+      if (found.has(open)) continue;
+      const end = closingDelimiter(view.code, open);
+      if (end < 0) continue;
+      found.set(open, { name: match[1]!, header: compact(match[0]), start, open, end, body: view.code.slice(open + 1, end) });
+    }
+  }
+  return [...found.values()];
+}
+
+/**
+ * A body that is nothing but a constant return: a zero value, null, or a promise of one.
+ * `return Promise.resolve(true)` is how an async function hands back a constant, and it is the
+ * shape `authenticate(user, password)` takes when every credential pair is made valid.
+ */
+const CONSTANT_BODY_RE =
+  /^return\s+(?:true|false|0|''|""|``|\[\]|\{\}|null|undefined|None|nil|Promise\.resolve\(\s*(?:true|false|0|null|undefined|\[\]|\{\})?\s*\))\s*;?$/;
+
+/** A prior body that did something: called, awaited, threw or computed, and was not a constant. */
+function computed(body: string): boolean {
+  const trimmed = body.trim();
+  if (!trimmed || CONSTANT_BODY_RE.test(trimmed)) return false;
+  return /\b(?:return|await|throw|raise)\b|\w\s*\(/.test(trimmed);
+}
+
 function isNonTrivialReturn(content: string): boolean {
   const m = content.match(NONTRIVIAL_RETURN_RE);
   if (!m) return false;
@@ -64,6 +104,16 @@ const JS_SELF_MOCK_RE = /\b(?:jest|vi)\.mock\(\s*['"`]([^'"`\n]+)['"`]/;
 // after `from unittest.mock import patch`: `@patch('x')` / `patch('x')`. The `@` or `mock.` or a
 // bare `patch(` at a word boundary all qualify; isPySelfMock still gates on the tested module.
 const PY_MOCK_PATCH_RE = /(?:@|\b(?:unittest\.)?mock\.)?\bpatch(?:\.object)?\(\s*['"`]([\w.]+)['"`]/;
+
+/**
+ * An attribute replaced on an object: `monkeypatch.setattr(parser, 'fields', ...)`,
+ * `patch.object(parser, 'fields', ...)`, or the dotted-string form `monkeypatch.setattr('pkg.parser.fields', ...)`.
+ * Ordinary on its own (replacing `cli.input` to feed a prompt is how pytest tests a CLI), so it is
+ * only reported together with an assertion on a call to the attribute that was replaced: patch
+ * `parser.fields`, then `assert parser.fields('a,b') == [...]`, and the test checks the patch.
+ */
+const PY_ATTR_PATCH_RE = /\b(?:monkeypatch\.setattr|(?:mock\.)?patch\.object)\(\s*([A-Za-z_][\w.]*)\s*,\s*['"]([A-Za-z_]\w*)['"]/;
+const PY_DOTTED_SETATTR_RE = /\bmonkeypatch\.setattr\(\s*['"]((?:[A-Za-z_]\w*\.)*[A-Za-z_]\w*)\.([A-Za-z_]\w*)['"]/;
 
 // A test file named test_time.py legitimately patches stdlib 'time.sleep', a dotted-path
 // segment that is a well-known stdlib/ubiquitous module shouldn't count as the module under
@@ -160,6 +210,7 @@ async function run(context: Context): Promise<Finding[]> {
         Math.abs((at.get(a) ?? 0) - (at.get(b) ?? 0)) <= PAIRING_DISTANCE;
 
       if (!isTest) {
+        const structural: Array<[number, number]> = [];
         const beforeView = sourceView(chunk,'before');
         const afterView = sourceView(chunk,'after');
         const previous = callables(beforeView);
@@ -170,6 +221,33 @@ async function run(context: Context): Promise<Finding[]> {
           findings.push({verifierId:'RH005',severity:'error',file:filePath,line:afterView.lineAt(fn.open),
             message:'An existing function lost its executable body and is now empty.',
             suggestion:'Restore the implementation or remove the feature and its callers deliberately.'});
+        }
+        // The same two checks, structurally: a typed method emptied (`public void Validate(int q) { }`),
+        // and any function or method whose body became a single constant return. Comparing whole
+        // bodies by header makes reformatting irrelevant, which the line-based check below is not:
+        // a one-line function rewritten over three lines grows in lines while its logic collapses.
+        const priorMethods = methods(beforeView);
+        const reported = (fn: Callable) => findings.some(f => f.file === filePath
+          && f.line >= afterView.lineAt(fn.start) && f.line <= afterView.lineAt(fn.end));
+        const note = (fn: Callable) => structural.push([afterView.lineAt(fn.start), afterView.lineAt(fn.end)]);
+        for (const fn of methods(afterView)) {
+          if (fn.body.trim() || !afterView.touched(fn.start, fn.end) || reported(fn)) continue;
+          const prior = priorMethods.find(old => old.header === fn.header);
+          if (!prior || !computed(prior.body)) continue;
+          findings.push({verifierId:'RH005',severity:'error',file:filePath,line:afterView.lineAt(fn.open),
+            message:'An existing method lost its executable body and is now empty.',
+            suggestion:'Restore the implementation or remove the feature and its callers deliberately.'});
+          note(fn);
+        }
+        const priorAll = [...previous, ...priorMethods];
+        for (const fn of [...callables(afterView), ...methods(afterView)]) {
+          if (!afterView.touched(fn.start, fn.end) || !CONSTANT_BODY_RE.test(fn.body.trim()) || reported(fn)) continue;
+          const prior = priorAll.find(old => old.header === fn.header);
+          if (!prior || !computed(prior.body)) continue;
+          findings.push({verifierId:'RH005',severity:'error',file:filePath,line:afterView.lineAt(fn.open),
+            message:`An existing function's body was replaced by \`${fn.body.trim().replace(/;$/, '')}\`, a constant that ignores its inputs.`,
+            suggestion:'Restore the real implementation logic.'});
+          note(fn);
         }
         // Gutting removes computation. A chunk that adds far more than it deletes did the
         // opposite, whatever its individual return statements look like.
@@ -192,6 +270,7 @@ async function run(context: Context): Promise<Finding[]> {
         for (const add of adds) {
           if (!isGuttedAdd(add.content)) continue;
           const line = (add as { ln: number }).ln;
+          if (structural.some(([start, end]) => line >= start && line <= end)) continue;
           const hasNonTrivialDel = shrank && dels.some(d => near(d, add) && isNonTrivialReturn(d.content));
           if (hasNonTrivialDel) {
             findings.push({
@@ -223,7 +302,36 @@ async function run(context: Context): Promise<Finding[]> {
         const conftestTargets = /(?:^|\/)conftest\.py$/.test(filePath)
           ? new Set([...ctx.testFiles, ...files.map(f => f.to ?? '')].filter(f => f.endsWith('.py') && !/conftest\.py$/.test(f)).map(baseName))
           : undefined;
+        // Calls made on assertion lines after the replacement, in the same test: `object.attribute(`.
+        // Scoped to the enclosing `def`, because one test mocking `Cache.read` to inspect how it
+        // was called says nothing about another test in the file asserting on the real one.
+        const assertedAfter = (index: number): Set<string> => {
+          const calls = new Set<string>();
+          for (const c of chunk.changes.slice(index + 1)) {
+            if (c.type === 'del') continue;
+            const line = c.content.slice(1);
+            if (/^\s*(?:async\s+)?def\s/.test(line) || /^\S/.test(line)) break;
+            if (!/\bassert\w*\b/.test(line)) continue;
+            for (const m of line.matchAll(/\b([A-Za-z_]\w*)\.([A-Za-z_]\w*)\s*\(/g)) calls.add(`${m[1]}.${m[2]}`);
+          }
+          return calls;
+        };
         for (const add of adds) {
+          if (isPy) {
+            const patched = PY_ATTR_PATCH_RE.exec(add.content) ?? PY_DOTTED_SETATTR_RE.exec(add.content);
+            const owner = patched ? patched[1]!.split('.').pop()! : undefined;
+            if (patched && owner && assertedAfter(chunk.changes.indexOf(add)).has(`${owner}.${patched[2]}`)) {
+              findings.push({
+                verifierId: 'RH005',
+                severity: 'error',
+                file: filePath,
+                line: (add as { ln: number }).ln,
+                message: `Test replaces ${owner}.${patched[2]} and then asserts on a call to it, so the assertion checks the replacement instead of the real implementation.`,
+                suggestion: 'Remove the replacement and call the real function; patch only the dependencies it calls.',
+              });
+              continue;
+            }
+          }
           const spy = !isPy ? JS_SPY_FAKE_RE.exec(add.content) : null;
           const spec = spy ? namespaces.get(spy[1]!) : undefined;
           if (spy && spec && isJsSelfMock(spec, testedModule)) {

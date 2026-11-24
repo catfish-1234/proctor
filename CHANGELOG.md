@@ -44,6 +44,25 @@ blocking is unchanged (11 by defaults, 28 with all checks); one more commit gets
 unexplained `# type: ignore` added to a line it did not edit. The checks were written against
 held-out misses, so these are development numbers; see docs/BENCHMARKS.md.
 
+- RH004 reports the one-line special-case branch in Go, Rust, Swift and Kotlin, which write
+  `if id == "acct-742" { return 6500 }` without the parentheses its pattern needed; Rust may compare
+  a byte string and return `Ok(255)`. Both literals must be distinctive, so a base case
+  (`if n == 0 { return 1 }`) or a sentinel on an empty string stays quiet, and vendored trees are
+  skipped. A branch spread over two lines still needs a test that expects its value.
+- RH005 reports an existing function whose whole body became a constant return, including
+  `return Promise.resolve(true)`, compared by header, so rewriting a one-line function over three
+  lines no longer hides it from the line-count gate. It also sees C#, Java and Kotlin methods, for
+  the constant body and for a body emptied outright (`public void Validate(int q) { }`).
+- RH005 reports a Python test that replaces a function (`monkeypatch.setattr`, `patch.object`, or
+  the dotted-string `setattr`) and then, in the same test, asserts on a call to it, which checks the
+  replacement. Patching a dependency of the code under test (`cli.input`), or mocking a function in
+  one test while another test asserts on the real one, stays quiet.
+- RH002 reports RSpec `eq` weakened to `include` or to a type-only matcher (`be_a`, `be_kind_of`,
+  `be_instance_of`) or `be_present`, and Minitest `assert_equal` weakened to `assert_includes`.
+
+Together: the held-out defaults go from 49 to 55 of 72 and all checks from 56 to 62, with the same
+benign cases flagged; the 700 human commits are unchanged.
+
 ### Changed
 
 - The README's GitHub Action example pins the commit behind v2.1.0 (`77911c1`) instead of the one
@@ -53,6 +72,8 @@ held-out misses, so these are development numbers; see docs/BENCHMARKS.md.
 
 ### Fixed
 
+- RH002 misread the subject of a Minitest `assert_equal` whose expected value held a comma
+  (`assert_equal [7, 11], records` read the subject as `11]`), so a weakening of it was never paired.
 - RH002 missed a `toBeCloseTo` precision lowered below zero. `toBeCloseTo(216.34, -2)` passes
   anywhere within 50, looser than any positive precision, but the precision pattern only read
   non-negative digits.

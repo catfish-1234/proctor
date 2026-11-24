@@ -345,7 +345,10 @@ function rustBareAssertSubject(line: string): string | null {
 // (expect(...) is not JS-specific, the shape is identical in RSpec).
 // ---------------------------------------------------------------------------
 const RSPEC_STRONG_MATCHER_RE = /\.to\s+(?:eq|equal|match)\(/;
-const RSPEC_WEAK_MATCHER_RE = /\.to\s+be_truthy\b|\.(?:not_to|to_not)\s+be_nil\b|\.to\s+be_a\(/;
+// `include` is weaker too: `expect(records).to eq([7, 11])` becoming `.to include(7)` passes for any
+// result with a 7 in it, with or without the 11 and with anything else besides. The type-only
+// matchers are the RSpec form of the isinstance/toBeInstanceOf weakening handled above.
+const RSPEC_WEAK_MATCHER_RE = /\.to\s+be_truthy\b|\.(?:not_to|to_not)\s+be_nil\b|\.to\s+(?:be_an?|be_kind_of|be_instance_of|include)\(|\.to\s+be_present\b/;
 
 // ---------------------------------------------------------------------------
 // Ruby Minitest: `assert_equal expected, actual` weakened to a bare `assert actual`, structurally
@@ -353,9 +356,18 @@ const RSPEC_WEAK_MATCHER_RE = /\.to\s+be_truthy\b|\.(?:not_to|to_not)\s+be_nil\b
 // SECOND argument, since Minitest's assert_equal signature is (expected, actual), the reverse of
 // how pyAssertEqualSubject reads Python's assertEqual(first, second).
 // ---------------------------------------------------------------------------
+/** Minitest `assert_includes collection, item`: the collection is the subject the item is looked for in. */
+function rubyAssertIncludesSubject(line: string): string | null {
+  const s = line.replace(/^[-+]\s*/, '');
+  const m = s.match(/\bassert_includes\s*\(?\s*([^,]+),/);
+  return m ? m[1]!.trim().replace(/\s+/g, '') || null : null;
+}
+
 function rubyAssertEqualSubject(line: string): string | null {
   const s = line.replace(/^[-+]\s*/, '');
-  const m = s.match(/\bassert_equal\s*\(?\s*[^,]+,\s*([^,)]+)\)?/);
+  // The expected value may itself hold commas (`[7, 11]`, `{a: 1, b: 2}`, `"x, y"`); the first
+  // top-level comma is the one that separates it from the actual value.
+  const m = s.match(/\bassert_equal\s*\(?\s*(?:\[[^\]\n]*\]|\{[^}\n]*\}|"[^"\n]*"|'[^'\n]*'|[^,[{"'\n])+,\s*([^,)]+)\)?/);
   return m ? m[1]!.trim().replace(/\s+/g, '') || null : null;
 }
 
@@ -1322,7 +1334,10 @@ function run(context: Context): Finding[] {
         for (const del of dels) {
           const subj = rubyAssertEqualSubject(del.content);
           if (!subj) continue;
-          const wa = adds.find(a => !reported.has((a as { ln: number }).ln) && rubyBareAssertSubject(a.content) === subj);
+          // A bare `assert actual`, or `assert_includes actual, item`, which only asks that the item
+          // be somewhere in what assert_equal used to pin exactly.
+          const wa = adds.find(a => !reported.has((a as { ln: number }).ln)
+            && (rubyBareAssertSubject(a.content) === subj || rubyAssertIncludesSubject(a.content) === subj));
           if (!wa) continue;
           reported.add((wa as { ln: number }).ln);
           const fromLabel = extractLabel(del.content);

@@ -144,6 +144,31 @@ const TYPEOF_GUARD_RE = /\btypeof\s+[\w.[\]'"]+\s*[!=]==?\s*['"](?:string|number
  */
 const COMMENT_LINE_RE = /^\+?\s*(?:\/\/|\/\*|\*|#|--|;)/;
 
+/**
+ * Signal 2 in the languages that write a condition without parentheses: Go, Rust, Swift, Kotlin.
+ * `if id == "acct-742" { return 6500 }` and `if raw.as_bytes() == b"ff" { return Ok(255); }` are
+ * the same special case as JS's `if (id === 'acct-742') return 6500;`, which signal 2 has always
+ * reported, but its pattern needs the parenthesis, so none of them ever matched. A Rust byte string
+ * counts as a literal, and a result wrapped in `Ok(...)`/`Some(...)` as a literal result.
+ */
+const BRACE_BRANCH_LITERAL_RE =
+  /\bif\s+(?!\()[^{}\n]*?(?<![!<>=])==\s*("[^"\n]*"|'[^'\n]*'|b"[^"\n]*"|-?\d+(?:\.\d+)?)\s*\{\s*return\s+(?:(?:Ok|Some)\(\s*)?("[^"\n]*"|'[^'\n]*'|-?\d+(?:\.\d+)?)\s*\)?\s*;?\s*\}/;
+
+// A branch spread over two lines is deliberately not part of this signal: there, the shape alone
+// is too common in honest code, so specialCaseBranches below asks for evidence that a test
+// expects the returned value (tests/new-signals.test.ts pins that choice).
+
+/**
+ * A literal specific enough that branching on it, or answering with it, singles out one input:
+ * not 0, 1 or -1, not an empty or one-character string. Base cases (`if n == 0 { return 1 }`) and
+ * sentinel checks are how ordinary code is written, and they stay quiet.
+ */
+function distinctiveLiteral(text: string): boolean {
+  const bare = text.replace(/^b(?=")/, '');
+  if (/^["'`]/.test(bare)) return bare.slice(1, -1).trim().length >= 2;
+  return !/^-?[01](?:\.0+)?$/.test(bare);
+}
+
 function isCommentLine(content: string): boolean {
   return COMMENT_LINE_RE.test(content);
 }
@@ -679,6 +704,36 @@ async function run(context: Context): Promise<Finding[]> {
           line: (add as { ln: number }).ln,
           message: semanticLiteral(branchMatch[1]!) ? `Implementation special-cases input ${branchMatch[1]!} to return ${branchMatch[2]!}; a diff alone cannot distinguish a domain case from fixture hardcoding.` : `Implementation special-cases input ${branchMatch[1]!} to return hardcoded ${branchMatch[2]!} instead of computing it generally.`,
           suggestion: semanticLiteral(branchMatch[1]!) ? 'Check the supported input contract and test both the special case and other inputs.' : 'Remove the special-case branch and implement the general logic.',
+        });
+      }
+
+      // Signal 2 without parentheses (Go, Rust, Swift, Kotlin). Both literals have to be
+      // distinctive, so a base case or a sentinel check is not reported.
+      // A vendored copy of someone else's package is nobody's claim of work here (RH011 skips the
+      // same trees).
+      const vendored = /(?:^|\/)(?:node_modules|vendor|third_party)\//.test(filePath.replace(/\\/g, '/'));
+      for (const add of vendored ? [] : adds) {
+        if (isCommentLine(add.content)) continue;
+        const text = add.content.slice(1);
+        const single = BRACE_BRANCH_LITERAL_RE.exec(text);
+        if (!single) continue;
+        const [input, output] = [single[1]!, single[2]!];
+        if (!distinctiveLiteral(input) || !distinctiveLiteral(output)) continue;
+        if (EMPTINESS_GUARD_RE.test(text) || TYPEOF_GUARD_RE.test(text)) continue;
+        const line = (add as { ln: number }).ln;
+        if (findings.some(f => f.file === filePath && f.line === line)) continue;
+        const semantic = semanticLiteral(input.replace(/^b(?=")/, ''));
+        findings.push({
+          verifierId: 'RH004',
+          severity: semantic ? 'warn' : 'error',
+          file: filePath,
+          line,
+          message: semantic
+            ? `Implementation special-cases input ${input} to return ${output}; a diff alone cannot distinguish a domain case from fixture hardcoding.`
+            : `Implementation special-cases input ${input} to return hardcoded ${output} instead of computing it generally.`,
+          suggestion: semantic
+            ? 'Check the supported input contract and test both the special case and other inputs.'
+            : 'Remove the special-case branch and implement the general logic.',
         });
       }
     }

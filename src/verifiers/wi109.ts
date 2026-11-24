@@ -70,7 +70,23 @@ function expectedIdentifier(text: string): string | undefined {
   return undefined;
 }
 
-const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const IDENTIFIER_RE = /[A-Za-z_$][\w$]*/g;
+
+/**
+ * The line as it would read with the binding of `name` written back inline: the binding
+ * statement removed and each use of the name replaced by its literal. Built from fixed patterns
+ * and plain string work, so no expression is ever compiled from the code under review.
+ */
+function inlineBinding(text: string, name: string, bound: string): string {
+  let out = text;
+  for (const m of text.matchAll(LITERAL_BINDING_RE)) {
+    if (m[1] !== name || m[2] !== bound) continue;
+    const end = m.index + m[0].length;
+    out = text.slice(0, m.index) + text.slice(text[end] === ';' ? end + 1 : end);
+    break;
+  }
+  return out.replace(IDENTIFIER_RE, word => (word === name ? bound : word));
+}
 
 /**
  * The file's stem with its test affixes removed, so `tax.test.ts`, `test_tax.py`, `tax_test.go`
@@ -220,7 +236,10 @@ const TABLE_RUNNER_RE =
  * A Python tuple, `(1, 2, 0.5)`, as opposed to a call's argument list, `ratio(1, 2)`: what precedes
  * the parenthesis is not part of a name, a call result or a subscript.
  */
-const PY_TUPLE_SOURCE = String.raw`(?<![\w$\])'"\x60])\(([^()[\]]+)\)`;
+const PY_TUPLE_RE = /(?<![\w$\])'"`])\(([^()[\]]+)\)/;
+
+/** Row groups on a Python line, innermost only: a list, a tuple (as above) or a dict. */
+const PY_ROW_GROUP_RE = /\[([^[\]()]+)\]|(?<![\w$\])'"`])\(([^()[\]]+)\)|\{([^{}]+)\}/g;
 
 /** True when a line is table data rather than executable test logic: literals inside a collection. */
 function isDataRow(text: string, python = false): boolean {
@@ -228,7 +247,7 @@ function isDataRow(text: string, python = false): boolean {
   // An executable call statement (`program.parse(['a', 'b'])`) carries literals but is not a table row.
   if (/^\s*[A-Za-z_$][\w$.]*\s*\(/.test(stripped) && !TABLE_RUNNER_RE.test(stripped)) return false;
   // pytest.mark.parametrize rows are conventionally tuples, so a tuple is a collection there too.
-  const collection = /[[{]/.test(stripped) || (python && new RegExp(PY_TUPLE_SOURCE).test(stripped));
+  const collection = /[[{]/.test(stripped) || (python && PY_TUPLE_RE.test(stripped));
   if (!collection) return false;
   const literals = stripped.match(/-?\d+(?:\.\d+)?|'[^']*'|"[^"]*"|`[^`]*`|\btrue\b|\bfalse\b|\bTrue\b|\bFalse\b/g);
   return (literals?.length ?? 0) >= 2;
@@ -259,7 +278,7 @@ interface ChangedTableValue {
  */
 function changedTableExpectation(before: string, after: string, python = false): ChangedTableValue | undefined {
   const groupRe = python
-    ? new RegExp(String.raw`\[([^\[\]()]+)\]|` + PY_TUPLE_SOURCE + String.raw`|\{([^{}]+)\}`, 'g')
+    ? PY_ROW_GROUP_RE
     : /\[([^\[\]]+)\]|\{([^{}]+)\}/g;
   const rows = (text: string): string[][] => {
     const stripped = withoutTrailingComment(text);
@@ -314,12 +333,12 @@ function candidatesIn(file: ParsedFile, filePath: string): Candidate[] {
 
   // Names bound to a literal on the new side of the file. Only a binding this change introduces
   // counts as new indirection: an assertion that already read an existing constant is not one.
-  const removedText = file.chunks.flatMap(chunk => deletedLines(chunk).map(line => line.text)).join('\n');
+  const removedWords = new Set(file.chunks.flatMap(chunk => deletedLines(chunk).flatMap(line => line.text.match(IDENTIFIER_RE) ?? [])));
   const addedBindings = new Map<string, string>();
   for (const chunk of file.chunks) {
     for (const line of addedLines(chunk)) {
       for (const m of withoutTrailingComment(line.text).matchAll(LITERAL_BINDING_RE)) {
-        if (!new RegExp(String.raw`\b${escapeRegExp(m[1]!)}\b`).test(removedText)) addedBindings.set(m[1]!, m[2]!);
+        if (!removedWords.has(m[1]!)) addedBindings.set(m[1]!, m[2]!);
       }
     }
   }
@@ -384,9 +403,7 @@ function candidatesIn(file: ParsedFile, filePath: string): Candidate[] {
         const name = expectedIdentifier(added.text);
         const bound = name === undefined ? undefined : addedBindings.get(name);
         if (name === undefined || bound === undefined) continue;
-        const inlined = withoutTrailingComment(added.text)
-          .replace(new RegExp(String.raw`\b(?:const|let|var)\s+${escapeRegExp(name)}\s*=\s*${escapeRegExp(bound)}\s*;?`), '')
-          .replace(new RegExp(String.raw`\b${escapeRegExp(name)}\b`, 'g'), bound);
+        const inlined = inlineBinding(withoutTrailingComment(added.text), name, bound);
         const key = assertionKey(inlined);
         const prior = removed.find(r => r.key === key && r.value !== bound);
         if (!prior) continue;

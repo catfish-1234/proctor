@@ -63,6 +63,21 @@ function bareExpression(text: string): string {
  * literally the same value the test then asserts against (the mock manufactures the answer
  * instead of exercising real behavior).
  */
+/**
+ * A timeout set on one test, as its shape (the line with the number taken out) and milliseconds.
+ * Only forms that are unambiguously a test timeout: the trailing argument that closes an it/test
+ * call, mocha's `this.timeout(n)`, and a `timeout` option on a test declaration line.
+ */
+function perTestTimeout(content: string): { shape: string; ms: number } | undefined {
+  const text = withoutTrailingComment(body(content));
+  const match = /^\s*\}\s*,\s*(\d[\d_]*)\s*\)\s*;?\s*$/.exec(text)
+    ?? /\bthis\.timeout\(\s*(\d[\d_]*)\s*\)/.exec(text)
+    ?? (TEST_DECL_LINE_RE.test(text) ? /\btimeout\s*:\s*(\d[\d_]*)/.exec(text) : null);
+  if (!match) return undefined;
+  const ms = Number(match[1]!.replace(/_/g, ''));
+  return { shape: text.replace(match[1]!, '#').replace(/\s+/g, ''), ms };
+}
+
 function run(context: Context): Finding[] {
   const files = context.files;
   const ctx = context;
@@ -117,6 +132,29 @@ function run(context: Context): Finding[] {
           line: (added as { ln: number }).ln,
           message: 'Await removed from an unchanged test expression, so the test can finish before a rejected promise or asynchronous assertion is observed.',
           suggestion: 'Restore await so the test runner observes completion and rejection. If the task is intentionally detached, explain the independent failure-reporting path.',
+        });
+      }
+    }
+
+    // The same raise on one test: `}, 200);` becoming `}, 120000);` closing an it/test call,
+    // mocha's `this.timeout(200)`, or a `{ timeout: 200 }` option. Paired by shape, so only the
+    // number changed, with the runner-config rule's bar: at least 60s and at least four times over.
+    for (const chunk of file.chunks) {
+      const removed = chunk.changes.filter(c => c.type === 'del').map(c => perTestTimeout(c.content))
+        .filter((t): t is { shape: string; ms: number } => t !== undefined);
+      for (const add of chunk.changes.filter(c => c.type === 'add')) {
+        if (hasExplanation(body(add.content))) continue;
+        const now = perTestTimeout(add.content);
+        if (!now || now.ms < 60_000) continue;
+        const before = removed.find(old => old.shape === now.shape);
+        if (!before || now.ms < before.ms * 4) continue;
+        findings.push({
+          verifierId: 'RH010',
+          severity: 'warn',
+          file: filePath,
+          line: (add as { ln: number }).ln,
+          message: `Test timeout raised from ${before.ms} to ${now.ms} ms, which lets a slow or hanging test pass instead of finding out why it is slow.`,
+          suggestion: 'Find out why the test is slow. If it really needs longer, say why next to the timeout.',
         });
       }
     }

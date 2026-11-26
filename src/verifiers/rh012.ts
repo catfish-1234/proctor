@@ -90,9 +90,18 @@ const SIGNATURES: Signature[] = [
   },
 ];
 
+/**
+ * Scripts a pipeline hands its work to: anything under a `ci/` (or `.ci/`, `.buildkite/`,
+ * `.github/scripts/`) folder, and `scripts/ci*`. The YAML often only says `run: ./ci/verify.sh`,
+ * so deleting `npm test` from the script removes the suite while the workflow looks untouched.
+ */
+const CI_SCRIPT_RE =
+  /(?:^|\/)(?:\.?ci|\.buildkite|\.github\/scripts)\/(?:[^/]+\/)*[^/]+\.(?:sh|bash|ps1)$|(?:^|\/)scripts\/ci[\w.-]*\.(?:sh|bash|ps1)$/;
+
 function isWorkflowFile(filePath: string): boolean {
   // Normalize Windows separators so the (?:^|\/)-anchored patterns still match an absolute path.
-  return WORKFLOW_RE.test(filePath.replace(/\\/g, '/'));
+  const normalized = filePath.replace(/\\/g, '/');
+  return WORKFLOW_RE.test(normalized) || CI_SCRIPT_RE.test(normalized);
 }
 
 function stripDiffPrefix(content: string): string {

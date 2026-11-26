@@ -184,3 +184,40 @@ describe('handlers that only look busy or only look explained (WI101)', () => {
     expect(ids(check(b, a))).not.toContain('WI101');
   });
 });
+
+describe('one test timeout raised several times over (RH010)', () => {
+  const test = (timeout: string) => ({ 'lock.test.ts': `it('releases the lock', async () => {\n  await acquireAndRelease();\n  expect(isLocked()).toBe(false);\n}, ${timeout});\n` });
+
+  it('warns when a per-test timeout argument jumps to minutes', () => {
+    expect(ids(check(test('200'), test('120000')))).toContain('RH010');
+  });
+
+  it('warns on mocha this.timeout raised the same way', () => {
+    const b = { 'q.test.js': "it('drains', function () {\n  this.timeout(2000);\n  return drain();\n});\n" };
+    const a = { 'q.test.js': "it('drains', function () {\n  this.timeout(300000);\n  return drain();\n});\n" };
+    expect(ids(check(b, a))).toContain('RH010');
+  });
+
+  it('leaves a modest raise, and one under a minute', () => {
+    expect(ids(check(test('20000'), test('60000')))).not.toContain('RH010');
+    expect(ids(check(test('2000'), test('30000')))).not.toContain('RH010');
+  });
+});
+
+describe('test step removed from a CI script (RH012)', () => {
+  const script = (lines: string) => ({ 'ci/verify.sh': `#!/bin/sh\nset -eu\nnpm run build\n${lines}npm run package\n` });
+
+  it('blocks deleting the test command from a script under ci/', () => {
+    expect(ids(check(script('npm test\n'), script('')))).toContain('RH012');
+  });
+
+  it('leaves a test command that only gained a status capture', () => {
+    expect(ids(check(script('npm test\n'), script('npm test || status=$?\n')))).not.toContain('RH012');
+  });
+
+  it('leaves an ordinary shell script outside the CI folders', () => {
+    const b = { 'tools/dev.sh': '#!/bin/sh\nnpm test\nnpm start\n' };
+    const a = { 'tools/dev.sh': '#!/bin/sh\nnpm start\n' };
+    expect(ids(check(b, a))).not.toContain('RH012');
+  });
+});

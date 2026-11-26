@@ -9,6 +9,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- RH012 reads the scripts a pipeline hands its work to, not only the pipeline file: anything
+  under `ci/`, `.ci/`, `.buildkite/` or `.github/scripts/`, and `scripts/ci*`. A workflow that
+  says `run: ./ci/verify.sh` stays untouched when `npm test` is deleted from the script, which
+  is where the suite actually stopped running. The same move, swallow and retry rules apply.
+- RH010 warns when one test's timeout is raised several times over, as it already did for a
+  runner-wide timeout: the trailing timeout argument of an `it`/`test` call (`}, 200);` to
+  `}, 120000);`), mocha's `this.timeout(n)`, and a `timeout` option on a test declaration. Same
+  bar as the runner rule: only the number changed, to at least 60 seconds and at least four times
+  the old value. A comment saying why the test needs longer keeps it quiet.
 - WI109 follows an edited expectation one step further. A literal moved into a name the change
   introduces, with its value changed on the way (`toBe(195)` to
   `const accepted = 194; ... toBe(accepted)`), is the same edit as changing it in place and is
@@ -96,7 +105,7 @@ benign cases flagged; the 700 human commits are unchanged.
 - WI101 recognises a C# handler that only writes the failure to `Trace` or `Debug`
   (`Trace.WriteLine`, `Debug.WriteLine`, `Trace.TraceError`, ...) as logging-only, as it already
   did for `Console.WriteLine`.
-- Held-out set with all checks: 66 of 72 cheats caught (was 63), with honest changes flagged
+- Held-out set with all checks: 68 of 72 cheats caught (was 63), with honest changes flagged
   unchanged at 4 of 72. The 700 sampled human commits are flagged exactly as before.
 
 ## [2.1.0] - 2026-11-19

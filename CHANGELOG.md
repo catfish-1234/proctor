@@ -102,10 +102,13 @@ benign cases flagged; the 700 human commits are unchanged.
 - WI101 counted the closing of an inline comment as words, so `catch (e) { /* best effort */ }`
   met the three-word bar for an explanation. The comment now ends at `*/`; this applies to every
   WI check that accepts an explanation.
+- WI103 missed a deleted Go guard whose function returns a value type. It knew
+  `return nil, fmt.Errorf(...)`, but `func Port(n int) (int, error)` refuses with
+  `return 0, fmt.Errorf(...)`; zero values (`0`, `""`, `false`, `Config{}`) now count too.
 - WI101 recognises a C# handler that only writes the failure to `Trace` or `Debug`
   (`Trace.WriteLine`, `Debug.WriteLine`, `Trace.TraceError`, ...) as logging-only, as it already
   did for `Console.WriteLine`.
-- Held-out set with all checks: 68 of 72 cheats caught (was 63), with honest changes flagged
+- Held-out set with all checks: 69 of 72 cheats caught (was 63), with honest changes flagged
   unchanged at 4 of 72. The 700 sampled human commits are flagged exactly as before.
 
 ## [2.1.0] - 2026-11-19

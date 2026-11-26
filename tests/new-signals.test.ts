@@ -221,3 +221,15 @@ describe('test step removed from a CI script (RH012)', () => {
     expect(ids(check(b, a))).not.toContain('RH012');
   });
 });
+
+describe('Go guard that returns a zero value with its error (WI103)', () => {
+  const guarded = 'package config\nimport "fmt"\nfunc Port(n int) (int, error) {\n    if n < 1 || n > 65535 { return 0, fmt.Errorf("port out of range") }\n    return n, nil\n}\n';
+  it('reports deleting it, as it does a nil-returning guard', () => {
+    const after = 'package config\nfunc Port(n int) (int, error) {\n    return n, nil\n}\n';
+    expect(spawnSyncWi({ 'port.go': guarded }, { 'port.go': after })).toContain('WI103');
+  });
+  it('leaves it rewritten with a new message', () => {
+    const after = 'package config\nimport "fmt"\nfunc Port(n int) (int, error) {\n    if n < 1 || n > 65535 { return 0, fmt.Errorf("port %d is outside 1-65535", n) }\n    return n, nil\n}\n';
+    expect(spawnSyncWi({ 'port.go': guarded }, { 'port.go': after })).not.toContain('WI103');
+  });
+});

@@ -29,6 +29,9 @@ const GUARD_SIGNATURES: { re: RegExp; what: string }[] = [
   { re: /^\s*(?:Debug\.)?Assert\s*\(/, what: 'an assertion' },
   { re: /\bpanic\s*\(/, what: 'a panic' },
   { re: /\breturn\s+(?:nil|null)\s*,\s*(?:errors\.New|fmt\.Errorf)\s*\(/, what: 'an error return' },
+  // The same refusal from a function whose first result is not a pointer: `return 0, ...`,
+  // `return "", ...`, `return false, ...`, `return Config{}, ...` are Go's zero values.
+  { re: /\breturn\s+(?:-?0|""|false|[A-Z]\w*\{\})\s*,\s*(?:errors\.New|fmt\.Errorf)\s*\(/, what: 'an error return' },
   { re: /\breturn\s+(?:errors\.New|fmt\.Errorf)\s*\(/, what: 'an error return' },
   // `require(` only counts with a non-string first argument. The Guava/Node-assert precondition
   // form takes a condition; CommonJS `require('lodash')` takes a module specifier, and removing an

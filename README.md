@@ -716,7 +716,8 @@ For command details, configuration, support limits, and contributor instructions
 proctor supports 25+ languages and installs to 30 agents. Five diff-level checks (RH001, RH002,
 RH003, RH007, RH011) have signatures across the language roster. RH004, RH006, RH008, RH009, and
 RH010 have their tested coverage in JS/TS/Python; RH005 also detects emptied Go and Rust bodies.
-RH012 and RH013 read CI and coverage config, so they apply everywhere. Of the
+RH012 and RH013 read CI and coverage config (RH012 also the scripts under `ci/` folders that a
+pipeline calls), so they apply everywhere. Of the
 work-integrity family, WI101, WI102 and WI103 carry per-language signatures, WI104 reads config
 files so it applies everywhere, and WI105 and WI106 are scoped to the languages whose tokens are
 unambiguous. [Full matrix](https://github.com/catfish-1234/proctor/blob/main/docs/LANGUAGES.md).

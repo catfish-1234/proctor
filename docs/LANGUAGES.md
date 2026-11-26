@@ -97,7 +97,9 @@ and gaps above qualify the coverage for each language.
 RH012 is absent from both tables on purpose. It reads CI pipeline definitions, not source, so it
 does not vary by language: `.github/workflows/*.yml`, `.gitlab-ci.yml`, `.circleci/config.yml`,
 `azure-pipelines.yml`, `.travis.yml`, `Jenkinsfile`, and `bitbucket-pipelines.yml` all get the same
-treatment whatever the repository is written in. RH012 catches deleted test steps and changes
+treatment whatever the repository is written in, as do the shell and PowerShell scripts a pipeline
+hands off to under `ci/`, `.ci/`, `.buildkite/`, `.github/scripts/` and `scripts/ci*`, where a
+deleted `npm test` leaves the YAML untouched. RH012 catches deleted test steps and changes
 such as `continue-on-error: true` that let a workflow pass despite test failures.
 
 Everything except a removed test command is scoped to the individual step, not the diff chunk. A

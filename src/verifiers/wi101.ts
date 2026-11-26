@@ -252,7 +252,7 @@ function handlers(view: SourceView, indented: boolean): Handler[] {
 /** Only complete diagnostic statements may be removed from an otherwise empty handler. */
 function discardedHandler(code: string): boolean {
   let rest = code;
-  const logging = /\b(?:(?:console|logger|logging|log|Console|System\.err)\.(?:error|warn|warning|info|debug|trace|log|Print|Printf|Println|WriteLine|println)|error_log)\s*\(/g;
+  const logging = /\b(?:(?:console|logger|logging|log|Console|System\.err)\.(?:error|warn|warning|info|debug|trace|log|Print|Printf|Println|WriteLine|println)|(?:Trace|Debug)\.(?:WriteLine|Write|TraceError|TraceWarning|TraceInformation|Print)|error_log)\s*\(/g;
   const ranges: Array<[number,number]> = [];
   for (const match of rest.matchAll(logging)) {
     const open = match.index! + match[0].lastIndexOf('(');
@@ -262,6 +262,24 @@ function discardedHandler(code: string): boolean {
   }
   for (const [start,end] of ranges.reverse()) rest = rest.slice(0,start) + rest.slice(end);
   return /^(?:\s|;|pass\b)*$/.test(rest);
+}
+
+/** A body that is nothing but a value: what a Ruby rescue evaluates to, and so what it returns. */
+const RUBY_LITERAL_RE = /^(?:nil|true|false|-?\d[\d_]*(?:\.\d+)?|\[\]|\{\}|'[^'\n]*'|"[^"\n]*"|:\w+)$/;
+
+/**
+ * Ruby, where a rescue's last expression is its value. A rescue that only hands back a literal has
+ * been reported since literals are masked: `'system'` masks to nothing, so the handler looks empty.
+ * `nil`, `false`, `0` and `:none` are not quoted, so they were read as statements and a rescue
+ * returning one passed. Read the literal itself so every constant default is treated the same.
+ */
+function rubyDiscarded(handler: Handler): boolean {
+  // An indented handler ends where the next line starts; `raw` runs one character into that line.
+  const [, ...body] = handler.raw.slice(0, handler.end - handler.start).split('\n');
+  const statements = body.map(line => withoutTrailingComment(line).trim())
+    .filter(line => line !== '' && line !== 'end' && !isCommentLine(line));
+  if (statements.length === 1 && RUBY_LITERAL_RE.test(statements[0]!)) return true;
+  return discardedHandler(handler.code);
 }
 
 function structuralSwallows(context: Context): Finding[] {
@@ -274,8 +292,10 @@ function structuralSwallows(context: Context): Finding[] {
       const before = sourceView(chunk,'before',indented);
       const after = sourceView(chunk,'after',indented);
       const prior = handlers(before,indented);
+      const swallows = (handler: Handler): boolean =>
+        path.endsWith('.rb') ? rubyDiscarded(handler) : discardedHandler(handler.code);
       for (const handler of handlers(after,indented)) {
-        if (!after.touched(handler.start,handler.end) || !discardedHandler(handler.code)) continue;
+        if (!after.touched(handler.start,handler.end) || !swallows(handler)) continue;
         if (handler.raw.split('\n').some(hasExplanation)) continue;
         // `except E: pass` followed by `else:` is a control-flow branch of try/except/else.
         if (indented && /^[ \t]*\r?\n?[ \t]*else[ \t]*:/.test(after.text.slice(handler.end))) continue;
@@ -283,7 +303,7 @@ function structuralSwallows(context: Context): Finding[] {
         const retainedOpener = chunk.changes.find(change=>change.type==='normal' && change.ln2===after.lineAt(handler.start));
         const previous = retainedOpener?.type === 'normal'
           ? prior.filter(old=>before.lineAt(old.start)===retainedOpener.ln1) : prior;
-        if (previous.some(old => old.key === handler.key && discardedHandler(old.code))) continue;
+        if (previous.some(old => old.key === handler.key && swallows(old))) continue;
         findings.push({ verifierId:'WI101',severity:'error',file:path,line:after.lineAt(handler.start),
           message:'Error handling was added or changed to suppress a failure instead of propagating it.',
           suggestion:'Return an error, retry, or propagate the failure. Document a specific, deliberate fallback.' });

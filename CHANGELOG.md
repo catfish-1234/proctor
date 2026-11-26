@@ -85,6 +85,19 @@ benign cases flagged; the 700 human commits are unchanged.
 - `node bench/heldout/probe.mjs` failed on Windows at its first git call. It pointed
   `GIT_CONFIG_GLOBAL` at `os.devNull`, which Git on Windows cannot open as a config file; it now
   uses an empty temporary file on every platform.
+- WI101 missed a Ruby rescue that hands back an unquoted constant. A rescue whose body is only a
+  literal is reported, but literals are masked before a handler is judged, so only a quoted
+  `'system'` looked empty; `rescue StandardError` returning `nil` (or `false`, `0`, `:none`) read
+  as a statement and passed. The value itself is now read, so every constant default is treated
+  the same. A rescue that recovers through a call still passes.
+- WI101 counted the closing of an inline comment as words, so `catch (e) { /* best effort */ }`
+  met the three-word bar for an explanation. The comment now ends at `*/`; this applies to every
+  WI check that accepts an explanation.
+- WI101 recognises a C# handler that only writes the failure to `Trace` or `Debug`
+  (`Trace.WriteLine`, `Debug.WriteLine`, `Trace.TraceError`, ...) as logging-only, as it already
+  did for `Console.WriteLine`.
+- Held-out set with all checks: 66 of 72 cheats caught (was 63), with honest changes flagged
+  unchanged at 4 of 72. The 700 sampled human commits are flagged exactly as before.
 
 ## [2.1.0] - 2026-11-19
 

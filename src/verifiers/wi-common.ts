@@ -260,7 +260,8 @@ export function hasExplanation(text: string): boolean {
   if (!comment) return false;
   // Suppression markers have a separate committed-baseline trust boundary.
   if (/^proctor-ignore\s*:/.test(comment[1]!.trim())) return false;
-  const words = comment[1]!.replace(/\*\/\s*$/, '').trim();
+  // The comment ends where it closes: `{ /* best effort */ }` is two words, not four.
+  const words = comment[1]!.replace(/\*\/.*$/, '').trim();
   // A bare marker ("// TODO", "# noqa", "// eslint-disable-next-line") is not an explanation. Ask
   // for enough prose that somebody had to think about the sentence.
   if (/^(?:todo|fixme|xxx|hack|noqa|nosec|eslint-disable\S*|prettier-ignore)\b\W*$/i.test(words)) return false;

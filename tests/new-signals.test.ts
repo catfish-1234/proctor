@@ -146,3 +146,41 @@ function spawnSyncWi(before: Files, after: Files): string[] {
     rmSync(dir, { recursive: true, force: true });
   }
 }
+
+describe('handlers that only look busy or only look explained (WI101)', () => {
+  it('flags a Ruby catch-all rescue whose whole body is nil', () => {
+    const b = { 'store.rb': 'def save(store, value)\n  store.write(value)\nend\n' };
+    const a = { 'store.rb': 'def save(store, value)\n  store.write(value)\nrescue StandardError\n  nil\nend\n' };
+    expect(ids(check(b, a))).toContain('WI101');
+  });
+
+  it('flags an unquoted constant default the way it flags a quoted one', () => {
+    const b = { 'cache.rb': 'def theme(cache)\n  cache.fetch(:theme)\nend\n' };
+    const a = { 'cache.rb': 'def theme(cache)\n  cache.fetch(:theme)\nrescue KeyError\n  :none\nend\n' };
+    expect(ids(check(b, a))).toContain('WI101');
+  });
+
+  it('leaves a Ruby rescue that recovers through a call', () => {
+    const b = { 'cache.rb': 'def theme(cache)\n  cache.fetch(:theme)\nend\n' };
+    const a = { 'cache.rb': 'def theme(cache)\n  cache.fetch(:theme)\nrescue KeyError\n  Defaults.theme\nend\n' };
+    expect(ids(check(b, a))).not.toContain('WI101');
+  });
+
+  it('flags a C# catch that only traces the failure', () => {
+    const b = { 'Store.cs': 'class Store {\n    public bool Save(Action write) { write(); return true; }\n}\n' };
+    const a = { 'Store.cs': 'class Store {\n    public bool Save(Action write) {\n        try { write(); } catch (Exception failure) { Trace.WriteLine(failure); }\n        return true;\n    }\n}\n' };
+    expect(ids(check(b, a))).toContain('WI101');
+  });
+
+  it('does not count the closing of a two-word comment as words of explanation', () => {
+    const b = { 'settings.js': 'export async function save(store, value) { await store.write(value); }\n' };
+    const a = { 'settings.js': 'export async function save(store, value) {\n  try { await store.write(value); } catch (writeFailure) { /* best effort */ }\n}\n' };
+    expect(ids(check(b, a))).toContain('WI101');
+  });
+
+  it('still accepts an inline comment that explains the silence', () => {
+    const b = { 'settings.js': 'export async function save(store, value) { await store.write(value); }\n' };
+    const a = { 'settings.js': 'export async function save(store, value) {\n  try { await store.write(value); } catch (writeFailure) { /* the cache is rebuilt on next start */ }\n}\n' };
+    expect(ids(check(b, a))).not.toContain('WI101');
+  });
+});

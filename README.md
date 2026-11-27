@@ -6,6 +6,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@kavishdua/proctor"><img src="https://img.shields.io/npm/v/@kavishdua/proctor?color=2ea043&label=npm" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/@kavishdua/proctor"><img src="https://img.shields.io/npm/dm/@kavishdua/proctor?color=2ea043" alt="npm downloads"></a>
   <a href="https://github.com/catfish-1234/proctor/actions/workflows/ci.yml"><img src="https://github.com/catfish-1234/proctor/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
   <a href="https://github.com/catfish-1234/proctor/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/@kavishdua/proctor?color=blue" alt="MIT license"></a>
 </p>

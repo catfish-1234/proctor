@@ -83,6 +83,8 @@ benign cases flagged; the 700 human commits are unchanged.
   behind v1.0.0, so a workflow copied from it runs today's checks rather than the first release's.
   The Action builds from the pinned commit's own source, so the pin does not depend on npm.
   `tests/release-hardening.test.ts` now holds the example to the v2.1.0 commit.
+- The README shows the demo recording right under the introduction instead of halfway down the
+  page, and carries a monthly npm downloads badge.
 
 ### Fixed
 

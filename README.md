@@ -20,6 +20,8 @@ The default check runs offline: no account or API key. The optional `--ai` judge
 to Anthropic and needs `ANTHROPIC_API_KEY`. You need Node 22.12 or newer; building from source needs
 Node 22.18+, 24.11+, or 26.
 
+![proctor catching a deleted test from the CLI, then the Claude Code Stop hook blocking the same change](https://raw.githubusercontent.com/catfish-1234/proctor/main/assets/demo.gif)
+
 ## Contents
 
 **Getting started**
@@ -328,10 +330,8 @@ $ echo $?
 With the pre-commit hook installed, this finding blocks the commit until the test is restored
 or the change is approved.
 
-The recording shows the CLI detecting a deleted test, followed by the Claude Code Stop hook
-blocking the same change during an agent session.
-
-![proctor demo](https://raw.githubusercontent.com/catfish-1234/proctor/main/assets/demo.gif)
+The recording at the top of this page shows this finding from the CLI, then the Claude Code Stop
+hook blocking the same change during an agent session.
 
 ## What happens when it blocks
 

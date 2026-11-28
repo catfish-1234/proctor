@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-11-27
+
 ### Added
 
 - RH012 reads the scripts a pipeline hands its work to, not only the pipeline file: anything
